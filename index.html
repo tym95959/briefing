@@ -349,7 +349,7 @@
 <div class="container">
     <div class="header">
         <h1><i class="fas fa-scroll"></i> Briefing Minutes · Point Log</h1>
-       
+        <p>Large briefing area | <strong>Duplicate check based on Briefing Notes content only</strong> | <span class="firebase-badge"><i class="fas fa-database"></i> Live Firebase Sync</span></p>
     </div>
 
     <div class="dashboard">
@@ -418,7 +418,7 @@
             </div>
         </div>
     </div>
-    
+    <footer>✅ <strong>Duplicate Check:</strong> Cannot save the same briefing notes content twice on the same date | All points grouped by date | Page does NOT refresh on save</footer>
 </div>
 
 <script>
@@ -467,6 +467,11 @@
         return today.toISOString().slice(0,10);
     }
     
+    // Normalize text for duplicate comparison (remove extra spaces, trim)
+    function normalizeText(text) {
+        return text.trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+    
     function resetFormToNew(dateValue = null) {
         currentEditId = null;
         formModeBadge.innerHTML = '✨ New Briefing';
@@ -488,19 +493,23 @@
         formFeedback.className = 'status-msg';
     }
     
-    // Check for duplicate before saving - client-side filter to avoid composite index
-    async function checkDuplicate(date, supervisor, shift, excludeId = null) {
+    // Check for duplicate based ONLY on briefing notes/points content (for the same date)
+    async function checkDuplicate(date, pointsText, excludeId = null) {
         if (!firestoreReady) return false;
         try {
-            // Get all entries for this date and filter on client side
+            // Get all entries for this date
             const snapshot = await db.collection("briefingMinutes")
                 .where("date", "==", date)
                 .get();
             
+            const normalizedNewText = normalizeText(pointsText);
+            
             const duplicate = snapshot.docs.find(doc => {
-                const data = doc.data();
                 if (excludeId && doc.id === excludeId) return false;
-                return data.supervisor === supervisor && data.shift === shift;
+                const data = doc.data();
+                const existingText = data.pointsText || '';
+                const normalizedExisting = normalizeText(existingText);
+                return normalizedExisting === normalizedNewText;
             });
             
             return !!duplicate;
@@ -514,7 +523,6 @@
     function updateUIAfterSave(dateVal) {
         const currentViewDate = viewDatePicker.value;
         if (currentViewDate === dateVal) {
-            // Reload just the current view to show updated data
             loadEntriesForViewDate(currentViewDate);
         }
     }
@@ -552,17 +560,17 @@
             return;
         }
         
-        // Check for duplicate
-        const isDuplicate = await checkDuplicate(dateVal, supervisor, shift, currentEditId);
+        // Check for duplicate based on briefing notes content only
+        const isDuplicate = await checkDuplicate(dateVal, pointsTextVal, currentEditId);
         if (isDuplicate && !currentEditId) {
-            formFeedback.innerHTML = `❌ DUPLICATE NOT ALLOWED: ${supervisor} already has a briefing for ${dateVal} (${shift} shift). Please edit existing entry.`;
+            formFeedback.innerHTML = `❌ DUPLICATE NOT ALLOWED: Same briefing notes already exist for ${dateVal}. Please edit existing entry or write different content.`;
             formFeedback.className = 'status-msg warning-msg';
             setTimeout(() => {
                 if(formFeedback.innerHTML.includes('DUPLICATE')) {
                     formFeedback.innerHTML = '';
                     formFeedback.className = 'status-msg';
                 }
-            }, 4000);
+            }, 5000);
             return;
         }
         
@@ -843,14 +851,14 @@
         
         if (firestoreReady) {
             await loadEntriesForViewDate(todayStr);
-            formFeedback.innerHTML = "✅ Firebase ready! No page refresh on save.";
+            formFeedback.innerHTML = "✅ Firebase ready! Duplicate check based on briefing notes content.";
             formFeedback.className = 'status-msg success-msg';
             setTimeout(() => {
                 if(formFeedback.innerHTML.includes('ready')) {
                     formFeedback.innerHTML = '';
                     formFeedback.className = 'status-msg';
                 }
-            }, 3000);
+            }, 4000);
         }
         
         saveBtn.addEventListener('click', saveEntry);
