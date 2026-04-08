@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Task Manager · Staff Acknowledgment & Supervisor Control</title>
+    <title>Task Manager · Multi-Acknowledge & Supervisor Control</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -162,6 +162,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
         }
         .acknowledgments {
             background: #f8fbfe;
@@ -197,14 +198,36 @@
             font-size: 0.7rem;
             font-weight: 600;
         }
-        .staff-select {
-            width: 200px;
-            padding: 8px 12px;
-            border-radius: 28px;
-            border: 1.5px solid #e2eaf2;
-            font-size: 0.85rem;
+        .multi-select {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8fbfe;
+            border-radius: 20px;
         }
-        .acknowledge-btn, .mark-done-btn {
+        .staff-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            padding: 6px 12px;
+            border-radius: 30px;
+            border: 1px solid #e2eaf2;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .staff-checkbox.selected {
+            background: #4caf50;
+            color: white;
+            border-color: #4caf50;
+        }
+        .staff-checkbox input {
+            margin: 0;
+            cursor: pointer;
+        }
+        .acknowledge-multi-btn, .mark-done-btn {
             background: #4caf50;
             color: white;
             border: none;
@@ -216,13 +239,10 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            margin-top: 8px;
         }
         .mark-done-btn {
             background: #ff9800;
-        }
-        .acknowledge-btn:disabled, .mark-done-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
         }
         .info-text {
             font-size: 0.75rem;
@@ -332,6 +352,13 @@
             font-size: 0.7rem;
             margin-top: 8px;
         }
+        .completed-by {
+            background: #e8f5e9;
+            padding: 8px 12px;
+            border-radius: 20px;
+            margin-top: 8px;
+            font-size: 0.75rem;
+        }
         footer {
             text-align: center;
             margin-top: 40px;
@@ -351,8 +378,8 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-clipboard-list"></i> Task Manager · Staff Acknowledgment</h1>
-        <p>Staff: Acknowledge tasks | Supervisor: Select date/shift, mark tasks done with staff name, manage tasks</p>
+        <h1><i class="fas fa-clipboard-list"></i> Task Manager · Multi-Acknowledge</h1>
+        <p>Staff: Select multiple staff to acknowledge | Supervisor: Single staff task completion, manage tasks</p>
     </div>
 
     <div class="role-bar">
@@ -411,7 +438,7 @@
             </div>
         </div>
     </div>
-    <footer>✅ <strong>Staff:</strong> Acknowledge tasks with your name | <strong>Supervisor:</strong> Select date/shift, mark tasks as done with staff name, manage global tasks</footer>
+    <footer>✅ <strong>Multi-Acknowledge:</strong> Staff can select multiple names at once | <strong>Persistent Selection:</strong> Date & Shift saved in browser | Supervisor marks task done with single staff</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -451,8 +478,8 @@
 
     // App State
     let currentRole = "staff";
-    let currentDate = new Date().toISOString().slice(0, 10);
-    let currentShift = "";
+    let currentDate = localStorage.getItem('selectedDate') || new Date().toISOString().slice(0, 10);
+    let currentShift = localStorage.getItem('selectedShift') || "";
     let currentShiftRecord = null;
     let globalTasks = [];
     let staffList = [];
@@ -482,6 +509,12 @@
 
     function getShiftRecordId(date, shift) {
         return `${date}_${shift}`.replace(/\s/g, '_');
+    }
+
+    // Save selection to localStorage
+    function saveSelectionToStorage() {
+        localStorage.setItem('selectedDate', currentDate);
+        localStorage.setItem('selectedShift', currentShift);
     }
 
     // Load global tasks
@@ -576,24 +609,30 @@
         }
     }
 
-    // Staff acknowledges a task
-    async function acknowledgeTask(taskId, taskName, staffName) {
+    // Multi-staff acknowledgment
+    async function acknowledgeMultipleStaff(taskId, taskName, selectedStaffNames) {
         if (!firestoreReady || !currentShiftRecord) return;
         if (currentShiftRecord.status === "closed") {
             alert("Shift is closed. Cannot acknowledge tasks.");
+            return;
+        }
+        if (selectedStaffNames.length === 0) {
+            alert("Please select at least one staff member.");
             return;
         }
         
         const acknowledgments = currentShiftRecord.acknowledgments || {};
         const taskAcks = acknowledgments[taskId] || [];
         
-        if (taskAcks.includes(staffName)) {
-            alert(`⚠️ ${staffName} has already acknowledged "${taskName}" for this shift.`);
+        const newAcks = selectedStaffNames.filter(name => !taskAcks.includes(name));
+        
+        if (newAcks.length === 0) {
+            alert("All selected staff have already acknowledged this task.");
             return;
         }
         
-        taskAcks.push(staffName);
-        acknowledgments[taskId] = taskAcks;
+        const updatedAcks = [...taskAcks, ...newAcks];
+        acknowledgments[taskId] = updatedAcks;
         
         try {
             await db.collection("shiftRecords").doc(currentShiftRecord.id).set({ 
@@ -602,15 +641,15 @@
             }, { merge: true });
             currentShiftRecord.acknowledgments = acknowledgments;
             renderChecklist();
-            checklistInfo.innerHTML = `✅ ${staffName} acknowledged "${taskName}"`;
-            setTimeout(() => renderChecklist(), 1000);
+            checklistInfo.innerHTML = `✅ ${newAcks.join(', ')} acknowledged "${taskName}"`;
+            setTimeout(() => renderChecklist(), 1500);
         } catch (err) {
             console.error(err);
             alert("Error saving acknowledgment");
         }
     }
 
-    // Supervisor marks task as done with staff name
+    // Supervisor marks task as done with single staff
     async function markTaskDone(taskId, taskName) {
         if (!firestoreReady || !currentShiftRecord) return;
         if (currentShiftRecord.status === "closed") {
@@ -618,7 +657,6 @@
             return;
         }
         
-        // Prompt for staff name who completed the task
         const staffName = prompt(`Who completed "${taskName}"?`, staffList[0]?.name || "");
         if (!staffName || !staffName.trim()) {
             adminFeedback.innerText = "Task not marked - staff name required";
@@ -709,7 +747,7 @@
         }
     }
 
-    // Render checklist
+    // Render checklist with multi-select for acknowledgment
     function renderChecklist() {
         if (!currentShiftRecord || !globalTasks.length) {
             if (!currentShiftRecord && currentDate && currentShift) {
@@ -772,22 +810,27 @@
             }
             
             if (currentRole === "staff") {
-                // Staff view - can acknowledge if not done and shift open
+                // Staff view - multi-select acknowledgment
                 let actionHtml = '';
                 if (!isClosed && !isDone) {
+                    // Create checkboxes for multi-select
+                    const checkboxesHtml = staffList.map(staff => `
+                        <label class="staff-checkbox" data-staff="${escapeHtml(staff.name)}">
+                            <input type="checkbox" value="${escapeHtml(staff.name)}" class="staff-chk-${task.id}">
+                            <span>${escapeHtml(staff.name)}</span>
+                        </label>
+                    `).join('');
+                    
                     actionHtml = `
-                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px;">
-                            <select id="staffSelect_${task.id}" class="staff-select">
-                                <option value="">-- Select your name --</option>
-                                ${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}
-                            </select>
-                            <button class="acknowledge-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
-                                <i class="fas fa-check"></i> Acknowledge Task
-                            </button>
+                        <div class="multi-select" id="multiSelect_${task.id}">
+                            ${checkboxesHtml}
                         </div>
+                        <button class="acknowledge-multi-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
+                            <i class="fas fa-check-double"></i> Acknowledge Selected Staff
+                        </button>
                     `;
                 } else if (isDone) {
-                    actionHtml = `<div class="info-text" style="color:#2e7d32; margin-top:8px;"><i class="fas fa-check-circle"></i> Task completed by ${escapeHtml(doneBy)}</div>`;
+                    actionHtml = `<div class="completed-by"><i class="fas fa-check-circle"></i> Task completed by ${escapeHtml(doneBy)}</div>`;
                 } else if (isClosed) {
                     actionHtml = `<div class="warning-msg"><i class="fas fa-ban"></i> Shift closed</div>`;
                 }
@@ -804,19 +847,19 @@
                     ${actionHtml}
                 `;
             } else if (currentRole === "supervisor") {
-                // Supervisor view - can mark as done, edit/delete tasks
+                // Supervisor view - mark as done with single staff
                 let actionHtml = '';
                 if (!isClosed && !isDone) {
                     actionHtml = `
                         <div style="margin-top: 12px;">
                             <button class="mark-done-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
-                                <i class="fas fa-check-double"></i> Mark as Done (Select Staff)
+                                <i class="fas fa-check-double"></i> Mark as Done (Select Single Staff)
                             </button>
                         </div>
                     `;
                 } else if (isDone) {
                     actionHtml = `
-                        <div class="completed-by" style="background:#e8f5e9; padding:8px 12px; border-radius:20px; margin-top:8px;">
+                        <div class="completed-by">
                             <i class="fas fa-user-check"></i> Completed by: <strong>${escapeHtml(doneBy)}</strong>
                         </div>
                     `;
@@ -842,23 +885,22 @@
             checklistItemsContainer.appendChild(itemDiv);
         });
 
-        // Attach event listeners
+        // Attach event listeners for staff multi-acknowledge
         if (currentRole === "staff" && currentShiftRecord.status !== "closed") {
-            document.querySelectorAll('.acknowledge-btn').forEach(btn => {
+            document.querySelectorAll('.acknowledge-multi-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const taskId = btn.getAttribute('data-task-id');
                     const taskName = btn.getAttribute('data-task-name');
-                    const staffSelect = document.getElementById(`staffSelect_${taskId}`);
-                    const staffName = staffSelect.value;
-                    if (!staffName) {
-                        alert("Please select your name before acknowledging.");
-                        return;
-                    }
-                    await acknowledgeTask(taskId, taskName, staffName);
+                    const checkboxes = document.querySelectorAll(`.staff-chk-${taskId}:checked`);
+                    const selectedStaff = Array.from(checkboxes).map(cb => cb.value);
+                    await acknowledgeMultipleStaff(taskId, taskName, selectedStaff);
+                    // Clear checkboxes after acknowledgment
+                    checkboxes.forEach(cb => cb.checked = false);
                 });
             });
         }
         
+        // Attach event listeners for supervisor
         if (currentRole === "supervisor") {
             document.querySelectorAll('.mark-done-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
@@ -894,6 +936,7 @@
         if (currentRole !== "supervisor") return;
         currentDate = checklistDate.value;
         currentShift = shiftSelect.value;
+        saveSelectionToStorage();
         if (currentDate && currentShift) {
             await loadShiftRecord(currentDate, currentShift);
         } else {
@@ -907,8 +950,12 @@
         checklistDate.disabled = !isSupervisor;
         shiftSelect.disabled = !isSupervisor;
         
-        if (isSupervisor && checklistDate.value && shiftSelect.value) {
-            loadShiftRecord(checklistDate.value, shiftSelect.value);
+        // Set values from localStorage
+        checklistDate.value = currentDate;
+        shiftSelect.value = currentShift;
+        
+        if (isSupervisor && currentDate && currentShift) {
+            loadShiftRecord(currentDate, currentShift);
         }
     }
 
@@ -957,13 +1004,19 @@
     }
 
     async function init() {
-        const today = new Date().toISOString().slice(0, 10);
-        checklistDate.value = today;
-        currentDate = today;
+        // Load saved selection from localStorage
+        currentDate = localStorage.getItem('selectedDate') || new Date().toISOString().slice(0, 10);
+        currentShift = localStorage.getItem('selectedShift') || "";
+        
+        checklistDate.value = currentDate;
+        shiftSelect.value = currentShift;
         
         if (firestoreReady) {
             await loadGlobalTasks();
             await loadStaffList();
+            if (currentDate && currentShift) {
+                await loadShiftRecord(currentDate, currentShift);
+            }
         }
         
         checklistDate.addEventListener('change', onDateShiftChange);
