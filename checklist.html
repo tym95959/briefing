@@ -405,7 +405,7 @@
 <div class="container">
     <div class="header">
         <h1><i class="fas fa-clipboard-list"></i> Staff on Duty · Shift Manager</h1>
-        <p>Staff Allocation | Task Management | Export to PDF</p>
+        <p>Staff Allocation | Task Management | Detailed Reports with Staff Names</p>
     </div>
 
     <div class="role-bar">
@@ -489,7 +489,7 @@
             </div>
         </div>
     </div>
-    <footer>✅ Allocation Sheet: Compact table format (A4 width, compact height)</footer>
+    <footer>✅ Full Report: Shows ALL submissions with staff names and details | Allocation Sheet: Compact table format</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -841,15 +841,19 @@
                     const ackHtml = taskAcks.length ? `<div class="completed-info">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>` : '<div class="completed-info">No acknowledgments yet</div>';
                     taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${ackHtml}<div class="flex-row">${staffOptions}<button class="do-ack action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Acknowledge</button></div>`;
                 } else {
-                    const subsHtml = taskSelections.length ? `<div class="completed-info">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>` : '<div class="completed-info">No submissions yet</div>';
+                    const subsHtml = taskSelections.length ? `<div class="completed-info">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}${s.additionalText ? ` (${s.additionalText})` : ''}</span>`).join('')}</div>` : '<div class="completed-info">No submissions yet</div>';
                     const optionsHtml = task.options ? `<select id="dropSel_${task.id}" class="action-dropdown"><option value="">-- Select --</option>${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>` : '<select class="action-dropdown"><option>No options</option></select>';
                     taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${subsHtml}<div class="flex-row">${staffOptions}${optionsHtml}<input type="text" id="addText_${task.id}" class="action-input" placeholder="Note" maxlength="5"><button class="do-drop action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Submit</button></div>`;
                 }
             } else {
                 let statusHtml = '';
-                if (task.type === 'done') statusHtml = isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : '<div class="completed-info">Pending</div>';
-                else if (task.type === 'acknowledge') statusHtml = `<div class="completed-info">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>`;
-                else statusHtml = `<div class="completed-info">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>`;
+                if (task.type === 'done') {
+                    statusHtml = isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)} at ${new Date(doneTasks[task.id].doneAt).toLocaleTimeString()}</div>` : '<div class="completed-info">⏳ Pending</div>';
+                } else if (task.type === 'acknowledge') {
+                    statusHtml = `<div class="completed-info">✅ Acknowledged by (${taskAcks.length} staff):<br>${taskAcks.map(n => `&nbsp;&nbsp;👤 ${escapeHtml(n)}`).join('<br>')}</div>`;
+                } else {
+                    statusHtml = taskSelections.length ? `<div class="completed-info">📋 Submissions (${taskSelections.length}):<br>${taskSelections.map(s => `&nbsp;&nbsp;👤 ${escapeHtml(s.staffName)} selected: <strong>${escapeHtml(s.selectedValue)}</strong>${s.additionalText ? ` (Note: ${escapeHtml(s.additionalText)})` : ''} at ${new Date(s.submittedAt).toLocaleTimeString()}`).join('<br>')}</div>` : '<div class="completed-info">⏳ No submissions yet</div>';
+                }
                 const editBtns = (currentRole === "supervisor" && !isClosed) ? `<div><button class="edit-task" data-id="${task.id}" data-name="${escapeHtml(task.name)}" style="background:#ff9800; border:none; padding:4px 12px; border-radius:20px; margin-left:5px; cursor:pointer;">Edit</button><button class="delete-task" data-id="${task.id}" style="background:#dc3545; border:none; padding:4px 12px; border-radius:20px; margin-left:5px; cursor:pointer;">Del</button></div>` : '';
                 taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div>${editBtns}</div>${statusHtml}`;
             }
@@ -936,7 +940,7 @@
         await refreshAll();
     }
 
-    // Print Allocation Sheet - Compact Table Format (Time as columns, Area as rows)
+    // Print Allocation Sheet - Compact Table Format
     function printAllocationSheet() {
         if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
         
@@ -944,14 +948,10 @@
         const allocations = currentSODRecord?.allocations || {};
         const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
         
-        // Build table HTML
         let tableHtml = '<table class="alloc-table">';
         tableHtml += '<thead><tr><th class="area-col">Area / Time</th>';
-        slots.forEach(slot => {
-            tableHtml += `<th>${slot.name}</th>`;
-        });
+        slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
         tableHtml += '</tr></thead><tbody>';
-        
         areas.forEach(area => {
             tableHtml += `<tr><td class="area-col"><strong>${area}</strong></td>`;
             slots.forEach(slot => {
@@ -968,79 +968,19 @@
             <head>
                 <title>Staff Allocation - ${currentDate} ${currentShift}</title>
                 <style>
-                    @page { 
-                        size: A4 landscape; 
-                        margin: 8mm;
-                    }
-                    body { 
-                        font-family: 'Segoe UI', Arial, sans-serif; 
-                        margin: 0; 
-                        padding: 0;
-                        background: white;
-                    }
-                    .sheet {
-                        max-width: 100%;
-                        margin: 0 auto;
-                    }
-                    .header {
-                        text-align: center;
-                        margin-bottom: 8px;
-                        padding-bottom: 4px;
-                        border-bottom: 2px solid #2c7da0;
-                    }
-                    .header h2 {
-                        color: #1a4c6e;
-                        font-size: 14px;
-                        margin: 0 0 2px 0;
-                    }
-                    .header p {
-                        color: #5a7a97;
-                        font-size: 9px;
-                        margin: 2px 0;
-                    }
-                    .alloc-table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        font-size: 9px;
-                    }
-                    .alloc-table th, .alloc-table td {
-                        border: 1px solid #ccc;
-                        padding: 6px 4px;
-                        text-align: center;
-                        vertical-align: top;
-                    }
-                    .alloc-table th {
-                        background: #eef3fc;
-                        font-weight: bold;
-                        font-size: 9px;
-                    }
-                    .area-col {
-                        background: #f8fbfe;
-                        font-weight: bold;
-                        text-align: left;
-                        width: 100px;
-                    }
-                    .staff-cell {
-                        text-align: left;
-                        vertical-align: top;
-                    }
-                    .staff-name {
-                        display: inline-block;
-                        background: #eef2fa;
-                        padding: 2px 6px;
-                        border-radius: 12px;
-                        font-size: 8px;
-                        margin: 1px 2px;
-                        white-space: nowrap;
-                    }
-                    .footer {
-                        text-align: center;
-                        margin-top: 6px;
-                        padding-top: 4px;
-                        border-top: 1px solid #ddd;
-                        font-size: 7px;
-                        color: #999;
-                    }
+                    @page { size: A4 landscape; margin: 8mm; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: white; }
+                    .sheet { max-width: 100%; margin: 0 auto; }
+                    .header { text-align: center; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #2c7da0; }
+                    .header h2 { color: #1a4c6e; font-size: 14px; margin: 0 0 2px 0; }
+                    .header p { color: #5a7a97; font-size: 9px; margin: 2px 0; }
+                    .alloc-table { width: 100%; border-collapse: collapse; font-size: 9px; }
+                    .alloc-table th, .alloc-table td { border: 1px solid #ccc; padding: 6px 4px; text-align: center; vertical-align: top; }
+                    .alloc-table th { background: #eef3fc; font-weight: bold; }
+                    .area-col { background: #f8fbfe; font-weight: bold; text-align: left; width: 100px; }
+                    .staff-cell { text-align: left; }
+                    .staff-name { display: inline-block; background: #eef2fa; padding: 2px 6px; border-radius: 12px; font-size: 8px; margin: 1px 2px; white-space: nowrap; }
+                    .footer { text-align: center; margin-top: 6px; padding-top: 4px; border-top: 1px solid #ddd; font-size: 7px; color: #999; }
                 </style>
             </head>
             <body>
@@ -1054,18 +994,14 @@
                         <p>Generated: ${new Date().toLocaleString()} | Shift Manager</p>
                     </div>
                 </div>
-                <script>
-                    window.onload = function() { 
-                        setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 200);
-                    }
-                <\/script>
+                <script>window.onload = function() { setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 200); }<\/script>
             </body>
             </html>
         `);
         printWindow.document.close();
     }
 
-    // Export Full Report
+    // Export Full Report - With ALL staff details
     function exportFullReport() {
         if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
         
@@ -1091,22 +1027,34 @@
         });
         tableHtml += '</tbody></table>';
         
-        // Build tasks table
+        // Build detailed tasks table with ALL staff names
         let tasksHtml = '<table class="tasks-table">';
-        tasksHtml += '<thead><tr><th>Task</th><th>Status / Completion</th></tr></thead><tbody>';
-        globalTasks.forEach(task => {
-            let status = '';
+        tasksHtml += '<thead><tr><th>Task</th><th>Status / Details</th></tr></thead><tbody>';
+        for (const task of globalTasks) {
+            let statusHtml = '';
             if (task.type === 'done') {
-                status = doneTasks[task.id] ? `✅ Completed by ${doneTasks[task.id].doneBy}` : '⏳ Pending';
+                if (doneTasks[task.id]) {
+                    statusHtml = `✅ <strong>Completed</strong> by ${escapeHtml(doneTasks[task.id].doneBy)} at ${new Date(doneTasks[task.id].doneAt).toLocaleString()}`;
+                } else {
+                    statusHtml = `⏳ <strong>Pending</strong> - Not yet completed`;
+                }
             } else if (task.type === 'acknowledge') {
                 const acks = ackTasks[task.id] || [];
-                status = acks.length ? `✅ Acknowledged by ${acks.length} staff: ${acks.join(', ')}` : '⏳ No acknowledgments';
-            } else {
+                if (acks.length > 0) {
+                    statusHtml = `✅ <strong>Acknowledged by ${acks.length} staff member(s):</strong><br><ul style="margin:5px 0 0 20px;">${acks.map(n => `<li>👤 ${escapeHtml(n)}</li>`).join('')}</ul>`;
+                } else {
+                    statusHtml = `⏳ <strong>Pending</strong> - No acknowledgments yet`;
+                }
+            } else if (task.type === 'dropdown') {
                 const subs = selections.filter(s => s.taskId === task.id);
-                status = subs.length ? `📋 ${subs.length} submissions: ${subs.map(s => `${s.staffName}: ${s.selectedValue}`).join(', ')}` : '⏳ No submissions';
+                if (subs.length > 0) {
+                    statusHtml = `📋 <strong>${subs.length} submission(s):</strong><br><ul style="margin:5px 0 0 20px;">${subs.map(s => `<li>👤 <strong>${escapeHtml(s.staffName)}</strong> selected: <strong>${escapeHtml(s.selectedValue)}</strong>${s.additionalText ? ` <span style="color:#666;">(Note: ${escapeHtml(s.additionalText)})</span>` : ''}<br><span style="font-size:10px; color:#888;">at ${new Date(s.submittedAt).toLocaleString()}</span></li>`).join('')}</ul>`;
+                } else {
+                    statusHtml = `⏳ <strong>Pending</strong> - No submissions yet`;
+                }
             }
-            tasksHtml += `<tr><td>📋 ${escapeHtml(task.name)}</td><td>${status}</td></tr>`;
-        });
+            tasksHtml += `<tr><td class="task-name-cell">📋 ${escapeHtml(task.name)}</td><td class="status-cell">${statusHtml}</td></tr>`;
+        }
         tasksHtml += '</tbody></table>';
         
         const printWindow = window.open('', '_blank');
@@ -1123,12 +1071,18 @@
                     .header p { color: #666; font-size: 10px; margin: 3px 0; }
                     h3 { color: #2c7da0; margin: 15px 0 8px 0; font-size: 14px; }
                     .alloc-table, .tasks-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-                    .alloc-table th, .alloc-table td, .tasks-table th, .tasks-table td { border: 1px solid #ccc; padding: 6px 8px; font-size: 10px; }
-                    .alloc-table th { background: #eef3fc; font-weight: bold; }
+                    .alloc-table th, .alloc-table td, .tasks-table th, .tasks-table td { border: 1px solid #ccc; padding: 8px 10px; vertical-align: top; }
+                    .alloc-table th { background: #eef3fc; font-weight: bold; font-size: 11px; }
+                    .alloc-table td { font-size: 10px; }
                     .area-col { background: #f8fbfe; font-weight: bold; text-align: left; width: 100px; }
                     .staff-cell { text-align: left; }
-                    .staff-name { display: inline-block; background: #eef2fa; padding: 2px 6px; border-radius: 12px; font-size: 9px; margin: 1px 2px; }
-                    .tasks-table th { background: #eef3fc; }
+                    .staff-name { display: inline-block; background: #eef2fa; padding: 2px 8px; border-radius: 15px; font-size: 9px; margin: 2px 3px; }
+                    .tasks-table th { background: #eef3fc; font-weight: bold; font-size: 11px; }
+                    .tasks-table td { font-size: 10px; }
+                    .task-name-cell { font-weight: bold; width: 30%; background: #fafdff; }
+                    .status-cell { line-height: 1.4; }
+                    .status-cell ul { margin: 5px 0 0 20px; }
+                    .status-cell li { margin: 3px 0; }
                     .footer { text-align: center; margin-top: 15px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 8px; color: #999; }
                 </style>
             </head>
@@ -1144,14 +1098,10 @@
                     <h3>✅ Tasks Summary</h3>
                     ${tasksHtml}
                     <div class="footer">
-                        <p>This is an official shift report</p>
+                        <p>This is an official shift report - Includes all staff submissions with details</p>
                     </div>
                 </div>
-                <script>
-                    window.onload = function() { 
-                        setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 200);
-                    }
-                <\/script>
+                <script>window.onload = function() { setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 200); }<\/script>
             </body>
             </html>
         `);
