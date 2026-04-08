@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Task Manager · Multi-Select Dropdown & Flexible Acknowledge</title>
+    <title>Task Manager · Multi-Select Dropdown & Historical View</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -112,11 +112,6 @@
             font-size: 1rem;
             flex: 1;
             background: white;
-        }
-        .date-shift-selector input:disabled, .date-shift-selector select:disabled {
-            background: #f5f7fa;
-            color: #666;
-            cursor: not-allowed;
         }
         .status-badge {
             display: inline-flex;
@@ -372,25 +367,20 @@
             margin-top: 8px;
             font-size: 0.75rem;
         }
-        .progress-bar {
-            height: 4px;
-            background: #e0e0e0;
-            border-radius: 2px;
-            margin-top: 8px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: #4caf50;
-            border-radius: 2px;
-            transition: width 0.3s;
-        }
         .flex-row {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
             align-items: center;
             margin-top: 12px;
+        }
+        .history-note {
+            background: #e3f2fd;
+            padding: 8px 12px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+            font-size: 0.75rem;
+            color: #1565c0;
         }
         footer {
             text-align: center;
@@ -412,7 +402,7 @@
 <div class="container">
     <div class="header">
         <h1><i class="fas fa-clipboard-list"></i> Smart Task Manager</h1>
-        <p>Flexible Acknowledge (no limit) | Custom Dropdown (multiple selections allowed) | Additional 5-letter note</p>
+        <p>Flexible Acknowledge | Custom Dropdown with Notes | View Past Shifts & Results</p>
     </div>
 
     <div class="role-bar">
@@ -428,14 +418,15 @@
                     <span>Shift Tasks</span>
                 </div>
                 <div class="date-shift-selector">
-                    <input type="date" id="checklistDate" value="" disabled>
-                    <select id="shiftSelect" disabled>
+                    <input type="date" id="checklistDate" value="">
+                    <select id="shiftSelect">
                         <option value="">Select Shift</option>
                         <option value="Morning">🌅 Morning Shift</option>
                         <option value="Evening">🌙 Evening Shift</option>
                     </select>
                     <div id="checklistStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
                 </div>
+                <div id="historyNote" class="history-note hidden"></div>
                 <div id="checklistItemsContainer" class="checklist-items">
                     <div class="empty-msg">📋 Select date and shift to view tasks</div>
                 </div>
@@ -479,7 +470,7 @@
             </div>
         </div>
     </div>
-    <footer>✅ <strong>Task Types:</strong> Single Done | Multi-Acknowledge (unlimited) | Custom Dropdown (multiple users can select different options + 5-letter note)</footer>
+    <footer>✅ <strong>Historical View:</strong> Select any past date and shift to view results | Closed shifts are view-only | Data persists forever</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -535,6 +526,7 @@
     const checklistStatusBadge = document.getElementById('checklistStatusBadge');
     const checklistItemsContainer = document.getElementById('checklistItemsContainer');
     const checklistInfo = document.getElementById('checklistInfo');
+    const historyNote = document.getElementById('historyNote');
     const newTaskName = document.getElementById('newTaskName');
     const taskTypeSelect = document.getElementById('taskTypeSelect');
     const dropdownOptionsDiv = document.getElementById('dropdownOptionsDiv');
@@ -628,7 +620,7 @@
         setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
-    // Load shift record
+    // Load shift record (works for both open and closed shifts)
     async function loadShiftRecord(date, shift) {
         if (!firestoreReady || !date || !shift) return null;
         
@@ -646,12 +638,23 @@
                     status: "open",
                     doneTasks: {},
                     acknowledgedTasks: {},
-                    dropdownSelections: [], // Array of selections { staffName, selectedValue, additionalText, submittedAt }
+                    dropdownSelections: [],
                     createdAt: new Date().toISOString()
                 };
                 await docRef.set(newRecord);
                 currentShiftRecord = { id: recordId, ...newRecord };
             }
+            
+            // Show history note if shift is closed
+            const isClosed = currentShiftRecord.status === "closed";
+            if (isClosed) {
+                historyNote.classList.remove('hidden');
+                const closedDate = currentShiftRecord.closedAt ? new Date(currentShiftRecord.closedAt).toLocaleString() : 'unknown time';
+                historyNote.innerHTML = `<i class="fas fa-history"></i> This shift was closed on ${closedDate}. Viewing historical data.`;
+            } else {
+                historyNote.classList.add('hidden');
+            }
+            
             renderChecklist();
             return currentShiftRecord;
         } catch (err) {
@@ -660,7 +663,7 @@
         }
     }
 
-    // Handle single staff done task
+    // Handle single staff done task (only if shift is open)
     async function completeDoneTask(taskId, taskName, staffName) {
         if (!firestoreReady || !currentShiftRecord) return;
         if (currentShiftRecord.status === "closed") {
@@ -699,7 +702,7 @@
         }
     }
 
-    // Handle multi-staff acknowledge (unlimited)
+    // Handle multi-staff acknowledge (only if shift is open)
     async function acknowledgeTask(taskId, taskName, staffName) {
         if (!firestoreReady || !currentShiftRecord) return;
         if (currentShiftRecord.status === "closed") {
@@ -737,7 +740,7 @@
         }
     }
 
-    // Handle custom dropdown task (multiple selections allowed)
+    // Handle custom dropdown task (only if shift is open)
     async function submitDropdownSelection(taskId, taskName, selectedValue, additionalText, staffName) {
         if (!firestoreReady || !currentShiftRecord) return;
         if (currentShiftRecord.status === "closed") {
@@ -755,7 +758,6 @@
         
         const dropdownSelections = currentShiftRecord.dropdownSelections || [];
         
-        // Check if this staff already submitted for this task
         const existingSubmission = dropdownSelections.find(s => s.taskId === taskId && s.staffName === staffName);
         if (existingSubmission) {
             alert(`⚠️ ${staffName} has already submitted for this task.`);
@@ -786,11 +788,11 @@
         }
     }
 
-    // Close shift
+    // Close shift (Supervisor only)
     async function closeShift() {
         if (!currentShiftRecord) { adminFeedback.innerText = "No shift selected"; return; }
         if (currentShiftRecord.status === "closed") { adminFeedback.innerText = "Shift already closed"; return; }
-        if (!confirm("Close this shift? No further changes will be allowed.")) return;
+        if (!confirm("Close this shift? No further changes will be allowed, but data will remain viewable.")) return;
         
         try {
             await db.collection("shiftRecords").doc(currentShiftRecord.id).set({ 
@@ -799,7 +801,7 @@
             }, { merge: true });
             currentShiftRecord.status = "closed";
             renderChecklist();
-            adminFeedback.innerText = "🔒 Shift closed successfully";
+            adminFeedback.innerText = "🔒 Shift closed successfully. Data is now view-only.";
             setTimeout(() => adminFeedback.innerText = "", 3000);
         } catch (err) {
             adminFeedback.innerText = "Error: " + err.message;
@@ -843,7 +845,7 @@
         }
     }
 
-    // Render checklist
+    // Render checklist (supports both open and closed shifts)
     function renderChecklist() {
         if (!currentShiftRecord || !globalTasks.length) {
             if (!currentShiftRecord && currentDate && currentShift) {
@@ -851,7 +853,7 @@
             } else if (globalTasks.length === 0 && currentRole === "supervisor") {
                 checklistItemsContainer.innerHTML = `<div class="empty-msg">📝 No tasks yet. Add tasks using the supervisor panel.</div>`;
             } else if (!currentDate || !currentShift) {
-                checklistItemsContainer.innerHTML = `<div class="empty-msg">📋 Select date and shift to view tasks (Supervisor only)</div>`;
+                checklistItemsContainer.innerHTML = `<div class="empty-msg">📋 Select date and shift to view tasks</div>`;
             } else {
                 checklistItemsContainer.innerHTML = `<div class="empty-msg">Loading tasks...</div>`;
             }
@@ -889,78 +891,74 @@
             else if (task.type === 'acknowledge') taskTypeLabel = '<span class="task-type-badge task-type-ack"><i class="fas fa-users"></i> Multi-Acknowledge (Unlimited)</span>';
             else taskTypeLabel = '<span class="task-type-badge task-type-dropdown"><i class="fas fa-list"></i> Custom Dropdown (Multiple Selections)</span>';
             
-            if (currentRole === "staff") {
+            if (currentRole === "staff" && !isClosed) {
+                // Staff can only interact with open shifts
                 let actionHtml = '';
                 const staffOptions = `<option value="">-- Select --</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}`;
                 
-                if (!isClosed) {
-                    if (task.type === 'done') {
-                        if (!isDone) {
-                            actionHtml = `
-                                <div class="flex-row">
-                                    <select id="staffSelect_${task.id}" class="staff-select">${staffOptions}</select>
-                                    <button class="complete-done-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
-                                        <i class="fas fa-check-circle"></i> Complete Task
-                                    </button>
-                                </div>
-                            `;
-                        } else {
-                            actionHtml = `<div class="completed-by"><i class="fas fa-check-circle"></i> Completed by: <strong>${escapeHtml(doneBy)}</strong></div>`;
-                        }
-                    } else if (task.type === 'acknowledge') {
-                        const ackHtml = taskAcks.length > 0 ? `
-                            <div class="acknowledgments">
-                                <div class="ack-title"><i class="fas fa-users"></i> Acknowledged by (${taskAcks.length}):</div>
-                                ${taskAcks.map(name => `<span class="staff-avatar"><i class="fas fa-check-circle"></i> ${escapeHtml(name)}</span>`).join('')}
-                            </div>
-                        ` : `<div class="acknowledgments"><div class="ack-title">No acknowledgments yet</div></div>`;
-                        
+                if (task.type === 'done') {
+                    if (!isDone) {
                         actionHtml = `
-                            ${ackHtml}
                             <div class="flex-row">
                                 <select id="staffSelect_${task.id}" class="staff-select">${staffOptions}</select>
-                                <button class="acknowledge-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
-                                    <i class="fas fa-check"></i> Acknowledge Task
+                                <button class="complete-done-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
+                                    <i class="fas fa-check-circle"></i> Complete Task
                                 </button>
                             </div>
                         `;
-                    } else if (task.type === 'dropdown') {
-                        // Show existing selections
-                        let selectionsHtml = '';
-                        if (taskDropdownSelections.length > 0) {
-                            selectionsHtml = `
-                                <div class="acknowledgments">
-                                    <div class="ack-title"><i class="fas fa-list"></i> Submissions (${taskDropdownSelections.length}):</div>
-                                    ${taskDropdownSelections.map(sel => `
-                                        <div class="dropdown-selection-item">
-                                            <i class="fas fa-paper-plane"></i> ${escapeHtml(sel.staffName)}: <strong>${escapeHtml(sel.selectedValue)}</strong>
-                                            ${sel.additionalText ? `<span style="font-size:0.7rem;"> (${escapeHtml(sel.additionalText)})</span>` : ''}
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            `;
-                        } else {
-                            selectionsHtml = `<div class="acknowledgments"><div class="ack-title">No submissions yet</div></div>`;
-                        }
-                        
-                        const optionsHtml = task.options ? 
-                            `<option value="">-- Select --</option>${task.options.map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}` : 
-                            `<option value="">-- No options configured --</option>`;
-                        
-                        actionHtml = `
-                            ${selectionsHtml}
-                            <div class="flex-row">
-                                <select id="staffSelect_${task.id}" class="staff-select">${staffOptions}</select>
-                                <select id="dropdownSelect_${task.id}" class="custom-dropdown">${optionsHtml}</select>
-                                <input type="text" id="additionalText_${task.id}" class="additional-text" placeholder="Note (5 letters)" maxlength="5">
-                                <button class="dropdown-submit-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
-                                    <i class="fas fa-paper-plane"></i> Submit
-                                </button>
-                            </div>
-                        `;
+                    } else {
+                        actionHtml = `<div class="completed-by"><i class="fas fa-check-circle"></i> Completed by: <strong>${escapeHtml(doneBy)}</strong></div>`;
                     }
-                } else {
-                    actionHtml = `<div class="warning-msg"><i class="fas fa-ban"></i> Shift closed</div>`;
+                } else if (task.type === 'acknowledge') {
+                    const ackHtml = taskAcks.length > 0 ? `
+                        <div class="acknowledgments">
+                            <div class="ack-title"><i class="fas fa-users"></i> Acknowledged by (${taskAcks.length}):</div>
+                            ${taskAcks.map(name => `<span class="staff-avatar"><i class="fas fa-check-circle"></i> ${escapeHtml(name)}</span>`).join('')}
+                        </div>
+                    ` : `<div class="acknowledgments"><div class="ack-title">No acknowledgments yet</div></div>`;
+                    
+                    actionHtml = `
+                        ${ackHtml}
+                        <div class="flex-row">
+                            <select id="staffSelect_${task.id}" class="staff-select">${staffOptions}</select>
+                            <button class="acknowledge-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
+                                <i class="fas fa-check"></i> Acknowledge Task
+                            </button>
+                        </div>
+                    `;
+                } else if (task.type === 'dropdown') {
+                    let selectionsHtml = '';
+                    if (taskDropdownSelections.length > 0) {
+                        selectionsHtml = `
+                            <div class="acknowledgments">
+                                <div class="ack-title"><i class="fas fa-list"></i> Submissions (${taskDropdownSelections.length}):</div>
+                                ${taskDropdownSelections.map(sel => `
+                                    <div class="dropdown-selection-item">
+                                        <i class="fas fa-paper-plane"></i> ${escapeHtml(sel.staffName)}: <strong>${escapeHtml(sel.selectedValue)}</strong>
+                                        ${sel.additionalText ? `<span style="font-size:0.7rem;"> (${escapeHtml(sel.additionalText)})</span>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    } else {
+                        selectionsHtml = `<div class="acknowledgments"><div class="ack-title">No submissions yet</div></div>`;
+                    }
+                    
+                    const optionsHtml = task.options ? 
+                        `<option value="">-- Select --</option>${task.options.map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}` : 
+                        `<option value="">-- No options configured --</option>`;
+                    
+                    actionHtml = `
+                        ${selectionsHtml}
+                        <div class="flex-row">
+                            <select id="staffSelect_${task.id}" class="staff-select">${staffOptions}</select>
+                            <select id="dropdownSelect_${task.id}" class="custom-dropdown">${optionsHtml}</select>
+                            <input type="text" id="additionalText_${task.id}" class="additional-text" placeholder="Note (5 letters)" maxlength="5">
+                            <button class="dropdown-submit-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
+                                <i class="fas fa-paper-plane"></i> Submit
+                            </button>
+                        </div>
+                    `;
                 }
                 
                 itemDiv.innerHTML = `
@@ -973,7 +971,8 @@
                     </div>
                     ${actionHtml}
                 `;
-            } else if (currentRole === "supervisor") {
+            } else {
+                // View-only mode for closed shifts or supervisor viewing
                 let statusHtml = '';
                 if (task.type === 'done') {
                     statusHtml = isDone ? `<div class="completed-by"><i class="fas fa-user-check"></i> Completed by: <strong>${escapeHtml(doneBy)}</strong></div>` : `<div class="warning-msg">⏳ Pending completion</div>`;
@@ -999,6 +998,17 @@
                     ` : `<div class="warning-msg">⏳ No submissions yet</div>`;
                 }
                 
+                // For supervisor, show edit/delete buttons only if shift is open
+                let actionButtons = '';
+                if (currentRole === "supervisor" && !isClosed) {
+                    actionButtons = `
+                        <div>
+                            <button class="edit-task-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="delete-task-btn" data-task-id="${task.id}"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    `;
+                }
+                
                 itemDiv.innerHTML = `
                     <div class="task-header">
                         <div class="task-name">
@@ -1006,20 +1016,17 @@
                             <span>${escapeHtml(task.name)}</span>
                             ${taskTypeLabel}
                         </div>
-                        <div>
-                            <button class="edit-task-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}"><i class="fas fa-edit"></i> Edit</button>
-                            <button class="delete-task-btn" data-task-id="${task.id}"><i class="fas fa-trash"></i> Delete</button>
-                        </div>
+                        ${actionButtons}
                     </div>
                     ${statusHtml}
-                    ${isClosed ? '<div class="warning-msg"><i class="fas fa-ban"></i> Shift closed</div>' : ''}
+                    ${isClosed && currentRole !== "supervisor" ? '<div class="warning-msg"><i class="fas fa-ban"></i> Shift closed - View only</div>' : ''}
                 `;
             }
             checklistItemsContainer.appendChild(itemDiv);
         });
 
-        // Attach event listeners
-        if (currentRole === "staff" && currentShiftRecord.status !== "closed") {
+        // Attach event listeners for staff actions (only if shift is open)
+        if (currentRole === "staff" && currentShiftRecord && currentShiftRecord.status !== "closed") {
             document.querySelectorAll('.complete-done-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const taskId = btn.getAttribute('data-task-id');
@@ -1058,7 +1065,8 @@
             });
         }
         
-        if (currentRole === "supervisor") {
+        // Attach event listeners for supervisor edit/delete (only if shift is open)
+        if (currentRole === "supervisor" && currentShiftRecord && currentShiftRecord.status !== "closed") {
             document.querySelectorAll('.edit-task-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const taskId = btn.getAttribute('data-task-id');
@@ -1082,11 +1090,11 @@
         const doneTotal = globalTasks.filter(t => t.type === 'done').length;
         const dropdownTotal = globalTasks.filter(t => t.type === 'dropdown').length;
         const dropdownSubmissions = globalTasks.filter(t => t.type === 'dropdown').reduce((sum, t) => sum + (dropdownSelections.filter(s => s.taskId === t.id).length), 0);
-        checklistInfo.innerText = isClosed ? "🔒 Shift is closed." : `📊 Done: ${completedTasks}/${doneTotal} | Acknowledged: ${totalAcks} total | Dropdown: ${dropdownSubmissions} submissions on ${dropdownTotal} tasks`;
+        checklistInfo.innerText = isClosed ? "🔒 Shift is closed. Viewing historical data." : `📊 Done: ${completedTasks}/${doneTotal} | Acknowledged: ${totalAcks} total | Dropdown: ${dropdownSubmissions} submissions on ${dropdownTotal} tasks`;
     }
 
+    // Date/Shift change handler - allows viewing any past shift
     async function onDateShiftChange() {
-        if (currentRole !== "supervisor") return;
         currentDate = checklistDate.value;
         currentShift = shiftSelect.value;
         saveSelectionToStorage();
@@ -1099,15 +1107,25 @@
     }
 
     function updateFormAccess() {
+        // Both staff and supervisor can view any date/shift, but only supervisor can edit tasks when shift is open
         const isSupervisor = (currentRole === "supervisor" && isSupervisorAuthenticated);
-        checklistDate.disabled = !isSupervisor;
-        shiftSelect.disabled = !isSupervisor;
+        
+        // Everyone can select date and shift to view historical data
+        checklistDate.disabled = false;
+        shiftSelect.disabled = false;
         
         checklistDate.value = currentDate;
         shiftSelect.value = currentShift;
         
-        if (isSupervisor && currentDate && currentShift) {
+        if (currentDate && currentShift) {
             loadShiftRecord(currentDate, currentShift);
+        }
+        
+        // Show/hide admin panel based on role
+        if (isSupervisor) {
+            adminPanel.classList.remove("hidden");
+        } else {
+            adminPanel.classList.add("hidden");
         }
     }
 
@@ -1119,17 +1137,13 @@
         
         currentRole = role;
         if (role === "supervisor") {
-            adminPanel.classList.remove("hidden");
             staffRoleBtn.classList.remove("active");
             supervisorRoleBtn.classList.add("active");
-            updateFormAccess();
         } else {
-            adminPanel.classList.add("hidden");
             supervisorRoleBtn.classList.remove("active");
             staffRoleBtn.classList.add("active");
-            updateFormAccess();
         }
-        renderChecklist();
+        updateFormAccess();
     }
 
     function showPasswordModal() {
