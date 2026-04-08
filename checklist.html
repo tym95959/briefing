@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Task Manager · Smart Tasks with Custom Dropdown</title>
+    <title>Task Manager · Multi-Select Dropdown & Flexible Acknowledge</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -209,6 +209,19 @@
             color: #4caf50;
             font-size: 0.7rem;
         }
+        .dropdown-selection-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #e8eaf6;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            margin: 4px 6px 4px 0;
+        }
+        .dropdown-selection-item i {
+            color: #3949ab;
+        }
         .task-done-badge {
             background: #e8f5e9;
             color: #2e7d32;
@@ -217,19 +230,21 @@
             font-size: 0.7rem;
             font-weight: 600;
         }
-        .staff-select, .custom-dropdown {
-            width: 220px;
+        .staff-select, .custom-dropdown, .additional-text {
             padding: 8px 14px;
             border-radius: 28px;
             border: 1.5px solid #e2eaf2;
             font-size: 0.85rem;
             background: white;
         }
+        .staff-select { width: 170px; }
+        .custom-dropdown { width: 170px; }
+        .additional-text { width: 130px; }
         .action-btn {
             background: #4caf50;
             color: white;
             border: none;
-            padding: 8px 20px;
+            padding: 8px 18px;
             border-radius: 40px;
             cursor: pointer;
             font-weight: 600;
@@ -370,6 +385,13 @@
             border-radius: 2px;
             transition: width 0.3s;
         }
+        .flex-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 12px;
+        }
         footer {
             text-align: center;
             margin-top: 40px;
@@ -390,7 +412,7 @@
 <div class="container">
     <div class="header">
         <h1><i class="fas fa-clipboard-list"></i> Smart Task Manager</h1>
-        <p>Supervisor: Add tasks with different types | Staff: Complete tasks with dropdown selections</p>
+        <p>Flexible Acknowledge (no limit) | Custom Dropdown (multiple selections allowed) | Additional 5-letter note</p>
     </div>
 
     <div class="role-bar">
@@ -433,11 +455,11 @@
                         <input type="text" id="newTaskName" placeholder="Task name">
                         <select id="taskTypeSelect">
                             <option value="done">✅ Single Staff Done (one person completes)</option>
-                            <option value="acknowledge">👥 Multi-Staff Acknowledge (3 staff per shift)</option>
-                            <option value="dropdown">📋 Custom Dropdown (select from options)</option>
+                            <option value="acknowledge">👥 Multi-Staff Acknowledge (unlimited)</option>
+                            <option value="dropdown">📋 Custom Dropdown (multiple selections allowed)</option>
                         </select>
                         <div id="dropdownOptionsDiv" style="display: none;">
-                            <input type="text" id="dropdownOptions" placeholder="Dropdown options (comma separated) e.g., Emirates, Qatar, Etihad">
+                            <input type="text" id="dropdownOptions" placeholder="Dropdown options (comma separated) e.g., Emirates, Qatar, Etihad, Oman Air">
                         </div>
                         <button id="addTaskBtn"><i class="fas fa-plus"></i> Add Task</button>
                     </div>
@@ -457,7 +479,7 @@
             </div>
         </div>
     </div>
-    <footer>✅ <strong>Task Types:</strong> Single Done | Multi-Acknowledge (max 3 staff) | Custom Dropdown (airline selection) | Date & Shift saved in browser</footer>
+    <footer>✅ <strong>Task Types:</strong> Single Done | Multi-Acknowledge (unlimited) | Custom Dropdown (multiple users can select different options + 5-letter note)</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -577,7 +599,7 @@
             id: Date.now().toString(),
             name: taskName.trim(),
             type: taskType,
-            options: options ? options.split(',').map(o => o.trim()) : null,
+            options: options ? options.split(',').map(o => o.trim()).filter(o => o) : null,
             createdAt: new Date().toISOString()
         };
         const updatedTasks = [...globalTasks, newTask];
@@ -624,7 +646,7 @@
                     status: "open",
                     doneTasks: {},
                     acknowledgedTasks: {},
-                    dropdownSelections: {},
+                    dropdownSelections: [], // Array of selections { staffName, selectedValue, additionalText, submittedAt }
                     createdAt: new Date().toISOString()
                 };
                 await docRef.set(newRecord);
@@ -677,7 +699,7 @@
         }
     }
 
-    // Handle multi-staff acknowledge (max 3 per shift)
+    // Handle multi-staff acknowledge (unlimited)
     async function acknowledgeTask(taskId, taskName, staffName) {
         if (!firestoreReady || !currentShiftRecord) return;
         if (currentShiftRecord.status === "closed") {
@@ -697,11 +719,6 @@
             return;
         }
         
-        if (taskAcks.length >= 3) {
-            alert(`⚠️ This task already has 3 acknowledgments. Maximum reached.`);
-            return;
-        }
-        
         taskAcks.push(staffName);
         acknowledgedTasks[taskId] = taskAcks;
         
@@ -712,7 +729,7 @@
             }, { merge: true });
             currentShiftRecord.acknowledgedTasks = acknowledgedTasks;
             renderChecklist();
-            checklistInfo.innerHTML = `✅ ${staffName} acknowledged "${taskName}" (${taskAcks.length}/3)`;
+            checklistInfo.innerHTML = `✅ ${staffName} acknowledged "${taskName}" (${taskAcks.length} total)`;
             setTimeout(() => renderChecklist(), 1000);
         } catch (err) {
             console.error(err);
@@ -720,8 +737,8 @@
         }
     }
 
-    // Handle custom dropdown task
-    async function submitDropdownSelection(taskId, taskName, selectedValue, staffName) {
+    // Handle custom dropdown task (multiple selections allowed)
+    async function submitDropdownSelection(taskId, taskName, selectedValue, additionalText, staffName) {
         if (!firestoreReady || !currentShiftRecord) return;
         if (currentShiftRecord.status === "closed") {
             alert("Shift is closed. Cannot submit.");
@@ -736,18 +753,23 @@
             return;
         }
         
-        const dropdownSelections = currentShiftRecord.dropdownSelections || {};
+        const dropdownSelections = currentShiftRecord.dropdownSelections || [];
         
-        if (dropdownSelections[taskId]) {
-            alert(`⚠️ This task already has a selection: ${dropdownSelections[taskId].selectedValue} by ${dropdownSelections[taskId].staffName}`);
+        // Check if this staff already submitted for this task
+        const existingSubmission = dropdownSelections.find(s => s.taskId === taskId && s.staffName === staffName);
+        if (existingSubmission) {
+            alert(`⚠️ ${staffName} has already submitted for this task.`);
             return;
         }
         
-        dropdownSelections[taskId] = {
-            selectedValue: selectedValue,
+        dropdownSelections.push({
+            taskId: taskId,
+            taskName: taskName,
             staffName: staffName,
+            selectedValue: selectedValue,
+            additionalText: additionalText || "",
             submittedAt: new Date().toISOString()
-        };
+        });
         
         try {
             await db.collection("shiftRecords").doc(currentShiftRecord.id).set({ 
@@ -756,7 +778,7 @@
             }, { merge: true });
             currentShiftRecord.dropdownSelections = dropdownSelections;
             renderChecklist();
-            checklistInfo.innerHTML = `✅ "${taskName}" - ${selectedValue} submitted by ${staffName}`;
+            checklistInfo.innerHTML = `✅ "${taskName}" - ${selectedValue} submitted by ${staffName}${additionalText ? ' (Note: ' + additionalText + ')' : ''}`;
             setTimeout(() => renderChecklist(), 1000);
         } catch (err) {
             console.error(err);
@@ -847,7 +869,7 @@
 
         const doneTasks = currentShiftRecord.doneTasks || {};
         const acknowledgedTasks = currentShiftRecord.acknowledgedTasks || {};
-        const dropdownSelections = currentShiftRecord.dropdownSelections || {};
+        const dropdownSelections = currentShiftRecord.dropdownSelections || [];
         const doneCount = Object.keys(doneTasks).length;
         const totalAcks = Object.values(acknowledgedTasks).reduce((sum, arr) => sum + arr.length, 0);
         
@@ -857,15 +879,15 @@
             const isDone = doneTasks[task.id];
             const doneBy = isDone ? doneTasks[task.id].doneBy : null;
             const taskAcks = acknowledgedTasks[task.id] || [];
-            const dropdownSelection = dropdownSelections[task.id];
+            const taskDropdownSelections = dropdownSelections.filter(s => s.taskId === task.id);
             
             const itemDiv = document.createElement('div');
             itemDiv.className = 'checklist-item';
             
             let taskTypeLabel = '';
             if (task.type === 'done') taskTypeLabel = '<span class="task-type-badge task-type-done"><i class="fas fa-user-check"></i> Single Staff Done</span>';
-            else if (task.type === 'acknowledge') taskTypeLabel = '<span class="task-type-badge task-type-ack"><i class="fas fa-users"></i> Multi-Acknowledge (Max 3)</span>';
-            else taskTypeLabel = '<span class="task-type-badge task-type-dropdown"><i class="fas fa-list"></i> Custom Dropdown</span>';
+            else if (task.type === 'acknowledge') taskTypeLabel = '<span class="task-type-badge task-type-ack"><i class="fas fa-users"></i> Multi-Acknowledge (Unlimited)</span>';
+            else taskTypeLabel = '<span class="task-type-badge task-type-dropdown"><i class="fas fa-list"></i> Custom Dropdown (Multiple Selections)</span>';
             
             if (currentRole === "staff") {
                 let actionHtml = '';
@@ -875,7 +897,7 @@
                     if (task.type === 'done') {
                         if (!isDone) {
                             actionHtml = `
-                                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px;">
+                                <div class="flex-row">
                                     <select id="staffSelect_${task.id}" class="staff-select">${staffOptions}</select>
                                     <button class="complete-done-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
                                         <i class="fas fa-check-circle"></i> Complete Task
@@ -886,42 +908,56 @@
                             actionHtml = `<div class="completed-by"><i class="fas fa-check-circle"></i> Completed by: <strong>${escapeHtml(doneBy)}</strong></div>`;
                         }
                     } else if (task.type === 'acknowledge') {
-                        const ackCount = taskAcks.length;
-                        const progressPercent = (ackCount / 3) * 100;
                         const ackHtml = taskAcks.length > 0 ? `
                             <div class="acknowledgments">
-                                <div class="ack-title"><i class="fas fa-users"></i> Acknowledged by (${ackCount}/3):</div>
+                                <div class="ack-title"><i class="fas fa-users"></i> Acknowledged by (${taskAcks.length}):</div>
                                 ${taskAcks.map(name => `<span class="staff-avatar"><i class="fas fa-check-circle"></i> ${escapeHtml(name)}</span>`).join('')}
-                                <div class="progress-bar"><div class="progress-fill" style="width: ${progressPercent}%;"></div></div>
                             </div>
-                        ` : `<div class="acknowledgments"><div class="ack-title">No acknowledgments yet (0/3)</div><div class="progress-bar"><div class="progress-fill" style="width: 0%;"></div></div></div>`;
+                        ` : `<div class="acknowledgments"><div class="ack-title">No acknowledgments yet</div></div>`;
                         
                         actionHtml = `
                             ${ackHtml}
-                            ${ackCount < 3 ? `
-                            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px;">
+                            <div class="flex-row">
                                 <select id="staffSelect_${task.id}" class="staff-select">${staffOptions}</select>
                                 <button class="acknowledge-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
                                     <i class="fas fa-check"></i> Acknowledge Task
                                 </button>
                             </div>
-                            ` : '<div class="info-text">✅ Maximum 3 acknowledgments reached</div>'}
                         `;
                     } else if (task.type === 'dropdown') {
-                        if (!dropdownSelection) {
-                            const optionsHtml = task.options ? `<option value="">-- Select --</option>${task.options.map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}` : `<option value="">-- No options configured --</option>`;
-                            actionHtml = `
-                                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px;">
-                                    <select id="staffSelect_${task.id}" class="staff-select">${staffOptions}</select>
-                                    <select id="dropdownSelect_${task.id}" class="custom-dropdown">${optionsHtml}</select>
-                                    <button class="dropdown-submit-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
-                                        <i class="fas fa-paper-plane"></i> Submit Selection
-                                    </button>
+                        // Show existing selections
+                        let selectionsHtml = '';
+                        if (taskDropdownSelections.length > 0) {
+                            selectionsHtml = `
+                                <div class="acknowledgments">
+                                    <div class="ack-title"><i class="fas fa-list"></i> Submissions (${taskDropdownSelections.length}):</div>
+                                    ${taskDropdownSelections.map(sel => `
+                                        <div class="dropdown-selection-item">
+                                            <i class="fas fa-paper-plane"></i> ${escapeHtml(sel.staffName)}: <strong>${escapeHtml(sel.selectedValue)}</strong>
+                                            ${sel.additionalText ? `<span style="font-size:0.7rem;"> (${escapeHtml(sel.additionalText)})</span>` : ''}
+                                        </div>
+                                    `).join('')}
                                 </div>
                             `;
                         } else {
-                            actionHtml = `<div class="completed-by"><i class="fas fa-check-circle"></i> Selected: <strong>${escapeHtml(dropdownSelection.selectedValue)}</strong> by ${escapeHtml(dropdownSelection.staffName)}</div>`;
+                            selectionsHtml = `<div class="acknowledgments"><div class="ack-title">No submissions yet</div></div>`;
                         }
+                        
+                        const optionsHtml = task.options ? 
+                            `<option value="">-- Select --</option>${task.options.map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}` : 
+                            `<option value="">-- No options configured --</option>`;
+                        
+                        actionHtml = `
+                            ${selectionsHtml}
+                            <div class="flex-row">
+                                <select id="staffSelect_${task.id}" class="staff-select">${staffOptions}</select>
+                                <select id="dropdownSelect_${task.id}" class="custom-dropdown">${optionsHtml}</select>
+                                <input type="text" id="additionalText_${task.id}" class="additional-text" placeholder="Note (5 letters)" maxlength="5">
+                                <button class="dropdown-submit-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
+                                    <i class="fas fa-paper-plane"></i> Submit
+                                </button>
+                            </div>
+                        `;
                     }
                 } else {
                     actionHtml = `<div class="warning-msg"><i class="fas fa-ban"></i> Shift closed</div>`;
@@ -930,7 +966,7 @@
                 itemDiv.innerHTML = `
                     <div class="task-header">
                         <div class="task-name">
-                            <i class="fas ${(task.type === 'done' && isDone) || (task.type === 'dropdown' && dropdownSelection) ? 'fa-check-circle' : 'fa-circle'}"></i>
+                            <i class="fas ${(task.type === 'done' && isDone) ? 'fa-check-circle' : 'fa-circle'}"></i>
                             <span>${escapeHtml(task.name)}</span>
                             ${taskTypeLabel}
                         </div>
@@ -942,24 +978,31 @@
                 if (task.type === 'done') {
                     statusHtml = isDone ? `<div class="completed-by"><i class="fas fa-user-check"></i> Completed by: <strong>${escapeHtml(doneBy)}</strong></div>` : `<div class="warning-msg">⏳ Pending completion</div>`;
                 } else if (task.type === 'acknowledge') {
-                    const ackCount = taskAcks.length;
                     statusHtml = `
                         <div class="acknowledgments">
-                            <div class="ack-title"><i class="fas fa-users"></i> Acknowledged by (${ackCount}/3):</div>
+                            <div class="ack-title"><i class="fas fa-users"></i> Acknowledged by (${taskAcks.length}):</div>
                             ${taskAcks.length > 0 ? taskAcks.map(name => `<span class="staff-avatar"><i class="fas fa-check-circle"></i> ${escapeHtml(name)}</span>`).join('') : '<span>No acknowledgments yet</span>'}
-                            <div class="progress-bar"><div class="progress-fill" style="width: ${(ackCount/3)*100}%;"></div></div>
                         </div>
                     `;
                 } else if (task.type === 'dropdown') {
-                    statusHtml = dropdownSelection ? 
-                        `<div class="completed-by"><i class="fas fa-check-circle"></i> Selected: <strong>${escapeHtml(dropdownSelection.selectedValue)}</strong> by ${escapeHtml(dropdownSelection.staffName)}</div>` :
-                        `<div class="warning-msg">⏳ No selection made yet</div>`;
+                    statusHtml = taskDropdownSelections.length > 0 ? `
+                        <div class="acknowledgments">
+                            <div class="ack-title"><i class="fas fa-list"></i> Submissions (${taskDropdownSelections.length}):</div>
+                            ${taskDropdownSelections.map(sel => `
+                                <div class="dropdown-selection-item">
+                                    <i class="fas fa-paper-plane"></i> ${escapeHtml(sel.staffName)}: <strong>${escapeHtml(sel.selectedValue)}</strong>
+                                    ${sel.additionalText ? `<span style="font-size:0.7rem;"> (${escapeHtml(sel.additionalText)})</span>` : ''}
+                                    <span style="font-size:0.65rem; color:#7c9ab8;"> - ${new Date(sel.submittedAt).toLocaleTimeString()}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `<div class="warning-msg">⏳ No submissions yet</div>`;
                 }
                 
                 itemDiv.innerHTML = `
                     <div class="task-header">
                         <div class="task-name">
-                            <i class="fas ${(task.type === 'done' && isDone) || (task.type === 'dropdown' && dropdownSelection) ? 'fa-check-circle' : 'fa-circle'}"></i>
+                            <i class="fas ${(task.type === 'done' && isDone) || (task.type === 'dropdown' && taskDropdownSelections.length > 0) ? 'fa-check-circle' : 'fa-circle'}"></i>
                             <span>${escapeHtml(task.name)}</span>
                             ${taskTypeLabel}
                         </div>
@@ -1004,7 +1047,13 @@
                     const staffName = staffSelect.value;
                     const dropdownSelect = document.getElementById(`dropdownSelect_${taskId}`);
                     const selectedValue = dropdownSelect.value;
-                    await submitDropdownSelection(taskId, taskName, selectedValue, staffName);
+                    const additionalText = document.getElementById(`additionalText_${taskId}`).value;
+                    await submitDropdownSelection(taskId, taskName, selectedValue, additionalText, staffName);
+                    if (staffName) {
+                        staffSelect.value = "";
+                        dropdownSelect.value = "";
+                        document.getElementById(`additionalText_${taskId}`).value = "";
+                    }
                 });
             });
         }
@@ -1031,9 +1080,9 @@
         const totalTasks = globalTasks.length;
         const completedTasks = globalTasks.filter(t => t.type === 'done' && doneTasks[t.id]).length;
         const doneTotal = globalTasks.filter(t => t.type === 'done').length;
-        const dropdownCompleted = globalTasks.filter(t => t.type === 'dropdown' && dropdownSelections[t.id]).length;
         const dropdownTotal = globalTasks.filter(t => t.type === 'dropdown').length;
-        checklistInfo.innerText = isClosed ? "🔒 Shift is closed." : `📊 Done: ${completedTasks}/${doneTotal} | Acknowledged: ${totalAcks}/3 per task | Dropdown: ${dropdownCompleted}/${dropdownTotal}`;
+        const dropdownSubmissions = globalTasks.filter(t => t.type === 'dropdown').reduce((sum, t) => sum + (dropdownSelections.filter(s => s.taskId === t.id).length), 0);
+        checklistInfo.innerText = isClosed ? "🔒 Shift is closed." : `📊 Done: ${completedTasks}/${doneTotal} | Acknowledged: ${totalAcks} total | Dropdown: ${dropdownSubmissions} submissions on ${dropdownTotal} tasks`;
     }
 
     async function onDateShiftChange() {
