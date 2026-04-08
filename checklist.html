@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Task Manager · Staff on Duty & Area Allocation</title>
+    <title>Staff on Duty · Shift Manager</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -19,20 +19,20 @@
         }
         body {
             background: #f0f4f8;
-            padding: 28px 24px;
+            padding: 24px 20px;
             color: #1a2c3e;
         }
         .container {
-            max-width: 1500px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         .header {
             text-align: center;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
         }
         .header h1 {
             font-weight: 800;
-            font-size: 2rem;
+            font-size: 1.8rem;
             background: linear-gradient(145deg, #1a4c6e, #2c6e8f);
             background-clip: text;
             -webkit-background-clip: text;
@@ -40,13 +40,13 @@
         }
         .header p {
             color: #5a7a97;
-            margin-top: 6px;
+            font-size: 0.85rem;
         }
         .role-bar {
             display: flex;
             justify-content: center;
             gap: 16px;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
         }
         .role-btn {
             background: white;
@@ -59,23 +59,73 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            font-size: 0.9rem;
         }
         .role-btn.active {
             background: #1d6f8f;
             border-color: #1d6f8f;
             color: white;
         }
-        .dashboard {
+        .date-bar {
+            background: white;
+            border-radius: 60px;
+            padding: 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .date-selector {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .date-selector input, .date-selector select {
+            padding: 10px 16px;
+            border-radius: 40px;
+            border: 1.5px solid #e2eaf2;
+            font-size: 0.9rem;
+            background: white;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .status-open { background: #e8f5e9; color: #2e7d32; }
+        .status-closed { background: #ffebee; color: #c62828; }
+        .reopen-btn {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .main-grid {
             display: flex;
             flex-wrap: wrap;
             gap: 24px;
         }
-        .sod-panel {
+        .allocation-panel {
             flex: 1.2;
             min-width: 380px;
         }
-        .checklist-panel {
-            flex: 1.8;
+        .tasks-panel {
+            flex: 2;
             min-width: 500px;
         }
         .admin-panel {
@@ -85,98 +135,82 @@
         .card {
             background: white;
             border-radius: 28px;
-            box-shadow: 0 12px 28px rgba(0,0,0,0.05);
-            padding: 24px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            padding: 20px;
             border: 1px solid #e6edf4;
         }
         .card-title {
             font-size: 1.2rem;
             font-weight: 700;
-            margin-bottom: 18px;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
             gap: 10px;
             border-left: 4px solid #2c7da0;
             padding-left: 14px;
         }
-        .date-shift-selector {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .date-shift-selector input, .date-shift-selector select {
-            padding: 10px 16px;
-            border-radius: 28px;
-            border: 1.5px solid #e2eaf2;
-            font-size: 0.9rem;
-            flex: 1;
-            background: white;
-        }
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
-            border-radius: 40px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .status-open { background: #e8f5e9; color: #2e7d32; }
-        .status-closed { background: #ffebee; color: #c62828; }
-        
-        /* SOD Allocation Styles */
         .time-slots {
             display: flex;
             flex-direction: column;
             gap: 16px;
-            margin-bottom: 20px;
         }
-        .time-slot-card {
+        .time-slot {
             background: #f8fbfe;
             border-radius: 20px;
-            padding: 14px;
-            border: 1px solid #e2eaf2;
+            overflow: hidden;
+            border: 1px solid #eef2f8;
         }
-        .time-title {
+        .slot-header {
+            background: #eef3fc;
+            padding: 12px 16px;
             font-weight: 700;
             font-size: 0.9rem;
             color: #1d6f8f;
-            margin-bottom: 10px;
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .areas-container {
-            display: flex;
-            flex-wrap: wrap;
+        .areas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: 12px;
-            margin-bottom: 12px;
+            padding: 14px;
         }
         .area-card {
             background: white;
             border-radius: 16px;
             padding: 10px;
-            min-width: 140px;
             border: 1px solid #e2eaf2;
         }
         .area-name {
             font-weight: 600;
             font-size: 0.8rem;
-            margin-bottom: 8px;
             color: #2c7da0;
+            margin-bottom: 8px;
         }
         .assigned-staff {
             display: flex;
             flex-wrap: wrap;
-            gap: 5px;
+            gap: 6px;
             margin-bottom: 8px;
+            min-height: 32px;
         }
         .staff-badge {
             background: #eef2fa;
             padding: 3px 8px;
             border-radius: 20px;
             font-size: 0.7rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .remove-staff {
+            background: none;
+            border: none;
+            color: #c62828;
+            cursor: pointer;
+            font-size: 0.65rem;
+            margin-left: 4px;
         }
         .staff-select-small {
             width: 100%;
@@ -197,24 +231,15 @@
             margin-top: 6px;
             width: 100%;
         }
-        .remove-staff {
-            background: none;
-            border: none;
-            color: #c62828;
-            cursor: pointer;
-            margin-left: 4px;
-            font-size: 0.65rem;
-        }
-        
-        /* Checklist Items */
-        .checklist-items {
+        /* Tasks Styles */
+        .tasks-list {
             max-height: 500px;
             overflow-y: auto;
         }
-        .checklist-item {
+        .task-item {
             background: #fafdff;
             border-radius: 20px;
-            padding: 14px 16px;
+            padding: 14px;
             margin-bottom: 12px;
             border: 1px solid #eef2f8;
         }
@@ -234,22 +259,21 @@
             gap: 8px;
             flex-wrap: wrap;
         }
-        .task-type-badge {
+        .task-badge {
             font-size: 0.6rem;
             padding: 2px 8px;
             border-radius: 20px;
         }
-        .task-type-done { background: #e8f5e9; color: #2e7d32; }
-        .task-type-ack { background: #fff3e0; color: #e65100; }
-        .task-type-dropdown { background: #e8eaf6; color: #3949ab; }
-        
-        .acknowledgments, .submissions {
+        .badge-done { background: #e8f5e9; color: #2e7d32; }
+        .badge-ack { background: #fff3e0; color: #e65100; }
+        .badge-drop { background: #e8eaf6; color: #3949ab; }
+        .ack-block, .submissions-block {
             background: #f8fbfe;
             border-radius: 16px;
             padding: 10px;
             margin: 10px 0;
         }
-        .staff-avatar, .submission-item {
+        .staff-chip {
             display: inline-flex;
             align-items: center;
             gap: 6px;
@@ -266,15 +290,15 @@
             align-items: center;
             margin-top: 10px;
         }
-        .staff-select, .custom-dropdown, .additional-text {
+        .action-select, .action-dropdown {
             padding: 6px 10px;
             border-radius: 25px;
             border: 1.5px solid #e2eaf2;
             font-size: 0.75rem;
         }
-        .staff-select { width: 140px; }
-        .custom-dropdown { width: 140px; }
-        .additional-text { width: 100px; }
+        .action-select { width: 130px; }
+        .action-dropdown { width: 130px; }
+        .action-input { width: 90px; }
         .action-btn {
             background: #4caf50;
             color: white;
@@ -285,11 +309,23 @@
             font-size: 0.7rem;
             font-weight: 600;
         }
-        .info-text {
+        .completed-info {
+            background: #e8f5e9;
+            padding: 6px 10px;
+            border-radius: 16px;
+            margin-top: 6px;
             font-size: 0.7rem;
-            color: #7c9ab8;
-            margin-top: 8px;
         }
+        .edit-task, .delete-task {
+            background: #ff9800;
+            border: none;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .delete-task { background: #c62828; color: white; }
         .admin-form input, .admin-form select {
             width: 100%;
             padding: 10px 14px;
@@ -322,6 +358,7 @@
             font-size: 0.7rem;
         }
         .empty-msg { text-align: center; padding: 40px; color: #8aa9c4; }
+        .info-text { font-size: 0.7rem; color: #7c9ab8; margin-top: 8px; }
         .password-modal {
             position: fixed;
             top: 0;
@@ -349,33 +386,6 @@
             margin: 16px 0;
         }
         .hidden { display: none; }
-        .edit-task-btn, .delete-task-btn {
-            background: #ff9800;
-            color: white;
-            border: none;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 0.65rem;
-            cursor: pointer;
-            margin-left: 5px;
-        }
-        .delete-task-btn { background: #c62828; }
-        .warning-msg { color: #c62828; font-size: 0.7rem; margin-top: 6px; }
-        .completed-by {
-            background: #e8f5e9;
-            padding: 6px 10px;
-            border-radius: 16px;
-            margin-top: 6px;
-            font-size: 0.7rem;
-        }
-        .history-note {
-            background: #e3f2fd;
-            padding: 6px 12px;
-            border-radius: 16px;
-            margin-bottom: 12px;
-            font-size: 0.7rem;
-            color: #1565c0;
-        }
         footer {
             text-align: center;
             margin-top: 30px;
@@ -383,15 +393,15 @@
             color: #7e9bb5;
         }
         @media (max-width: 1000px) {
-            .dashboard { flex-direction: column; }
+            .main-grid { flex-direction: column; }
         }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-clipboard-list"></i> Staff on Duty & Task Manager</h1>
-        <p>SOD Allocation | Shift Timings | Area Assignment | Task Management</p>
+        <h1><i class="fas fa-clipboard-list"></i> Staff on Duty · Shift Manager</h1>
+        <p>Staff Allocation | Task Management | Shift Control</p>
     </div>
 
     <div class="role-bar">
@@ -399,54 +409,49 @@
         <button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor View</button>
     </div>
 
-    <div class="dashboard">
-        <!-- SOD Allocation Panel -->
-        <div class="sod-panel">
+    <div class="date-bar">
+        <div class="date-selector">
+            <input type="date" id="mainDate" value="">
+            <select id="mainShift">
+                <option value="">Select Shift</option>
+                <option value="Morning">🌅 Morning Shift (07:30 - 15:30)</option>
+                <option value="Evening">🌙 Evening Shift (15:30 - 23:30)</option>
+            </select>
+        </div>
+        <div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
+        <button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen Shift</button>
+    </div>
+
+    <div class="main-grid">
+        <!-- STAFF ALLOCATION PANEL -->
+        <div class="allocation-panel">
             <div class="card">
                 <div class="card-title">
                     <i class="fas fa-users"></i>
-                    <span>Staff on Duty (SOD) Allocation</span>
+                    <span>Staff Allocation by Time Slot</span>
                 </div>
-                <div class="date-shift-selector">
-                    <input type="date" id="sodDate" value="">
-                    <select id="sodShiftSelect">
-                        <option value="">Select Shift</option>
-                        <option value="Morning">🌅 Morning Shift</option>
-                        <option value="Evening">🌙 Evening Shift</option>
-                    </select>
+                <div id="allocationContainer" class="time-slots">
+                    <div class="empty-msg">Select date and shift</div>
                 </div>
-                <div id="timeSlotsContainer" class="time-slots">
-                    <div class="empty-msg">Select date and shift to view SOD</div>
-                </div>
-                <div id="sodInfo" class="info-text"></div>
+                <div id="allocationInfo" class="info-text"></div>
             </div>
         </div>
 
-        <!-- Tasks Panel -->
-        <div class="checklist-panel">
+        <!-- TASKS PANEL -->
+        <div class="tasks-panel">
             <div class="card">
                 <div class="card-title">
                     <i class="fas fa-tasks"></i>
                     <span>Shift Tasks</span>
                 </div>
-                <div class="date-shift-selector">
-                    <input type="date" id="taskDate" value="">
-                    <select id="taskShiftSelect">
-                        <option value="">Select Shift</option>
-                        <option value="Morning">🌅 Morning Shift</option>
-                        <option value="Evening">🌙 Evening Shift</option>
-                    </select>
-                    <div id="taskStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
+                <div id="tasksContainer" class="tasks-list">
+                    <div class="empty-msg">Select date and shift</div>
                 </div>
-                <div id="taskHistoryNote" class="history-note hidden"></div>
-                <div id="taskItemsContainer" class="checklist-items">
-                    <div class="empty-msg">📋 Select date and shift to view tasks</div>
-                </div>
-                <div id="taskInfo" class="info-text"></div>
+                <div id="tasksInfo" class="info-text"></div>
             </div>
         </div>
 
-        <!-- Admin Panel -->
+        <!-- SUPERVISOR PANEL -->
         <div class="admin-panel hidden" id="adminPanel">
             <div class="card">
                 <div class="card-title">
@@ -468,18 +473,18 @@
                 </div>
                 <div style="margin: 16px 0;">
                     <label style="font-weight: 600; font-size: 0.75rem;">Staff Members</label>
-                    <div id="staffListContainer" class="staff-list"><span class="staff-tag">Loading...</span></div>
+                    <div id="staffListContainer" class="staff-list"></div>
                     <div class="flex-row" style="margin-top: 8px;">
-                        <input type="text" id="newStaffName" placeholder="New staff name" style="flex:1; padding: 6px 10px; border-radius: 25px;">
-                        <button id="addStaffBtn" class="small-btn" style="background:#eef3fc; padding: 6px 12px;">Add</button>
+                        <input type="text" id="newStaffName" placeholder="New staff name" style="flex:1; padding: 8px; border-radius: 25px; border:1px solid #e2eaf2;">
+                        <button id="addStaffBtn" style="background:#eef3fc; padding: 8px 16px; border-radius: 25px; border:none;">Add</button>
                     </div>
                 </div>
-                <button id="closeShiftBtn" class="close-btn"><i class="fas fa-lock"></i> Close Current Shift</button>
+                <button id="closeShiftBtn" class="close-btn"><i class="fas fa-lock"></i> Close Shift</button>
                 <div id="adminFeedback" class="info-text" style="margin-top: 10px;"></div>
             </div>
         </div>
     </div>
-    <footer>✅ <strong>SOD:</strong> Morning Shift: 0730-1030, 1030-1330, 1330-1530 | Evening Shift: 1530-1830, 1830-2130, 2130-2330 | Multiple staff per area</footer>
+    <footer>✅ <strong>Supervisor:</strong> Allocate staff to areas, manage tasks, close/reopen shifts | <strong>Staff:</strong> Complete assigned tasks</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -530,21 +535,19 @@
     let currentTaskRecord = null;
     let globalTasks = [];
     let staffList = [];
-    let isSupervisorAuthenticated = false;
+    let isSupervisor = false;
 
     // DOM Elements
     const staffRoleBtn = document.getElementById('staffRoleBtn');
     const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const adminPanel = document.getElementById('adminPanel');
-    const sodDate = document.getElementById('sodDate');
-    const sodShiftSelect = document.getElementById('sodShiftSelect');
-    const timeSlotsContainer = document.getElementById('timeSlotsContainer');
-    const taskDate = document.getElementById('taskDate');
-    const taskShiftSelect = document.getElementById('taskShiftSelect');
-    const taskStatusBadge = document.getElementById('taskStatusBadge');
-    const taskItemsContainer = document.getElementById('taskItemsContainer');
-    const taskInfo = document.getElementById('taskInfo');
-    const taskHistoryNote = document.getElementById('taskHistoryNote');
+    const mainDate = document.getElementById('mainDate');
+    const mainShift = document.getElementById('mainShift');
+    const shiftStatusBadge = document.getElementById('shiftStatusBadge');
+    const reopenShiftBtn = document.getElementById('reopenShiftBtn');
+    const allocationContainer = document.getElementById('allocationContainer');
+    const tasksContainer = document.getElementById('tasksContainer');
+    const tasksInfo = document.getElementById('tasksInfo');
     const newTaskName = document.getElementById('newTaskName');
     const taskTypeSelect = document.getElementById('taskTypeSelect');
     const dropdownOptionsDiv = document.getElementById('dropdownOptionsDiv');
@@ -568,75 +571,78 @@
     function getSODRecordId(date, shift) { return `sod_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTaskRecordId(date, shift) { return `tasks_${date}_${shift}`.replace(/\s/g, '_'); }
 
-    // Load SOD Record
-    async function loadSODRecord(date, shift) {
-        if (!firestoreReady || !date || !shift) { timeSlotsContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>'; return; }
-        const recordId = getSODRecordId(date, shift);
+    // Load SOD
+    async function loadSOD() {
+        if (!firestoreReady || !currentDate || !currentShift) {
+            allocationContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
+            return;
+        }
+        const recordId = getSODRecordId(currentDate, currentShift);
         try {
             const docRef = db.collection("sodRecords").doc(recordId);
             const docSnap = await docRef.get();
             if (docSnap.exists) {
                 currentSODRecord = { id: docSnap.id, ...docSnap.data() };
             } else {
-                const slots = shift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
-                const initialAllocations = {};
+                const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
+                const allocations = {};
                 slots.forEach(slot => {
-                    initialAllocations[slot.id] = {};
-                    slot.areas.forEach(area => { initialAllocations[slot.id][area] = []; });
+                    allocations[slot.id] = {};
+                    slot.areas.forEach(area => { allocations[slot.id][area] = []; });
                 });
-                const newRecord = { date, shift, allocations: initialAllocations, createdAt: new Date().toISOString() };
-                await docRef.set(newRecord);
-                currentSODRecord = { id: recordId, ...newRecord };
+                currentSODRecord = { date: currentDate, shift: currentShift, allocations, createdAt: new Date().toISOString() };
+                await docRef.set(currentSODRecord);
+                currentSODRecord.id = recordId;
             }
-            renderSOD();
+            renderAllocation();
         } catch (err) { console.error(err); }
     }
 
-    function renderSOD() {
+    function renderAllocation() {
         if (!currentSODRecord) return;
-        const shift = currentSODRecord.shift;
-        const slots = shift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
+        const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
         const allocations = currentSODRecord.allocations || {};
-        const isSupervisor = currentRole === "supervisor" && isSupervisorAuthenticated;
+        const canEdit = currentRole === "supervisor" && currentTaskRecord?.status !== "closed";
         
-        timeSlotsContainer.innerHTML = '';
+        allocationContainer.innerHTML = '';
         slots.forEach(slot => {
-            const slotAllocations = allocations[slot.id] || {};
+            const slotAllocs = allocations[slot.id] || {};
             const slotDiv = document.createElement('div');
-            slotDiv.className = 'time-slot-card';
-            slotDiv.innerHTML = `<div class="time-title"><i class="fas fa-clock"></i> ${slot.name}</div>`;
+            slotDiv.className = 'time-slot';
+            slotDiv.innerHTML = `<div class="slot-header"><i class="fas fa-clock"></i> ${slot.name}</div><div class="areas-grid" id="areasGrid_${slot.id}"></div>`;
+            const areasGrid = slotDiv.querySelector(`.areas-grid`);
             
             slot.areas.forEach(area => {
-                const assignedStaff = slotAllocations[area] || [];
+                const assigned = slotAllocs[area] || [];
                 const areaDiv = document.createElement('div');
                 areaDiv.className = 'area-card';
                 areaDiv.innerHTML = `
                     <div class="area-name">${area}</div>
                     <div class="assigned-staff">
-                        ${assignedStaff.map(s => `<span class="staff-badge">${escapeHtml(s)} <button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button></span>`).join('')}
-                        ${assignedStaff.length === 0 ? '<span style="font-size:0.65rem; color:#999;">No staff assigned</span>' : ''}
+                        ${assigned.map(s => `<span class="staff-badge">${escapeHtml(s)} ${canEdit ? `<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button>` : ''}</span>`).join('')}
+                        ${assigned.length === 0 ? '<span style="font-size:0.65rem; color:#999;">No staff</span>' : ''}
                     </div>
                 `;
-                if (isSupervisor) {
+                if (canEdit) {
                     const staffOptions = `<option value="">-- Select --</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}`;
                     areaDiv.innerHTML += `
-                        <select class="staff-select-small" id="staffSelect_${slot.id}_${area.replace(/\s/g, '_')}">${staffOptions}</select>
+                        <select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g, '_')}">${staffOptions}</select>
                         <button class="assign-btn" data-slot="${slot.id}" data-area="${area}"><i class="fas fa-user-plus"></i> Assign</button>
                     `;
                 }
-                slotDiv.appendChild(areaDiv);
+                areasGrid.appendChild(areaDiv);
             });
-            timeSlotsContainer.appendChild(slotDiv);
+            allocationContainer.appendChild(slotDiv);
         });
         
-        if (isSupervisor) {
+        if (canEdit) {
             document.querySelectorAll('.assign-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const slotId = btn.getAttribute('data-slot');
                     const area = btn.getAttribute('data-area');
-                    const select = document.getElementById(`staffSelect_${slotId}_${area.replace(/\s/g, '_')}`);
+                    const select = document.getElementById(`staffSel_${slotId}_${area.replace(/\s/g, '_')}`);
                     const staffName = select.value;
-                    if (staffName) await assignStaffToArea(slotId, area, staffName);
+                    if (staffName) await assignStaff(slotId, area, staffName);
                 });
             });
             document.querySelectorAll('.remove-staff').forEach(btn => {
@@ -644,13 +650,13 @@
                     const slotId = btn.getAttribute('data-slot');
                     const area = btn.getAttribute('data-area');
                     const staffName = btn.getAttribute('data-staff');
-                    await removeStaffFromArea(slotId, area, staffName);
+                    await removeStaff(slotId, area, staffName);
                 });
             });
         }
     }
 
-    async function assignStaffToArea(slotId, area, staffName) {
+    async function assignStaff(slotId, area, staffName) {
         if (!currentSODRecord) return;
         const allocations = { ...currentSODRecord.allocations };
         if (!allocations[slotId]) allocations[slotId] = {};
@@ -659,29 +665,28 @@
             allocations[slotId][area].push(staffName);
             await db.collection("sodRecords").doc(currentSODRecord.id).set({ allocations }, { merge: true });
             currentSODRecord.allocations = allocations;
-            renderSOD();
+            renderAllocation();
         }
     }
 
-    async function removeStaffFromArea(slotId, area, staffName) {
+    async function removeStaff(slotId, area, staffName) {
         if (!currentSODRecord) return;
         const allocations = { ...currentSODRecord.allocations };
         if (allocations[slotId] && allocations[slotId][area]) {
             allocations[slotId][area] = allocations[slotId][area].filter(s => s !== staffName);
             await db.collection("sodRecords").doc(currentSODRecord.id).set({ allocations }, { merge: true });
             currentSODRecord.allocations = allocations;
-            renderSOD();
+            renderAllocation();
         }
     }
 
-    // Load Tasks
+    // Tasks
     async function loadGlobalTasks() {
         if (!firestoreReady) return;
-        try {
-            const docRef = db.collection("globalConfig").doc("tasks");
-            const docSnap = await docRef.get();
-            globalTasks = docSnap.exists ? docSnap.data().tasks || [] : [];
-        } catch (err) { console.error(err); }
+        const docRef = db.collection("globalConfig").doc("tasks");
+        const docSnap = await docRef.get();
+        globalTasks = docSnap.exists ? docSnap.data().tasks || [] : [];
+        renderTasks();
     }
 
     async function saveGlobalTasks(tasks) {
@@ -690,34 +695,49 @@
         renderTasks();
     }
 
-    async function addGlobalTask(taskName, taskType, options) {
-        if (!taskName.trim()) { adminFeedback.innerText = "Enter task name"; return; }
-        const newTask = { id: Date.now().toString(), name: taskName.trim(), type: taskType, options: options ? options.split(',').map(o => o.trim()) : null, createdAt: new Date().toISOString() };
-        await saveGlobalTasks([...globalTasks, newTask]);
-        newTaskName.value = "";
-        if (dropdownOptions) dropdownOptions.value = "";
-        adminFeedback.innerText = "✅ Task added";
-        setTimeout(() => adminFeedback.innerText = "", 2000);
-    }
-
-    async function loadTaskRecord(date, shift) {
-        if (!firestoreReady || !date || !shift) { taskItemsContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>'; return; }
-        const recordId = getTaskRecordId(date, shift);
+    async function loadTaskRecord() {
+        if (!firestoreReady || !currentDate || !currentShift) {
+            tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
+            return;
+        }
+        const recordId = getTaskRecordId(currentDate, currentShift);
         try {
             const docRef = db.collection("taskRecords").doc(recordId);
             const docSnap = await docRef.get();
             if (docSnap.exists) {
                 currentTaskRecord = { id: docSnap.id, ...docSnap.data() };
             } else {
-                const newRecord = { date, shift, status: "open", doneTasks: {}, acknowledgedTasks: {}, dropdownSelections: [], createdAt: new Date().toISOString() };
-                await docRef.set(newRecord);
-                currentTaskRecord = { id: recordId, ...newRecord };
+                currentTaskRecord = { date: currentDate, shift: currentShift, status: "open", doneTasks: {}, acknowledgedTasks: {}, dropdownSelections: [], createdAt: new Date().toISOString() };
+                await docRef.set(currentTaskRecord);
+                currentTaskRecord.id = recordId;
             }
+            updateShiftStatusUI();
             renderTasks();
         } catch (err) { console.error(err); }
     }
 
-    async function completeDoneTask(taskId, taskName, staffName) {
+    function updateShiftStatusUI() {
+        if (!currentTaskRecord) return;
+        const isClosed = currentTaskRecord.status === "closed";
+        shiftStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open';
+        shiftStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
+        reopenShiftBtn.classList.toggle('hidden', !isClosed || currentRole !== "supervisor");
+        if (currentRole === "supervisor") closeShiftBtn.textContent = isClosed ? "Shift Closed" : "Close Shift";
+        closeShiftBtn.disabled = isClosed;
+    }
+
+    async function reopenShift() {
+        if (!currentTaskRecord || currentTaskRecord.status !== "closed") return;
+        if (!confirm("Reopen this shift? Staff can resume tasks.")) return;
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "open" }, { merge: true });
+        currentTaskRecord.status = "open";
+        updateShiftStatusUI();
+        renderTasks();
+        adminFeedback.innerText = "✅ Shift reopened";
+        setTimeout(() => adminFeedback.innerText = "", 2000);
+    }
+
+    async function completeTask(taskId, taskName, staffName) {
         if (!currentTaskRecord || currentTaskRecord.status === "closed") { alert("Shift closed"); return; }
         if (!staffName) { alert("Select staff"); return; }
         const doneTasks = { ...currentTaskRecord.doneTasks };
@@ -731,13 +751,13 @@
     async function acknowledgeTask(taskId, taskName, staffName) {
         if (!currentTaskRecord || currentTaskRecord.status === "closed") { alert("Shift closed"); return; }
         if (!staffName) { alert("Select name"); return; }
-        const acknowledgedTasks = { ...currentTaskRecord.acknowledgedTasks };
-        let acks = acknowledgedTasks[taskId] || [];
+        const ackTasks = { ...currentTaskRecord.acknowledgedTasks };
+        let acks = ackTasks[taskId] || [];
         if (acks.includes(staffName)) { alert("Already acknowledged"); return; }
         acks.push(staffName);
-        acknowledgedTasks[taskId] = acks;
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks }, { merge: true });
-        currentTaskRecord.acknowledgedTasks = acknowledgedTasks;
+        ackTasks[taskId] = acks;
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true });
+        currentTaskRecord.acknowledgedTasks = ackTasks;
         renderTasks();
     }
 
@@ -753,143 +773,168 @@
     }
 
     async function closeShift() {
-        if (!currentTaskRecord) { adminFeedback.innerText = "No shift selected"; return; }
-        if (currentTaskRecord.status === "closed") { adminFeedback.innerText = "Already closed"; return; }
-        if (!confirm("Close this shift?")) return;
+        if (!currentTaskRecord || currentTaskRecord.status === "closed") return;
+        if (!confirm("Close this shift? No further changes.")) return;
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true });
         currentTaskRecord.status = "closed";
+        updateShiftStatusUI();
         renderTasks();
+        renderAllocation(); // Refresh allocation view (disable edits)
         adminFeedback.innerText = "Shift closed";
         setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
     function renderTasks() {
         if (!currentTaskRecord || !globalTasks.length) {
-            if (currentTaskRecord && !globalTasks.length) taskItemsContainer.innerHTML = '<div class="empty-msg">No tasks. Add via supervisor panel.</div>';
-            else if (!currentTaskRecord && currentTaskRecord?.date) taskItemsContainer.innerHTML = '<div class="empty-msg">Loading...</div>';
-            else taskItemsContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
-            if (currentTaskRecord) {
-                taskStatusBadge.innerHTML = currentTaskRecord.status === "closed" ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open';
-                taskStatusBadge.className = `status-badge ${currentTaskRecord.status === "closed" ? 'status-closed' : 'status-open'}`;
-                if (currentTaskRecord.status === "closed") taskHistoryNote.classList.remove('hidden');
-                else taskHistoryNote.classList.add('hidden');
-            }
+            if (currentTaskRecord && !globalTasks.length) tasksContainer.innerHTML = '<div class="empty-msg">No tasks. Add via supervisor panel.</div>';
+            else if (!currentTaskRecord && currentDate && currentShift) tasksContainer.innerHTML = '<div class="empty-msg">Loading...</div>';
+            else tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
             return;
         }
-
-        const isClosed = currentTaskRecord.status === "closed";
-        taskStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open';
-        taskStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
-        if (isClosed) taskHistoryNote.classList.remove('hidden');
-        else taskHistoryNote.classList.add('hidden');
-
-        const doneTasks = currentTaskRecord.doneTasks || {};
-        const acknowledgedTasks = currentTaskRecord.acknowledgedTasks || {};
-        const dropdownSelections = currentTaskRecord.dropdownSelections || [];
         
-        taskItemsContainer.innerHTML = '';
+        const isClosed = currentTaskRecord.status === "closed";
+        const doneTasks = currentTaskRecord.doneTasks || {};
+        const ackTasks = currentTaskRecord.acknowledgedTasks || {};
+        const selections = currentTaskRecord.dropdownSelections || [];
+        
+        tasksContainer.innerHTML = '';
         globalTasks.forEach(task => {
             const isDone = doneTasks[task.id];
-            const taskAcks = acknowledgedTasks[task.id] || [];
-            const taskSelections = dropdownSelections.filter(s => s.taskId === task.id);
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'checklist-item';
+            const taskAcks = ackTasks[task.id] || [];
+            const taskSelections = selections.filter(s => s.taskId === task.id);
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'task-item';
             
-            let typeLabel = '';
-            if (task.type === 'done') typeLabel = '<span class="task-type-badge task-type-done">Single Done</span>';
-            else if (task.type === 'acknowledge') typeLabel = '<span class="task-type-badge task-type-ack">Multi-Acknowledge</span>';
-            else typeLabel = '<span class="task-type-badge task-type-dropdown">Dropdown</span>';
+            let badge = '';
+            if (task.type === 'done') badge = '<span class="task-badge badge-done">Single Done</span>';
+            else if (task.type === 'acknowledge') badge = '<span class="task-badge badge-ack">Multi-Acknowledge</span>';
+            else badge = '<span class="task-badge badge-drop">Dropdown</span>';
             
             if (currentRole === "staff" && !isClosed) {
-                const staffOptions = `<select id="staffSel_${task.id}" class="staff-select"><option value="">-- Select --</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select>`;
+                const staffOptions = `<select id="staffSel_${task.id}" class="action-select"><option value="">-- Select --</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select>`;
                 if (task.type === 'done') {
-                    itemDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${typeLabel}</div></div>${isDone ? `<div class="completed-by">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : `<div class="flex-row">${staffOptions}<button class="done-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Complete</button></div>`}`;
+                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${badge}</div></div>${isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : `<div class="flex-row">${staffOptions}<button class="do-done" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Complete</button></div>`}`;
                 } else if (task.type === 'acknowledge') {
-                    const ackHtml = taskAcks.length ? `<div class="acknowledgments">✅ Acknowledged by: ${taskAcks.map(n => `<span class="staff-avatar">${escapeHtml(n)}</span>`).join('')}</div>` : '<div class="acknowledgments">No acknowledgments yet</div>';
-                    itemDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${typeLabel}</div></div>${ackHtml}<div class="flex-row">${staffOptions}<button class="ack-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Acknowledge</button></div>`;
+                    const ackHtml = taskAcks.length ? `<div class="ack-block">✅ Acknowledged: ${taskAcks.map(n => `<span class="staff-chip">${escapeHtml(n)}</span>`).join('')}</div>` : '<div class="ack-block">No acknowledgments</div>';
+                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${badge}</div></div>${ackHtml}<div class="flex-row">${staffOptions}<button class="do-ack" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Acknowledge</button></div>`;
                 } else {
-                    const selectionsHtml = taskSelections.length ? `<div class="submissions">📋 Submissions: ${taskSelections.map(s => `<span class="submission-item">${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}${s.additionalText ? ` (${s.additionalText})` : ''}</span>`).join('')}</div>` : '<div class="submissions">No submissions yet</div>';
-                    const optionsHtml = task.options ? `<select id="dropSel_${task.id}" class="custom-dropdown"><option value="">-- Select --</option>${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>` : '<select class="custom-dropdown"><option>No options</option></select>';
-                    itemDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${typeLabel}</div></div>${selectionsHtml}<div class="flex-row">${staffOptions}${optionsHtml}<input type="text" id="addText_${task.id}" class="additional-text" placeholder="Note (5)" maxlength="5"><button class="drop-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Submit</button></div>`;
+                    const subsHtml = taskSelections.length ? `<div class="submissions-block">📋 Submissions: ${taskSelections.map(s => `<span class="staff-chip">${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}${s.additionalText ? ` (${s.additionalText})` : ''}</span>`).join('')}</div>` : '<div class="submissions-block">No submissions</div>';
+                    const optionsHtml = task.options ? `<select id="dropSel_${task.id}" class="action-dropdown"><option value="">-- Select --</option>${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>` : '<select class="action-dropdown"><option>No options</option></select>';
+                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${badge}</div></div>${subsHtml}<div class="flex-row">${staffOptions}${optionsHtml}<input type="text" id="addText_${task.id}" class="action-input" placeholder="Note" maxlength="5"><button class="do-drop" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Submit</button></div>`;
                 }
             } else {
                 let statusHtml = '';
-                if (task.type === 'done') statusHtml = isDone ? `<div class="completed-by">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : '<div class="warning-msg">⏳ Pending</div>';
-                else if (task.type === 'acknowledge') statusHtml = `<div class="acknowledgments">✅ Acknowledged by (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-avatar">${escapeHtml(n)}</span>`).join('')}</div>`;
-                else statusHtml = `<div class="submissions">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="submission-item">${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>`;
-                itemDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${typeLabel}</div>${currentRole === "supervisor" && !isClosed ? `<div><button class="edit-task-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Edit</button><button class="delete-task-btn" data-id="${task.id}">Del</button></div>` : ''}</div>${statusHtml}`;
+                if (task.type === 'done') statusHtml = isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : '<div class="completed-info">⏳ Pending</div>';
+                else if (task.type === 'acknowledge') statusHtml = `<div class="ack-block">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">${escapeHtml(n)}</span>`).join('')}</div>`;
+                else statusHtml = `<div class="submissions-block">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>`;
+                const editBtns = (currentRole === "supervisor" && !isClosed) ? `<div><button class="edit-task" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Edit</button><button class="delete-task" data-id="${task.id}">Del</button></div>` : '';
+                taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${badge}</div>${editBtns}</div>${statusHtml}`;
             }
-            taskItemsContainer.appendChild(itemDiv);
+            tasksContainer.appendChild(taskDiv);
         });
-
-        if (currentRole === "staff" && !isClosed) {
-            document.querySelectorAll('.done-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+        
+        if (currentRole === "staff" && currentTaskRecord?.status !== "closed") {
+            document.querySelectorAll('.do-done').forEach(btn => btn.addEventListener('click', async (e) => {
                 const id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
-                const staffSelect = document.getElementById(`staffSel_${id}`);
-                await completeDoneTask(id, name, staffSelect.value);
+                const sel = document.getElementById(`staffSel_${id}`);
+                await completeTask(id, name, sel.value);
             }));
-            document.querySelectorAll('.ack-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+            document.querySelectorAll('.do-ack').forEach(btn => btn.addEventListener('click', async (e) => {
                 const id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
-                const staffSelect = document.getElementById(`staffSel_${id}`);
-                await acknowledgeTask(id, name, staffSelect.value);
-                staffSelect.value = "";
+                const sel = document.getElementById(`staffSel_${id}`);
+                await acknowledgeTask(id, name, sel.value);
+                sel.value = "";
             }));
-            document.querySelectorAll('.drop-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+            document.querySelectorAll('.do-drop').forEach(btn => btn.addEventListener('click', async (e) => {
                 const id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
-                const staffSelect = document.getElementById(`staffSel_${id}`);
-                const dropSelect = document.getElementById(`dropSel_${id}`);
+                const staffSel = document.getElementById(`staffSel_${id}`);
+                const dropSel = document.getElementById(`dropSel_${id}`);
                 const addText = document.getElementById(`addText_${id}`);
-                await submitDropdown(id, name, dropSelect.value, addText.value, staffSelect.value);
-                staffSelect.value = ""; dropSelect.value = ""; addText.value = "";
+                await submitDropdown(id, name, dropSel?.value, addText?.value, staffSel.value);
+                if (staffSel) staffSel.value = "";
+                if (dropSel) dropSel.value = "";
+                if (addText) addText.value = "";
             }));
         }
         if (currentRole === "supervisor" && currentTaskRecord?.status !== "closed") {
-            document.querySelectorAll('.edit-task-btn').forEach(btn => btn.addEventListener('click', async (e) => {
-                const id = btn.getAttribute('data-id'), currName = btn.getAttribute('data-name');
-                const newName = prompt("Edit task name:", currName);
-                if (newName) {
-                    const updated = globalTasks.map(t => t.id === id ? { ...t, name: newName.trim() } : t);
-                    await saveGlobalTasks(updated);
-                }
+            document.querySelectorAll('.edit-task').forEach(btn => btn.addEventListener('click', async (e) => {
+                const id = btn.getAttribute('data-id'), curr = btn.getAttribute('data-name');
+                const newName = prompt("Edit task:", curr);
+                if (newName) await saveGlobalTasks(globalTasks.map(t => t.id === id ? { ...t, name: newName.trim() } : t));
             }));
-            document.querySelectorAll('.delete-task-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+            document.querySelectorAll('.delete-task').forEach(btn => btn.addEventListener('click', async (e) => {
                 const id = btn.getAttribute('data-id');
                 if (confirm("Delete task?")) await saveGlobalTasks(globalTasks.filter(t => t.id !== id));
             }));
         }
+        const doneCount = Object.keys(currentTaskRecord.doneTasks || {}).length;
+        const ackCount = Object.values(currentTaskRecord.acknowledgedTasks || {}).reduce((s, a) => s + a.length, 0);
+        const dropCount = (currentTaskRecord.dropdownSelections || []).length;
+        tasksInfo.innerText = isClosed ? "🔒 Shift closed - View only" : `📊 Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount}`;
     }
 
-    async function loadStaffList() {
+    async function loadStaff() {
         if (!firestoreReady) return;
         const snapshot = await db.collection("staff").orderBy("name").get();
         staffList = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
         staffListContainer.innerHTML = staffList.map(s => `<span class="staff-tag">${escapeHtml(s.name)}</span>`).join('') || '<span class="staff-tag">No staff</span>';
     }
 
-    async function addStaff(name) {
+    async function addStaffMember(name) {
         if (!name.trim()) { adminFeedback.innerText = "Enter name"; return; }
         await db.collection("staff").add({ name: name.trim(), createdAt: new Date().toISOString() });
-        await loadStaffList();
+        await loadStaff();
         newStaffName.value = "";
         adminFeedback.innerText = "✅ Staff added";
         setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
-    async function onSODChange() { await loadSODRecord(sodDate.value, sodShiftSelect.value); }
-    async function onTaskChange() { await loadTaskRecord(taskDate.value, taskShiftSelect.value); }
+    async function addTask() {
+        await addGlobalTask(newTaskName.value, taskTypeSelect.value, dropdownOptions.value);
+    }
+
+    async function addGlobalTask(taskName, taskType, options) {
+        if (!taskName.trim()) { adminFeedback.innerText = "Enter task name"; return; }
+        const newTask = { id: Date.now().toString(), name: taskName.trim(), type: taskType, options: options ? options.split(',').map(o => o.trim()) : null, createdAt: new Date().toISOString() };
+        await saveGlobalTasks([...globalTasks, newTask]);
+        newTaskName.value = "";
+        if (dropdownOptions) dropdownOptions.value = "";
+        adminFeedback.innerText = "✅ Task added";
+        setTimeout(() => adminFeedback.innerText = "", 2000);
+    }
+
+    async function refreshAll() {
+        await loadSOD();
+        await loadTaskRecord();
+    }
+
+    async function onDateShiftChange() {
+        currentDate = mainDate.value;
+        currentShift = mainShift.value;
+        localStorage.setItem('selectedDate', currentDate);
+        localStorage.setItem('selectedShift', currentShift);
+        await refreshAll();
+    }
 
     function setRole(role) {
-        if (role === "supervisor" && !isSupervisorAuthenticated) { passwordModal.classList.remove('hidden'); return; }
+        if (role === "supervisor" && !isSupervisor) { passwordModal.classList.remove('hidden'); return; }
         currentRole = role;
-        if (role === "supervisor") { adminPanel.classList.remove("hidden"); staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); }
-        else { adminPanel.classList.add("hidden"); supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); }
-        renderSOD();
+        if (role === "supervisor") {
+            adminPanel.classList.remove("hidden");
+            staffRoleBtn.classList.remove("active");
+            supervisorRoleBtn.classList.add("active");
+        } else {
+            adminPanel.classList.add("hidden");
+            supervisorRoleBtn.classList.remove("active");
+            staffRoleBtn.classList.add("active");
+        }
+        renderAllocation();
         renderTasks();
     }
 
     function verifyPassword() {
         if (supervisorPassword.value === SUPERVISOR_PASSWORD) {
-            isSupervisorAuthenticated = true;
+            isSupervisor = true;
             passwordModal.classList.add('hidden');
             setRole("supervisor");
             adminFeedback.innerText = "✅ Access granted";
@@ -897,22 +942,27 @@
     }
 
     async function init() {
-        const today = new Date().toISOString().slice(0, 10);
-        sodDate.value = today; taskDate.value = today;
-        currentDate = today;
+        const savedDate = localStorage.getItem('selectedDate');
+        const savedShift = localStorage.getItem('selectedShift');
+        currentDate = savedDate || new Date().toISOString().slice(0, 10);
+        currentShift = savedShift || "";
+        mainDate.value = currentDate;
+        mainShift.value = currentShift;
+        
         if (firestoreReady) {
             await loadGlobalTasks();
-            await loadStaffList();
+            await loadStaff();
+            await refreshAll();
         }
-        sodDate.addEventListener('change', onSODChange);
-        sodShiftSelect.addEventListener('change', onSODChange);
-        taskDate.addEventListener('change', onTaskChange);
-        taskShiftSelect.addEventListener('change', onTaskChange);
+        
+        mainDate.addEventListener('change', onDateShiftChange);
+        mainShift.addEventListener('change', onDateShiftChange);
         staffRoleBtn.addEventListener('click', () => setRole("staff"));
         supervisorRoleBtn.addEventListener('click', () => setRole("supervisor"));
-        addTaskBtn.addEventListener('click', () => addGlobalTask(newTaskName.value, taskTypeSelect.value, dropdownOptions.value));
-        addStaffBtn.addEventListener('click', () => addStaff(newStaffName.value));
+        addTaskBtn.addEventListener('click', addTask);
+        addStaffBtn.addEventListener('click', () => addStaffMember(newStaffName.value));
         closeShiftBtn.addEventListener('click', closeShift);
+        reopenShiftBtn.addEventListener('click', reopenShift);
         verifyPasswordBtn.addEventListener('click', verifyPassword);
         cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
         setRole("staff");
