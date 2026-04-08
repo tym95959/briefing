@@ -424,7 +424,7 @@
         </div>
         <div class="action-buttons">
             <button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Full Report</button>
-            <button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Allocation Card</button>
+            <button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Allocation Sheet</button>
         </div>
         <div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
         <button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen Shift</button>
@@ -489,7 +489,7 @@
             </div>
         </div>
     </div>
-    <footer>✅ Full Report (A4) | Allocation Card (A5 - fits in pocket)</footer>
+    <footer>✅ Allocation Sheet: Compact table format (A4 width, compact height)</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -936,59 +936,122 @@
         await refreshAll();
     }
 
-    // Print Allocation Card (A5 size)
-    function printAllocationCard() {
+    // Print Allocation Sheet - Compact Table Format (Time as columns, Area as rows)
+    function printAllocationSheet() {
         if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
-        const printWindow = window.open('', '_blank');
+        
         const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
         const allocations = currentSODRecord?.allocations || {};
+        const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
         
-        let allocationHtml = '';
+        // Build table HTML
+        let tableHtml = '<table class="alloc-table">';
+        tableHtml += '<thead><tr><th class="area-col">Area / Time</th>';
         slots.forEach(slot => {
-            const slotAllocs = allocations[slot.id] || {};
-            allocationHtml += `<div class="time-slot">
-                <div class="slot-header">🕐 ${slot.name}</div>
-                <div class="areas-grid">`;
-            slot.areas.forEach(area => {
-                const assigned = slotAllocs[area] || [];
-                allocationHtml += `<div class="area-card">
-                    <div class="area-name">${area}</div>
-                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">${escapeHtml(s)}</span>`).join('') || '<span style="color:#ccc;">—</span>'}</div>
-                </div>`;
-            });
-            allocationHtml += `</div></div>`;
+            tableHtml += `<th>${slot.name}</th>`;
         });
+        tableHtml += '</tr></thead><tbody>';
         
+        areas.forEach(area => {
+            tableHtml += `<tr><td class="area-col"><strong>${area}</strong></td>`;
+            slots.forEach(slot => {
+                const assigned = (allocations[slot.id] && allocations[slot.id][area]) || [];
+                tableHtml += `<td class="staff-cell">${assigned.map(s => `<span class="staff-name">${escapeHtml(s)}</span>`).join(', ') || '—'}</td>`;
+            });
+            tableHtml += '</tr>';
+        });
+        tableHtml += '</tbody></table>';
+        
+        const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
             <head>
-                <title>Staff Allocation - ${currentDate}</title>
+                <title>Staff Allocation - ${currentDate} ${currentShift}</title>
                 <style>
-                    @page { size: A5; margin: 8mm; }
-                    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: white; }
-                    .card { width: 100%; margin: 0 auto; }
-                    .header { text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; }
-                    .header h2 { color: #1a4c6e; font-size: 16px; margin: 0 0 4px 0; }
-                    .header p { color: #666; font-size: 10px; margin: 2px 0; }
-                    .time-slot { margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
-                    .slot-header { background: #eef3fc; padding: 6px 10px; font-weight: bold; font-size: 11px; }
-                    .areas-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 8px; }
-                    .area-card { border: 1px solid #eee; border-radius: 6px; padding: 6px; }
-                    .area-name { font-weight: bold; font-size: 9px; color: #2c7da0; margin-bottom: 4px; }
-                    .staff-list { display: flex; flex-wrap: wrap; gap: 3px; }
-                    .staff-badge { background: #eef2fa; padding: 2px 6px; border-radius: 12px; font-size: 8px; }
-                    .footer { text-align: center; margin-top: 10px; padding-top: 6px; border-top: 1px solid #ddd; font-size: 7px; color: #999; }
+                    @page { 
+                        size: A4 landscape; 
+                        margin: 8mm;
+                    }
+                    body { 
+                        font-family: 'Segoe UI', Arial, sans-serif; 
+                        margin: 0; 
+                        padding: 0;
+                        background: white;
+                    }
+                    .sheet {
+                        max-width: 100%;
+                        margin: 0 auto;
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 8px;
+                        padding-bottom: 4px;
+                        border-bottom: 2px solid #2c7da0;
+                    }
+                    .header h2 {
+                        color: #1a4c6e;
+                        font-size: 14px;
+                        margin: 0 0 2px 0;
+                    }
+                    .header p {
+                        color: #5a7a97;
+                        font-size: 9px;
+                        margin: 2px 0;
+                    }
+                    .alloc-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 9px;
+                    }
+                    .alloc-table th, .alloc-table td {
+                        border: 1px solid #ccc;
+                        padding: 6px 4px;
+                        text-align: center;
+                        vertical-align: top;
+                    }
+                    .alloc-table th {
+                        background: #eef3fc;
+                        font-weight: bold;
+                        font-size: 9px;
+                    }
+                    .area-col {
+                        background: #f8fbfe;
+                        font-weight: bold;
+                        text-align: left;
+                        width: 100px;
+                    }
+                    .staff-cell {
+                        text-align: left;
+                        vertical-align: top;
+                    }
+                    .staff-name {
+                        display: inline-block;
+                        background: #eef2fa;
+                        padding: 2px 6px;
+                        border-radius: 12px;
+                        font-size: 8px;
+                        margin: 1px 2px;
+                        white-space: nowrap;
+                    }
+                    .footer {
+                        text-align: center;
+                        margin-top: 6px;
+                        padding-top: 4px;
+                        border-top: 1px solid #ddd;
+                        font-size: 7px;
+                        color: #999;
+                    }
                 </style>
             </head>
             <body>
-                <div class="card">
+                <div class="sheet">
                     <div class="header">
-                        <h2>📋 STAFF ALLOCATION</h2>
+                        <h2>📋 STAFF ALLOCATION SHEET</h2>
                         <p><strong>${currentDate}</strong> | ${currentShift} Shift</p>
                     </div>
-                    ${allocationHtml}
+                    ${tableHtml}
                     <div class="footer">
-                        <p>Generated: ${new Date().toLocaleString()}</p>
+                        <p>Generated: ${new Date().toLocaleString()} | Shift Manager</p>
                     </div>
                 </div>
                 <script>
@@ -1005,67 +1068,68 @@
     // Export Full Report
     function exportFullReport() {
         if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
-        const printWindow = window.open('', '_blank');
+        
         const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
         const allocations = currentSODRecord?.allocations || {};
+        const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
         const doneTasks = currentTaskRecord?.doneTasks || {};
         const ackTasks = currentTaskRecord?.acknowledgedTasks || {};
         const selections = currentTaskRecord?.dropdownSelections || [];
         
-        let allocationHtml = '';
-        slots.forEach(slot => {
-            const slotAllocs = allocations[slot.id] || {};
-            allocationHtml += `<div class="time-slot">
-                <div class="slot-header">🕐 ${slot.name}</div>
-                <div class="areas-grid">`;
-            slot.areas.forEach(area => {
-                const assigned = slotAllocs[area] || [];
-                allocationHtml += `<div class="area-card">
-                    <div class="area-name">${area}</div>
-                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">${escapeHtml(s)}</span>`).join('') || '—'}</div>
-                </div>`;
+        // Build allocation table
+        let tableHtml = '<table class="alloc-table">';
+        tableHtml += '<thead><tr><th class="area-col">Area / Time</th>';
+        slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
+        tableHtml += '</tr></thead><tbody>';
+        areas.forEach(area => {
+            tableHtml += `<tr><td class="area-col"><strong>${area}</strong></td>`;
+            slots.forEach(slot => {
+                const assigned = (allocations[slot.id] && allocations[slot.id][area]) || [];
+                tableHtml += `<td class="staff-cell">${assigned.map(s => `<span class="staff-name">${escapeHtml(s)}</span>`).join(', ') || '—'}</td>`;
             });
-            allocationHtml += `</div></div>`;
+            tableHtml += '</tr>';
         });
+        tableHtml += '</tbody></table>';
         
-        let tasksHtml = '<table class="tasks-table"><tr><th>Task</th><th>Status</th></tr>';
+        // Build tasks table
+        let tasksHtml = '<table class="tasks-table">';
+        tasksHtml += '<thead><tr><th>Task</th><th>Status / Completion</th></tr></thead><tbody>';
         globalTasks.forEach(task => {
             let status = '';
-            if (task.type === 'done') status = doneTasks[task.id] ? `✅ Completed by ${doneTasks[task.id].doneBy}` : '⏳ Pending';
-            else if (task.type === 'acknowledge') {
+            if (task.type === 'done') {
+                status = doneTasks[task.id] ? `✅ Completed by ${doneTasks[task.id].doneBy}` : '⏳ Pending';
+            } else if (task.type === 'acknowledge') {
                 const acks = ackTasks[task.id] || [];
                 status = acks.length ? `✅ Acknowledged by ${acks.length} staff: ${acks.join(', ')}` : '⏳ No acknowledgments';
             } else {
                 const subs = selections.filter(s => s.taskId === task.id);
-                status = subs.length ? `📋 ${subs.length} submissions` : '⏳ No submissions';
+                status = subs.length ? `📋 ${subs.length} submissions: ${subs.map(s => `${s.staffName}: ${s.selectedValue}`).join(', ')}` : '⏳ No submissions';
             }
             tasksHtml += `<tr><td>📋 ${escapeHtml(task.name)}</td><td>${status}</td></tr>`;
         });
-        tasksHtml += '</table>';
+        tasksHtml += '</tbody></table>';
         
+        const printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
             <head>
-                <title>Shift Report - ${currentDate}</title>
+                <title>Shift Report - ${currentDate} ${currentShift}</title>
                 <style>
-                    @page { size: A4; margin: 15mm; }
-                    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: white; }
+                    @page { size: A4; margin: 12mm; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: white; }
                     .report { max-width: 100%; margin: 0 auto; }
-                    .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #2c7da0; }
-                    .header h1 { color: #1a4c6e; font-size: 22px; margin: 0 0 5px 0; }
-                    .header p { color: #666; font-size: 11px; margin: 3px 0; }
-                    h3 { color: #2c7da0; margin: 15px 0 10px 0; font-size: 16px; }
-                    .time-slot { margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
-                    .slot-header { background: #eef3fc; padding: 8px 12px; font-weight: bold; font-size: 12px; }
-                    .areas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; padding: 12px; }
-                    .area-card { border: 1px solid #eee; border-radius: 8px; padding: 8px; }
-                    .area-name { font-weight: bold; font-size: 11px; color: #2c7da0; margin-bottom: 6px; }
-                    .staff-list { display: flex; flex-wrap: wrap; gap: 5px; }
-                    .staff-badge { background: #eef2fa; padding: 3px 8px; border-radius: 15px; font-size: 9px; }
-                    .tasks-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                    .tasks-table th, .tasks-table td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 11px; }
+                    .header { text-align: center; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; }
+                    .header h1 { color: #1a4c6e; font-size: 18px; margin: 0 0 5px 0; }
+                    .header p { color: #666; font-size: 10px; margin: 3px 0; }
+                    h3 { color: #2c7da0; margin: 15px 0 8px 0; font-size: 14px; }
+                    .alloc-table, .tasks-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+                    .alloc-table th, .alloc-table td, .tasks-table th, .tasks-table td { border: 1px solid #ccc; padding: 6px 8px; font-size: 10px; }
+                    .alloc-table th { background: #eef3fc; font-weight: bold; }
+                    .area-col { background: #f8fbfe; font-weight: bold; text-align: left; width: 100px; }
+                    .staff-cell { text-align: left; }
+                    .staff-name { display: inline-block; background: #eef2fa; padding: 2px 6px; border-radius: 12px; font-size: 9px; margin: 1px 2px; }
                     .tasks-table th { background: #eef3fc; }
-                    .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 9px; color: #999; }
+                    .footer { text-align: center; margin-top: 15px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 8px; color: #999; }
                 </style>
             </head>
             <body>
@@ -1076,7 +1140,7 @@
                         <p><strong>Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'} | Generated: ${new Date().toLocaleString()}</p>
                     </div>
                     <h3>👥 Staff Allocation</h3>
-                    ${allocationHtml}
+                    ${tableHtml}
                     <h3>✅ Tasks Summary</h3>
                     ${tasksHtml}
                     <div class="footer">
@@ -1146,7 +1210,7 @@
         verifyPasswordBtn.addEventListener('click', verifyPassword);
         cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
         exportFullPdfBtn.addEventListener('click', exportFullReport);
-        printAllocationBtn.addEventListener('click', printAllocationCard);
+        printAllocationBtn.addEventListener('click', printAllocationSheet);
         setRole("staff");
     }
 
