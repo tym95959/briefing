@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Briefing Vault · Minutes & Points Log</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Link to external fire.js configuration file -->
+    <script src="fire.js"></script>
+    <!-- Google Fonts + Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        body {
+            background: #f1f5f9;
+            padding: 28px 24px;
+            color: #1a2c3e;
+        }
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+        /* header */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            font-weight: 800;
+            font-size: 2.1rem;
+            background: linear-gradient(145deg, #1a4c6e, #2c6e8f);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+        .header p {
+            color: #5a7a97;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+        /* main two-column layout */
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 28px;
+        }
+        .entry-panel {
+            flex: 1.2;
+            min-width: 360px;
+        }
+        .history-panel {
+            flex: 1.8;
+            min-width: 420px;
+        }
+        /* card style */
+        .card {
+            background: white;
+            border-radius: 36px;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.02);
+            padding: 28px 30px;
+            border: 1px solid #e6edf4;
+            transition: all 0.2s;
+            height: fit-content;
+        }
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 5px solid #2c7da0;
+            padding-left: 16px;
+        }
+        .form-group {
+            margin-bottom: 24px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #3d6b8c;
+            margin-bottom: 8px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 28px;
+            border: 1.5px solid #e2eaf2;
+            background: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: 0.2s;
+            outline: none;
+        }
+        .form-group input:focus, .form-group select:focus, .big-textarea:focus {
+            border-color: #2c7da0;
+            box-shadow: 0 0 0 3px rgba(44,125,160,0.15);
+        }
+        .big-textarea {
+            width: 100%;
+            padding: 18px 22px;
+            border-radius: 28px;
+            border: 1.5px solid #e2eaf2;
+            background: #ffffff;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            resize: vertical;
+            min-height: 280px;
+            font-family: 'Inter', monospace;
+            transition: 0.2s;
+            outline: none;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+        button {
+            background: #eef3fc;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: #1d5b7c;
+        }
+        .btn-primary {
+            background: #1d6f8f;
+            color: white;
+            box-shadow: 0 6px 12px rgba(29,111,143,0.2);
+        }
+        .btn-primary:hover {
+            background: #0e5a77;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background: #f0f5fc;
+            border: 1px solid #cddfed;
+        }
+        .btn-secondary:hover {
+            background: #e4edf7;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid #cbdde9;
+        }
+        .btn-outline:hover {
+            background: #f8fbfe;
+        }
+        /* date selector for history */
+        .date-history-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: #f8fbfe;
+            padding: 12px 20px;
+            border-radius: 60px;
+        }
+        .date-selector-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            padding: 6px 18px;
+            border-radius: 50px;
+            border: 1px solid #dee8f0;
+        }
+        .date-selector-group i {
+            color: #2c7da0;
+        }
+        .date-selector-group input {
+            border: none;
+            padding: 10px 5px;
+            font-size: 1rem;
+            font-weight: 500;
+            outline: none;
+            background: transparent;
+        }
+        .entries-list {
+            margin-top: 8px;
+            max-height: 560px;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+        .entry-item {
+            background: #fafdff;
+            border-radius: 28px;
+            padding: 20px 22px;
+            margin-bottom: 18px;
+            border: 1px solid #eef2f8;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .entry-item:hover {
+            background: #ffffff;
+            border-color: #cde0ed;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.04);
+        }
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            align-items: baseline;
+            margin-bottom: 14px;
+        }
+        .supervisor-shift {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .supervisor-name {
+            font-weight: 800;
+            font-size: 1rem;
+            background: #eef2fa;
+            padding: 5px 16px;
+            border-radius: 40px;
+        }
+        .shift-badge {
+            background: #e2ecf5;
+            padding: 5px 16px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .entry-actions-icon {
+            display: flex;
+            gap: 14px;
+        }
+        .entry-actions-icon i {
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #7c9ab8;
+            transition: 0.1s;
+        }
+        .entry-actions-icon i:hover {
+            color: #1d6f8f;
+            transform: scale(1.08);
+        }
+        .briefing-content {
+            background: #f8fbfe;
+            padding: 16px 20px;
+            border-radius: 24px;
+            margin-top: 8px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 0.9rem;
+            line-height: 1.55;
+            border-left: 4px solid #2c7da0;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 52px 20px;
+            color: #8aa9c4;
+            font-style: italic;
+        }
+        .status-msg {
+            background: #eef3fc;
+            border-radius: 40px;
+            padding: 10px 18px;
+            font-size: 0.8rem;
+            margin-top: 20px;
+            display: inline-block;
+        }
+        .badge-date {
+            background: #eef2f8;
+            padding: 4px 14px;
+            border-radius: 60px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.75rem;
+            color: #7e9bb5;
+        }
+        @media (max-width: 900px) {
+            .dashboard {
+                flex-direction: column;
+            }
+            body {
+                padding: 20px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1><i class="fas fa-scroll"></i> Briefing Minutes · Point Log</h1>
+        <p>Large briefing area | Past date selection to view & edit | Live Firestore</p>
+    </div>
+
+    <div class="dashboard">
+        <!-- LEFT PANEL: Entry Window (large briefing area) -->
+        <div class="entry-panel">
+            <div class="card">
+                <div class="card-title">
+                    <i class="fas fa-pen-fancy" style="color:#2c7da0;"></i> 
+                    <span>Briefing Entry Window</span>
+                    <span id="formModeBadge" class="badge-date" style="margin-left: auto;">✨ New</span>
+                </div>
+                <div class="form-group">
+                    <label><i class="far fa-calendar-alt"></i> Date (select any: past/future)</label>
+                    <input type="date" id="entryDate" value="">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-user-tie"></i> Supervisor</label>
+                    <select id="supervisorSelect">
+                        <option value="">-- Select Supervisor --</option>
+                        <option value="Elena Martinez">Elena Martinez</option>
+                        <option value="David Chen">David Chen</option>
+                        <option value="Sophia Reynolds">Sophia Reynolds</option>
+                        <option value="James Okafor">James Okafor</option>
+                        <option value="Linda Wu">Linda Wu</option>
+                        <option value="Marcus Thorne">Marcus Thorne</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-clock"></i> Shift</label>
+                    <select id="shiftSelect">
+                        <option value="">-- Select Shift --</option>
+                        <option value="Morning">🌅 Morning</option>
+                        <option value="Afternoon">🌇 Afternoon</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-file-lines"></i> Briefing Notes / Points (large area)</label>
+                    <textarea id="pointsText" class="big-textarea" placeholder="Write detailed briefing minutes, key points, action items, safety notes, performance points...&#10;Example:&#10;• Safety briefing: All protocols followed ✅&#10;• Production efficiency: 98% (+5 points)&#10;• Tomorrow's focus: Equipment inspection&#10;• Team recognition: +10 points for innovation"></textarea>
+                </div>
+                <div class="action-buttons">
+                    <button id="saveBtn" class="btn-primary"><i class="fas fa-save"></i> Save Briefing</button>
+                    <button id="clearFormBtn" class="btn-secondary"><i class="fas fa-eraser"></i> Clear / New</button>
+                    <button id="deleteCurrentBtn" class="btn-outline"><i class="fas fa-trash-alt"></i> Delete selected</button>
+                </div>
+                <div id="formFeedback" class="status-msg"></div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Past & Current Date Viewer (select any date to view entries) -->
+        <div class="history-panel">
+            <div class="card">
+                <div class="card-title">
+                    <i class="fas fa-calendar-alt" style="color:#f4a261;"></i>
+                    <span>View / Edit Briefings by Date</span>
+                </div>
+                <div class="date-history-bar">
+                    <div class="date-selector-group">
+                        <i class="fas fa-calendar-week"></i>
+                        <input type="date" id="viewDatePicker" value="">
+                    </div>
+                    <span id="selectedDateBadge" class="badge-date"><i class="fas fa-eye"></i> Past & future allowed</span>
+                    <button id="refreshViewBtn" class="btn-secondary" style="padding: 8px 20px;"><i class="fas fa-sync-alt"></i> Load</button>
+                </div>
+                <div id="historyEntriesContainer" class="entries-list">
+                    <div class="empty-state">📅 Select a date above to view briefing minutes</div>
+                </div>
+                <div id="historyFeedback" class="status-msg" style="margin-top: 12px;"></div>
+            </div>
+        </div>
+    </div>
+    <footer>✅ <strong>Large briefing area</strong> | Select any <strong>past date</strong> to view/edit minutes | Today's entries can be reviewed via date picker | Fully synced with Firebase</footer>
+</div>
+
+<script>
+    // Firebase is already initialized from fire.js
+    // Check if Firebase is available and initialized
+    let db, firestoreReady = false;
+    
+    // Wait for Firebase to be initialized from external file
+    if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+        try {
+            db = firebase.firestore();
+            firestoreReady = true;
+            console.log("🔥 Firebase ready from fire.js");
+        } catch (err) {
+            console.error("Firestore init error:", err);
+            firestoreReady = false;
+            alert("⚠️ Firestore initialization error. Check fire.js configuration.");
+            window.localFallbackEntries = [];
+        }
+    } else {
+        console.error("Firebase not initialized. Make sure fire.js is loaded correctly.");
+        alert("⚠️ Firebase configuration file (fire.js) not loaded. Using local fallback mode.");
+        firestoreReady = false;
+        window.localFallbackEntries = [];
+    }
+    
+    // ---------- GLOBAL STATE ----------
+    let currentEditId = null;               // editing mode flag
+    let currentSelectedDate = new Date().toISOString().slice(0,10); // today default
+    
+    // DOM elements (left entry panel)
+    const dateInput = document.getElementById('entryDate');
+    const supervisorSelect = document.getElementById('supervisorSelect');
+    const shiftSelect = document.getElementById('shiftSelect');
+    const pointsTextarea = document.getElementById('pointsText');
+    const saveBtn = document.getElementById('saveBtn');
+    const clearFormBtn = document.getElementById('clearFormBtn');
+    const deleteCurrentBtn = document.getElementById('deleteCurrentBtn');
+    const formFeedback = document.getElementById('formFeedback');
+    const formModeBadge = document.getElementById('formModeBadge');
+    
+    // Right panel (history viewer)
+    const viewDatePicker = document.getElementById('viewDatePicker');
+    const refreshViewBtn = document.getElementById('refreshViewBtn');
+    const historyEntriesContainer = document.getElementById('historyEntriesContainer');
+    const historyFeedback = document.getElementById('historyFeedback');
+    const selectedDateBadge = document.getElementById('selectedDateBadge');
+    
+    // Helper: get today's date YYYY-MM-DD
+    function getTodayDate() {
+        const today = new Date();
+        return today.toISOString().slice(0,10);
+    }
+    
+    // Reset left form to new mode (keep given date)
+    function resetFormToNew(dateValue = null) {
+        currentEditId = null;
+        formModeBadge.innerHTML = '✨ New Briefing';
+        formFeedback.innerHTML = '';
+        const targetDate = dateValue || currentSelectedDate;
+        dateInput.value = targetDate;
+        supervisorSelect.value = "";
+        shiftSelect.value = "";
+        pointsTextarea.value = "";
+    }
+    
+    // Load entry data into left form for editing
+    function loadEntryForEdit(entry) {
+        currentEditId = entry.id;
+        formModeBadge.innerHTML = '✏️ Editing Mode';
+        dateInput.value = entry.date;
+        supervisorSelect.value = entry.supervisor;
+        shiftSelect.value = entry.shift;
+        pointsTextarea.value = entry.pointsText || '';
+        formFeedback.innerHTML = `✏️ Editing briefing for ${entry.supervisor} (${entry.shift}) — modify & save.`;
+    }
+    
+    // SAVE / UPDATE entry (works for any date)
+    async function saveEntry() {
+        const dateVal = dateInput.value;
+        const supervisor = supervisorSelect.value;
+        const shift = shiftSelect.value;
+        const pointsTextVal = pointsTextarea.value.trim();
+        
+        if (!dateVal) { formFeedback.innerHTML = "❌ Please select a date."; return; }
+        if (!supervisor) { formFeedback.innerHTML = "❌ Select Supervisor."; return; }
+        if (!shift) { formFeedback.innerHTML = "❌ Select Shift."; return; }
+        if (!pointsTextVal) { formFeedback.innerHTML = "⚠️ Briefing notes cannot be empty."; return; }
+        
+        const entryData = {
+            date: dateVal,
+            supervisor: supervisor,
+            shift: shift,
+            pointsText: pointsTextVal,
+            updatedAt: new Date().toISOString()
+        };
+        
+        try {
+            if (!firestoreReady) {
+                // local fallback
+                if (currentEditId && window.localFallbackEntries.some(e => e.id === currentEditId)) {
+                    const idx = window.localFallbackEntries.findIndex(e => e.id === currentEditId);
+                    window.localFallbackEntries[idx] = { ...entryData, id: currentEditId };
+                    formFeedback.innerHTML = "✅ Updated locally (demo mode).";
+                } else {
+                    const newId = Date.now().toString();
+                    window.localFallbackEntries.push({ ...entryData, id: newId });
+                    formFeedback.innerHTML = "✅ New briefing saved locally.";
+                }
+                resetFormToNew(dateVal);
+                if (viewDatePicker.value === dateVal) await loadEntriesForViewDate(dateVal);
+                return;
+            }
+            
+            const entriesRef = db.collection("briefingMinutes");
+            if (currentEditId) {
+                await entriesRef.doc(currentEditId).update(entryData);
+                formFeedback.innerHTML = "✅ Briefing updated in Firebase!";
+                resetFormToNew(dateVal);
+            } else {
+                await entriesRef.add(entryData);
+                formFeedback.innerHTML = "✅ New briefing saved to Firestore!";
+                resetFormToNew(dateVal);
+            }
+            // refresh the view panel if the saved date matches currently viewed date
+            const currentViewDate = viewDatePicker.value;
+            if (currentViewDate === dateVal) {
+                await loadEntriesForViewDate(dateVal);
+            }
+        } catch (err) {
+            console.error(err);
+            formFeedback.innerHTML = "⚠️ Save error: " + err.message;
+        }
+    }
+    
+    // Delete entry by ID, refresh view panel if needed
+    async function deleteEntryById(entryId, entryDate) {
+        if (!confirm("Delete this briefing minute? Action permanent.")) return;
+        try {
+            if (!firestoreReady) {
+                window.localFallbackEntries = window.localFallbackEntries.filter(e => e.id !== entryId);
+                formFeedback.innerHTML = "🗑️ Deleted from local cache.";
+                if (currentEditId === entryId) resetFormToNew(getTodayDate());
+                const currentViewDate = viewDatePicker.value;
+                if (currentViewDate) await loadEntriesForViewDate(currentViewDate);
+                return;
+            }
+            await db.collection("briefingMinutes").doc(entryId).delete();
+            formFeedback.innerHTML = "🗑️ Entry deleted.";
+            if (currentEditId === entryId) resetFormToNew(getTodayDate());
+            const currentViewDate = viewDatePicker.value;
+            if (currentViewDate) await loadEntriesForViewDate(currentViewDate);
+        } catch (err) {
+            formFeedback.innerHTML = "Delete error: " + err.message;
+        }
+    }
+    
+    // Load entries for selected date (right panel)
+    async function loadEntriesForViewDate(dateStr) {
+        if (!dateStr) {
+            historyEntriesContainer.innerHTML = `<div class="empty-state">📅 Please select a date</div>`;
+            historyFeedback.innerHTML = "";
+            return;
+        }
+        viewDatePicker.value = dateStr;
+        selectedDateBadge.innerHTML = `<i class="far fa-calendar-check"></i> ${dateStr}`;
+        let entriesList = [];
+        
+        if (!firestoreReady) {
+            entriesList = window.localFallbackEntries.filter(entry => entry.date === dateStr);
+            renderHistoryEntries(entriesList, dateStr);
+            return;
+        }
+        
+        try {
+            const snapshot = await db.collection("briefingMinutes")
+                .where("date", "==", dateStr)
+                .orderBy("updatedAt", "desc")
+                .get();
+            entriesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderHistoryEntries(entriesList, dateStr);
+        } catch (err) {
+            console.error(err);
+            historyFeedback.innerHTML = "⚠️ Error loading entries.";
+            renderHistoryEntries([], dateStr);
+        }
+    }
+    
+    // Render entries in right panel with edit/delete
+    function renderHistoryEntries(entries, dateStr) {
+        if (!entries.length) {
+            historyEntriesContainer.innerHTML = `<div class="empty-state"><i class="far fa-comment-dots"></i> No briefing minutes for ${dateStr}. Use left panel to add.</div>`;
+            historyFeedback.innerHTML = `📅 ${dateStr} — no entries yet.`;
+            return;
+        }
+        historyEntriesContainer.innerHTML = '';
+        entries.forEach(entry => {
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'entry-item';
+            const safeSupervisor = escapeHtml(entry.supervisor);
+            const safeShift = escapeHtml(entry.shift);
+            const safePoints = escapeHtml(entry.pointsText || '').replace(/\n/g, '<br>');
+            entryDiv.innerHTML = `
+                <div class="entry-header">
+                    <div class="supervisor-shift">
+                        <span class="supervisor-name"><i class="fas fa-user-check"></i> ${safeSupervisor}</span>
+                        <span class="shift-badge"><i class="fas fa-clock"></i> ${safeShift}</span>
+                    </div>
+                    <div class="entry-actions-icon">
+                        <i class="fas fa-edit edit-history-entry" data-id="${entry.id}" data-date="${entry.date}" title="Edit briefing"></i>
+                        <i class="fas fa-trash-alt delete-history-entry" data-id="${entry.id}" data-date="${entry.date}" title="Delete"></i>
+                    </div>
+                </div>
+                <div class="briefing-content">${safePoints}</div>
+            `;
+            historyEntriesContainer.appendChild(entryDiv);
+        });
+        historyFeedback.innerHTML = `✅ ${entries.length} briefing minute(s) for ${dateStr}`;
+        
+        // attach edit/delete listeners
+        document.querySelectorAll('.edit-history-entry').forEach(icon => {
+            icon.addEventListener('click', async (e) => {
+                const id = icon.getAttribute('data-id');
+                await fetchEntryByIdAndLoadForEdit(id);
+            });
+        });
+        document.querySelectorAll('.delete-history-entry').forEach(icon => {
+            icon.addEventListener('click', async (e) => {
+                const id = icon.getAttribute('data-id');
+                const date = icon.getAttribute('data-date');
+                await deleteEntryById(id, date);
+            });
+        });
+    }
+    
+    // Fetch single entry by ID and load into left panel for editing
+    async function fetchEntryByIdAndLoadForEdit(id) {
+        try {
+            if (!firestoreReady) {
+                const entry = window.localFallbackEntries.find(e => e.id === id);
+                if (entry) {
+                    loadEntryForEdit(entry);
+                } else {
+                    formFeedback.innerHTML = "Entry not found locally.";
+                }
+                return;
+            }
+            const docRef = db.collection("briefingMinutes").doc(id);
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                const entryData = { id: docSnap.id, ...docSnap.data() };
+                loadEntryForEdit(entryData);
+            } else {
+                formFeedback.innerHTML = "Entry does not exist.";
+            }
+        } catch (err) {
+            formFeedback.innerHTML = "Error loading entry: " + err.message;
+        }
+    }
+    
+    // Delete currently selected (editing) entry
+    async function deleteCurrentEditing() {
+        if (currentEditId) {
+            await deleteEntryById(currentEditId, null);
+            resetFormToNew(getTodayDate());
+        } else {
+            formFeedback.innerHTML = "ℹ️ No entry is being edited. Click edit icon on any briefing to select.";
+        }
+    }
+    
+    // Clear form manually
+    function handleClearForm() {
+        resetFormToNew(getTodayDate());
+        formFeedback.innerHTML = "Form cleared. You can add a new briefing minute.";
+        pointsTextarea.value = "";
+        supervisorSelect.value = "";
+        shiftSelect.value = "";
+    }
+    
+    // escape helper
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    // On left date change: reset edit mode if needed
+    function onLeftDateChange() {
+        const newDate = dateInput.value;
+        if (newDate && currentEditId) {
+            if (confirm("Changing date while editing. Discard edit and start fresh?")) {
+                resetFormToNew(newDate);
+            } else {
+                dateInput.value = currentSelectedDate;
+            }
+        } else if (newDate) {
+            currentSelectedDate = newDate;
+        }
+    }
+    
+    // Initialize: set up today as default, load today in view panel
+    async function init() {
+        const todayStr = getTodayDate();
+        currentSelectedDate = todayStr;
+        dateInput.value = todayStr;
+        viewDatePicker.value = todayStr;
+        resetFormToNew(todayStr);
+        await loadEntriesForViewDate(todayStr);   // show today's entries by default
+        
+        // Event listeners
+        saveBtn.addEventListener('click', saveEntry);
+        clearFormBtn.addEventListener('click', handleClearForm);
+        deleteCurrentBtn.addEventListener('click', deleteCurrentEditing);
+        dateInput.addEventListener('change', onLeftDateChange);
+        refreshViewBtn.addEventListener('click', () => {
+            const selectedDate = viewDatePicker.value;
+            if (selectedDate) loadEntriesForViewDate(selectedDate);
+        });
+        viewDatePicker.addEventListener('change', () => {
+            const newDate = viewDatePicker.value;
+            if (newDate) loadEntriesForViewDate(newDate);
+        });
+        
+        formFeedback.innerHTML = "✅ Ready. Left panel = large briefing area. Right panel: select ANY past/future date to view entries.";
+    }
+    
+    init();
+</script>
+</body>
+</html>
