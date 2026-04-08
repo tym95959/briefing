@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Shift Checklist · Multi-Staff Acknowledgment</title>
+    <title>Global Task Checklist · Multi-Staff Acknowledgment</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -216,11 +216,6 @@
             background: #ccc;
             cursor: not-allowed;
         }
-        .already-acknowledged {
-            font-size: 0.7rem;
-            color: #2e7d32;
-            margin-top: 8px;
-        }
         .info-text {
             font-size: 0.75rem;
             color: #7c9ab8;
@@ -314,6 +309,26 @@
         .hidden {
             display: none;
         }
+        .edit-task-btn {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .delete-task-btn {
+            background: #c62828;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-left: 5px;
+        }
         footer {
             text-align: center;
             margin-top: 40px;
@@ -333,8 +348,8 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-clipboard-list"></i> Shift Checklist · Multi-Staff Acknowledgment</h1>
-        <p>Staff: Acknowledge tasks | Multiple staff can acknowledge same task | Supervisor: Manage tasks & close shift</p>
+        <h1><i class="fas fa-globe"></i> Global Task Checklist</h1>
+        <p>Tasks are global (same for all dates/shifts) | Multiple staff can acknowledge same task | Supervisor manages tasks & closes shifts</p>
     </div>
 
     <div class="role-bar">
@@ -347,7 +362,7 @@
             <div class="card">
                 <div class="card-title">
                     <i class="fas fa-check-double"></i>
-                    <span>Shift Tasks</span>
+                    <span>Today's Tasks</span>
                 </div>
                 <div class="date-shift-selector">
                     <input type="date" id="checklistDate" value="">
@@ -373,8 +388,9 @@
                 </div>
                 <div id="adminContent">
                     <div class="admin-form">
-                        <input type="text" id="newTaskName" placeholder="Task name (e.g., 'Safety equipment check')">
-                        <button id="addTaskBtn"><i class="fas fa-plus"></i> Add Task</button>
+                        <h4 style="margin-bottom: 12px;">Global Tasks (applies to all shifts)</h4>
+                        <input type="text" id="newTaskName" placeholder="New task name (e.g., 'Safety equipment check')">
+                        <button id="addTaskBtn"><i class="fas fa-plus"></i> Add Global Task</button>
                     </div>
                     <div style="margin: 20px 0;">
                         <label style="font-weight: 600; font-size: 0.8rem;">Staff Members</label>
@@ -386,13 +402,13 @@
                             <button id="addStaffBtn" class="small-btn"><i class="fas fa-user-plus"></i> Add</button>
                         </div>
                     </div>
-                    <button id="closeChecklistBtn" class="close-checklist-btn"><i class="fas fa-lock"></i> Close Shift (End of Shift)</button>
+                    <button id="closeChecklistBtn" class="close-checklist-btn"><i class="fas fa-lock"></i> Close Current Shift</button>
                     <div id="adminFeedback" class="info-text" style="margin-top: 12px; color:#c62828;"></div>
                 </div>
             </div>
         </div>
     </div>
-    <footer>✅ <strong>Multiple staff can acknowledge the same task</strong> | Each staff member appears once per task | Supervisor can close shift when done</footer>
+    <footer>✅ <strong>Global Tasks:</strong> Tasks are the same for all dates and shifts | Each staff member can acknowledge tasks once per shift | Supervisor can edit/delete tasks anytime</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -434,7 +450,8 @@
     let currentRole = "staff";
     let currentDate = new Date().toISOString().slice(0, 10);
     let currentShift = "";
-    let currentChecklist = null;
+    let currentShiftRecord = null; // For storing shift-specific acknowledgments
+    let globalTasks = []; // Global tasks from Firestore
     let staffList = [];
     let isSupervisorAuthenticated = false;
 
@@ -460,10 +477,162 @@
     const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
     const passwordError = document.getElementById('passwordError');
 
-    function getChecklistId(date, shift) {
+    // Get shift record ID
+    function getShiftRecordId(date, shift) {
         return `${date}_${shift}`.replace(/\s/g, '_');
     }
 
+    // Load global tasks from Firestore
+    async function loadGlobalTasks() {
+        if (!firestoreReady) return;
+        try {
+            const docRef = db.collection("globalConfig").doc("tasks");
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                globalTasks = docSnap.data().tasks || [];
+            } else {
+                globalTasks = [];
+                await docRef.set({ tasks: [] });
+            }
+            renderChecklist();
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // Save global tasks to Firestore
+    async function saveGlobalTasks(tasks) {
+        if (!firestoreReady) return;
+        try {
+            await db.collection("globalConfig").doc("tasks").set({ tasks: tasks });
+            globalTasks = tasks;
+            renderChecklist();
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // Add global task
+    async function addGlobalTask(taskName) {
+        if (!taskName.trim()) { adminFeedback.innerText = "Enter task name"; return; }
+        const newTask = {
+            id: Date.now().toString(),
+            name: taskName.trim(),
+            createdAt: new Date().toISOString()
+        };
+        const updatedTasks = [...globalTasks, newTask];
+        await saveGlobalTasks(updatedTasks);
+        newTaskName.value = "";
+        adminFeedback.innerText = "✅ Global task added";
+        setTimeout(() => adminFeedback.innerText = "", 2000);
+    }
+
+    // Edit global task
+    async function editGlobalTask(taskId, newName) {
+        if (!newName.trim()) return;
+        const updatedTasks = globalTasks.map(task => 
+            task.id === taskId ? { ...task, name: newName.trim() } : task
+        );
+        await saveGlobalTasks(updatedTasks);
+        adminFeedback.innerText = "✅ Task updated";
+        setTimeout(() => adminFeedback.innerText = "", 2000);
+    }
+
+    // Delete global task
+    async function deleteGlobalTask(taskId) {
+        if (!confirm("Delete this task? It will be removed for all future shifts.")) return;
+        const updatedTasks = globalTasks.filter(task => task.id !== taskId);
+        await saveGlobalTasks(updatedTasks);
+        adminFeedback.innerText = "🗑️ Task deleted";
+        setTimeout(() => adminFeedback.innerText = "", 2000);
+    }
+
+    // Load shift record for acknowledgments
+    async function loadShiftRecord(date, shift) {
+        if (!firestoreReady || !date || !shift) return null;
+        
+        const recordId = getShiftRecordId(date, shift);
+        try {
+            const docRef = db.collection("shiftRecords").doc(recordId);
+            const docSnap = await docRef.get();
+            
+            if (docSnap.exists) {
+                currentShiftRecord = { id: docSnap.id, ...docSnap.data() };
+            } else {
+                // Create new shift record with empty acknowledgments
+                const newRecord = {
+                    date: date,
+                    shift: shift,
+                    status: "open",
+                    acknowledgments: {}, // taskId -> array of staff names
+                    createdAt: new Date().toISOString()
+                };
+                await docRef.set(newRecord);
+                currentShiftRecord = { id: recordId, ...newRecord };
+            }
+            renderChecklist();
+            return currentShiftRecord;
+        } catch (err) {
+            console.error(err);
+            return null;
+        }
+    }
+
+    // Acknowledge a task for current shift
+    async function acknowledgeTask(taskId, taskName, staffName) {
+        if (!firestoreReady || !currentShiftRecord) return;
+        if (currentShiftRecord.status === "closed") {
+            alert("Shift is closed. Cannot acknowledge tasks.");
+            return;
+        }
+        
+        const acknowledgments = currentShiftRecord.acknowledgments || {};
+        const taskAcks = acknowledgments[taskId] || [];
+        
+        if (taskAcks.includes(staffName)) {
+            alert(`⚠️ ${staffName} has already acknowledged "${taskName}" for this shift.`);
+            return;
+        }
+        
+        taskAcks.push(staffName);
+        acknowledgments[taskId] = taskAcks;
+        
+        try {
+            await db.collection("shiftRecords").doc(currentShiftRecord.id).set({ 
+                acknowledgments: acknowledgments,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            currentShiftRecord.acknowledgments = acknowledgments;
+            renderChecklist();
+            checklistInfo.innerHTML = `✅ ${staffName} acknowledged "${taskName}"`;
+            setTimeout(() => renderChecklist(), 1000);
+        } catch (err) {
+            console.error(err);
+            alert("Error saving acknowledgment");
+        }
+    }
+
+    // Close current shift
+    async function closeShift() {
+        if (!currentShiftRecord) { adminFeedback.innerText = "No shift selected"; return; }
+        if (currentShiftRecord.status === "closed") { adminFeedback.innerText = "Shift already closed"; return; }
+        if (!confirm("Close this shift? Staff will no longer be able to acknowledge tasks.")) return;
+        
+        try {
+            await db.collection("shiftRecords").doc(currentShiftRecord.id).set({ 
+                status: "closed", 
+                closedAt: new Date().toISOString() 
+            }, { merge: true });
+            currentShiftRecord.status = "closed";
+            renderChecklist();
+            adminFeedback.innerText = "🔒 Shift closed successfully";
+            setTimeout(() => adminFeedback.innerText = "", 3000);
+        } catch (err) {
+            adminFeedback.innerText = "Error: " + err.message;
+        }
+    }
+
+    // Load staff list
     async function loadStaffList() {
         if (!firestoreReady) return;
         try {
@@ -500,75 +669,57 @@
         }
     }
 
-    async function loadChecklistForDateAndShift(date, shift) {
-        if (!firestoreReady) return;
-        if (!date || !shift) {
-            checklistItemsContainer.innerHTML = `<div class="empty-msg">📋 Please select both date and shift</div>`;
-            currentChecklist = null;
-            return;
-        }
-        
-        const checklistId = getChecklistId(date, shift);
-        try {
-            const docRef = db.collection("checklists").doc(checklistId);
-            const docSnap = await docRef.get();
-            
-            if (docSnap.exists) {
-                currentChecklist = { id: docSnap.id, ...docSnap.data() };
-            } else {
-                const newChecklist = {
-                    date: date,
-                    shift: shift,
-                    status: "open",
-                    tasks: [],
-                    createdAt: new Date().toISOString()
-                };
-                await docRef.set(newChecklist);
-                currentChecklist = { id: checklistId, ...newChecklist };
-            }
-            renderChecklist();
-        } catch (err) {
-            console.error(err);
-            checklistItemsContainer.innerHTML = `<div class="empty-msg">Error loading checklist</div>`;
-        }
-    }
-
+    // Render checklist with global tasks
     function renderChecklist() {
-        if (!currentChecklist) {
-            checklistItemsContainer.innerHTML = `<div class="empty-msg">Select date and shift to view tasks</div>`;
+        if (!currentShiftRecord || !globalTasks.length) {
+            if (!currentShiftRecord && currentDate && currentShift) {
+                checklistItemsContainer.innerHTML = `<div class="empty-msg">Loading shift data...</div>`;
+            } else if (globalTasks.length === 0 && currentRole === "supervisor") {
+                checklistItemsContainer.innerHTML = `<div class="empty-msg">📝 No global tasks yet. Add tasks using the supervisor panel.</div>`;
+            } else if (!currentDate || !currentShift) {
+                checklistItemsContainer.innerHTML = `<div class="empty-msg">📋 Select date and shift to view tasks</div>`;
+            } else {
+                checklistItemsContainer.innerHTML = `<div class="empty-msg">Loading tasks...</div>`;
+            }
+            if (currentShiftRecord) {
+                const isClosed = currentShiftRecord.status === "closed";
+                checklistStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Shift Closed' : '<i class="fas fa-lock-open"></i> Open';
+                checklistStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
+            }
             return;
         }
 
-        const isClosed = currentChecklist.status === "closed";
+        const isClosed = currentShiftRecord.status === "closed";
         checklistStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Shift Closed' : '<i class="fas fa-lock-open"></i> Open';
         checklistStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
 
-        const tasks = currentChecklist.tasks || [];
-        if (tasks.length === 0) {
-            checklistItemsContainer.innerHTML = `<div class="empty-msg">📝 No tasks added yet. (Supervisor: Add tasks)</div>`;
-            checklistInfo.innerText = isClosed ? "Shift is closed. No further changes allowed." : "Select your name and click Acknowledge when done.";
+        const acknowledgments = currentShiftRecord.acknowledgments || {};
+        
+        if (globalTasks.length === 0) {
+            checklistItemsContainer.innerHTML = `<div class="empty-msg">📝 No global tasks yet. (Supervisor: Add tasks)</div>`;
+            checklistInfo.innerText = isClosed ? "Shift is closed." : "Select your name and click Acknowledge when done.";
             return;
         }
 
         checklistItemsContainer.innerHTML = '';
+        let totalAcks = 0;
         
-        tasks.forEach((task, taskIndex) => {
-            const acknowledgments = task.acknowledgments || [];
-            const acknowledgedNames = acknowledgments.map(a => a.staffName);
+        globalTasks.forEach((task) => {
+            const taskAcks = acknowledgments[task.id] || [];
+            totalAcks += taskAcks.length;
             
             const itemDiv = document.createElement('div');
             itemDiv.className = 'checklist-item';
             
             // Build acknowledgments display
             let ackHtml = '';
-            if (acknowledgments.length > 0) {
+            if (taskAcks.length > 0) {
                 ackHtml = `
                     <div class="acknowledgments">
-                        <div class="ack-title"><i class="fas fa-users"></i> Acknowledged by (${acknowledgments.length}):</div>
-                        ${acknowledgments.map(ack => `
+                        <div class="ack-title"><i class="fas fa-users"></i> Acknowledged by (${taskAcks.length}):</div>
+                        ${taskAcks.map(staffName => `
                             <span class="staff-avatar">
-                                <i class="fas fa-check-circle"></i> ${escapeHtml(ack.staffName)}
-                                <small style="font-size:0.65rem;">${new Date(ack.acknowledgedAt).toLocaleTimeString()}</small>
+                                <i class="fas fa-check-circle"></i> ${escapeHtml(staffName)}
                             </span>
                         `).join('')}
                     </div>
@@ -578,14 +729,14 @@
             }
             
             if (currentRole === "staff" && !isClosed) {
-                // Staff can acknowledge if they haven't already
-                const currentStaffSelectHtml = `
+                // Check if current staff has already acknowledged
+                const staffSelectHtml = `
                     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px;">
-                        <select id="staffSelect_${taskIndex}" class="staff-select">
+                        <select id="staffSelect_${task.id}" class="staff-select">
                             <option value="">-- Select your name --</option>
                             ${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}
                         </select>
-                        <button class="acknowledge-btn" data-task-index="${taskIndex}"><i class="fas fa-check"></i> Acknowledge Task</button>
+                        <button class="acknowledge-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}"><i class="fas fa-check"></i> Acknowledge Task</button>
                     </div>
                 `;
                 
@@ -597,10 +748,20 @@
                         </div>
                     </div>
                     ${ackHtml}
-                    ${currentStaffSelectHtml}
+                    ${staffSelectHtml}
                 `;
             } else {
-                // View only mode
+                // Supervisor or closed shift view
+                let actionButtons = '';
+                if (currentRole === "supervisor") {
+                    actionButtons = `
+                        <div style="margin-top: 12px;">
+                            <button class="edit-task-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="delete-task-btn" data-task-id="${task.id}"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    `;
+                }
+                
                 itemDiv.innerHTML = `
                     <div class="task-header">
                         <div class="task-name">
@@ -609,110 +770,82 @@
                         </div>
                     </div>
                     ${ackHtml}
+                    ${actionButtons}
                     ${isClosed ? '<div class="info-text" style="color:#c62828;"><i class="fas fa-ban"></i> Shift closed - No more acknowledgments</div>' : ''}
                 `;
             }
             checklistItemsContainer.appendChild(itemDiv);
         });
 
-        // Attach acknowledge button listeners
-        if (currentRole === "staff" && currentChecklist.status !== "closed") {
+        // Attach event listeners
+        if (currentRole === "staff" && currentShiftRecord.status !== "closed") {
             document.querySelectorAll('.acknowledge-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
-                    const taskIndex = parseInt(btn.getAttribute('data-task-index'));
-                    const staffSelect = document.getElementById(`staffSelect_${taskIndex}`);
+                    const taskId = btn.getAttribute('data-task-id');
+                    const taskName = btn.getAttribute('data-task-name');
+                    const staffSelect = document.getElementById(`staffSelect_${taskId}`);
                     const staffName = staffSelect.value;
                     if (!staffName) {
                         alert("Please select your name before acknowledging.");
                         return;
                     }
-                    await acknowledgeTask(taskIndex, staffName);
+                    await acknowledgeTask(taskId, taskName, staffName);
+                });
+            });
+        }
+        
+        if (currentRole === "supervisor") {
+            document.querySelectorAll('.edit-task-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const taskId = btn.getAttribute('data-task-id');
+                    const currentName = btn.getAttribute('data-task-name');
+                    const newName = prompt("Edit task name:", currentName);
+                    if (newName && newName.trim()) {
+                        await editGlobalTask(taskId, newName);
+                    }
+                });
+            });
+            document.querySelectorAll('.delete-task-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const taskId = btn.getAttribute('data-task-id');
+                    await deleteGlobalTask(taskId);
                 });
             });
         }
 
-        const totalAcks = tasks.reduce((sum, t) => sum + (t.acknowledgments || []).length, 0);
-        checklistInfo.innerText = isClosed ? "🔒 Shift is closed. Contact supervisor if needed." : `📊 ${tasks.length} tasks | ${totalAcks} total acknowledgments`;
+        checklistInfo.innerText = isClosed ? "🔒 Shift is closed. Contact supervisor if needed." : `📊 ${globalTasks.length} total tasks | ${totalAcks} total acknowledgments for this shift`;
     }
 
-    async function acknowledgeTask(taskIndex, staffName) {
-        if (!firestoreReady || !currentChecklist) return;
-        if (currentChecklist.status === "closed") {
-            alert("Shift is closed. Cannot acknowledge tasks.");
+    // Date/Shift change handler
+    async function onDateShiftChange() {
+        currentDate = checklistDate.value;
+        currentShift = shiftSelect.value;
+        if (currentDate && currentShift) {
+            await loadShiftRecord(currentDate, currentShift);
+        } else {
+            currentShiftRecord = null;
+            renderChecklist();
+        }
+    }
+
+    // Role switching
+    function setRole(role) {
+        if (role === "supervisor" && !isSupervisorAuthenticated) {
+            showPasswordModal();
             return;
         }
         
-        const tasks = [...(currentChecklist.tasks || [])];
-        const task = tasks[taskIndex];
-        const currentAcks = task.acknowledgments || [];
-        
-        // Check if this staff already acknowledged
-        if (currentAcks.some(a => a.staffName === staffName)) {
-            alert(`⚠️ ${staffName} has already acknowledged this task.`);
-            return;
+        currentRole = role;
+        if (role === "supervisor") {
+            adminPanel.classList.remove("hidden");
+            staffRoleBtn.classList.remove("active");
+            supervisorRoleBtn.classList.add("active");
+        } else {
+            adminPanel.classList.add("hidden");
+            supervisorRoleBtn.classList.remove("active");
+            staffRoleBtn.classList.add("active");
         }
-        
-        // Add new acknowledgment
-        currentAcks.push({
-            staffName: staffName,
-            acknowledgedAt: new Date().toISOString()
-        });
-        
-        tasks[taskIndex] = {
-            ...task,
-            acknowledgments: currentAcks
-        };
-        
-        try {
-            await db.collection("checklists").doc(currentChecklist.id).set({ tasks: tasks }, { merge: true });
-            currentChecklist.tasks = tasks;
-            renderChecklist();
-            checklistInfo.innerHTML = `✅ ${staffName} acknowledged "${task.name}"`;
-            setTimeout(() => renderChecklist(), 1000);
-        } catch (err) {
-            console.error(err);
-            alert("Error saving acknowledgment");
-        }
-    }
-
-    async function addTask(taskName) {
-        if (!taskName.trim()) { adminFeedback.innerText = "Enter task name"; return; }
-        if (!currentChecklist) { adminFeedback.innerText = "Select date and shift first"; return; }
-        if (currentChecklist.status === "closed") { adminFeedback.innerText = "Shift is closed. Cannot add tasks."; return; }
-        
-        const tasks = [...(currentChecklist.tasks || [])];
-        tasks.push({
-            name: taskName.trim(),
-            acknowledgments: [],
-            createdAt: new Date().toISOString()
-        });
-        
-        try {
-            await db.collection("checklists").doc(currentChecklist.id).set({ tasks: tasks }, { merge: true });
-            currentChecklist.tasks = tasks;
-            renderChecklist();
-            newTaskName.value = "";
-            adminFeedback.innerText = "✅ Task added";
-            setTimeout(() => adminFeedback.innerText = "", 2000);
-        } catch (err) {
-            adminFeedback.innerText = "Error: " + err.message;
-        }
-    }
-
-    async function closeChecklist() {
-        if (!currentChecklist) { adminFeedback.innerText = "No checklist loaded"; return; }
-        if (currentChecklist.status === "closed") { adminFeedback.innerText = "Shift already closed"; return; }
-        if (!confirm("Close this shift? Staff will no longer be able to acknowledge tasks.")) return;
-        
-        try {
-            await db.collection("checklists").doc(currentChecklist.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true });
-            currentChecklist.status = "closed";
-            renderChecklist();
-            adminFeedback.innerText = "🔒 Shift closed successfully";
-            setTimeout(() => adminFeedback.innerText = "", 3000);
-        } catch (err) {
-            adminFeedback.innerText = "Error: " + err.message;
-        }
+        renderChecklist();
     }
 
     function showPasswordModal() {
@@ -738,37 +871,13 @@
         }
     }
 
-    function setRole(role) {
-        if (role === "supervisor" && !isSupervisorAuthenticated) {
-            showPasswordModal();
-            return;
-        }
-        
-        currentRole = role;
-        if (role === "supervisor") {
-            adminPanel.classList.remove("hidden");
-            staffRoleBtn.classList.remove("active");
-            supervisorRoleBtn.classList.add("active");
-        } else {
-            adminPanel.classList.add("hidden");
-            supervisorRoleBtn.classList.remove("active");
-            staffRoleBtn.classList.add("active");
-        }
-        renderChecklist();
-    }
-
-    async function onDateShiftChange() {
-        currentDate = checklistDate.value;
-        currentShift = shiftSelect.value;
-        await loadChecklistForDateAndShift(currentDate, currentShift);
-    }
-
     async function init() {
         const today = new Date().toISOString().slice(0, 10);
         checklistDate.value = today;
         currentDate = today;
         
         if (firestoreReady) {
+            await loadGlobalTasks();
             await loadStaffList();
         }
         
@@ -776,9 +885,9 @@
         shiftSelect.addEventListener('change', onDateShiftChange);
         staffRoleBtn.addEventListener('click', () => setRole("staff"));
         supervisorRoleBtn.addEventListener('click', () => setRole("supervisor"));
-        addTaskBtn.addEventListener('click', () => addTask(newTaskName.value));
+        addTaskBtn.addEventListener('click', () => addGlobalTask(newTaskName.value));
         addStaffBtn.addEventListener('click', () => addStaff(newStaffName.value));
-        closeChecklistBtn.addEventListener('click', closeChecklist);
+        closeChecklistBtn.addEventListener('click', closeShift);
         verifyPasswordBtn.addEventListener('click', verifyPassword);
         cancelPasswordBtn.addEventListener('click', hidePasswordModal);
         
@@ -786,7 +895,7 @@
             if (e.key === 'Enter') addStaff(newStaffName.value);
         });
         newTaskName.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addTask(newTaskName.value);
+            if (e.key === 'Enter') addGlobalTask(newTaskName.value);
         });
         supervisorPassword.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') verifyPassword();
