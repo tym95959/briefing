@@ -427,8 +427,8 @@
             </select>
         </div>
         <div class="action-buttons">
-            <button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Save Full Report (PDF)</button>
-            <button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Print Allocation Sheet</button>
+            <button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Save Full Report</button>
+            <button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Print Allocation Card</button>
         </div>
         <div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
         <button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen Shift</button>
@@ -494,7 +494,7 @@
             </div>
         </div>
     </div>
-    <footer>✅ <strong>PDF Export:</strong> Save Full Report includes allocations + tasks | Print Allocation Sheet for distribution</footer>
+    <footer>✅ <strong>PDF Export:</strong> Full Report (A4) | Allocation Card (A5 - fits in pocket)</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -508,8 +508,6 @@
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyALK_YlhFl6XOTDY54SOhk4DUDLPq1PBEE",
@@ -548,7 +546,6 @@
     let staffList = [];
     let isSupervisor = false;
 
-    // DOM Elements
     const staffRoleBtn = document.getElementById('staffRoleBtn');
     const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const adminPanel = document.getElementById('adminPanel');
@@ -659,7 +656,7 @@
                 areaDiv.innerHTML = `
                     <div class="area-name">${area}</div>
                     <div class="assigned-staff">
-                        ${assigned.map(s => `<span class="staff-badge">👤 ${escapeHtml(s)} ${canEdit ? `<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button>` : ''}</span>`).join('')}
+                        ${assigned.map(s => `<span class="staff-badge">👤 ${escapeHtml(s)} ${canEdit ? `<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" style="background:none; border:none; color:#c62828; cursor:pointer;">✖</button>` : ''}</span>`).join('')}
                         ${assigned.length === 0 ? '<span style="font-size:0.65rem; color:#999;">No staff assigned</span>' : ''}
                     </div>
                 `;
@@ -996,7 +993,8 @@
         document.body.removeChild(element);
     }
 
-    async function printAllocationOnly() {
+    // A5 size allocation card (148mm x 210mm) - optimized for pocket size
+    async function printAllocationCard() {
         if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
         const printWindow = window.open('', '_blank');
         printWindow.document.write(`
@@ -1004,34 +1002,117 @@
             <head>
                 <title>Staff Allocation - ${currentDate} ${currentShift} Shift</title>
                 <style>
-                    body { font-family: 'Inter', sans-serif; padding: 20px; }
-                    h1 { color: #1a4c6e; text-align: center; }
-                    .header { text-align: center; margin-bottom: 30px; }
-                    .time-slot { margin-bottom: 25px; border: 1px solid #ddd; border-radius: 12px; overflow: hidden; }
-                    .slot-header { background: #eef3fc; padding: 10px 15px; font-weight: bold; font-size: 16px; }
-                    .areas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 15px; }
-                    .area-card { border: 1px solid #e2eaf2; border-radius: 12px; padding: 10px; }
-                    .area-name { font-weight: bold; color: #2c7da0; margin-bottom: 8px; }
-                    .staff-list { display: flex; flex-wrap: wrap; gap: 5px; }
-                    .staff-badge { background: #eef2fa; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
-                    .footer { text-align: center; margin-top: 30px; font-size: 10px; color: #999; }
+                    @page {
+                        size: A5;
+                        margin: 8mm;
+                    }
+                    body { 
+                        font-family: 'Inter', 'Segoe UI', Arial, sans-serif; 
+                        margin: 0; 
+                        padding: 0;
+                        background: white;
+                    }
+                    .allocation-card {
+                        width: 100%;
+                        max-width: 148mm;
+                        margin: 0 auto;
+                        padding: 6mm;
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 12px;
+                        padding-bottom: 8px;
+                        border-bottom: 2px solid #2c7da0;
+                    }
+                    .header h2 {
+                        color: #1a4c6e;
+                        font-size: 16px;
+                        margin: 0 0 4px 0;
+                    }
+                    .header p {
+                        color: #5a7a97;
+                        font-size: 10px;
+                        margin: 2px 0;
+                    }
+                    .time-slot {
+                        margin-bottom: 14px;
+                        border: 1px solid #e0e8f0;
+                        border-radius: 10px;
+                        overflow: hidden;
+                    }
+                    .slot-header {
+                        background: #eef3fc;
+                        padding: 6px 10px;
+                        font-weight: bold;
+                        font-size: 11px;
+                        color: #1d6f8f;
+                    }
+                    .areas-grid {
+                        display: grid;
+                        grid-template-columns: repeat(2, 1fr);
+                        gap: 8px;
+                        padding: 10px;
+                    }
+                    .area-card {
+                        border: 1px solid #eef2f8;
+                        border-radius: 8px;
+                        padding: 6px;
+                        background: white;
+                    }
+                    .area-name {
+                        font-weight: bold;
+                        font-size: 9px;
+                        color: #2c7da0;
+                        margin-bottom: 6px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+                    .staff-list {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 4px;
+                    }
+                    .staff-badge {
+                        background: #eef2fa;
+                        padding: 3px 6px;
+                        border-radius: 12px;
+                        font-size: 8px;
+                        display: inline-block;
+                    }
+                    .footer {
+                        text-align: center;
+                        margin-top: 12px;
+                        padding-top: 6px;
+                        border-top: 1px solid #ddd;
+                        font-size: 7px;
+                        color: #999;
+                    }
                     @media print {
-                        body { margin: 0; padding: 15px; }
+                        body { margin: 0; padding: 0; }
                         .no-print { display: none; }
                     }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h1>Staff Allocation Sheet</h1>
-                    <p><strong>Date:</strong> ${currentDate} | <strong>Shift:</strong> ${currentShift} Shift</p>
-                    <p>Printed: ${new Date().toLocaleString()}</p>
+                <div class="allocation-card">
+                    <div class="header">
+                        <h2>📋 STAFF ALLOCATION</h2>
+                        <p><strong>${currentDate}</strong> | ${currentShift} Shift</p>
+                    </div>
+                    ${generateCompactAllocationHTML()}
+                    <div class="footer">
+                        <p>Generated: ${new Date().toLocaleString()} | Shift Manager</p>
+                    </div>
                 </div>
-                ${generateAllocationHTML()}
-                <div class="footer">
-                    <p>This is an official staff allocation document</p>
-                </div>
-                <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }<\/script>
+                <script>
+                    window.onload = function() { 
+                        setTimeout(function() { 
+                            window.print(); 
+                            setTimeout(function() { window.close(); }, 500);
+                        }, 200);
+                    }
+                </script>
             </body>
             </html>
         `);
@@ -1046,13 +1127,35 @@
         slots.forEach(slot => {
             const slotAllocs = allocations[slot.id] || {};
             html += `<div class="time-slot">
-                <div class="slot-header"><i class="fas fa-clock"></i> ${slot.name}</div>
+                <div class="slot-header">🕐 ${slot.name}</div>
                 <div class="areas-grid">`;
             slot.areas.forEach(area => {
                 const assigned = slotAllocs[area] || [];
                 html += `<div class="area-card">
                     <div class="area-name">${area}</div>
-                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">👤 ${escapeHtml(s)}</span>`).join('') || '<span style="color:#999;">No staff assigned</span>'}</div>
+                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">👤 ${escapeHtml(s)}</span>`).join('') || '<span style="color:#ccc; font-size:8px;">—</span>'}</div>
+                </div>`;
+            });
+            html += `</div></div>`;
+        });
+        return html;
+    }
+
+    function generateCompactAllocationHTML() {
+        if (!currentSODRecord) return '<p>No allocation data</p>';
+        const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
+        const allocations = currentSODRecord.allocations || {};
+        let html = '';
+        slots.forEach(slot => {
+            const slotAllocs = allocations[slot.id] || {};
+            html += `<div class="time-slot">
+                <div class="slot-header">🕐 ${slot.name}</div>
+                <div class="areas-grid">`;
+            slot.areas.forEach(area => {
+                const assigned = slotAllocs[area] || [];
+                html += `<div class="area-card">
+                    <div class="area-name">${area}</div>
+                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">${escapeHtml(s)}</span>`).join('') || '<span style="color:#ccc;">—</span>'}</div>
                 </div>`;
             });
             html += `</div></div>`;
@@ -1135,7 +1238,7 @@
         verifyPasswordBtn.addEventListener('click', verifyPassword);
         cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
         exportFullPdfBtn.addEventListener('click', exportFullPDF);
-        printAllocationBtn.addEventListener('click', printAllocationOnly);
+        printAllocationBtn.addEventListener('click', printAllocationCard);
         setRole("staff");
     }
 
