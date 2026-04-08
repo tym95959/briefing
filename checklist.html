@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Daily Checklist · Staff Task Manager</title>
+    <title>Shift Checklist · Supervisor & Staff Task Manager</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <!-- Google Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -24,7 +23,7 @@
             color: #1a2c3e;
         }
         .container {
-            max-width: 1300px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         .header {
@@ -83,7 +82,7 @@
         }
         .admin-panel {
             flex: 1.2;
-            min-width: 320px;
+            min-width: 340px;
         }
         .card {
             background: white;
@@ -102,19 +101,19 @@
             border-left: 4px solid #2c7da0;
             padding-left: 16px;
         }
-        .date-selector {
+        .date-shift-selector {
             display: flex;
             gap: 12px;
-            align-items: center;
             margin-bottom: 24px;
             flex-wrap: wrap;
         }
-        .date-selector input {
+        .date-shift-selector input, .date-shift-selector select {
             padding: 12px 18px;
             border-radius: 28px;
             border: 1.5px solid #e2eaf2;
             font-size: 1rem;
             flex: 1;
+            background: white;
         }
         .status-badge {
             display: inline-flex;
@@ -124,6 +123,7 @@
             border-radius: 40px;
             font-size: 0.8rem;
             font-weight: 600;
+            margin-left: 12px;
         }
         .status-open {
             background: #e8f5e9;
@@ -135,7 +135,7 @@
         }
         /* Checklist Items */
         .checklist-items {
-            max-height: 500px;
+            max-height: 550px;
             overflow-y: auto;
         }
         .checklist-item {
@@ -161,8 +161,12 @@
             align-items: center;
             gap: 10px;
         }
-        .task-name i {
-            color: #2c7da0;
+        .task-points {
+            font-size: 0.75rem;
+            background: #eef2fa;
+            padding: 2px 10px;
+            border-radius: 20px;
+            color: #1d6f8f;
         }
         .completed-badge {
             font-size: 0.7rem;
@@ -199,21 +203,22 @@
             background: #ccc;
             cursor: not-allowed;
         }
-        .undo-btn {
-            background: #ff9800;
-        }
         .info-text {
             font-size: 0.75rem;
             color: #7c9ab8;
             margin-top: 8px;
         }
         /* Admin Form */
-        .admin-form input, .admin-form select {
+        .admin-form input, .admin-form select, .admin-form textarea {
             width: 100%;
             padding: 12px 16px;
             border-radius: 28px;
             border: 1.5px solid #e2eaf2;
             margin-bottom: 16px;
+        }
+        .admin-form textarea {
+            resize: vertical;
+            min-height: 80px;
         }
         .admin-form button {
             width: 100%;
@@ -238,14 +243,15 @@
         }
         .staff-list {
             margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         .staff-tag {
             background: #eef2fa;
             padding: 6px 12px;
             border-radius: 30px;
             font-size: 0.75rem;
-            margin: 4px;
-            display: inline-block;
         }
         .empty-msg {
             text-align: center;
@@ -263,6 +269,37 @@
             border-radius: 30px;
             font-size: 0.75rem;
             cursor: pointer;
+            border: none;
+        }
+        .password-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .password-box {
+            background: white;
+            padding: 32px;
+            border-radius: 32px;
+            width: 350px;
+            text-align: center;
+        }
+        .password-box input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 28px;
+            border: 1.5px solid #e2eaf2;
+            margin: 20px 0;
+            font-size: 1rem;
+        }
+        .hidden {
+            display: none;
         }
         footer {
             text-align: center;
@@ -283,8 +320,8 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-check-double"></i> Daily Checklist Manager</h1>
-        <p>Staff: Tick completed tasks | Supervisor: Create tasks & close checklist</p>
+        <h1><i class="fas fa-check-double"></i> Shift Checklist Manager</h1>
+        <p>Staff: Complete tasks with points | Supervisor: Pre-enter points, manage tasks & close shift</p>
     </div>
 
     <div class="role-bar">
@@ -293,26 +330,31 @@
     </div>
 
     <div class="dashboard">
-        <!-- Checklist Panel (Main) -->
+        <!-- Checklist Panel -->
         <div class="checklist-panel">
             <div class="card">
                 <div class="card-title">
                     <i class="fas fa-clipboard-list"></i>
-                    <span>Daily Checklist</span>
+                    <span>Shift Checklist</span>
                 </div>
-                <div class="date-selector">
+                <div class="date-shift-selector">
                     <input type="date" id="checklistDate" value="">
+                    <select id="shiftSelect">
+                        <option value="">Select Shift</option>
+                        <option value="Morning">🌅 Morning Shift</option>
+                        <option value="Evening">🌙 Evening Shift</option>
+                    </select>
                     <div id="checklistStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
                 </div>
                 <div id="checklistItemsContainer" class="checklist-items">
-                    <div class="empty-msg">📋 Select a date to view checklist</div>
+                    <div class="empty-msg">📋 Select date and shift to view checklist</div>
                 </div>
                 <div id="checklistInfo" class="info-text"></div>
             </div>
         </div>
 
         <!-- Admin Panel (Supervisor only) -->
-        <div class="admin-panel" id="adminPanel">
+        <div class="admin-panel hidden" id="adminPanel">
             <div class="card">
                 <div class="card-title">
                     <i class="fas fa-cog"></i>
@@ -320,8 +362,9 @@
                 </div>
                 <div id="adminContent">
                     <div class="admin-form">
-                        <input type="text" id="newTaskName" placeholder="New task name (e.g., 'Clean work area')">
-                        <button id="addTaskBtn"><i class="fas fa-plus"></i> Add Task</button>
+                        <input type="text" id="newTaskName" placeholder="Task name (e.g., 'Clean work area')">
+                        <input type="number" id="taskPoints" placeholder="Points (e.g., 10, 20, 50)" value="10">
+                        <button id="addTaskBtn"><i class="fas fa-plus"></i> Add Task with Points</button>
                     </div>
                     <div style="margin: 20px 0;">
                         <label style="font-weight: 600; font-size: 0.8rem;">Staff Members</label>
@@ -333,13 +376,25 @@
                             <button id="addStaffBtn" class="small-btn"><i class="fas fa-user-plus"></i> Add</button>
                         </div>
                     </div>
-                    <button id="closeChecklistBtn" class="close-checklist-btn"><i class="fas fa-lock"></i> Close Checklist (End of Day)</button>
+                    <button id="closeChecklistBtn" class="close-checklist-btn"><i class="fas fa-lock"></i> Close Shift (End of Shift)</button>
                     <div id="adminFeedback" class="info-text" style="margin-top: 12px; color:#c62828;"></div>
                 </div>
             </div>
         </div>
     </div>
-    <footer>✅ Staff: Select date → Tick tasks & choose your name → Auto-save | Supervisor: Add tasks, manage staff, close checklist when done</footer>
+    <footer>✅ Staff: Select date & shift → Complete tasks with your name → Earn points | Supervisor: Password protected, pre-enter points, close shift when done</footer>
+</div>
+
+<!-- Password Modal -->
+<div id="passwordModal" class="password-modal hidden">
+    <div class="password-box">
+        <i class="fas fa-lock" style="font-size: 2rem; color: #1d6f8f;"></i>
+        <h3 style="margin: 16px 0;">Supervisor Access</h3>
+        <input type="password" id="supervisorPassword" placeholder="Enter supervisor password">
+        <button id="verifyPasswordBtn" style="background: #1d6f8f; color: white; border: none; padding: 12px 24px; border-radius: 40px; cursor: pointer; width: 100%;">Verify & Access</button>
+        <button id="cancelPasswordBtn" style="margin-top: 12px; background: #eef3fc; border: none; padding: 10px 20px; border-radius: 40px; cursor: pointer; width: 100%;">Cancel</button>
+        <p id="passwordError" style="color: #c62828; margin-top: 12px; font-size: 0.8rem;"></p>
+    </div>
 </div>
 
 <script>
@@ -353,6 +408,9 @@
         appId: "1:583386183547:web:945d92eaa3d13f513defde"
     };
 
+    // Supervisor Password (change this to your desired password)
+    const SUPERVISOR_PASSWORD = "admin123";
+
     // Initialize Firebase
     let db, firestoreReady = false;
     try {
@@ -362,36 +420,43 @@
         console.log("Firebase ready");
     } catch (err) {
         console.error(err);
-        alert("Firebase connection error. Using demo mode.");
+        alert("Firebase connection error. Please check configuration.");
     }
 
     // App State
     let currentRole = "staff"; // staff or supervisor
     let currentDate = new Date().toISOString().slice(0, 10);
-    let currentChecklist = null; // { id, tasks, status, createdAt }
+    let currentShift = "";
+    let currentChecklist = null;
     let staffList = [];
-    let checklistItemsCache = [];
+    let isSupervisorAuthenticated = false;
 
     // DOM Elements
     const staffRoleBtn = document.getElementById('staffRoleBtn');
     const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const adminPanel = document.getElementById('adminPanel');
     const checklistDate = document.getElementById('checklistDate');
+    const shiftSelect = document.getElementById('shiftSelect');
     const checklistStatusBadge = document.getElementById('checklistStatusBadge');
     const checklistItemsContainer = document.getElementById('checklistItemsContainer');
     const checklistInfo = document.getElementById('checklistInfo');
     const newTaskName = document.getElementById('newTaskName');
+    const taskPoints = document.getElementById('taskPoints');
     const addTaskBtn = document.getElementById('addTaskBtn');
     const staffListContainer = document.getElementById('staffListContainer');
     const newStaffName = document.getElementById('newStaffName');
     const addStaffBtn = document.getElementById('addStaffBtn');
     const closeChecklistBtn = document.getElementById('closeChecklistBtn');
     const adminFeedback = document.getElementById('adminFeedback');
+    const passwordModal = document.getElementById('passwordModal');
+    const supervisorPassword = document.getElementById('supervisorPassword');
+    const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
+    const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
+    const passwordError = document.getElementById('passwordError');
 
-    // Helper: Get today's date
-    function getTodayDate() {
-        const today = new Date();
-        return today.toISOString().slice(0, 10);
+    // Helper: Get checklist ID from date and shift
+    function getChecklistId(date, shift) {
+        return `${date}_${shift}`.replace(/\s/g, '_');
     }
 
     // Load Staff List from Firestore
@@ -432,23 +497,33 @@
         }
     }
 
-    // Load or create checklist for a date
-    async function loadChecklistForDate(date) {
+    // Load or create checklist for date and shift
+    async function loadChecklistForDateAndShift(date, shift) {
         if (!firestoreReady) return;
+        if (!date || !shift) {
+            checklistItemsContainer.innerHTML = `<div class="empty-msg">📋 Please select both date and shift</div>`;
+            currentChecklist = null;
+            return;
+        }
+        
+        const checklistId = getChecklistId(date, shift);
         try {
-            const snapshot = await db.collection("checklists").where("date", "==", date).limit(1).get();
-            if (!snapshot.empty) {
-                currentChecklist = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+            const docRef = db.collection("checklists").doc(checklistId);
+            const docSnap = await docRef.get();
+            
+            if (docSnap.exists) {
+                currentChecklist = { id: docSnap.id, ...docSnap.data() };
             } else {
-                // Create new empty checklist
+                // Create new checklist with pre-defined tasks if any
                 const newChecklist = {
                     date: date,
+                    shift: shift,
                     status: "open",
                     tasks: [],
                     createdAt: new Date().toISOString()
                 };
-                const docRef = await db.collection("checklists").add(newChecklist);
-                currentChecklist = { id: docRef.id, ...newChecklist };
+                await docRef.set(newChecklist);
+                currentChecklist = { id: checklistId, ...newChecklist };
             }
             renderChecklist();
         } catch (err) {
@@ -460,26 +535,31 @@
     // Render checklist items
     function renderChecklist() {
         if (!currentChecklist) {
-            checklistItemsContainer.innerHTML = `<div class="empty-msg">No checklist for this date</div>`;
+            checklistItemsContainer.innerHTML = `<div class="empty-msg">Select date and shift to view checklist</div>`;
             return;
         }
 
         const isClosed = currentChecklist.status === "closed";
-        checklistStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open';
+        checklistStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Shift Closed' : '<i class="fas fa-lock-open"></i> Open';
         checklistStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
 
         const tasks = currentChecklist.tasks || [];
         if (tasks.length === 0) {
-            checklistItemsContainer.innerHTML = `<div class="empty-msg">📝 No tasks added yet. (Supervisor: Add tasks above)</div>`;
-            checklistInfo.innerText = isClosed ? "Checklist is closed. No further changes allowed." : "Select staff name and click Complete when done.";
+            checklistItemsContainer.innerHTML = `<div class="empty-msg">📝 No tasks added yet. (Supervisor: Add tasks with points)</div>`;
+            checklistInfo.innerText = isClosed ? "Shift is closed. No further changes allowed." : "Select staff name and click Complete when done.";
             return;
         }
 
         checklistItemsContainer.innerHTML = '';
+        let totalPoints = 0;
+        
         tasks.forEach((task, index) => {
             const isCompleted = task.completed === true;
             const completedBy = task.completedBy || '';
             const completedAt = task.completedAt || '';
+            const points = task.points || 0;
+            
+            if (isCompleted) totalPoints += points;
 
             const itemDiv = document.createElement('div');
             itemDiv.className = 'checklist-item';
@@ -491,6 +571,7 @@
                         <div class="task-name">
                             <i class="fas fa-tasks"></i>
                             <span>${escapeHtml(task.name)}</span>
+                            <span class="task-points"><i class="fas fa-star"></i> ${points} pts</span>
                         </div>
                         <span class="completed-badge pending-badge"><i class="fas fa-clock"></i> Pending</span>
                     </div>
@@ -506,11 +587,11 @@
                 // View mode: show status
                 let statusHtml = '';
                 if (isCompleted) {
-                    statusHtml = `<span class="completed-badge"><i class="fas fa-check-circle"></i> Done by ${escapeHtml(completedBy)}</span>`;
+                    statusHtml = `<span class="completed-badge"><i class="fas fa-check-circle"></i> Done by ${escapeHtml(completedBy)} (${points} pts)</span>`;
                 } else if (isClosed) {
-                    statusHtml = `<span class="completed-badge pending-badge"><i class="fas fa-ban"></i> Checklist Closed</span>`;
+                    statusHtml = `<span class="completed-badge pending-badge"><i class="fas fa-ban"></i> Shift Closed</span>`;
                 } else {
-                    statusHtml = `<span class="completed-badge pending-badge"><i class="fas fa-hourglass-half"></i> Pending</span>`;
+                    statusHtml = `<span class="completed-badge pending-badge"><i class="fas fa-hourglass-half"></i> Pending (${points} pts)</span>`;
                 }
                 
                 itemDiv.innerHTML = `
@@ -518,6 +599,7 @@
                         <div class="task-name">
                             <i class="fas fa-tasks"></i>
                             <span>${escapeHtml(task.name)}</span>
+                            <span class="task-points"><i class="fas fa-star"></i> ${points} pts</span>
                         </div>
                         ${statusHtml}
                     </div>
@@ -526,6 +608,17 @@
             }
             checklistItemsContainer.appendChild(itemDiv);
         });
+
+        // Add total points summary
+        const totalPointsDiv = document.createElement('div');
+        totalPointsDiv.className = 'info-text';
+        totalPointsDiv.style.marginTop = '16px';
+        totalPointsDiv.style.padding = '12px';
+        totalPointsDiv.style.background = '#eef2fa';
+        totalPointsDiv.style.borderRadius = '20px';
+        totalPointsDiv.style.fontWeight = '600';
+        totalPointsDiv.innerHTML = `<i class="fas fa-trophy"></i> Total Points Earned: ${totalPoints} / ${tasks.reduce((sum, t) => sum + (t.points || 0), 0)}`;
+        checklistItemsContainer.appendChild(totalPointsDiv);
 
         // Attach event listeners for complete buttons
         if (currentRole === "staff" && currentChecklist.status !== "closed") {
@@ -543,14 +636,15 @@
             });
         }
 
-        checklistInfo.innerText = isClosed ? "🔒 Checklist is closed for today. Contact supervisor if needed." : `✅ ${tasks.filter(t => t.completed).length}/${tasks.length} tasks completed`;
+        const completedCount = tasks.filter(t => t.completed).length;
+        checklistInfo.innerText = isClosed ? "🔒 Shift is closed. Contact supervisor if needed." : `✅ ${completedCount}/${tasks.length} tasks completed | Total points: ${totalPoints}`;
     }
 
     // Complete a task
     async function completeTask(taskIndex, staffName) {
         if (!firestoreReady || !currentChecklist) return;
         if (currentChecklist.status === "closed") {
-            alert("Checklist is closed. Cannot complete tasks.");
+            alert("Shift is closed. Cannot complete tasks.");
             return;
         }
         
@@ -568,10 +662,10 @@
         };
         
         try {
-            await db.collection("checklists").doc(currentChecklist.id).update({ tasks: tasks });
+            await db.collection("checklists").doc(currentChecklist.id).set({ tasks: tasks }, { merge: true });
             currentChecklist.tasks = tasks;
             renderChecklist();
-            checklistInfo.innerText = `✅ Task completed by ${staffName}!`;
+            checklistInfo.innerHTML = `✅ Task completed by ${staffName}! +${tasks[taskIndex].points} points earned.`;
             setTimeout(() => renderChecklist(), 1000);
         } catch (err) {
             console.error(err);
@@ -579,25 +673,28 @@
         }
     }
 
-    // Add new task (Supervisor only)
-    async function addTask(taskName) {
+    // Add new task with points (Supervisor only)
+    async function addTask(taskName, points) {
         if (!taskName.trim()) { adminFeedback.innerText = "Enter task name"; return; }
-        if (!currentChecklist) { adminFeedback.innerText = "Select a date first"; return; }
-        if (currentChecklist.status === "closed") { adminFeedback.innerText = "Checklist is closed. Cannot add tasks."; return; }
+        if (!points || points <= 0) { adminFeedback.innerText = "Enter valid points"; return; }
+        if (!currentChecklist) { adminFeedback.innerText = "Select date and shift first"; return; }
+        if (currentChecklist.status === "closed") { adminFeedback.innerText = "Shift is closed. Cannot add tasks."; return; }
         
         const tasks = [...(currentChecklist.tasks || [])];
         tasks.push({
             name: taskName.trim(),
+            points: parseInt(points),
             completed: false,
             createdAt: new Date().toISOString()
         });
         
         try {
-            await db.collection("checklists").doc(currentChecklist.id).update({ tasks: tasks });
+            await db.collection("checklists").doc(currentChecklist.id).set({ tasks: tasks }, { merge: true });
             currentChecklist.tasks = tasks;
             renderChecklist();
             newTaskName.value = "";
-            adminFeedback.innerText = "✅ Task added";
+            taskPoints.value = "10";
+            adminFeedback.innerText = "✅ Task added with " + points + " points";
             setTimeout(() => adminFeedback.innerText = "", 2000);
         } catch (err) {
             adminFeedback.innerText = "Error: " + err.message;
@@ -607,39 +704,70 @@
     // Close checklist (Supervisor only)
     async function closeChecklist() {
         if (!currentChecklist) { adminFeedback.innerText = "No checklist loaded"; return; }
-        if (currentChecklist.status === "closed") { adminFeedback.innerText = "Checklist already closed"; return; }
-        if (!confirm("Close this checklist? Staff will no longer be able to complete tasks.")) return;
+        if (currentChecklist.status === "closed") { adminFeedback.innerText = "Shift already closed"; return; }
+        if (!confirm("Close this shift? Staff will no longer be able to complete tasks.")) return;
         
         try {
-            await db.collection("checklists").doc(currentChecklist.id).update({ status: "closed", closedAt: new Date().toISOString() });
+            await db.collection("checklists").doc(currentChecklist.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true });
             currentChecklist.status = "closed";
             renderChecklist();
-            adminFeedback.innerText = "🔒 Checklist closed successfully";
+            adminFeedback.innerText = "🔒 Shift closed successfully";
             setTimeout(() => adminFeedback.innerText = "", 3000);
         } catch (err) {
             adminFeedback.innerText = "Error: " + err.message;
         }
     }
 
+    // Show password modal
+    function showPasswordModal() {
+        passwordModal.classList.remove('hidden');
+        supervisorPassword.value = "";
+        passwordError.innerText = "";
+    }
+
+    function hidePasswordModal() {
+        passwordModal.classList.add('hidden');
+    }
+
+    // Verify supervisor password
+    function verifyPassword() {
+        const enteredPassword = supervisorPassword.value;
+        if (enteredPassword === SUPERVISOR_PASSWORD) {
+            isSupervisorAuthenticated = true;
+            hidePasswordModal();
+            setRole("supervisor");
+            adminFeedback.innerText = "✅ Supervisor access granted";
+            setTimeout(() => adminFeedback.innerText = "", 2000);
+        } else {
+            passwordError.innerText = "Incorrect password. Access denied.";
+        }
+    }
+
     // Role switching
     function setRole(role) {
+        if (role === "supervisor" && !isSupervisorAuthenticated) {
+            showPasswordModal();
+            return;
+        }
+        
         currentRole = role;
         if (role === "supervisor") {
-            adminPanel.style.display = "block";
+            adminPanel.classList.remove("hidden");
             staffRoleBtn.classList.remove("active");
             supervisorRoleBtn.classList.add("active");
         } else {
-            adminPanel.style.display = "none";
+            adminPanel.classList.add("hidden");
             supervisorRoleBtn.classList.remove("active");
             staffRoleBtn.classList.add("active");
         }
-        renderChecklist(); // Re-render with appropriate controls
+        renderChecklist();
     }
 
-    // Date change handler
-    async function onDateChange() {
+    // Date/Shift change handler
+    async function onDateShiftChange() {
         currentDate = checklistDate.value;
-        await loadChecklistForDate(currentDate);
+        currentShift = shiftSelect.value;
+        await loadChecklistForDateAndShift(currentDate, currentShift);
     }
 
     // Initialize
@@ -650,29 +778,36 @@
         
         if (firestoreReady) {
             await loadStaffList();
-            await loadChecklistForDate(today);
-        } else {
-            checklistItemsContainer.innerHTML = `<div class="empty-msg">⚠️ Firebase not connected. Please check configuration.</div>`;
         }
         
         // Event listeners
-        checklistDate.addEventListener('change', onDateChange);
+        checklistDate.addEventListener('change', onDateShiftChange);
+        shiftSelect.addEventListener('change', onDateShiftChange);
         staffRoleBtn.addEventListener('click', () => setRole("staff"));
         supervisorRoleBtn.addEventListener('click', () => setRole("supervisor"));
-        addTaskBtn.addEventListener('click', () => addTask(newTaskName.value));
+        addTaskBtn.addEventListener('click', () => addTask(newTaskName.value, taskPoints.value));
         addStaffBtn.addEventListener('click', () => addStaff(newStaffName.value));
         closeChecklistBtn.addEventListener('click', closeChecklist);
+        verifyPasswordBtn.addEventListener('click', verifyPassword);
+        cancelPasswordBtn.addEventListener('click', hidePasswordModal);
         
-        // Set default role (staff view, admin panel hidden)
-        setRole("staff");
-        
-        // Add staff on Enter key
+        // Enter key support
         newStaffName.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') addStaff(newStaffName.value);
         });
         newTaskName.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addTask(newTaskName.value);
+            if (e.key === 'Enter') addTask(newTaskName.value, taskPoints.value);
         });
+        supervisorPassword.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') verifyPassword();
+        });
+        
+        setRole("staff");
+    }
+    
+    function getTodayDate() {
+        const today = new Date();
+        return today.toISOString().slice(0, 10);
     }
     
     function escapeHtml(str) {
