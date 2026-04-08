@@ -7,7 +7,7 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- Link to external fire.js configuration file -->
+    <!-- External Firebase Configuration -->
     <script src="fire.js"></script>
     <!-- Google Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -28,7 +28,6 @@
             max-width: 1500px;
             margin: 0 auto;
         }
-        /* header */
         .header {
             text-align: center;
             margin-bottom: 32px;
@@ -47,7 +46,6 @@
             margin-top: 8px;
             font-weight: 500;
         }
-        /* main two-column layout */
         .dashboard {
             display: flex;
             flex-wrap: wrap;
@@ -61,7 +59,6 @@
             flex: 1.8;
             min-width: 420px;
         }
-        /* card style */
         .card {
             background: white;
             border-radius: 36px;
@@ -165,7 +162,6 @@
         .btn-outline:hover {
             background: #f8fbfe;
         }
-        /* date selector for history */
         .date-history-bar {
             display: flex;
             align-items: center;
@@ -290,6 +286,12 @@
             font-size: 0.8rem;
             font-weight: 500;
         }
+        .firebase-badge {
+            background: #e8f0fe;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+        }
         footer {
             text-align: center;
             margin-top: 40px;
@@ -309,12 +311,11 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-scroll"></i> Briefing Minutes · Point Log</h1>
-        <p>Large briefing area | Past date selection to view & edit | Live Firestore</p>
+        <h1><i class="fas fa-scroll"></i> Briefing Minutes</h1>
+        <p <span class="firebase-badge"><i class="fas fa-database"></i> Live Firebase Sync (fire.js)</span></p>
     </div>
 
     <div class="dashboard">
-        <!-- LEFT PANEL: Entry Window (large briefing area) -->
         <div class="entry-panel">
             <div class="card">
                 <div class="card-title">
@@ -330,12 +331,12 @@
                     <label><i class="fas fa-user-tie"></i> Supervisor</label>
                     <select id="supervisorSelect">
                         <option value="">-- Select Supervisor --</option>
-                        <option value="Elena Martinez">Elena Martinez</option>
-                        <option value="David Chen">David Chen</option>
-                        <option value="Sophia Reynolds">Sophia Reynolds</option>
-                        <option value="James Okafor">James Okafor</option>
-                        <option value="Linda Wu">Linda Wu</option>
-                        <option value="Marcus Thorne">Marcus Thorne</option>
+                        <option value="Sobah">Sobah</option>
+                        <option value="Shiara">Shiara</option>
+                        <option value="Musrifa">Musrifa</option>
+                        <option value="Hussain">Hussain</option>
+                        <option value="Inaz">Inaz</option>
+                        <option value="Hamdulla">Hamdulla</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -348,10 +349,10 @@
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-file-lines"></i> Briefing Notes / Points (large area)</label>
-                    <textarea id="pointsText" class="big-textarea" placeholder="Write detailed briefing minutes, key points, action items, safety notes, performance points...&#10;Example:&#10;• Safety briefing: All protocols followed ✅&#10;• Production efficiency: 98% (+5 points)&#10;• Tomorrow's focus: Equipment inspection&#10;• Team recognition: +10 points for innovation"></textarea>
+                    <textarea id="pointsText" class="big-textarea" placeholder="Write detailed briefing minutes, key points, action items, safety notes, performance points...&#10;Example:&#10;• Safety briefing: All protocols followed ✅&#10;&#10;&#10;"></textarea>
                 </div>
                 <div class="action-buttons">
-                    <button id="saveBtn" class="btn-primary"><i class="fas fa-save"></i> Save Briefing</button>
+                    <button id="saveBtn" class="btn-primary"><i class="fas fa-save"></i> Save to Firebase</button>
                     <button id="clearFormBtn" class="btn-secondary"><i class="fas fa-eraser"></i> Clear / New</button>
                     <button id="deleteCurrentBtn" class="btn-outline"><i class="fas fa-trash-alt"></i> Delete selected</button>
                 </div>
@@ -359,7 +360,6 @@
             </div>
         </div>
 
-        <!-- RIGHT PANEL: Past & Current Date Viewer (select any date to view entries) -->
         <div class="history-panel">
             <div class="card">
                 <div class="card-title">
@@ -381,12 +381,11 @@
             </div>
         </div>
     </div>
-    <footer>✅ <strong>Large briefing area</strong> | Select any <strong>past date</strong> to view/edit minutes | Today's entries can be reviewed via date picker | Fully synced with Firebase</footer>
+    <footer>✅ <strong>All data is saved to Firebase Firestore via fire.js</strong></footer>
 </div>
 
 <script>
-    // Firebase is already initialized from fire.js
-    // Check if Firebase is available and initialized
+    // Firebase is initialized from fire.js (external file)
     let db, firestoreReady = false;
     
     // Wait for Firebase to be initialized from external file
@@ -394,25 +393,31 @@
         try {
             db = firebase.firestore();
             firestoreReady = true;
-            console.log("🔥 Firebase ready from fire.js");
+            console.log("🔥 Firebase ready from fire.js - data will be saved to cloud");
+            document.getElementById('formFeedback').innerHTML = '✅ Firebase connected! Data will be saved to cloud.';
+            setTimeout(() => {
+                if(document.getElementById('formFeedback').innerHTML.includes('Firebase connected')) {
+                    document.getElementById('formFeedback').innerHTML = '';
+                }
+            }, 3000);
         } catch (err) {
             console.error("Firestore init error:", err);
             firestoreReady = false;
-            alert("⚠️ Firestore initialization error. Check fire.js configuration.");
-            window.localFallbackEntries = [];
+            alert("❌ Firestore initialization error. Check fire.js configuration.");
+            document.getElementById('formFeedback').innerHTML = '❌ Firebase connection failed. Check fire.js file.';
         }
     } else {
         console.error("Firebase not initialized. Make sure fire.js is loaded correctly.");
-        alert("⚠️ Firebase configuration file (fire.js) not loaded. Using local fallback mode.");
+        alert("❌ Firebase configuration file (fire.js) not loaded or invalid. Please check the file exists in the same directory.");
+        document.getElementById('formFeedback').innerHTML = '❌ fire.js not loaded. Please ensure fire.js is in the same folder.';
         firestoreReady = false;
-        window.localFallbackEntries = [];
     }
     
     // ---------- GLOBAL STATE ----------
-    let currentEditId = null;               // editing mode flag
-    let currentSelectedDate = new Date().toISOString().slice(0,10); // today default
+    let currentEditId = null;
+    let currentSelectedDate = new Date().toISOString().slice(0,10);
     
-    // DOM elements (left entry panel)
+    // DOM elements
     const dateInput = document.getElementById('entryDate');
     const supervisorSelect = document.getElementById('supervisorSelect');
     const shiftSelect = document.getElementById('shiftSelect');
@@ -422,21 +427,17 @@
     const deleteCurrentBtn = document.getElementById('deleteCurrentBtn');
     const formFeedback = document.getElementById('formFeedback');
     const formModeBadge = document.getElementById('formModeBadge');
-    
-    // Right panel (history viewer)
     const viewDatePicker = document.getElementById('viewDatePicker');
     const refreshViewBtn = document.getElementById('refreshViewBtn');
     const historyEntriesContainer = document.getElementById('historyEntriesContainer');
     const historyFeedback = document.getElementById('historyFeedback');
     const selectedDateBadge = document.getElementById('selectedDateBadge');
     
-    // Helper: get today's date YYYY-MM-DD
     function getTodayDate() {
         const today = new Date();
         return today.toISOString().slice(0,10);
     }
     
-    // Reset left form to new mode (keep given date)
     function resetFormToNew(dateValue = null) {
         currentEditId = null;
         formModeBadge.innerHTML = '✨ New Briefing';
@@ -448,7 +449,6 @@
         pointsTextarea.value = "";
     }
     
-    // Load entry data into left form for editing
     function loadEntryForEdit(entry) {
         currentEditId = entry.id;
         formModeBadge.innerHTML = '✏️ Editing Mode';
@@ -456,11 +456,15 @@
         supervisorSelect.value = entry.supervisor;
         shiftSelect.value = entry.shift;
         pointsTextarea.value = entry.pointsText || '';
-        formFeedback.innerHTML = `✏️ Editing briefing for ${entry.supervisor} (${entry.shift}) — modify & save.`;
+        formFeedback.innerHTML = `✏️ Editing briefing for ${entry.supervisor} (${entry.shift}) — modify & save to Firebase.`;
     }
     
-    // SAVE / UPDATE entry (works for any date)
     async function saveEntry() {
+        if (!firestoreReady) {
+            formFeedback.innerHTML = "❌ Firebase not connected. Cannot save. Check fire.js file.";
+            return;
+        }
+        
         const dateVal = dateInput.value;
         const supervisor = supervisorSelect.value;
         const shift = shiftSelect.value;
@@ -476,61 +480,41 @@
             supervisor: supervisor,
             shift: shift,
             pointsText: pointsTextVal,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
+            createdAt: currentEditId ? null : new Date().toISOString()
         };
         
         try {
-            if (!firestoreReady) {
-                // local fallback
-                if (currentEditId && window.localFallbackEntries.some(e => e.id === currentEditId)) {
-                    const idx = window.localFallbackEntries.findIndex(e => e.id === currentEditId);
-                    window.localFallbackEntries[idx] = { ...entryData, id: currentEditId };
-                    formFeedback.innerHTML = "✅ Updated locally (demo mode).";
-                } else {
-                    const newId = Date.now().toString();
-                    window.localFallbackEntries.push({ ...entryData, id: newId });
-                    formFeedback.innerHTML = "✅ New briefing saved locally.";
-                }
-                resetFormToNew(dateVal);
-                if (viewDatePicker.value === dateVal) await loadEntriesForViewDate(dateVal);
-                return;
-            }
-            
             const entriesRef = db.collection("briefingMinutes");
             if (currentEditId) {
                 await entriesRef.doc(currentEditId).update(entryData);
                 formFeedback.innerHTML = "✅ Briefing updated in Firebase!";
                 resetFormToNew(dateVal);
             } else {
+                entryData.createdAt = new Date().toISOString();
                 await entriesRef.add(entryData);
                 formFeedback.innerHTML = "✅ New briefing saved to Firestore!";
                 resetFormToNew(dateVal);
             }
-            // refresh the view panel if the saved date matches currently viewed date
             const currentViewDate = viewDatePicker.value;
             if (currentViewDate === dateVal) {
                 await loadEntriesForViewDate(dateVal);
             }
         } catch (err) {
             console.error(err);
-            formFeedback.innerHTML = "⚠️ Save error: " + err.message;
+            formFeedback.innerHTML = "⚠️ Firebase save error: " + err.message;
         }
     }
     
-    // Delete entry by ID, refresh view panel if needed
     async function deleteEntryById(entryId, entryDate) {
+        if (!firestoreReady) {
+            formFeedback.innerHTML = "❌ Firebase not connected.";
+            return;
+        }
         if (!confirm("Delete this briefing minute? Action permanent.")) return;
         try {
-            if (!firestoreReady) {
-                window.localFallbackEntries = window.localFallbackEntries.filter(e => e.id !== entryId);
-                formFeedback.innerHTML = "🗑️ Deleted from local cache.";
-                if (currentEditId === entryId) resetFormToNew(getTodayDate());
-                const currentViewDate = viewDatePicker.value;
-                if (currentViewDate) await loadEntriesForViewDate(currentViewDate);
-                return;
-            }
             await db.collection("briefingMinutes").doc(entryId).delete();
-            formFeedback.innerHTML = "🗑️ Entry deleted.";
+            formFeedback.innerHTML = "🗑️ Entry deleted from Firebase.";
             if (currentEditId === entryId) resetFormToNew(getTodayDate());
             const currentViewDate = viewDatePicker.value;
             if (currentViewDate) await loadEntriesForViewDate(currentViewDate);
@@ -539,8 +523,13 @@
         }
     }
     
-    // Load entries for selected date (right panel)
     async function loadEntriesForViewDate(dateStr) {
+        if (!firestoreReady) {
+            historyEntriesContainer.innerHTML = `<div class="empty-state">⚠️ Firebase not connected. Check fire.js file.</div>`;
+            historyFeedback.innerHTML = "Firebase connection failed.";
+            return;
+        }
+        
         if (!dateStr) {
             historyEntriesContainer.innerHTML = `<div class="empty-state">📅 Please select a date</div>`;
             historyFeedback.innerHTML = "";
@@ -548,29 +537,21 @@
         }
         viewDatePicker.value = dateStr;
         selectedDateBadge.innerHTML = `<i class="far fa-calendar-check"></i> ${dateStr}`;
-        let entriesList = [];
-        
-        if (!firestoreReady) {
-            entriesList = window.localFallbackEntries.filter(entry => entry.date === dateStr);
-            renderHistoryEntries(entriesList, dateStr);
-            return;
-        }
         
         try {
             const snapshot = await db.collection("briefingMinutes")
                 .where("date", "==", dateStr)
                 .orderBy("updatedAt", "desc")
                 .get();
-            entriesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const entriesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             renderHistoryEntries(entriesList, dateStr);
         } catch (err) {
             console.error(err);
-            historyFeedback.innerHTML = "⚠️ Error loading entries.";
+            historyFeedback.innerHTML = "⚠️ Error loading from Firebase: " + err.message;
             renderHistoryEntries([], dateStr);
         }
     }
     
-    // Render entries in right panel with edit/delete
     function renderHistoryEntries(entries, dateStr) {
         if (!entries.length) {
             historyEntriesContainer.innerHTML = `<div class="empty-state"><i class="far fa-comment-dots"></i> No briefing minutes for ${dateStr}. Use left panel to add.</div>`;
@@ -599,9 +580,8 @@
             `;
             historyEntriesContainer.appendChild(entryDiv);
         });
-        historyFeedback.innerHTML = `✅ ${entries.length} briefing minute(s) for ${dateStr}`;
+        historyFeedback.innerHTML = `✅ ${entries.length} briefing minute(s) for ${dateStr} (from Firebase)`;
         
-        // attach edit/delete listeners
         document.querySelectorAll('.edit-history-entry').forEach(icon => {
             icon.addEventListener('click', async (e) => {
                 const id = icon.getAttribute('data-id');
@@ -617,32 +597,25 @@
         });
     }
     
-    // Fetch single entry by ID and load into left panel for editing
     async function fetchEntryByIdAndLoadForEdit(id) {
+        if (!firestoreReady) {
+            formFeedback.innerHTML = "Firebase not connected.";
+            return;
+        }
         try {
-            if (!firestoreReady) {
-                const entry = window.localFallbackEntries.find(e => e.id === id);
-                if (entry) {
-                    loadEntryForEdit(entry);
-                } else {
-                    formFeedback.innerHTML = "Entry not found locally.";
-                }
-                return;
-            }
             const docRef = db.collection("briefingMinutes").doc(id);
             const docSnap = await docRef.get();
             if (docSnap.exists) {
                 const entryData = { id: docSnap.id, ...docSnap.data() };
                 loadEntryForEdit(entryData);
             } else {
-                formFeedback.innerHTML = "Entry does not exist.";
+                formFeedback.innerHTML = "Entry does not exist in Firebase.";
             }
         } catch (err) {
             formFeedback.innerHTML = "Error loading entry: " + err.message;
         }
     }
     
-    // Delete currently selected (editing) entry
     async function deleteCurrentEditing() {
         if (currentEditId) {
             await deleteEntryById(currentEditId, null);
@@ -652,7 +625,6 @@
         }
     }
     
-    // Clear form manually
     function handleClearForm() {
         resetFormToNew(getTodayDate());
         formFeedback.innerHTML = "Form cleared. You can add a new briefing minute.";
@@ -661,7 +633,6 @@
         shiftSelect.value = "";
     }
     
-    // escape helper
     function escapeHtml(str) {
         if (!str) return '';
         return str.replace(/[&<>]/g, function(m) {
@@ -672,7 +643,6 @@
         });
     }
     
-    // On left date change: reset edit mode if needed
     function onLeftDateChange() {
         const newDate = dateInput.value;
         if (newDate && currentEditId) {
@@ -686,30 +656,38 @@
         }
     }
     
-    // Initialize: set up today as default, load today in view panel
     async function init() {
         const todayStr = getTodayDate();
         currentSelectedDate = todayStr;
         dateInput.value = todayStr;
         viewDatePicker.value = todayStr;
         resetFormToNew(todayStr);
-        await loadEntriesForViewDate(todayStr);   // show today's entries by default
+        if (firestoreReady) {
+            await loadEntriesForViewDate(todayStr);
+        } else {
+            historyEntriesContainer.innerHTML = `<div class="empty-state">⚠️ Waiting for Firebase connection... Check fire.js file</div>`;
+        }
         
-        // Event listeners
         saveBtn.addEventListener('click', saveEntry);
         clearFormBtn.addEventListener('click', handleClearForm);
         deleteCurrentBtn.addEventListener('click', deleteCurrentEditing);
         dateInput.addEventListener('change', onLeftDateChange);
         refreshViewBtn.addEventListener('click', () => {
             const selectedDate = viewDatePicker.value;
-            if (selectedDate) loadEntriesForViewDate(selectedDate);
+            if (selectedDate && firestoreReady) loadEntriesForViewDate(selectedDate);
+            else if (!firestoreReady) formFeedback.innerHTML = "❌ Firebase not ready. Check fire.js";
         });
         viewDatePicker.addEventListener('change', () => {
             const newDate = viewDatePicker.value;
-            if (newDate) loadEntriesForViewDate(newDate);
+            if (newDate && firestoreReady) loadEntriesForViewDate(newDate);
         });
         
-        formFeedback.innerHTML = "✅ Ready. Left panel = large briefing area. Right panel: select ANY past/future date to view entries.";
+        if (firestoreReady) {
+            formFeedback.innerHTML = "✅ Firebase ready! Data will be saved to cloud.";
+            setTimeout(() => {
+                if(formFeedback.innerHTML.includes('ready')) formFeedback.innerHTML = '';
+            }, 2500);
+        }
     }
     
     init();
