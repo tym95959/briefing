@@ -7,9 +7,6 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- jsPDF and html2canvas for PDF export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Google Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -171,7 +168,6 @@
             box-shadow: 0 8px 24px rgba(0,0,0,0.06);
             padding: 24px;
             border: 1px solid rgba(230,237,244,0.8);
-            transition: transform 0.2s;
         }
         .card-title {
             font-size: 1.2rem;
@@ -427,8 +423,8 @@
             </select>
         </div>
         <div class="action-buttons">
-            <button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Save Full Report</button>
-            <button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Print Allocation Card</button>
+            <button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Full Report</button>
+            <button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Allocation Card</button>
         </div>
         <div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
         <button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen Shift</button>
@@ -439,12 +435,11 @@
             <div class="card">
                 <div class="card-title">
                     <i class="fas fa-users"></i>
-                    <span>Staff Allocation by Time Slot</span>
+                    <span>Staff Allocation</span>
                 </div>
                 <div id="allocationContainer" class="time-slots">
                     <div class="empty-msg">Select date and shift</div>
                 </div>
-                <div id="allocationInfo" class="info-text"></div>
             </div>
         </div>
 
@@ -468,7 +463,7 @@
                     <span>Supervisor Controls</span>
                 </div>
                 <div class="admin-form">
-                    <h4 style="margin-bottom: 12px; font-size: 0.9rem;">Add New Task</h4>
+                    <h4 style="margin-bottom: 12px;">Add Task</h4>
                     <input type="text" id="newTaskName" placeholder="Task name">
                     <select id="taskTypeSelect">
                         <option value="done">✅ Single Staff Done</option>
@@ -481,30 +476,30 @@
                     <button id="addTaskBtn"><i class="fas fa-plus"></i> Add Task</button>
                 </div>
                 <div style="margin: 20px 0;">
-                    <label style="font-weight: 600; font-size: 0.75rem;">Staff Members</label>
+                    <label>Staff Members</label>
                     <div id="staffListContainer" class="staff-list"></div>
                     <div class="flex-row" style="margin-top: 10px;">
                         <input type="text" id="newStaffName" placeholder="New staff name" style="flex:1; padding: 10px; border-radius: 30px; border:1.5px solid #e2eaf2;">
-                        <button id="addStaffBtn" style="background: linear-gradient(135deg, #eef3fc, #e8ecf3); padding: 10px 20px; border-radius: 30px; border: none; font-weight: 600; cursor: pointer;">Add</button>
+                        <button id="addStaffBtn" style="background: #eef3fc; padding: 10px 20px; border-radius: 30px; border: none; cursor: pointer;">Add</button>
                     </div>
                 </div>
                 <button id="closeShiftBtn" class="close-btn"><i class="fas fa-lock"></i> Close Shift</button>
                 <button id="forceCloseShiftBtn" class="force-close-btn hidden"><i class="fas fa-exclamation-triangle"></i> Force Close</button>
-                <div id="adminFeedback" class="info-text" style="margin-top: 12px;"></div>
+                <div id="adminFeedback" class="info-text"></div>
             </div>
         </div>
     </div>
-    <footer>✅ <strong>PDF Export:</strong> Full Report (A4) | Allocation Card (A5 - fits in pocket)</footer>
+    <footer>✅ Full Report (A4) | Allocation Card (A5 - fits in pocket)</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
     <div class="password-box">
         <i class="fas fa-lock" style="font-size: 2rem; color: #1d6f8f;"></i>
-        <h3 style="margin: 12px 0;">Supervisor Access</h3>
+        <h3>Supervisor Access</h3>
         <input type="password" id="supervisorPassword" placeholder="Enter password">
-        <button id="verifyPasswordBtn" style="background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; border: none; padding: 12px; border-radius: 30px; width: 100%; font-weight: 600; cursor: pointer;">Verify</button>
+        <button id="verifyPasswordBtn" style="background: #1d6f8f; color: white; border: none; padding: 12px; border-radius: 30px; width: 100%; cursor: pointer;">Verify</button>
         <button id="cancelPasswordBtn" style="margin-top: 10px; background: #eef3fc; border: none; padding: 10px; border-radius: 30px; width: 100%; cursor: pointer;">Cancel</button>
-        <p id="passwordError" style="color: #c62828; margin-top: 10px; font-size: 0.75rem;"></p>
+        <p id="passwordError" style="color: #c62828; margin-top: 10px;"></p>
     </div>
 </div>
 
@@ -546,6 +541,7 @@
     let staffList = [];
     let isSupervisor = false;
 
+    // DOM Elements
     const staffRoleBtn = document.getElementById('staffRoleBtn');
     const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const adminPanel = document.getElementById('adminPanel');
@@ -595,23 +591,9 @@
         return true;
     }
 
-    function getPendingTasksCount() {
-        if (!currentTaskRecord) return 0;
-        let pending = 0;
-        const doneTasks = currentTaskRecord.doneTasks || {};
-        const ackTasks = currentTaskRecord.acknowledgedTasks || {};
-        const dropdownSelections = currentTaskRecord.dropdownSelections || [];
-        for (const task of globalTasks) {
-            if (task.type === 'done' && !doneTasks[task.id]) pending++;
-            if (task.type === 'acknowledge' && (ackTasks[task.id] || []).length === 0) pending++;
-            if (task.type === 'dropdown' && dropdownSelections.filter(s => s.taskId === task.id).length === 0) pending++;
-        }
-        return pending;
-    }
-
     async function loadSOD() {
         if (!firestoreReady || !currentDate || !currentShift) {
-            allocationContainer.innerHTML = '<div class="empty-msg">📅 Select date and shift</div>';
+            allocationContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
             return;
         }
         const recordId = getSODRecordId(currentDate, currentShift);
@@ -733,7 +715,7 @@
 
     async function loadTaskRecord() {
         if (!firestoreReady || !currentDate || !currentShift) {
-            tasksContainer.innerHTML = '<div class="empty-msg">📅 Select date and shift</div>';
+            tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
             return;
         }
         const recordId = getTaskRecordId(currentDate, currentShift);
@@ -807,17 +789,16 @@
         if (!currentTaskRecord || currentTaskRecord.status === "closed") return;
         const allCompleted = areAllTasksCompleted();
         if (!allCompleted && !isForce) {
-            const pendingCount = getPendingTasksCount();
-            if (!confirm(`There ${pendingCount === 1 ? 'is' : 'are'} ${pendingCount} pending task${pendingCount === 1 ? '' : 's'}. Use Force Close to close anyway.`)) return;
+            alert("Please complete all tasks before closing, or use Force Close.");
             return;
         }
-        if (!confirm(isForce ? "⚠️ FORCE CLOSE: There are pending tasks. Are you sure?" : "Close this shift?")) return;
+        if (!confirm(isForce ? "Force close shift with pending tasks?" : "Close this shift?")) return;
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true });
         currentTaskRecord.status = "closed";
         updateShiftStatusUI();
         renderTasks();
         renderAllocation();
-        adminFeedback.innerText = isForce ? "⚠️ Shift force closed" : "🔒 Shift closed";
+        adminFeedback.innerText = isForce ? "Shift force closed" : "Shift closed";
         setTimeout(() => adminFeedback.innerText = "", 3000);
     }
 
@@ -828,13 +809,13 @@
         currentTaskRecord.status = "open";
         updateShiftStatusUI();
         renderTasks();
-        adminFeedback.innerText = "✅ Shift reopened";
+        adminFeedback.innerText = "Shift reopened";
         setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
     function renderTasks() {
         if (!currentTaskRecord || !globalTasks.length) {
-            tasksContainer.innerHTML = '<div class="empty-msg">📅 Select date and shift</div>';
+            tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
             return;
         }
         const isClosed = currentTaskRecord.status === "closed";
@@ -855,18 +836,18 @@
             if (currentRole === "staff" && !isClosed) {
                 const staffOptions = `<select id="staffSel_${task.id}" class="action-select"><option value="">-- Select staff --</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select>`;
                 if (task.type === 'done') {
-                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : `<div class="flex-row">${staffOptions}<button class="do-done action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">✅ Complete</button></div>`}`;
+                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : `<div class="flex-row">${staffOptions}<button class="do-done action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Complete</button></div>`}`;
                 } else if (task.type === 'acknowledge') {
-                    const ackHtml = taskAcks.length ? `<div class="completed-info">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>` : '<div class="completed-info">⏳ No acknowledgments yet</div>';
-                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${ackHtml}<div class="flex-row">${staffOptions}<button class="do-ack action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">👥 Acknowledge</button></div>`;
+                    const ackHtml = taskAcks.length ? `<div class="completed-info">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>` : '<div class="completed-info">No acknowledgments yet</div>';
+                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${ackHtml}<div class="flex-row">${staffOptions}<button class="do-ack action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Acknowledge</button></div>`;
                 } else {
-                    const subsHtml = taskSelections.length ? `<div class="completed-info">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>` : '<div class="completed-info">⏳ No submissions yet</div>';
+                    const subsHtml = taskSelections.length ? `<div class="completed-info">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>` : '<div class="completed-info">No submissions yet</div>';
                     const optionsHtml = task.options ? `<select id="dropSel_${task.id}" class="action-dropdown"><option value="">-- Select --</option>${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>` : '<select class="action-dropdown"><option>No options</option></select>';
-                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${subsHtml}<div class="flex-row">${staffOptions}${optionsHtml}<input type="text" id="addText_${task.id}" class="action-input" placeholder="Note" maxlength="5"><button class="do-drop action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">📤 Submit</button></div>`;
+                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${subsHtml}<div class="flex-row">${staffOptions}${optionsHtml}<input type="text" id="addText_${task.id}" class="action-input" placeholder="Note" maxlength="5"><button class="do-drop action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">Submit</button></div>`;
                 }
             } else {
                 let statusHtml = '';
-                if (task.type === 'done') statusHtml = isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : '<div class="completed-info">⏳ Pending</div>';
+                if (task.type === 'done') statusHtml = isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : '<div class="completed-info">Pending</div>';
                 else if (task.type === 'acknowledge') statusHtml = `<div class="completed-info">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>`;
                 else statusHtml = `<div class="completed-info">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>`;
                 const editBtns = (currentRole === "supervisor" && !isClosed) ? `<div><button class="edit-task" data-id="${task.id}" data-name="${escapeHtml(task.name)}" style="background:#ff9800; border:none; padding:4px 12px; border-radius:20px; margin-left:5px; cursor:pointer;">Edit</button><button class="delete-task" data-id="${task.id}" style="background:#dc3545; border:none; padding:4px 12px; border-radius:20px; margin-left:5px; cursor:pointer;">Del</button></div>` : '';
@@ -913,8 +894,7 @@
         const doneCount = Object.keys(currentTaskRecord.doneTasks || {}).length;
         const ackCount = Object.values(currentTaskRecord.acknowledgedTasks || {}).reduce((s, a) => s + a.length, 0);
         const dropCount = (currentTaskRecord.dropdownSelections || []).length;
-        const pendingCount = getPendingTasksCount();
-        tasksInfo.innerHTML = isClosed ? "🔒 Shift closed" : `📊 Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount} | ${pendingCount > 0 ? `⚠️ ${pendingCount} pending` : '✅ All completed'}`;
+        tasksInfo.innerHTML = isClosed ? "Shift closed" : `Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount}`;
     }
 
     async function loadStaff() {
@@ -929,7 +909,7 @@
         await db.collection("staff").add({ name: name.trim(), createdAt: new Date().toISOString() });
         await loadStaff();
         newStaffName.value = "";
-        adminFeedback.innerText = "✅ Staff added";
+        adminFeedback.innerText = "Staff added";
         setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
@@ -939,7 +919,7 @@
         await saveGlobalTasks([...globalTasks, newTask]);
         newTaskName.value = "";
         if (dropdownOptions) dropdownOptions.value = "";
-        adminFeedback.innerText = "✅ Task added";
+        adminFeedback.innerText = "Task added";
         setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
@@ -956,220 +936,99 @@
         await refreshAll();
     }
 
-    // PDF Export Functions
-    async function exportFullPDF() {
-        if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
-        const { jsPDF } = window.jspdf;
-        const element = document.createElement('div');
-        element.style.padding = '20px';
-        element.style.backgroundColor = 'white';
-        element.style.width = '800px';
-        element.innerHTML = `
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #1a4c6e;">Shift Report</h2>
-                <p><strong>Date:</strong> ${currentDate} | <strong>Shift:</strong> ${currentShift} Shift</p>
-                <p><strong>Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'}</p>
-                <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-            </div>
-            <div style="margin-bottom: 30px;">
-                <h3 style="color: #2c7da0;">Staff Allocation</h3>
-                ${generateAllocationHTML()}
-            </div>
-            <div>
-                <h3 style="color: #2c7da0;">Tasks Summary</h3>
-                ${generateTasksHTML()}
-            </div>
-        `;
-        document.body.appendChild(element);
-        try {
-            const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff' });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgWidth = 210;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-            pdf.save(`Shift_Report_${currentDate}_${currentShift}.pdf`);
-        } catch (err) { console.error(err); alert("Error generating PDF"); }
-        document.body.removeChild(element);
-    }
-
-    // A5 size allocation card (148mm x 210mm) - optimized for pocket size
-    async function printAllocationCard() {
+    // Print Allocation Card (A5 size)
+    function printAllocationCard() {
         if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
         const printWindow = window.open('', '_blank');
+        const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
+        const allocations = currentSODRecord?.allocations || {};
+        
+        let allocationHtml = '';
+        slots.forEach(slot => {
+            const slotAllocs = allocations[slot.id] || {};
+            allocationHtml += `<div class="time-slot">
+                <div class="slot-header">🕐 ${slot.name}</div>
+                <div class="areas-grid">`;
+            slot.areas.forEach(area => {
+                const assigned = slotAllocs[area] || [];
+                allocationHtml += `<div class="area-card">
+                    <div class="area-name">${area}</div>
+                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">${escapeHtml(s)}</span>`).join('') || '<span style="color:#ccc;">—</span>'}</div>
+                </div>`;
+            });
+            allocationHtml += `</div></div>`;
+        });
+        
         printWindow.document.write(`
             <html>
             <head>
-                <title>Staff Allocation - ${currentDate} ${currentShift} Shift</title>
+                <title>Staff Allocation - ${currentDate}</title>
                 <style>
-                    @page {
-                        size: A5;
-                        margin: 8mm;
-                    }
-                    body { 
-                        font-family: 'Inter', 'Segoe UI', Arial, sans-serif; 
-                        margin: 0; 
-                        padding: 0;
-                        background: white;
-                    }
-                    .allocation-card {
-                        width: 100%;
-                        max-width: 148mm;
-                        margin: 0 auto;
-                        padding: 6mm;
-                    }
-                    .header {
-                        text-align: center;
-                        margin-bottom: 12px;
-                        padding-bottom: 8px;
-                        border-bottom: 2px solid #2c7da0;
-                    }
-                    .header h2 {
-                        color: #1a4c6e;
-                        font-size: 16px;
-                        margin: 0 0 4px 0;
-                    }
-                    .header p {
-                        color: #5a7a97;
-                        font-size: 10px;
-                        margin: 2px 0;
-                    }
-                    .time-slot {
-                        margin-bottom: 14px;
-                        border: 1px solid #e0e8f0;
-                        border-radius: 10px;
-                        overflow: hidden;
-                    }
-                    .slot-header {
-                        background: #eef3fc;
-                        padding: 6px 10px;
-                        font-weight: bold;
-                        font-size: 11px;
-                        color: #1d6f8f;
-                    }
-                    .areas-grid {
-                        display: grid;
-                        grid-template-columns: repeat(2, 1fr);
-                        gap: 8px;
-                        padding: 10px;
-                    }
-                    .area-card {
-                        border: 1px solid #eef2f8;
-                        border-radius: 8px;
-                        padding: 6px;
-                        background: white;
-                    }
-                    .area-name {
-                        font-weight: bold;
-                        font-size: 9px;
-                        color: #2c7da0;
-                        margin-bottom: 6px;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                    }
-                    .staff-list {
-                        display: flex;
-                        flex-wrap: wrap;
-                        gap: 4px;
-                    }
-                    .staff-badge {
-                        background: #eef2fa;
-                        padding: 3px 6px;
-                        border-radius: 12px;
-                        font-size: 8px;
-                        display: inline-block;
-                    }
-                    .footer {
-                        text-align: center;
-                        margin-top: 12px;
-                        padding-top: 6px;
-                        border-top: 1px solid #ddd;
-                        font-size: 7px;
-                        color: #999;
-                    }
-                    @media print {
-                        body { margin: 0; padding: 0; }
-                        .no-print { display: none; }
-                    }
+                    @page { size: A5; margin: 8mm; }
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: white; }
+                    .card { width: 100%; margin: 0 auto; }
+                    .header { text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; }
+                    .header h2 { color: #1a4c6e; font-size: 16px; margin: 0 0 4px 0; }
+                    .header p { color: #666; font-size: 10px; margin: 2px 0; }
+                    .time-slot { margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+                    .slot-header { background: #eef3fc; padding: 6px 10px; font-weight: bold; font-size: 11px; }
+                    .areas-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 8px; }
+                    .area-card { border: 1px solid #eee; border-radius: 6px; padding: 6px; }
+                    .area-name { font-weight: bold; font-size: 9px; color: #2c7da0; margin-bottom: 4px; }
+                    .staff-list { display: flex; flex-wrap: wrap; gap: 3px; }
+                    .staff-badge { background: #eef2fa; padding: 2px 6px; border-radius: 12px; font-size: 8px; }
+                    .footer { text-align: center; margin-top: 10px; padding-top: 6px; border-top: 1px solid #ddd; font-size: 7px; color: #999; }
                 </style>
             </head>
             <body>
-                <div class="allocation-card">
+                <div class="card">
                     <div class="header">
                         <h2>📋 STAFF ALLOCATION</h2>
                         <p><strong>${currentDate}</strong> | ${currentShift} Shift</p>
                     </div>
-                    ${generateCompactAllocationHTML()}
+                    ${allocationHtml}
                     <div class="footer">
-                        <p>Generated: ${new Date().toLocaleString()} | Shift Manager</p>
+                        <p>Generated: ${new Date().toLocaleString()}</p>
                     </div>
                 </div>
                 <script>
                     window.onload = function() { 
-                        setTimeout(function() { 
-                            window.print(); 
-                            setTimeout(function() { window.close(); }, 500);
-                        }, 200);
+                        setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 200);
                     }
-                </script>
+                <\/script>
             </body>
             </html>
         `);
         printWindow.document.close();
     }
 
-    function generateAllocationHTML() {
-        if (!currentSODRecord) return '<p>No allocation data available</p>';
+    // Export Full Report
+    function exportFullReport() {
+        if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
+        const printWindow = window.open('', '_blank');
         const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
-        const allocations = currentSODRecord.allocations || {};
-        let html = '';
-        slots.forEach(slot => {
-            const slotAllocs = allocations[slot.id] || {};
-            html += `<div class="time-slot">
-                <div class="slot-header">🕐 ${slot.name}</div>
-                <div class="areas-grid">`;
-            slot.areas.forEach(area => {
-                const assigned = slotAllocs[area] || [];
-                html += `<div class="area-card">
-                    <div class="area-name">${area}</div>
-                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">👤 ${escapeHtml(s)}</span>`).join('') || '<span style="color:#ccc; font-size:8px;">—</span>'}</div>
-                </div>`;
-            });
-            html += `</div></div>`;
-        });
-        return html;
-    }
-
-    function generateCompactAllocationHTML() {
-        if (!currentSODRecord) return '<p>No allocation data</p>';
-        const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
-        const allocations = currentSODRecord.allocations || {};
-        let html = '';
-        slots.forEach(slot => {
-            const slotAllocs = allocations[slot.id] || {};
-            html += `<div class="time-slot">
-                <div class="slot-header">🕐 ${slot.name}</div>
-                <div class="areas-grid">`;
-            slot.areas.forEach(area => {
-                const assigned = slotAllocs[area] || [];
-                html += `<div class="area-card">
-                    <div class="area-name">${area}</div>
-                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">${escapeHtml(s)}</span>`).join('') || '<span style="color:#ccc;">—</span>'}</div>
-                </div>`;
-            });
-            html += `</div></div>`;
-        });
-        return html;
-    }
-
-    function generateTasksHTML() {
-        if (!globalTasks.length) return '<p>No tasks available</p>';
+        const allocations = currentSODRecord?.allocations || {};
         const doneTasks = currentTaskRecord?.doneTasks || {};
         const ackTasks = currentTaskRecord?.acknowledgedTasks || {};
         const selections = currentTaskRecord?.dropdownSelections || [];
-        let html = '<table style="width:100%; border-collapse: collapse;">';
-        html += '<tr style="background:#eef3fc;"><th style="padding:8px; text-align:left;">Task</th><th style="padding:8px; text-align:left;">Status</th></tr>';
+        
+        let allocationHtml = '';
+        slots.forEach(slot => {
+            const slotAllocs = allocations[slot.id] || {};
+            allocationHtml += `<div class="time-slot">
+                <div class="slot-header">🕐 ${slot.name}</div>
+                <div class="areas-grid">`;
+            slot.areas.forEach(area => {
+                const assigned = slotAllocs[area] || [];
+                allocationHtml += `<div class="area-card">
+                    <div class="area-name">${area}</div>
+                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">${escapeHtml(s)}</span>`).join('') || '—'}</div>
+                </div>`;
+            });
+            allocationHtml += `</div></div>`;
+        });
+        
+        let tasksHtml = '<table class="tasks-table"><tr><th>Task</th><th>Status</th></tr>';
         globalTasks.forEach(task => {
             let status = '';
             if (task.type === 'done') status = doneTasks[task.id] ? `✅ Completed by ${doneTasks[task.id].doneBy}` : '⏳ Pending';
@@ -1178,12 +1037,61 @@
                 status = acks.length ? `✅ Acknowledged by ${acks.length} staff: ${acks.join(', ')}` : '⏳ No acknowledgments';
             } else {
                 const subs = selections.filter(s => s.taskId === task.id);
-                status = subs.length ? `📋 ${subs.length} submissions: ${subs.map(s => `${s.staffName}: ${s.selectedValue}`).join(', ')}` : '⏳ No submissions';
+                status = subs.length ? `📋 ${subs.length} submissions` : '⏳ No submissions';
             }
-            html += `<tr><td style="padding:8px; border-bottom:1px solid #eee;">📋 ${escapeHtml(task.name)}</td><td style="padding:8px; border-bottom:1px solid #eee;">${status}</td></tr>`;
+            tasksHtml += `<tr><td>📋 ${escapeHtml(task.name)}</td><td>${status}</td></tr>`;
         });
-        html += '</table>';
-        return html;
+        tasksHtml += '</table>';
+        
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Shift Report - ${currentDate}</title>
+                <style>
+                    @page { size: A4; margin: 15mm; }
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: white; }
+                    .report { max-width: 100%; margin: 0 auto; }
+                    .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #2c7da0; }
+                    .header h1 { color: #1a4c6e; font-size: 22px; margin: 0 0 5px 0; }
+                    .header p { color: #666; font-size: 11px; margin: 3px 0; }
+                    h3 { color: #2c7da0; margin: 15px 0 10px 0; font-size: 16px; }
+                    .time-slot { margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+                    .slot-header { background: #eef3fc; padding: 8px 12px; font-weight: bold; font-size: 12px; }
+                    .areas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; padding: 12px; }
+                    .area-card { border: 1px solid #eee; border-radius: 8px; padding: 8px; }
+                    .area-name { font-weight: bold; font-size: 11px; color: #2c7da0; margin-bottom: 6px; }
+                    .staff-list { display: flex; flex-wrap: wrap; gap: 5px; }
+                    .staff-badge { background: #eef2fa; padding: 3px 8px; border-radius: 15px; font-size: 9px; }
+                    .tasks-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    .tasks-table th, .tasks-table td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 11px; }
+                    .tasks-table th { background: #eef3fc; }
+                    .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 9px; color: #999; }
+                </style>
+            </head>
+            <body>
+                <div class="report">
+                    <div class="header">
+                        <h1>📋 SHIFT REPORT</h1>
+                        <p><strong>Date:</strong> ${currentDate} | <strong>Shift:</strong> ${currentShift} Shift</p>
+                        <p><strong>Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'} | Generated: ${new Date().toLocaleString()}</p>
+                    </div>
+                    <h3>👥 Staff Allocation</h3>
+                    ${allocationHtml}
+                    <h3>✅ Tasks Summary</h3>
+                    ${tasksHtml}
+                    <div class="footer">
+                        <p>This is an official shift report</p>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() { 
+                        setTimeout(function() { window.print(); setTimeout(function() { window.close(); }, 500); }, 200);
+                    }
+                <\/script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
     }
 
     function setRole(role) {
@@ -1208,7 +1116,7 @@
             isSupervisor = true;
             passwordModal.classList.add('hidden');
             setRole("supervisor");
-            adminFeedback.innerText = "✅ Access granted";
+            adminFeedback.innerText = "Access granted";
         } else passwordError.innerText = "Wrong password";
     }
 
@@ -1237,7 +1145,7 @@
         reopenShiftBtn.addEventListener('click', reopenShiftFn);
         verifyPasswordBtn.addEventListener('click', verifyPassword);
         cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
-        exportFullPdfBtn.addEventListener('click', exportFullPDF);
+        exportFullPdfBtn.addEventListener('click', exportFullReport);
         printAllocationBtn.addEventListener('click', printAllocationCard);
         setRole("staff");
     }
