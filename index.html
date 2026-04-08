@@ -329,6 +329,11 @@
             color: #2e7d32;
             border-left: 3px solid #4caf50;
         }
+        .info-msg {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 3px solid #2196f3;
+        }
         footer {
             text-align: center;
             margin-top: 40px;
@@ -348,8 +353,8 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-scroll"></i> Briefing Minutes · Point Log</h1>
-        <p>Large briefing area | <strong>Duplicate check based on Briefing Notes content only</strong> | <span class="firebase-badge"><i class="fas fa-database"></i> Live Firebase Sync</span></p>
+        <h1><i class="fas fa-scroll"></i> Briefing Minutes </h1>
+        
     </div>
 
     <div class="dashboard">
@@ -386,10 +391,10 @@
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-file-lines"></i> Briefing Notes / Points </label>
-                    <textarea id="pointsText" class="big-textarea" placeholder="Write detailed briefing minutes, key points, action items, safety notes, performance points...&#10;Example:&#10;• Safety briefing: All protocols followed ✅&#10;&#10;&#10;"></textarea>
+                    <textarea id="pointsText" class="big-textarea" placeholder="Write detailed briefing minutes, key points, action items, safety notes, performance points...&#10;Example:&#10;• Safety briefing: All protocols followed ✅&#10;•"></textarea>
                 </div>
                 <div class="action-buttons">
-                    <button id="saveBtn" class="btn-primary"><i class="fas fa-save"></i> Save to Firebase</button>
+                    <button id="saveBtn" class="btn-primary"><i class="fas fa-save"></i> Save (Auto Edit/New)</button>
                     <button id="clearFormBtn" class="btn-secondary"><i class="fas fa-eraser"></i> Clear / New</button>
                     <button id="deleteCurrentBtn" class="btn-outline"><i class="fas fa-trash-alt"></i> Delete selected</button>
                 </div>
@@ -418,8 +423,7 @@
             </div>
         </div>
     </div>
-    <footer>✅ <strong>Duplicate Check:</strong> Cannot save the same briefing notes content twice on the same date | All points grouped by date | Page does NOT refresh on save</footer>
-</div>
+   </div>
 
 <script>
     // Firebase is initialized from fire.js (external file)
@@ -444,7 +448,7 @@
     // Global state
     let currentEditId = null;
     let currentSelectedDate = new Date().toISOString().slice(0,10);
-    let currentCachedEntries = []; // Cache entries for current view date
+    let currentCachedEntries = [];
     
     // DOM elements
     const dateInput = document.getElementById('entryDate');
@@ -467,14 +471,9 @@
         return today.toISOString().slice(0,10);
     }
     
-    // Normalize text for duplicate comparison (remove extra spaces, trim)
-    function normalizeText(text) {
-        return text.trim().toLowerCase().replace(/\s+/g, ' ');
-    }
-    
     function resetFormToNew(dateValue = null) {
         currentEditId = null;
-        formModeBadge.innerHTML = '✨ New Briefing';
+        formModeBadge.innerHTML = '✨ New Entry Mode';
         const targetDate = dateValue || currentSelectedDate;
         dateInput.value = targetDate;
         supervisorSelect.value = "";
@@ -484,46 +483,32 @@
     
     function loadEntryForEdit(entry) {
         currentEditId = entry.id;
-        formModeBadge.innerHTML = '✏️ Editing Mode';
+        formModeBadge.innerHTML = '✏️ Editing Existing Entry';
         dateInput.value = entry.date;
         supervisorSelect.value = entry.supervisor;
         shiftSelect.value = entry.shift;
         pointsTextarea.value = entry.pointsText || '';
-        formFeedback.innerHTML = `✏️ Editing briefing for ${entry.supervisor} (${entry.shift})`;
-        formFeedback.className = 'status-msg';
+        formFeedback.innerHTML = `✏️ Editing existing entry for ${entry.supervisor} (${entry.shift}) - Save will update this entry.`;
+        formFeedback.className = 'status-msg info-msg';
     }
     
-    // Check for duplicate based ONLY on briefing notes/points content (for the same date)
-    async function checkDuplicate(date, pointsText, excludeId = null) {
-        if (!firestoreReady) return false;
+    // Find existing entry by date, supervisor, shift
+    async function findExistingEntry(date, supervisor, shift) {
+        if (!firestoreReady) return null;
         try {
-            // Get all entries for this date
             const snapshot = await db.collection("briefingMinutes")
                 .where("date", "==", date)
                 .get();
             
-            const normalizedNewText = normalizeText(pointsText);
-            
-            const duplicate = snapshot.docs.find(doc => {
-                if (excludeId && doc.id === excludeId) return false;
+            const existing = snapshot.docs.find(doc => {
                 const data = doc.data();
-                const existingText = data.pointsText || '';
-                const normalizedExisting = normalizeText(existingText);
-                return normalizedExisting === normalizedNewText;
+                return data.supervisor === supervisor && data.shift === shift;
             });
             
-            return !!duplicate;
+            return existing ? { id: existing.id, ...existing.data() } : null;
         } catch (err) {
-            console.error("Duplicate check error:", err);
-            return false;
-        }
-    }
-    
-    // Update the UI with new entry without full refresh
-    function updateUIAfterSave(dateVal) {
-        const currentViewDate = viewDatePicker.value;
-        if (currentViewDate === dateVal) {
-            loadEntriesForViewDate(currentViewDate);
+            console.error("Find existing error:", err);
+            return null;
         }
     }
     
@@ -560,19 +545,8 @@
             return;
         }
         
-        // Check for duplicate based on briefing notes content only
-        const isDuplicate = await checkDuplicate(dateVal, pointsTextVal, currentEditId);
-        if (isDuplicate && !currentEditId) {
-            formFeedback.innerHTML = `❌ DUPLICATE NOT ALLOWED: Same briefing notes already exist for ${dateVal}. Please edit existing entry or write different content.`;
-            formFeedback.className = 'status-msg warning-msg';
-            setTimeout(() => {
-                if(formFeedback.innerHTML.includes('DUPLICATE')) {
-                    formFeedback.innerHTML = '';
-                    formFeedback.className = 'status-msg';
-                }
-            }, 5000);
-            return;
-        }
+        // Check if entry exists for this date + supervisor + shift
+        const existingEntry = await findExistingEntry(dateVal, supervisor, shift);
         
         const entryData = {
             date: dateVal,
@@ -584,21 +558,27 @@
         
         try {
             const entriesRef = db.collection("briefingMinutes");
-            if (currentEditId) {
-                await entriesRef.doc(currentEditId).update(entryData);
-                formFeedback.innerHTML = "✅ Briefing updated in Firebase!";
+            
+            if (existingEntry) {
+                // UPDATE existing entry
+                await entriesRef.doc(existingEntry.id).update(entryData);
+                formFeedback.innerHTML = `✅ UPDATED: Briefing for ${supervisor} (${shift}) on ${dateVal}`;
                 formFeedback.className = 'status-msg success-msg';
                 resetFormToNew(dateVal);
             } else {
+                // CREATE new entry
                 entryData.createdAt = new Date().toISOString();
                 await entriesRef.add(entryData);
-                formFeedback.innerHTML = "✅ New briefing saved to Firestore!";
+                formFeedback.innerHTML = `✅ NEW: Briefing created for ${supervisor} (${shift}) on ${dateVal}`;
                 formFeedback.className = 'status-msg success-msg';
                 resetFormToNew(dateVal);
             }
             
             // Update the view without full page refresh
-            updateUIAfterSave(dateVal);
+            const currentViewDate = viewDatePicker.value;
+            if (currentViewDate === dateVal) {
+                await loadEntriesForViewDate(currentViewDate);
+            }
             
             // Clear success message after 3 seconds
             setTimeout(() => {
@@ -628,7 +608,6 @@
             formFeedback.className = 'status-msg success-msg';
             if (currentEditId === entryId) resetFormToNew(getTodayDate());
             
-            // Update the view without full page refresh
             const currentViewDate = viewDatePicker.value;
             if (currentViewDate === entryDate) {
                 await loadEntriesForViewDate(currentViewDate);
@@ -672,7 +651,6 @@
                 entriesList.push({ id: doc.id, ...doc.data() });
             });
             
-            // Sort by createdAt
             entriesList.sort((a, b) => {
                 const timeA = a.createdAt || a.updatedAt || '';
                 const timeB = b.createdAt || b.updatedAt || '';
@@ -688,7 +666,6 @@
         }
     }
     
-    // Render entries grouped by date (all entries for the selected date shown together)
     function renderGroupedEntries(entries, dateStr) {
         if (!entries.length) {
             historyEntriesContainer.innerHTML = `<div class="empty-state"><i class="far fa-comment-dots"></i> No briefing minutes for ${dateStr}. Use left panel to add.</div>`;
@@ -698,11 +675,9 @@
         
         historyEntriesContainer.innerHTML = '';
         
-        // Create a single card for the date containing all entries
         const dateGroupDiv = document.createElement('div');
         dateGroupDiv.className = 'date-group-card';
         
-        // Header with date and count
         dateGroupDiv.innerHTML = `
             <div class="date-group-header">
                 <div class="date-title">
@@ -715,7 +690,6 @@
             </div>
         `;
         
-        // Add each briefing entry
         entries.forEach(entry => {
             const safeSupervisor = escapeHtml(entry.supervisor);
             const safeShift = escapeHtml(entry.shift);
@@ -742,7 +716,6 @@
         historyEntriesContainer.appendChild(dateGroupDiv);
         historyFeedback.innerHTML = `✅ ${entries.length} briefing(s) for ${dateStr} (grouped view)`;
         
-        // Attach edit/delete listeners
         document.querySelectorAll('.edit-entry').forEach(icon => {
             icon.removeEventListener('click', handleEditClick);
             icon.addEventListener('click', handleEditClick);
@@ -851,14 +824,14 @@
         
         if (firestoreReady) {
             await loadEntriesForViewDate(todayStr);
-            formFeedback.innerHTML = "✅ Firebase ready! Duplicate check based on briefing notes content.";
+            formFeedback.innerHTML = "✅ Firebase ready! Auto Edit/New: Same combo updates, new combo creates.";
             formFeedback.className = 'status-msg success-msg';
             setTimeout(() => {
                 if(formFeedback.innerHTML.includes('ready')) {
                     formFeedback.innerHTML = '';
                     formFeedback.className = 'status-msg';
                 }
-            }, 4000);
+            }, 5000);
         }
         
         saveBtn.addEventListener('click', saveEntry);
