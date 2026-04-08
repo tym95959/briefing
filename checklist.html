@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Task Manager · Supervisor Controlled Checklist</title>
+    <title>Task Manager · Staff Acknowledgment & Supervisor Control</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -163,23 +163,35 @@
             align-items: center;
             gap: 10px;
         }
-        .task-type-badge {
-            font-size: 0.65rem;
-            padding: 2px 10px;
+        .acknowledgments {
+            background: #f8fbfe;
             border-radius: 20px;
-            background: #e3f2fd;
-            color: #1565c0;
+            padding: 12px;
+            margin: 12px 0;
         }
-        .completed-by {
-            background: #e8f5e9;
-            border-radius: 20px;
-            padding: 8px 12px;
-            margin-top: 8px;
+        .ack-title {
+            font-size: 0.7rem;
+            color: #7c9ab8;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .staff-avatar {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #eef2fa;
+            padding: 4px 12px;
+            border-radius: 30px;
             font-size: 0.75rem;
+            margin: 4px 6px 4px 0;
         }
-        .pending-badge {
-            background: #fff3e0;
-            color: #e65100;
+        .staff-avatar i {
+            color: #4caf50;
+            font-size: 0.7rem;
+        }
+        .task-done-badge {
+            background: #e8f5e9;
+            color: #2e7d32;
             padding: 4px 12px;
             border-radius: 40px;
             font-size: 0.7rem;
@@ -192,11 +204,11 @@
             border: 1.5px solid #e2eaf2;
             font-size: 0.85rem;
         }
-        .complete-btn {
+        .acknowledge-btn, .mark-done-btn {
             background: #4caf50;
             color: white;
             border: none;
-            padding: 8px 20px;
+            padding: 8px 18px;
             border-radius: 40px;
             cursor: pointer;
             font-weight: 600;
@@ -205,7 +217,10 @@
             align-items: center;
             gap: 8px;
         }
-        .complete-btn:disabled {
+        .mark-done-btn {
+            background: #ff9800;
+        }
+        .acknowledge-btn:disabled, .mark-done-btn:disabled {
             background: #ccc;
             cursor: not-allowed;
         }
@@ -214,7 +229,7 @@
             color: #7c9ab8;
             margin-top: 8px;
         }
-        .admin-form input, .admin-form select, .admin-form textarea {
+        .admin-form input, .admin-form select {
             width: 100%;
             padding: 12px 16px;
             border-radius: 28px;
@@ -336,8 +351,8 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-clipboard-list"></i> Task Manager · Supervisor Controlled</h1>
-        <p>Supervisor: Select date/shift, manage tasks, mark as done | Staff: View tasks only</p>
+        <h1><i class="fas fa-clipboard-list"></i> Task Manager · Staff Acknowledgment</h1>
+        <p>Staff: Acknowledge tasks | Supervisor: Select date/shift, mark tasks done with staff name, manage tasks</p>
     </div>
 
     <div class="role-bar">
@@ -381,7 +396,7 @@
                         <button id="addTaskBtn"><i class="fas fa-plus"></i> Add Global Task</button>
                     </div>
                     <div style="margin: 20px 0;">
-                        <label style="font-weight: 600; font-size: 0.8rem;">Staff Members (view only)</label>
+                        <label style="font-weight: 600; font-size: 0.8rem;">Staff Members</label>
                         <div id="staffListContainer" class="staff-list">
                             <span class="staff-tag">Loading...</span>
                         </div>
@@ -396,7 +411,7 @@
             </div>
         </div>
     </div>
-    <footer>✅ <strong>Supervisor Only:</strong> Select date & shift, mark tasks as done | Staff can only view | Tasks are global across all shifts</footer>
+    <footer>✅ <strong>Staff:</strong> Acknowledge tasks with your name | <strong>Supervisor:</strong> Select date/shift, mark tasks as done with staff name, manage global tasks</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -546,7 +561,8 @@
                     date: date,
                     shift: shift,
                     status: "open",
-                    completedTasks: {}, // taskId -> { completedBy, completedAt }
+                    acknowledgments: {}, // taskId -> array of staff who acknowledged
+                    taskDone: {}, // taskId -> { doneBy, doneAt }
                     createdAt: new Date().toISOString()
                 };
                 await docRef.set(newRecord);
@@ -560,7 +576,41 @@
         }
     }
 
-    // Mark task as done (Supervisor only, single user)
+    // Staff acknowledges a task
+    async function acknowledgeTask(taskId, taskName, staffName) {
+        if (!firestoreReady || !currentShiftRecord) return;
+        if (currentShiftRecord.status === "closed") {
+            alert("Shift is closed. Cannot acknowledge tasks.");
+            return;
+        }
+        
+        const acknowledgments = currentShiftRecord.acknowledgments || {};
+        const taskAcks = acknowledgments[taskId] || [];
+        
+        if (taskAcks.includes(staffName)) {
+            alert(`⚠️ ${staffName} has already acknowledged "${taskName}" for this shift.`);
+            return;
+        }
+        
+        taskAcks.push(staffName);
+        acknowledgments[taskId] = taskAcks;
+        
+        try {
+            await db.collection("shiftRecords").doc(currentShiftRecord.id).set({ 
+                acknowledgments: acknowledgments,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            currentShiftRecord.acknowledgments = acknowledgments;
+            renderChecklist();
+            checklistInfo.innerHTML = `✅ ${staffName} acknowledged "${taskName}"`;
+            setTimeout(() => renderChecklist(), 1000);
+        } catch (err) {
+            console.error(err);
+            alert("Error saving acknowledgment");
+        }
+    }
+
+    // Supervisor marks task as done with staff name
     async function markTaskDone(taskId, taskName) {
         if (!firestoreReady || !currentShiftRecord) return;
         if (currentShiftRecord.status === "closed") {
@@ -575,24 +625,24 @@
             return;
         }
         
-        const completedTasks = currentShiftRecord.completedTasks || {};
+        const taskDone = currentShiftRecord.taskDone || {};
         
-        if (completedTasks[taskId]) {
-            adminFeedback.innerText = `⚠️ Task already marked as done by ${completedTasks[taskId].completedBy}`;
+        if (taskDone[taskId]) {
+            adminFeedback.innerText = `⚠️ Task already marked as done by ${taskDone[taskId].doneBy}`;
             return;
         }
         
-        completedTasks[taskId] = {
-            completedBy: staffName.trim(),
-            completedAt: new Date().toISOString()
+        taskDone[taskId] = {
+            doneBy: staffName.trim(),
+            doneAt: new Date().toISOString()
         };
         
         try {
             await db.collection("shiftRecords").doc(currentShiftRecord.id).set({ 
-                completedTasks: completedTasks,
+                taskDone: taskDone,
                 updatedAt: new Date().toISOString()
             }, { merge: true });
-            currentShiftRecord.completedTasks = completedTasks;
+            currentShiftRecord.taskDone = taskDone;
             renderChecklist();
             adminFeedback.innerText = `✅ "${taskName}" marked as done by ${staffName}`;
             setTimeout(() => adminFeedback.innerText = "", 2000);
@@ -683,8 +733,10 @@
         checklistStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Shift Closed' : '<i class="fas fa-lock-open"></i> Open';
         checklistStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
 
-        const completedTasks = currentShiftRecord.completedTasks || {};
-        const completedCount = Object.keys(completedTasks).length;
+        const acknowledgments = currentShiftRecord.acknowledgments || {};
+        const taskDone = currentShiftRecord.taskDone || {};
+        const totalAcks = Object.values(acknowledgments).reduce((sum, arr) => sum + arr.length, 0);
+        const doneCount = Object.keys(taskDone).length;
         
         if (globalTasks.length === 0) {
             checklistItemsContainer.innerHTML = `<div class="empty-msg">📝 No global tasks yet. (Supervisor: Add tasks)</div>`;
@@ -695,79 +747,120 @@
         checklistItemsContainer.innerHTML = '';
         
         globalTasks.forEach((task) => {
-            const isCompleted = completedTasks[task.id];
-            const completedBy = isCompleted ? completedTasks[task.id].completedBy : null;
-            const completedAt = isCompleted ? completedTasks[task.id].completedAt : null;
+            const taskAcks = acknowledgments[task.id] || [];
+            const isDone = taskDone[task.id];
+            const doneBy = isDone ? taskDone[task.id].doneBy : null;
             
             const itemDiv = document.createElement('div');
             itemDiv.className = 'checklist-item';
             
-            if (currentRole === "supervisor") {
-                // Supervisor view - can mark tasks as done
+            // Build acknowledgments display
+            let ackHtml = '';
+            if (taskAcks.length > 0) {
+                ackHtml = `
+                    <div class="acknowledgments">
+                        <div class="ack-title"><i class="fas fa-users"></i> Acknowledged by (${taskAcks.length}):</div>
+                        ${taskAcks.map(staffName => `
+                            <span class="staff-avatar">
+                                <i class="fas fa-check-circle"></i> ${escapeHtml(staffName)}
+                            </span>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                ackHtml = `<div class="acknowledgments"><div class="ack-title">No acknowledgments yet</div></div>`;
+            }
+            
+            if (currentRole === "staff") {
+                // Staff view - can acknowledge if not done and shift open
                 let actionHtml = '';
-                if (!isClosed && !isCompleted) {
+                if (!isClosed && !isDone) {
                     actionHtml = `
-                        <div style="margin-top: 12px;">
-                            <button class="complete-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
-                                <i class="fas fa-check-circle"></i> Mark as Done (by one staff)
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px;">
+                            <select id="staffSelect_${task.id}" class="staff-select">
+                                <option value="">-- Select your name --</option>
+                                ${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}
+                            </select>
+                            <button class="acknowledge-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
+                                <i class="fas fa-check"></i> Acknowledge Task
                             </button>
                         </div>
                     `;
-                } else if (isCompleted) {
-                    actionHtml = `
-                        <div class="completed-by">
-                            <i class="fas fa-user-check"></i> Completed by: <strong>${escapeHtml(completedBy)}</strong>
-                            ${completedAt ? ` on ${new Date(completedAt).toLocaleString()}` : ''}
-                        </div>
-                    `;
+                } else if (isDone) {
+                    actionHtml = `<div class="info-text" style="color:#2e7d32; margin-top:8px;"><i class="fas fa-check-circle"></i> Task completed by ${escapeHtml(doneBy)}</div>`;
                 } else if (isClosed) {
-                    actionHtml = `<div class="warning-msg"><i class="fas fa-ban"></i> Shift closed - Cannot modify</div>`;
+                    actionHtml = `<div class="warning-msg"><i class="fas fa-ban"></i> Shift closed</div>`;
                 }
                 
                 itemDiv.innerHTML = `
                     <div class="task-header">
                         <div class="task-name">
-                            <i class="fas ${isCompleted ? 'fa-check-circle' : 'fa-circle'}"></i>
+                            <i class="fas ${isDone ? 'fa-check-circle' : 'fa-circle'}"></i>
                             <span>${escapeHtml(task.name)}</span>
+                            ${isDone ? '<span class="task-done-badge"><i class="fas fa-check"></i> Done</span>' : ''}
+                        </div>
+                    </div>
+                    ${ackHtml}
+                    ${actionHtml}
+                `;
+            } else if (currentRole === "supervisor") {
+                // Supervisor view - can mark as done, edit/delete tasks
+                let actionHtml = '';
+                if (!isClosed && !isDone) {
+                    actionHtml = `
+                        <div style="margin-top: 12px;">
+                            <button class="mark-done-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}">
+                                <i class="fas fa-check-double"></i> Mark as Done (Select Staff)
+                            </button>
+                        </div>
+                    `;
+                } else if (isDone) {
+                    actionHtml = `
+                        <div class="completed-by" style="background:#e8f5e9; padding:8px 12px; border-radius:20px; margin-top:8px;">
+                            <i class="fas fa-user-check"></i> Completed by: <strong>${escapeHtml(doneBy)}</strong>
+                        </div>
+                    `;
+                }
+                
+                itemDiv.innerHTML = `
+                    <div class="task-header">
+                        <div class="task-name">
+                            <i class="fas ${isDone ? 'fa-check-circle' : 'fa-circle'}"></i>
+                            <span>${escapeHtml(task.name)}</span>
+                            ${isDone ? '<span class="task-done-badge"><i class="fas fa-check"></i> Done</span>' : ''}
                         </div>
                         <div>
                             <button class="edit-task-btn" data-task-id="${task.id}" data-task-name="${escapeHtml(task.name)}"><i class="fas fa-edit"></i> Edit</button>
                             <button class="delete-task-btn" data-task-id="${task.id}"><i class="fas fa-trash"></i> Delete</button>
                         </div>
                     </div>
+                    ${ackHtml}
                     ${actionHtml}
-                `;
-            } else {
-                // Staff view - read only
-                let statusHtml = '';
-                if (isCompleted) {
-                    statusHtml = `
-                        <div class="completed-by">
-                            <i class="fas fa-check-circle" style="color:#4caf50;"></i> Completed by: <strong>${escapeHtml(completedBy)}</strong>
-                        </div>
-                    `;
-                } else if (isClosed) {
-                    statusHtml = `<div class="pending-badge"><i class="fas fa-ban"></i> Shift Closed</div>`;
-                } else {
-                    statusHtml = `<div class="pending-badge"><i class="fas fa-clock"></i> Pending</div>`;
-                }
-                
-                itemDiv.innerHTML = `
-                    <div class="task-header">
-                        <div class="task-name">
-                            <i class="fas ${isCompleted ? 'fa-check-circle' : 'fa-circle'}"></i>
-                            <span>${escapeHtml(task.name)}</span>
-                        </div>
-                        ${statusHtml}
-                    </div>
+                    ${isClosed && !isDone ? '<div class="warning-msg"><i class="fas fa-ban"></i> Shift closed - Cannot modify</div>' : ''}
                 `;
             }
             checklistItemsContainer.appendChild(itemDiv);
         });
 
-        // Attach event listeners for supervisor actions
+        // Attach event listeners
+        if (currentRole === "staff" && currentShiftRecord.status !== "closed") {
+            document.querySelectorAll('.acknowledge-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const taskId = btn.getAttribute('data-task-id');
+                    const taskName = btn.getAttribute('data-task-name');
+                    const staffSelect = document.getElementById(`staffSelect_${taskId}`);
+                    const staffName = staffSelect.value;
+                    if (!staffName) {
+                        alert("Please select your name before acknowledging.");
+                        return;
+                    }
+                    await acknowledgeTask(taskId, taskName, staffName);
+                });
+            });
+        }
+        
         if (currentRole === "supervisor") {
-            document.querySelectorAll('.complete-btn').forEach(btn => {
+            document.querySelectorAll('.mark-done-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const taskId = btn.getAttribute('data-task-id');
                     const taskName = btn.getAttribute('data-task-name');
@@ -793,10 +886,10 @@
         }
 
         const totalTasks = globalTasks.length;
-        checklistInfo.innerText = isClosed ? "🔒 Shift is closed. No further changes allowed." : `📊 ${completedCount}/${totalTasks} tasks completed for this shift`;
+        checklistInfo.innerText = isClosed ? "🔒 Shift is closed. No further changes allowed." : `📊 ${doneCount}/${totalTasks} tasks completed | ${totalAcks} total acknowledgments`;
     }
 
-    // Date/Shift change handler (Supervisor only can change)
+    // Date/Shift change handler (Supervisor only)
     async function onDateShiftChange() {
         if (currentRole !== "supervisor") return;
         currentDate = checklistDate.value;
@@ -809,21 +902,16 @@
         }
     }
 
-    // Enable/disable date/shift based on role
     function updateFormAccess() {
         const isSupervisor = (currentRole === "supervisor" && isSupervisorAuthenticated);
         checklistDate.disabled = !isSupervisor;
         shiftSelect.disabled = !isSupervisor;
         
-        if (isSupervisor) {
-            // Load current shift if date and shift are selected
-            if (checklistDate.value && shiftSelect.value) {
-                loadShiftRecord(checklistDate.value, shiftSelect.value);
-            }
+        if (isSupervisor && checklistDate.value && shiftSelect.value) {
+            loadShiftRecord(checklistDate.value, shiftSelect.value);
         }
     }
 
-    // Role switching
     function setRole(role) {
         if (role === "supervisor" && !isSupervisorAuthenticated) {
             showPasswordModal();
@@ -898,7 +986,6 @@
             if (e.key === 'Enter') verifyPassword();
         });
         
-        // Start with staff view (date/shift disabled)
         setRole("staff");
     }
     
