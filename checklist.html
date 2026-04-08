@@ -271,7 +271,6 @@
             transform: translateY(-1px);
             box-shadow: 0 2px 8px rgba(76,175,80,0.3);
         }
-        /* Tasks Styles */
         .tasks-list {
             max-height: 550px;
             overflow-y: auto;
@@ -304,6 +303,14 @@
             gap: 10px;
             flex-wrap: wrap;
             color: #1a4c6e;
+        }
+        .pending-indicator {
+            background: #fff3e0;
+            color: #e65100;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 600;
         }
         .ack-block, .submissions-block {
             background: #f8fbfe;
@@ -423,6 +430,10 @@
             background: linear-gradient(135deg, #c62828, #b71c1c);
             margin-top: 16px;
         }
+        .force-close-btn {
+            background: linear-gradient(135deg, #ff6f00, #e65100);
+            margin-top: 8px;
+        }
         .staff-list {
             display: flex;
             flex-wrap: wrap;
@@ -446,6 +457,12 @@
             font-size: 0.7rem;
             color: #7c9ab8;
             margin-top: 12px;
+            text-align: center;
+        }
+        .warning-text {
+            color: #e65100;
+            font-size: 0.7rem;
+            margin-top: 8px;
             text-align: center;
         }
         .password-modal {
@@ -507,8 +524,8 @@
             <input type="date" id="mainDate" value="">
             <select id="mainShift">
                 <option value="">Select Shift</option>
-                <option value="Morning">🌅 Morning Shift</option>
-                <option value="Evening">🌙 Evening Shift</option>
+                <option value="Morning">🌅 Morning Shift (07:30 - 15:30)</option>
+                <option value="Evening">🌙 Evening Shift (15:30 - 23:30)</option>
             </select>
         </div>
         <div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
@@ -570,11 +587,12 @@
                     </div>
                 </div>
                 <button id="closeShiftBtn" class="close-btn"><i class="fas fa-lock"></i> Close Shift</button>
+                <button id="forceCloseShiftBtn" class="force-close-btn hidden"><i class="fas fa-exclamation-triangle"></i> Force Close (With Pending Tasks)</button>
                 <div id="adminFeedback" class="info-text" style="margin-top: 12px;"></div>
             </div>
         </div>
     </div>
-    <footer>✅ <strong>Supervisor:</strong> Allocate staff to areas, manage tasks, close/reopen shifts | <strong>Staff:</strong> Complete assigned tasks</footer>
+    <footer>✅ <strong>Supervisor:</strong> Allocate staff, manage tasks | <strong>Close Shift:</strong> Normal close only when all tasks done | <strong>Force Close:</strong> Available when tasks pending</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -645,6 +663,7 @@
     const newStaffName = document.getElementById('newStaffName');
     const addStaffBtn = document.getElementById('addStaffBtn');
     const closeShiftBtn = document.getElementById('closeShiftBtn');
+    const forceCloseShiftBtn = document.getElementById('forceCloseShiftBtn');
     const adminFeedback = document.getElementById('adminFeedback');
     const passwordModal = document.getElementById('passwordModal');
     const supervisorPassword = document.getElementById('supervisorPassword');
@@ -658,6 +677,50 @@
 
     function getSODRecordId(date, shift) { return `sod_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTaskRecordId(date, shift) { return `tasks_${date}_${shift}`.replace(/\s/g, '_'); }
+
+    // Check if all tasks are completed
+    function areAllTasksCompleted() {
+        if (!currentTaskRecord) return true;
+        const doneTasks = currentTaskRecord.doneTasks || {};
+        const ackTasks = currentTaskRecord.acknowledgedTasks || {};
+        const dropdownSelections = currentTaskRecord.dropdownSelections || [];
+        
+        for (const task of globalTasks) {
+            if (task.type === 'done') {
+                if (!doneTasks[task.id]) return false;
+            } else if (task.type === 'acknowledge') {
+                // For acknowledge tasks, at least one acknowledgment is needed
+                const acks = ackTasks[task.id] || [];
+                if (acks.length === 0) return false;
+            } else if (task.type === 'dropdown') {
+                const selections = dropdownSelections.filter(s => s.taskId === task.id);
+                if (selections.length === 0) return false;
+            }
+        }
+        return true;
+    }
+
+    // Get pending tasks count
+    function getPendingTasksCount() {
+        if (!currentTaskRecord) return 0;
+        let pending = 0;
+        const doneTasks = currentTaskRecord.doneTasks || {};
+        const ackTasks = currentTaskRecord.acknowledgedTasks || {};
+        const dropdownSelections = currentTaskRecord.dropdownSelections || [];
+        
+        for (const task of globalTasks) {
+            if (task.type === 'done') {
+                if (!doneTasks[task.id]) pending++;
+            } else if (task.type === 'acknowledge') {
+                const acks = ackTasks[task.id] || [];
+                if (acks.length === 0) pending++;
+            } else if (task.type === 'dropdown') {
+                const selections = dropdownSelections.filter(s => s.taskId === task.id);
+                if (selections.length === 0) pending++;
+            }
+        }
+        return pending;
+    }
 
     async function loadSOD() {
         if (!firestoreReady || !currentDate || !currentShift) {
@@ -808,8 +871,25 @@
         shiftStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open';
         shiftStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
         reopenShiftBtn.classList.toggle('hidden', !isClosed || currentRole !== "supervisor");
-        if (currentRole === "supervisor") closeShiftBtn.textContent = isClosed ? "Shift Closed" : "Close Shift";
-        closeShiftBtn.disabled = isClosed;
+        
+        // Update close buttons visibility for supervisor
+        if (currentRole === "supervisor" && currentTaskRecord.status !== "closed") {
+            const allCompleted = areAllTasksCompleted();
+            closeShiftBtn.classList.toggle('hidden', !allCompleted);
+            forceCloseShiftBtn.classList.toggle('hidden', allCompleted);
+            if (!allCompleted) {
+                const pendingCount = getPendingTasksCount();
+                forceCloseShiftBtn.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Force Close (${pendingCount} pending)`;
+            }
+        } else {
+            closeShiftBtn.classList.remove('hidden');
+            forceCloseShiftBtn.classList.add('hidden');
+        }
+        
+        if (currentRole === "supervisor") {
+            closeShiftBtn.disabled = isClosed;
+            forceCloseShiftBtn.disabled = isClosed;
+        }
     }
 
     async function reopenShift() {
@@ -832,6 +912,7 @@
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ doneTasks }, { merge: true });
         currentTaskRecord.doneTasks = doneTasks;
         renderTasks();
+        updateShiftStatusUI();
     }
 
     async function acknowledgeTask(taskId, taskName, staffName) {
@@ -845,6 +926,7 @@
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true });
         currentTaskRecord.acknowledgedTasks = ackTasks;
         renderTasks();
+        updateShiftStatusUI();
     }
 
     async function submitDropdown(taskId, taskName, selectedValue, additionalText, staffName) {
@@ -856,18 +938,31 @@
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true });
         currentTaskRecord.dropdownSelections = selections;
         renderTasks();
+        updateShiftStatusUI();
     }
 
-    async function closeShift() {
+    async function closeShift(isForce = false) {
         if (!currentTaskRecord || currentTaskRecord.status === "closed") return;
-        if (!confirm("Close this shift? No further changes.")) return;
+        
+        const allCompleted = areAllTasksCompleted();
+        if (!allCompleted && !isForce) {
+            const pendingCount = getPendingTasksCount();
+            if (!confirm(`There ${pendingCount === 1 ? 'is' : 'are'} ${pendingCount} pending task${pendingCount === 1 ? '' : 's'}. You can only close when all tasks are done, or use Force Close.`)) {
+                return;
+            }
+            return;
+        }
+        
+        const confirmMsg = isForce ? "⚠️ FORCE CLOSE: There are pending tasks. Are you sure you want to close the shift anyway?" : "Close this shift? No further changes.";
+        if (!confirm(confirmMsg)) return;
+        
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true });
         currentTaskRecord.status = "closed";
         updateShiftStatusUI();
         renderTasks();
         renderAllocation();
-        adminFeedback.innerText = "🔒 Shift closed";
-        setTimeout(() => adminFeedback.innerText = "", 2000);
+        adminFeedback.innerText = isForce ? "⚠️ Shift force closed with pending tasks" : "🔒 Shift closed successfully";
+        setTimeout(() => adminFeedback.innerText = "", 3000);
     }
 
     function renderTasks() {
@@ -888,20 +983,26 @@
             const isDone = doneTasks[task.id];
             const taskAcks = ackTasks[task.id] || [];
             const taskSelections = selections.filter(s => s.taskId === task.id);
+            const isPending = !isClosed && (
+                (task.type === 'done' && !isDone) ||
+                (task.type === 'acknowledge' && taskAcks.length === 0) ||
+                (task.type === 'dropdown' && taskSelections.length === 0)
+            );
+            
             const taskDiv = document.createElement('div');
             taskDiv.className = 'task-item';
             
             if (currentRole === "staff" && !isClosed) {
                 const staffOptions = `<select id="staffSel_${task.id}" class="action-select"><option value="">-- Select staff --</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select>`;
                 if (task.type === 'done') {
-                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div></div>${isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : `<div class="flex-row">${staffOptions}<button class="do-done action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">✅ Complete</button></div>`}`;
+                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : `<div class="flex-row">${staffOptions}<button class="do-done action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">✅ Complete</button></div>`}`;
                 } else if (task.type === 'acknowledge') {
-                    const ackHtml = taskAcks.length ? `<div class="ack-block">✅ Acknowledged: ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>` : '<div class="ack-block">⏳ No acknowledgments yet</div>';
-                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div></div>${ackHtml}<div class="flex-row">${staffOptions}<button class="do-ack action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">👥 Acknowledge</button></div>`;
+                    const ackHtml = taskAcks.length ? `<div class="ack-block">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>` : '<div class="ack-block">⏳ No acknowledgments yet</div>';
+                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${ackHtml}<div class="flex-row">${staffOptions}<button class="do-ack action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">👥 Acknowledge</button></div>`;
                 } else {
-                    const subsHtml = taskSelections.length ? `<div class="submissions-block">📋 Submissions: ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}${s.additionalText ? ` (${s.additionalText})` : ''}</span>`).join('')}</div>` : '<div class="submissions-block">⏳ No submissions yet</div>';
+                    const subsHtml = taskSelections.length ? `<div class="submissions-block">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}${s.additionalText ? ` (${s.additionalText})` : ''}</span>`).join('')}</div>` : '<div class="submissions-block">⏳ No submissions yet</div>';
                     const optionsHtml = task.options ? `<select id="dropSel_${task.id}" class="action-dropdown"><option value="">-- Select --</option>${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>` : '<select class="action-dropdown"><option>No options</option></select>';
-                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div></div>${subsHtml}<div class="flex-row">${staffOptions}${optionsHtml}<input type="text" id="addText_${task.id}" class="action-input" placeholder="Note" maxlength="5"><button class="do-drop action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">📤 Submit</button></div>`;
+                    taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${subsHtml}<div class="flex-row">${staffOptions}${optionsHtml}<input type="text" id="addText_${task.id}" class="action-input" placeholder="Note" maxlength="5"><button class="do-drop action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">📤 Submit</button></div>`;
                 }
             } else {
                 let statusHtml = '';
@@ -948,10 +1049,12 @@
                 if (confirm("Delete task?")) await saveGlobalTasks(globalTasks.filter(t => t.id !== id));
             }));
         }
+        
         const doneCount = Object.keys(currentTaskRecord.doneTasks || {}).length;
         const ackCount = Object.values(currentTaskRecord.acknowledgedTasks || {}).reduce((s, a) => s + a.length, 0);
         const dropCount = (currentTaskRecord.dropdownSelections || []).length;
-        tasksInfo.innerText = isClosed ? "🔒 Shift closed - View only" : `📊 Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount}`;
+        const pendingCount = getPendingTasksCount();
+        tasksInfo.innerHTML = isClosed ? "🔒 Shift closed - View only" : `📊 Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount} | ${pendingCount > 0 ? `⚠️ ${pendingCount} pending` : '✅ All tasks completed'}`;
     }
 
     async function loadStaff() {
@@ -1007,6 +1110,7 @@
         }
         renderAllocation();
         renderTasks();
+        if (role === "supervisor") updateShiftStatusUI();
     }
 
     function verifyPassword() {
@@ -1038,7 +1142,8 @@
         supervisorRoleBtn.addEventListener('click', () => setRole("supervisor"));
         addTaskBtn.addEventListener('click', addTask);
         addStaffBtn.addEventListener('click', () => addStaffMember(newStaffName.value));
-        closeShiftBtn.addEventListener('click', closeShift);
+        closeShiftBtn.addEventListener('click', () => closeShift(false));
+        forceCloseShiftBtn.addEventListener('click', () => closeShift(true));
         reopenShiftBtn.addEventListener('click', reopenShift);
         verifyPasswordBtn.addEventListener('click', verifyPassword);
         cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
