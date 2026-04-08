@@ -7,6 +7,9 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- jsPDF and html2canvas for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Google Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -24,7 +27,7 @@
             min-height: 100vh;
         }
         .container {
-            max-width: 1400px;
+            max-width: 1500px;
             margin: 0 auto;
         }
         .header {
@@ -48,19 +51,20 @@
             justify-content: center;
             gap: 16px;
             margin-bottom: 24px;
+            flex-wrap: wrap;
         }
         .role-btn {
             background: white;
             border: none;
-            padding: 12px 32px;
+            padding: 10px 24px;
             border-radius: 50px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 0.9rem;
+            gap: 8px;
+            font-size: 0.85rem;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         .role-btn.active {
@@ -68,9 +72,26 @@
             color: white;
             box-shadow: 0 4px 12px rgba(29,111,143,0.3);
         }
-        .role-btn:not(.active):hover {
-            background: #eef3fc;
+        .pdf-btn {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+        .pdf-btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220,53,69,0.3);
+        }
+        .print-btn {
+            background: linear-gradient(135deg, #28a745, #218838);
         }
         .date-bar {
             background: white;
@@ -97,11 +118,6 @@
             font-size: 0.9rem;
             background: white;
             outline: none;
-            transition: all 0.2s;
-        }
-        .date-selector input:focus, .date-selector select:focus {
-            border-color: #2c7da0;
-            box-shadow: 0 0 0 3px rgba(44,125,160,0.1);
         }
         .status-badge {
             display: inline-flex;
@@ -126,11 +142,11 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            transition: all 0.3s ease;
         }
-        .reopen-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(255,152,0,0.3);
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
         }
         .main-grid {
             display: flex;
@@ -157,16 +173,14 @@
             border: 1px solid rgba(230,237,244,0.8);
             transition: transform 0.2s;
         }
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 28px rgba(0,0,0,0.08);
-        }
         .card-title {
             font-size: 1.2rem;
             font-weight: 700;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
             gap: 10px;
             border-left: 4px solid #2c7da0;
             padding-left: 14px;
@@ -204,11 +218,6 @@
             border-radius: 18px;
             padding: 12px;
             border: 1px solid #eef2f8;
-            transition: all 0.2s;
-        }
-        .area-card:hover {
-            border-color: #cde0ed;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
         .area-name {
             font-weight: 700;
@@ -233,44 +242,6 @@
             align-items: center;
             gap: 6px;
         }
-        .remove-staff {
-            background: none;
-            border: none;
-            color: #c62828;
-            cursor: pointer;
-            font-size: 0.7rem;
-            margin-left: 4px;
-            transition: all 0.2s;
-        }
-        .remove-staff:hover {
-            transform: scale(1.1);
-        }
-        .staff-select-small {
-            width: 100%;
-            padding: 8px 10px;
-            border-radius: 30px;
-            border: 1.5px solid #e2eaf2;
-            font-size: 0.7rem;
-            margin-top: 8px;
-            background: white;
-        }
-        .assign-btn {
-            background: linear-gradient(135deg, #4caf50, #43a047);
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 8px;
-            width: 100%;
-            transition: all 0.3s ease;
-        }
-        .assign-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(76,175,80,0.3);
-        }
         .tasks-list {
             max-height: 550px;
             overflow-y: auto;
@@ -281,11 +252,6 @@
             padding: 16px;
             margin-bottom: 14px;
             border: 1px solid #eef2f8;
-            transition: all 0.2s;
-        }
-        .task-item:hover {
-            border-color: #cde0ed;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
         .task-header {
             display: flex;
@@ -298,10 +264,6 @@
         .task-name {
             font-weight: 700;
             font-size: 0.95rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
             color: #1a4c6e;
         }
         .pending-indicator {
@@ -311,23 +273,16 @@
             border-radius: 20px;
             font-size: 0.65rem;
             font-weight: 600;
+            margin-left: 8px;
         }
-        .ack-block, .submissions-block {
-            background: #f8fbfe;
-            border-radius: 16px;
-            padding: 10px;
-            margin: 10px 0;
-        }
-        .staff-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: linear-gradient(135deg, #eef2fa, #e8ecf3);
-            padding: 4px 12px;
-            border-radius: 25px;
-            font-size: 0.7rem;
+        .completed-info {
+            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+            padding: 8px 14px;
+            border-radius: 20px;
+            margin-top: 8px;
+            font-size: 0.75rem;
             font-weight: 500;
-            margin: 3px 5px 3px 0;
+            color: #2e7d32;
         }
         .flex-row {
             display: flex;
@@ -342,7 +297,6 @@
             border: 1.5px solid #e2eaf2;
             font-size: 0.8rem;
             background: white;
-            outline: none;
         }
         .action-select { width: 150px; }
         .action-dropdown { width: 150px; }
@@ -352,7 +306,6 @@
             border: 1.5px solid #e2eaf2;
             font-size: 0.8rem;
             width: 100px;
-            outline: none;
         }
         .action-btn {
             background: linear-gradient(135deg, #4caf50, #43a047);
@@ -363,39 +316,6 @@
             cursor: pointer;
             font-weight: 600;
             font-size: 0.8rem;
-            transition: all 0.3s ease;
-        }
-        .action-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 10px rgba(76,175,80,0.3);
-        }
-        .completed-info {
-            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-            padding: 8px 14px;
-            border-radius: 20px;
-            margin-top: 8px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: #2e7d32;
-        }
-        .edit-task, .delete-task {
-            background: linear-gradient(135deg, #ff9800, #f57c00);
-            color: white;
-            border: none;
-            padding: 5px 14px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            cursor: pointer;
-            margin-left: 8px;
-            transition: all 0.3s ease;
-        }
-        .delete-task {
-            background: linear-gradient(135deg, #ef5350, #e53935);
-        }
-        .edit-task:hover, .delete-task:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         .admin-form input, .admin-form select {
             width: 100%;
@@ -404,12 +324,6 @@
             border: 1.5px solid #e2eaf2;
             margin-bottom: 14px;
             font-size: 0.85rem;
-            outline: none;
-            transition: all 0.2s;
-        }
-        .admin-form input:focus, .admin-form select:focus {
-            border-color: #2c7da0;
-            box-shadow: 0 0 0 3px rgba(44,125,160,0.1);
         }
         .admin-form button {
             width: 100%;
@@ -420,11 +334,6 @@
             border-radius: 40px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .admin-form button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(29,111,143,0.3);
         }
         .close-btn {
             background: linear-gradient(135deg, #c62828, #b71c1c);
@@ -445,24 +354,16 @@
             padding: 5px 12px;
             border-radius: 25px;
             font-size: 0.75rem;
-            font-weight: 500;
         }
         .empty-msg {
             text-align: center;
             padding: 50px 20px;
             color: #8aa9c4;
-            font-style: italic;
         }
         .info-text {
             font-size: 0.7rem;
             color: #7c9ab8;
             margin-top: 12px;
-            text-align: center;
-        }
-        .warning-text {
-            color: #e65100;
-            font-size: 0.7rem;
-            margin-top: 8px;
             text-align: center;
         }
         .password-modal {
@@ -484,7 +385,6 @@
             border-radius: 32px;
             width: 340px;
             text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
         }
         .password-box input {
             width: 100%;
@@ -492,8 +392,6 @@
             border-radius: 30px;
             border: 1.5px solid #e2eaf2;
             margin: 20px 0;
-            font-size: 1rem;
-            outline: none;
         }
         .hidden { display: none; }
         footer {
@@ -511,7 +409,7 @@
 <div class="container">
     <div class="header">
         <h1><i class="fas fa-clipboard-list"></i> Staff on Duty · Shift Manager</h1>
-        <p>Staff Allocation | Task Management | Shift Control</p>
+        <p>Staff Allocation | Task Management | Export to PDF</p>
     </div>
 
     <div class="role-bar">
@@ -527,6 +425,10 @@
                 <option value="Morning">🌅 Morning Shift (07:30 - 15:30)</option>
                 <option value="Evening">🌙 Evening Shift (15:30 - 23:30)</option>
             </select>
+        </div>
+        <div class="action-buttons">
+            <button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Save Full Report (PDF)</button>
+            <button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Print Allocation Sheet</button>
         </div>
         <div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
         <button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen Shift</button>
@@ -587,12 +489,12 @@
                     </div>
                 </div>
                 <button id="closeShiftBtn" class="close-btn"><i class="fas fa-lock"></i> Close Shift</button>
-                <button id="forceCloseShiftBtn" class="force-close-btn hidden"><i class="fas fa-exclamation-triangle"></i> Force Close (With Pending Tasks)</button>
+                <button id="forceCloseShiftBtn" class="force-close-btn hidden"><i class="fas fa-exclamation-triangle"></i> Force Close</button>
                 <div id="adminFeedback" class="info-text" style="margin-top: 12px;"></div>
             </div>
         </div>
     </div>
-    <footer>✅ <strong>Supervisor:</strong> Allocate staff, manage tasks | <strong>Close Shift:</strong> Normal close only when all tasks done | <strong>Force Close:</strong> Available when tasks pending</footer>
+    <footer>✅ <strong>PDF Export:</strong> Save Full Report includes allocations + tasks | Print Allocation Sheet for distribution</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -606,6 +508,8 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyALK_YlhFl6XOTDY54SOhk4DUDLPq1PBEE",
@@ -644,6 +548,7 @@
     let staffList = [];
     let isSupervisor = false;
 
+    // DOM Elements
     const staffRoleBtn = document.getElementById('staffRoleBtn');
     const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const adminPanel = document.getElementById('adminPanel');
@@ -670,6 +575,8 @@
     const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
     const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
     const passwordError = document.getElementById('passwordError');
+    const exportFullPdfBtn = document.getElementById('exportFullPdfBtn');
+    const printAllocationBtn = document.getElementById('printAllocationBtn');
 
     taskTypeSelect.addEventListener('change', () => {
         dropdownOptionsDiv.style.display = taskTypeSelect.value === 'dropdown' ? 'block' : 'none';
@@ -678,46 +585,29 @@
     function getSODRecordId(date, shift) { return `sod_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTaskRecordId(date, shift) { return `tasks_${date}_${shift}`.replace(/\s/g, '_'); }
 
-    // Check if all tasks are completed
     function areAllTasksCompleted() {
         if (!currentTaskRecord) return true;
         const doneTasks = currentTaskRecord.doneTasks || {};
         const ackTasks = currentTaskRecord.acknowledgedTasks || {};
         const dropdownSelections = currentTaskRecord.dropdownSelections || [];
-        
         for (const task of globalTasks) {
-            if (task.type === 'done') {
-                if (!doneTasks[task.id]) return false;
-            } else if (task.type === 'acknowledge') {
-                // For acknowledge tasks, at least one acknowledgment is needed
-                const acks = ackTasks[task.id] || [];
-                if (acks.length === 0) return false;
-            } else if (task.type === 'dropdown') {
-                const selections = dropdownSelections.filter(s => s.taskId === task.id);
-                if (selections.length === 0) return false;
-            }
+            if (task.type === 'done' && !doneTasks[task.id]) return false;
+            if (task.type === 'acknowledge' && (ackTasks[task.id] || []).length === 0) return false;
+            if (task.type === 'dropdown' && dropdownSelections.filter(s => s.taskId === task.id).length === 0) return false;
         }
         return true;
     }
 
-    // Get pending tasks count
     function getPendingTasksCount() {
         if (!currentTaskRecord) return 0;
         let pending = 0;
         const doneTasks = currentTaskRecord.doneTasks || {};
         const ackTasks = currentTaskRecord.acknowledgedTasks || {};
         const dropdownSelections = currentTaskRecord.dropdownSelections || [];
-        
         for (const task of globalTasks) {
-            if (task.type === 'done') {
-                if (!doneTasks[task.id]) pending++;
-            } else if (task.type === 'acknowledge') {
-                const acks = ackTasks[task.id] || [];
-                if (acks.length === 0) pending++;
-            } else if (task.type === 'dropdown') {
-                const selections = dropdownSelections.filter(s => s.taskId === task.id);
-                if (selections.length === 0) pending++;
-            }
+            if (task.type === 'done' && !doneTasks[task.id]) pending++;
+            if (task.type === 'acknowledge' && (ackTasks[task.id] || []).length === 0) pending++;
+            if (task.type === 'dropdown' && dropdownSelections.filter(s => s.taskId === task.id).length === 0) pending++;
         }
         return pending;
     }
@@ -776,8 +666,8 @@
                 if (canEdit) {
                     const staffOptions = `<option value="">-- Select --</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}`;
                     areaDiv.innerHTML += `
-                        <select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g, '_')}">${staffOptions}</select>
-                        <button class="assign-btn" data-slot="${slot.id}" data-area="${area}"><i class="fas fa-user-plus"></i> Assign</button>
+                        <select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g, '_')}" style="width:100%; padding:6px; border-radius:20px; margin-top:8px;">${staffOptions}</select>
+                        <button class="assign-btn" data-slot="${slot.id}" data-area="${area}" style="background:#4caf50; color:white; border:none; padding:4px; border-radius:20px; margin-top:6px; width:100%; cursor:pointer;">Assign</button>
                     `;
                 }
                 areasGrid.appendChild(areaDiv);
@@ -871,36 +761,11 @@
         shiftStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open';
         shiftStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
         reopenShiftBtn.classList.toggle('hidden', !isClosed || currentRole !== "supervisor");
-        
-        // Update close buttons visibility for supervisor
         if (currentRole === "supervisor" && currentTaskRecord.status !== "closed") {
             const allCompleted = areAllTasksCompleted();
             closeShiftBtn.classList.toggle('hidden', !allCompleted);
             forceCloseShiftBtn.classList.toggle('hidden', allCompleted);
-            if (!allCompleted) {
-                const pendingCount = getPendingTasksCount();
-                forceCloseShiftBtn.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Force Close (${pendingCount} pending)`;
-            }
-        } else {
-            closeShiftBtn.classList.remove('hidden');
-            forceCloseShiftBtn.classList.add('hidden');
         }
-        
-        if (currentRole === "supervisor") {
-            closeShiftBtn.disabled = isClosed;
-            forceCloseShiftBtn.disabled = isClosed;
-        }
-    }
-
-    async function reopenShift() {
-        if (!currentTaskRecord || currentTaskRecord.status !== "closed") return;
-        if (!confirm("Reopen this shift? Staff can resume tasks.")) return;
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "open" }, { merge: true });
-        currentTaskRecord.status = "open";
-        updateShiftStatusUI();
-        renderTasks();
-        adminFeedback.innerText = "✅ Shift reopened";
-        setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
     async function completeTask(taskId, taskName, staffName) {
@@ -943,36 +808,38 @@
 
     async function closeShift(isForce = false) {
         if (!currentTaskRecord || currentTaskRecord.status === "closed") return;
-        
         const allCompleted = areAllTasksCompleted();
         if (!allCompleted && !isForce) {
             const pendingCount = getPendingTasksCount();
-            if (!confirm(`There ${pendingCount === 1 ? 'is' : 'are'} ${pendingCount} pending task${pendingCount === 1 ? '' : 's'}. You can only close when all tasks are done, or use Force Close.`)) {
-                return;
-            }
+            if (!confirm(`There ${pendingCount === 1 ? 'is' : 'are'} ${pendingCount} pending task${pendingCount === 1 ? '' : 's'}. Use Force Close to close anyway.`)) return;
             return;
         }
-        
-        const confirmMsg = isForce ? "⚠️ FORCE CLOSE: There are pending tasks. Are you sure you want to close the shift anyway?" : "Close this shift? No further changes.";
-        if (!confirm(confirmMsg)) return;
-        
+        if (!confirm(isForce ? "⚠️ FORCE CLOSE: There are pending tasks. Are you sure?" : "Close this shift?")) return;
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true });
         currentTaskRecord.status = "closed";
         updateShiftStatusUI();
         renderTasks();
         renderAllocation();
-        adminFeedback.innerText = isForce ? "⚠️ Shift force closed with pending tasks" : "🔒 Shift closed successfully";
+        adminFeedback.innerText = isForce ? "⚠️ Shift force closed" : "🔒 Shift closed";
         setTimeout(() => adminFeedback.innerText = "", 3000);
+    }
+
+    async function reopenShiftFn() {
+        if (!currentTaskRecord || currentTaskRecord.status !== "closed") return;
+        if (!confirm("Reopen this shift?")) return;
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "open" }, { merge: true });
+        currentTaskRecord.status = "open";
+        updateShiftStatusUI();
+        renderTasks();
+        adminFeedback.innerText = "✅ Shift reopened";
+        setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
     function renderTasks() {
         if (!currentTaskRecord || !globalTasks.length) {
-            if (currentTaskRecord && !globalTasks.length) tasksContainer.innerHTML = '<div class="empty-msg">📝 No tasks. Add via supervisor panel.</div>';
-            else if (!currentTaskRecord && currentDate && currentShift) tasksContainer.innerHTML = '<div class="empty-msg">Loading...</div>';
-            else tasksContainer.innerHTML = '<div class="empty-msg">📅 Select date and shift</div>';
+            tasksContainer.innerHTML = '<div class="empty-msg">📅 Select date and shift</div>';
             return;
         }
-        
         const isClosed = currentTaskRecord.status === "closed";
         const doneTasks = currentTaskRecord.doneTasks || {};
         const ackTasks = currentTaskRecord.acknowledgedTasks || {};
@@ -983,11 +850,7 @@
             const isDone = doneTasks[task.id];
             const taskAcks = ackTasks[task.id] || [];
             const taskSelections = selections.filter(s => s.taskId === task.id);
-            const isPending = !isClosed && (
-                (task.type === 'done' && !isDone) ||
-                (task.type === 'acknowledge' && taskAcks.length === 0) ||
-                (task.type === 'dropdown' && taskSelections.length === 0)
-            );
+            const isPending = !isClosed && ((task.type === 'done' && !isDone) || (task.type === 'acknowledge' && taskAcks.length === 0) || (task.type === 'dropdown' && taskSelections.length === 0));
             
             const taskDiv = document.createElement('div');
             taskDiv.className = 'task-item';
@@ -997,19 +860,19 @@
                 if (task.type === 'done') {
                     taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : `<div class="flex-row">${staffOptions}<button class="do-done action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">✅ Complete</button></div>`}`;
                 } else if (task.type === 'acknowledge') {
-                    const ackHtml = taskAcks.length ? `<div class="ack-block">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>` : '<div class="ack-block">⏳ No acknowledgments yet</div>';
+                    const ackHtml = taskAcks.length ? `<div class="completed-info">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>` : '<div class="completed-info">⏳ No acknowledgments yet</div>';
                     taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${ackHtml}<div class="flex-row">${staffOptions}<button class="do-ack action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">👥 Acknowledge</button></div>`;
                 } else {
-                    const subsHtml = taskSelections.length ? `<div class="submissions-block">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}${s.additionalText ? ` (${s.additionalText})` : ''}</span>`).join('')}</div>` : '<div class="submissions-block">⏳ No submissions yet</div>';
+                    const subsHtml = taskSelections.length ? `<div class="completed-info">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>` : '<div class="completed-info">⏳ No submissions yet</div>';
                     const optionsHtml = task.options ? `<select id="dropSel_${task.id}" class="action-dropdown"><option value="">-- Select --</option>${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>` : '<select class="action-dropdown"><option>No options</option></select>';
                     taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${isPending ? '<span class="pending-indicator">Pending</span>' : ''}</div></div>${subsHtml}<div class="flex-row">${staffOptions}${optionsHtml}<input type="text" id="addText_${task.id}" class="action-input" placeholder="Note" maxlength="5"><button class="do-drop action-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}">📤 Submit</button></div>`;
                 }
             } else {
                 let statusHtml = '';
                 if (task.type === 'done') statusHtml = isDone ? `<div class="completed-info">✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}</div>` : '<div class="completed-info">⏳ Pending</div>';
-                else if (task.type === 'acknowledge') statusHtml = `<div class="ack-block">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>`;
-                else statusHtml = `<div class="submissions-block">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>`;
-                const editBtns = (currentRole === "supervisor" && !isClosed) ? `<div><button class="edit-task" data-id="${task.id}" data-name="${escapeHtml(task.name)}">✏️ Edit</button><button class="delete-task" data-id="${task.id}">🗑️ Delete</button></div>` : '';
+                else if (task.type === 'acknowledge') statusHtml = `<div class="completed-info">✅ Acknowledged (${taskAcks.length}): ${taskAcks.map(n => `<span class="staff-chip">👤 ${escapeHtml(n)}</span>`).join('')}</div>`;
+                else statusHtml = `<div class="completed-info">📋 Submissions (${taskSelections.length}): ${taskSelections.map(s => `<span class="staff-chip">👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}</span>`).join('')}</div>`;
+                const editBtns = (currentRole === "supervisor" && !isClosed) ? `<div><button class="edit-task" data-id="${task.id}" data-name="${escapeHtml(task.name)}" style="background:#ff9800; border:none; padding:4px 12px; border-radius:20px; margin-left:5px; cursor:pointer;">Edit</button><button class="delete-task" data-id="${task.id}" style="background:#dc3545; border:none; padding:4px 12px; border-radius:20px; margin-left:5px; cursor:pointer;">Del</button></div>` : '';
                 taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div>${editBtns}</div>${statusHtml}`;
             }
             tasksContainer.appendChild(taskDiv);
@@ -1054,7 +917,7 @@
         const ackCount = Object.values(currentTaskRecord.acknowledgedTasks || {}).reduce((s, a) => s + a.length, 0);
         const dropCount = (currentTaskRecord.dropdownSelections || []).length;
         const pendingCount = getPendingTasksCount();
-        tasksInfo.innerHTML = isClosed ? "🔒 Shift closed - View only" : `📊 Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount} | ${pendingCount > 0 ? `⚠️ ${pendingCount} pending` : '✅ All tasks completed'}`;
+        tasksInfo.innerHTML = isClosed ? "🔒 Shift closed" : `📊 Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount} | ${pendingCount > 0 ? `⚠️ ${pendingCount} pending` : '✅ All completed'}`;
     }
 
     async function loadStaff() {
@@ -1094,6 +957,130 @@
         localStorage.setItem('selectedDate', currentDate);
         localStorage.setItem('selectedShift', currentShift);
         await refreshAll();
+    }
+
+    // PDF Export Functions
+    async function exportFullPDF() {
+        if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
+        const { jsPDF } = window.jspdf;
+        const element = document.createElement('div');
+        element.style.padding = '20px';
+        element.style.backgroundColor = 'white';
+        element.style.width = '800px';
+        element.innerHTML = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #1a4c6e;">Shift Report</h2>
+                <p><strong>Date:</strong> ${currentDate} | <strong>Shift:</strong> ${currentShift} Shift</p>
+                <p><strong>Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'}</p>
+                <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+            <div style="margin-bottom: 30px;">
+                <h3 style="color: #2c7da0;">Staff Allocation</h3>
+                ${generateAllocationHTML()}
+            </div>
+            <div>
+                <h3 style="color: #2c7da0;">Tasks Summary</h3>
+                ${generateTasksHTML()}
+            </div>
+        `;
+        document.body.appendChild(element);
+        try {
+            const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save(`Shift_Report_${currentDate}_${currentShift}.pdf`);
+        } catch (err) { console.error(err); alert("Error generating PDF"); }
+        document.body.removeChild(element);
+    }
+
+    async function printAllocationOnly() {
+        if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Staff Allocation - ${currentDate} ${currentShift} Shift</title>
+                <style>
+                    body { font-family: 'Inter', sans-serif; padding: 20px; }
+                    h1 { color: #1a4c6e; text-align: center; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .time-slot { margin-bottom: 25px; border: 1px solid #ddd; border-radius: 12px; overflow: hidden; }
+                    .slot-header { background: #eef3fc; padding: 10px 15px; font-weight: bold; font-size: 16px; }
+                    .areas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 15px; }
+                    .area-card { border: 1px solid #e2eaf2; border-radius: 12px; padding: 10px; }
+                    .area-name { font-weight: bold; color: #2c7da0; margin-bottom: 8px; }
+                    .staff-list { display: flex; flex-wrap: wrap; gap: 5px; }
+                    .staff-badge { background: #eef2fa; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
+                    .footer { text-align: center; margin-top: 30px; font-size: 10px; color: #999; }
+                    @media print {
+                        body { margin: 0; padding: 15px; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Staff Allocation Sheet</h1>
+                    <p><strong>Date:</strong> ${currentDate} | <strong>Shift:</strong> ${currentShift} Shift</p>
+                    <p>Printed: ${new Date().toLocaleString()}</p>
+                </div>
+                ${generateAllocationHTML()}
+                <div class="footer">
+                    <p>This is an official staff allocation document</p>
+                </div>
+                <script>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); }<\/script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    }
+
+    function generateAllocationHTML() {
+        if (!currentSODRecord) return '<p>No allocation data available</p>';
+        const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
+        const allocations = currentSODRecord.allocations || {};
+        let html = '';
+        slots.forEach(slot => {
+            const slotAllocs = allocations[slot.id] || {};
+            html += `<div class="time-slot">
+                <div class="slot-header"><i class="fas fa-clock"></i> ${slot.name}</div>
+                <div class="areas-grid">`;
+            slot.areas.forEach(area => {
+                const assigned = slotAllocs[area] || [];
+                html += `<div class="area-card">
+                    <div class="area-name">${area}</div>
+                    <div class="staff-list">${assigned.map(s => `<span class="staff-badge">👤 ${escapeHtml(s)}</span>`).join('') || '<span style="color:#999;">No staff assigned</span>'}</div>
+                </div>`;
+            });
+            html += `</div></div>`;
+        });
+        return html;
+    }
+
+    function generateTasksHTML() {
+        if (!globalTasks.length) return '<p>No tasks available</p>';
+        const doneTasks = currentTaskRecord?.doneTasks || {};
+        const ackTasks = currentTaskRecord?.acknowledgedTasks || {};
+        const selections = currentTaskRecord?.dropdownSelections || [];
+        let html = '<table style="width:100%; border-collapse: collapse;">';
+        html += '<tr style="background:#eef3fc;"><th style="padding:8px; text-align:left;">Task</th><th style="padding:8px; text-align:left;">Status</th></tr>';
+        globalTasks.forEach(task => {
+            let status = '';
+            if (task.type === 'done') status = doneTasks[task.id] ? `✅ Completed by ${doneTasks[task.id].doneBy}` : '⏳ Pending';
+            else if (task.type === 'acknowledge') {
+                const acks = ackTasks[task.id] || [];
+                status = acks.length ? `✅ Acknowledged by ${acks.length} staff: ${acks.join(', ')}` : '⏳ No acknowledgments';
+            } else {
+                const subs = selections.filter(s => s.taskId === task.id);
+                status = subs.length ? `📋 ${subs.length} submissions: ${subs.map(s => `${s.staffName}: ${s.selectedValue}`).join(', ')}` : '⏳ No submissions';
+            }
+            html += `<tr><td style="padding:8px; border-bottom:1px solid #eee;">📋 ${escapeHtml(task.name)}</td><td style="padding:8px; border-bottom:1px solid #eee;">${status}</td></tr>`;
+        });
+        html += '</table>';
+        return html;
     }
 
     function setRole(role) {
@@ -1144,9 +1131,11 @@
         addStaffBtn.addEventListener('click', () => addStaffMember(newStaffName.value));
         closeShiftBtn.addEventListener('click', () => closeShift(false));
         forceCloseShiftBtn.addEventListener('click', () => closeShift(true));
-        reopenShiftBtn.addEventListener('click', reopenShift);
+        reopenShiftBtn.addEventListener('click', reopenShiftFn);
         verifyPasswordBtn.addEventListener('click', verifyPassword);
         cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
+        exportFullPdfBtn.addEventListener('click', exportFullPDF);
+        printAllocationBtn.addEventListener('click', printAllocationOnly);
         setRole("staff");
     }
 
