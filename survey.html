@@ -14,6 +14,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- GSAP for Animations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <!-- jsPDF for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- html2canvas for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- Google Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -57,7 +61,6 @@
             background-position: center;
             background-repeat: no-repeat;
         }
-        /* Dark overlay for better text readability */
         .survey-header::before {
             content: '';
             position: absolute;
@@ -68,10 +71,7 @@
             background: linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.4) 100%);
             z-index: 1;
         }
-        .lounge-badge, .welcome-text, .progress-bar {
-            position: relative;
-            z-index: 2;
-        }
+        .lounge-badge, .welcome-text, .progress-bar { position: relative; z-index: 2; }
         .lounge-badge {
             display: flex;
             align-items: center;
@@ -89,46 +89,18 @@
             border-radius: 60px;
             backdrop-filter: blur(5px);
         }
-        .lounge-icon i {
-            font-size: 2.5rem;
-            color: #ffd700;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-        .lounge-icon h1 {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #ffd700;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
+        .lounge-icon i { font-size: 2.5rem; color: #ffd700; text-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .lounge-icon h1 { font-size: 1.8rem; font-weight: 700; color: #ffd700; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         .airport-name {
             background: rgba(0,0,0,0.4);
             padding: 6px 16px;
             border-radius: 50px;
             backdrop-filter: blur(5px);
         }
-        .airport-name p {
-            color: #ffd700;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-        .airport-name i {
-            margin-right: 5px;
-        }
-        .welcome-text {
-            margin-top: 15px;
-        }
-        .welcome-text h2 {
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: #ffffff;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-        .welcome-text p {
-            color: #f5e6c8;
-            margin-top: 5px;
-            font-size: 0.95rem;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        }
+        .airport-name p { color: #ffd700; font-size: 0.85rem; font-weight: 500; }
+        .welcome-text { margin-top: 15px; }
+        .welcome-text h2 { font-size: 1.6rem; font-weight: 700; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .welcome-text p { color: #f5e6c8; margin-top: 5px; font-size: 0.95rem; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
         .progress-bar {
             width: 100%;
             height: 4px;
@@ -137,13 +109,7 @@
             margin-top: 25px;
             overflow: hidden;
         }
-        .progress-fill {
-            width: 0%;
-            height: 100%;
-            background: #ffd700;
-            border-radius: 2px;
-            transition: width 0.5s ease;
-        }
+        .progress-fill { width: 0%; height: 100%; background: #ffd700; border-radius: 2px; transition: width 0.5s ease; }
         
         /* Floating Emoji */
         .floating-emoji {
@@ -165,13 +131,8 @@
             animation: floatBounce 2s ease-in-out infinite;
             border: 3px solid #ffd700;
         }
-        .floating-emoji:hover {
-            transform: scale(1.1);
-        }
-        @keyframes floatBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
+        .floating-emoji:hover { transform: scale(1.1); }
+        @keyframes floatBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         
         /* Category Sections */
         .category-section {
@@ -182,9 +143,7 @@
             transition: transform 0.3s ease;
             background: white;
         }
-        .category-section:hover {
-            transform: translateY(-2px);
-        }
+        .category-section:hover { transform: translateY(-2px); }
         .category-section.service { border-left: 6px solid #d4a017; }
         .category-section.cleanliness { border-left: 6px solid #c8a84e; }
         .category-section.comfort { border-left: 6px solid #e0b84d; }
@@ -211,11 +170,7 @@
             border: 1px solid #f0e6d2;
             transition: all 0.3s ease;
         }
-        .question-item:hover {
-            background: white;
-            transform: translateX(5px);
-            border-color: #d4a017;
-        }
+        .question-item:hover { background: white; transform: translateX(5px); border-color: #d4a017; }
         .question-text {
             font-weight: 700;
             font-size: 0.95rem;
@@ -225,11 +180,7 @@
             align-items: center;
             gap: 10px;
         }
-        .rating-options {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
+        .rating-options { display: flex; gap: 12px; flex-wrap: wrap; }
         .rating-option {
             display: flex;
             flex-direction: column;
@@ -255,12 +206,7 @@
         .rating-option[data-value="5"]:hover, .rating-option[data-value="5"].selected { background: #4caf50; color: white; transform: scale(1.05); }
         .rating-emoji-icon { font-size: 1.6rem; }
         .rating-label { font-size: 0.7rem; font-weight: 600; }
-        .smiley-rating {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
+        .smiley-rating { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
         .smiley-option {
             text-align: center;
             cursor: pointer;
@@ -309,10 +255,7 @@
             margin: 20px 0 30px;
             box-shadow: 0 4px 12px rgba(212,160,23,0.3);
         }
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(212,160,23,0.4);
-        }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212,160,23,0.4); }
         .floating-element {
             position: fixed;
             pointer-events: none;
@@ -426,6 +369,20 @@
         canvas { max-height: 150px; margin-top: 10px; }
         .response-list { max-height: 150px; overflow-y: auto; margin-top: 10px; }
         .response-item { background: white; padding: 6px 12px; border-radius: 20px; margin-bottom: 5px; font-size: 0.75rem; border: 1px solid #f0e6d2; }
+        .pdf-export-btn {
+            background: #c62828;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .pdf-export-btn:hover { background: #b71c1c; }
         .password-modal, .device-auth-overlay {
             position: fixed;
             top: 0;
@@ -480,21 +437,14 @@
     <div class="survey-wrapper">
         <div class="survey-header">
             <div class="lounge-badge">
-                <div class="lounge-icon">
-                    <i class="fas fa-plane-departure"></i>
-                    <h1>Koveli Lounge</h1>
-                </div>
-                <div class="airport-name">
-                    <p><i class="fas fa-map-marker-alt"></i> Velana International Airport · Maldives</p>
-                </div>
+                <div class="lounge-icon"><i class="fas fa-plane-departure"></i><h1>Koveli Lounge</h1></div>
+                <div class="airport-name"><p><i class="fas fa-map-marker-alt"></i> Velana International Airport · Maldives</p></div>
             </div>
             <div class="welcome-text">
-                <h2><i class=""></i> Welcome, Valued Guest</h2>
+                <h2><i class="fas fa-star-of-life"></i> Welcome, Valued Guest</h2>
                 <p>Your feedback helps us deliver an exceptional lounge experience</p>
             </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         </div>
         <div style="padding: 30px 35px;">
             <form id="surveyForm">
@@ -506,15 +456,12 @@
             </form>
         </div>
     </div>
-    <footer>✨ Koveli Lounge ✨</footer>
+    <footer>✨ Koveli Lounge · Elevating Your Journey ✨</footer>
 </div>
 
-<!-- Floating Emoji -->
 <div class="floating-emoji" id="floatingEmoji">😊</div>
-
 <button class="admin-fab" id="adminFabBtn"><i class="fas fa-cog"></i></button>
 
-<!-- Admin Panel -->
 <div id="adminOverlay" class="admin-overlay">
     <div class="admin-container">
         <div class="admin-header">
@@ -527,62 +474,29 @@
         </div>
         <div class="admin-content" id="adminContent">
             <div id="manageTab">
-                <div class="add-category">
-                    <input type="text" id="newCategoryName" placeholder="New category (e.g., Service, Cleanliness)">
-                    <button id="addCategoryBtn" style="background:#d4a017; color:white; border:none; padding:0 20px; border-radius:30px;">Add</button>
-                </div>
+                <div class="add-category"><input type="text" id="newCategoryName" placeholder="New category"><button id="addCategoryBtn" style="background:#d4a017; color:white; border:none; padding:0 20px; border-radius:30px;">Add</button></div>
                 <div id="categoryList" class="category-list"></div>
-                <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <select id="selectedCategory" style="padding:10px 16px; border-radius:30px;">
-                        <option value="">-- Select Category --</option>
-                    </select>
-                    <select id="questionTypeSelect" style="padding:10px 16px; border-radius:30px;">
-                        <option value="rating">⭐ Rating (1-5)</option>
-                        <option value="smiley">😊 Smiley</option>
-                        <option value="text">📝 Text</option>
-                    </select>
+                <div style="margin:20px 0; display:flex; gap:10px; flex-wrap:wrap;">
+                    <select id="selectedCategory" style="padding:10px 16px; border-radius:30px;"><option value="">-- Select Category --</option></select>
+                    <select id="questionTypeSelect" style="padding:10px 16px; border-radius:30px;"><option value="rating">⭐ Rating (1-5)</option><option value="smiley">😊 Smiley</option><option value="text">📝 Text</option></select>
                     <input type="text" id="newQuestionText" placeholder="Question text" style="flex:1; padding:10px 16px; border-radius:30px;">
                     <button id="addQuestionBtn" style="background:#4caf50; color:white; border:none; padding:0 25px; border-radius:30px;">Add</button>
                 </div>
                 <div id="questionsAdminList"></div>
             </div>
             <div id="resultsTab" style="display: none;">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                    <button id="exportResultsPdfBtn" class="pdf-export-btn"><i class="fas fa-file-pdf"></i> Export as PDF</button>
+                </div>
                 <div id="adminResultsContainer"></div>
             </div>
         </div>
     </div>
 </div>
 
-<div id="adminPasswordModal" class="password-modal hidden">
-    <div class="password-box">
-        <i class="fas fa-lock"></i>
-        <h3>Admin Access</h3>
-        <input type="password" id="adminPassInput" placeholder="Enter admin password">
-        <button id="verifyAdminPassBtn">Verify</button>
-        <button id="cancelAdminPassBtn" style="margin-top:10px; background:#eef3fc; color:#333;">Cancel</button>
-        <p id="adminPassError" style="color:#c62828; margin-top:10px;"></p>
-    </div>
-</div>
-
-<div id="thankyouOverlay" class="thankyou-overlay">
-    <div class="thankyou-card">
-        <div class="confetti">🎉✨🌟</div>
-        <h2 id="thankyouMessage">Thank You!</h2>
-        <p id="thankyouSubMessage">Your feedback helps us enhance the Koveli Lounge experience.</p>
-        <button id="closeThankyouBtn" style="background:#d4a017; color:white; border:none; padding:12px 28px; border-radius:40px; cursor:pointer; margin-top:15px;">Close</button>
-    </div>
-</div>
-
-<div id="deviceAuthModal" class="device-auth-overlay">
-    <div class="device-auth-card">
-        <i class="fas fa-microchip"></i>
-        <h2>Device Authorization</h2>
-        <p>Enter master password to register this device.</p>
-        <input type="password" id="devicePasswordInput" placeholder="Master Password">
-        <button id="authorizeDeviceBtn">Authorize</button>
-        <div id="deviceAuthError" class="device-error"></div>
-    </div>
-</div>
+<div id="adminPasswordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Admin Access</h3><input type="password" id="adminPassInput" placeholder="Enter admin password"><button id="verifyAdminPassBtn">Verify</button><button id="cancelAdminPassBtn" style="margin-top:10px; background:#eef3fc; color:#333;">Cancel</button><p id="adminPassError" style="color:#c62828; margin-top:10px;"></p></div></div>
+<div id="thankyouOverlay" class="thankyou-overlay"><div class="thankyou-card"><div class="confetti">🎉✨🌟</div><h2 id="thankyouMessage">Thank You!</h2><p id="thankyouSubMessage">Your feedback helps us enhance the Koveli Lounge experience.</p><button id="closeThankyouBtn" style="background:#d4a017; color:white; border:none; padding:12px 28px; border-radius:40px; cursor:pointer; margin-top:15px;">Close</button></div></div>
+<div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device Authorization</h2><p>Enter master password to register this device.</p><input type="password" id="devicePasswordInput" placeholder="Master Password"><button id="authorizeDeviceBtn">Authorize</button><div id="deviceAuthError" class="device-error"></div></div></div>
 
 <script>
     // Device Authorization
@@ -602,9 +516,7 @@
     let charts = {};
     if (typeof firebase !== 'undefined' && firebase.apps.length) { try { db = firebase.firestore(); firestoreReady = true; } catch(e) {} }
     
-    // Floating Emoji State
     const floatingEmoji = document.getElementById('floatingEmoji');
-    
     function updateFloatingEmoji(moodValue) {
         const emojis = { 1: '😞', 2: '😐', 3: '🙂', 4: '😊', 5: '😍' };
         const colors = { 1: '#ef5350', 2: '#ff9800', 3: '#ffc107', 4: '#8bc34a', 5: '#4caf50' };
@@ -612,26 +524,20 @@
         floatingEmoji.style.borderColor = colors[moodValue] || '#ffd700';
         gsap.fromTo(floatingEmoji, { scale: 1 }, { scale: 1.2, duration: 0.2, yoyo: true, repeat: 1 });
     }
-    
     function calculateOverallMood() {
-        let totalScore = 0;
-        let answeredCount = 0;
+        let totalScore = 0, answeredCount = 0;
         allQuestions.forEach(q => {
             if (q.type === 'rating') {
                 const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
                 if (selected) { totalScore += parseInt(selected.value); answeredCount++; }
             } else if (q.type === 'smiley') {
                 const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
-                if (selected) {
-                    const score = { 'very-poor': 1, 'poor': 2, 'average': 3, 'good': 4, 'excellent': 5 }[selected.value];
-                    if (score) { totalScore += score; answeredCount++; }
-                }
+                if (selected) { const score = { 'very-poor':1, 'poor':2, 'average':3, 'good':4, 'excellent':5 }[selected.value]; if (score) { totalScore += score; answeredCount++; } }
             }
         });
         if (answeredCount === 0) return 3;
         return Math.round(totalScore / answeredCount);
     }
-    
     function refreshFloatingEmoji() { updateFloatingEmoji(calculateOverallMood()); }
     
     function setupDoubleClickCancel() {
@@ -640,7 +546,6 @@
             opt.addEventListener('dblclick', cancelHandler);
         });
     }
-    
     function cancelHandler(e) {
         e.stopPropagation();
         const radio = this.querySelector('input');
@@ -648,9 +553,7 @@
             radio.checked = false;
             this.classList.remove('selected');
             const parent = this.closest('.rating-options, .smiley-rating');
-            if (parent) {
-                parent.querySelectorAll('.rating-option, .smiley-option').forEach(o => o.classList.remove('selected'));
-            }
+            if (parent) parent.querySelectorAll('.rating-option, .smiley-option').forEach(o => o.classList.remove('selected'));
             refreshFloatingEmoji();
             updateProgress();
             const rect = this.getBoundingClientRect();
@@ -659,7 +562,6 @@
             cancelEl.innerHTML = '❌';
             cancelEl.style.left = (rect.left + rect.width/2) + 'px';
             cancelEl.style.top = (rect.top) + 'px';
-            cancelEl.style.fontSize = '1.5rem';
             document.body.appendChild(cancelEl);
             setTimeout(() => cancelEl.remove(), 800);
         }
@@ -693,13 +595,7 @@
     
     function showThankYouWithMood() {
         const mood = calculateOverallMood();
-        const messages = {
-            1: { title: "We'll Do Better! 🙏", sub: "Your honest feedback helps us improve. Thank you for being truthful!" },
-            2: { title: "Noted with Thanks 📝", sub: "We appreciate your feedback and will work on improvements." },
-            3: { title: "Thank You! 🌟", sub: "Your feedback helps us maintain our standards." },
-            4: { title: "We're Grateful! 🎉", sub: "Thank you for your positive feedback! We'll keep it up." },
-            5: { title: "Absolutely Amazing! 🏆", sub: "Thank you for your wonderful feedback! You made our day!" }
-        };
+        const messages = { 1: { title: "We'll Do Better! 🙏", sub: "Your honest feedback helps us improve." }, 2: { title: "Noted with Thanks 📝", sub: "We appreciate your feedback and will work on improvements." }, 3: { title: "Thank You! 🌟", sub: "Your feedback helps us maintain our standards." }, 4: { title: "We're Grateful! 🎉", sub: "Thank you for your positive feedback!" }, 5: { title: "Absolutely Amazing! 🏆", sub: "Thank you for your wonderful feedback! You made our day!" } };
         const msg = messages[mood] || messages[3];
         document.getElementById('thankyouMessage').innerHTML = msg.title;
         document.getElementById('thankyouSubMessage').innerHTML = msg.sub;
@@ -712,27 +608,18 @@
                 confetti.innerHTML = mood >= 4 ? ['🎉','✨','🌟','⭐','🎊','🏆'][Math.floor(Math.random()*6)] : ['📝','💭','🙏','✨'][Math.floor(Math.random()*4)];
                 confetti.style.left = Math.random() * window.innerWidth + 'px';
                 confetti.style.top = window.innerHeight - 50 + 'px';
-                confetti.style.fontSize = (1 + Math.random()) + 'rem';
                 document.body.appendChild(confetti);
                 setTimeout(() => confetti.remove(), 1500);
             }, i * 80);
         }
     }
-    
     function closeThankYou() { document.getElementById('thankyouOverlay').classList.remove('active'); }
     
     function attachHandlers() {
-        document.querySelectorAll('.rating-option').forEach(opt => {
-            opt.removeEventListener('click', ratingHandler);
-            opt.addEventListener('click', ratingHandler);
-        });
-        document.querySelectorAll('.smiley-option').forEach(opt => {
-            opt.removeEventListener('click', smileyHandler);
-            opt.addEventListener('click', smileyHandler);
-        });
+        document.querySelectorAll('.rating-option').forEach(opt => { opt.removeEventListener('click', ratingHandler); opt.addEventListener('click', ratingHandler); });
+        document.querySelectorAll('.smiley-option').forEach(opt => { opt.removeEventListener('click', smileyHandler); opt.addEventListener('click', smileyHandler); });
         setupDoubleClickCancel();
     }
-    
     function ratingHandler(e) {
         const parent = this.closest('.rating-options');
         parent.querySelectorAll('.rating-option').forEach(o => o.classList.remove('selected'));
@@ -746,7 +633,6 @@
         refreshFloatingEmoji();
         updateProgress();
     }
-    
     function smileyHandler(e) {
         const parent = this.closest('.smiley-rating');
         parent.querySelectorAll('.smiley-option').forEach(o => o.classList.remove('selected'));
@@ -762,16 +648,12 @@
         refreshFloatingEmoji();
         updateProgress();
     }
-    
     function updateProgress() {
         let answered = 0;
         allQuestions.forEach(q => {
             const radio = document.querySelector(`input[name="q_${q.id}"]:checked`);
             if (radio) answered++;
-            else {
-                const textarea = document.querySelector(`textarea[name="q_${q.id}"]`);
-                if (textarea && textarea.value.trim()) answered++;
-            }
+            else { const textarea = document.querySelector(`textarea[name="q_${q.id}"]`); if (textarea && textarea.value.trim()) answered++; }
         });
         const percent = allQuestions.length > 0 ? (answered / allQuestions.length) * 100 : 0;
         document.getElementById('progressFill').style.width = percent + '%';
@@ -786,7 +668,6 @@
         renderCategoryUI();
     }
     async function saveCategories() { if (firestoreReady) await db.collection('surveyConfig').doc('categories').set({ list: categories }); }
-    
     function renderCategoryUI() {
         const div = document.getElementById('categoryList');
         if (!div) return;
@@ -826,10 +707,7 @@
             questions.forEach(q => {
                 if (q.type === 'rating') {
                     html += `<div class="question-item"><div class="question-text">📌 ${escapeHtml(q.text)}</div><div class="rating-options">`;
-                    for (let s=1; s<=5; s++) {
-                        const emoji = s===1?'😟':s===2?'🙁':s===3?'😐':s===4?'🙂':'😊';
-                        html += `<label class="rating-option" data-value="${s}"><input type="radio" name="q_${q.id}" value="${s}" required><span class="rating-emoji-icon">${emoji}</span><span class="rating-label">${s}</span></label>`;
-                    }
+                    for (let s=1; s<=5; s++) { const emoji = s===1?'😟':s===2?'🙁':s===3?'😐':s===4?'🙂':'😊'; html += `<label class="rating-option" data-value="${s}"><input type="radio" name="q_${q.id}" value="${s}" required><span class="rating-emoji-icon">${emoji}</span><span class="rating-label">${s}</span></label>`; }
                     html += `</div></div>`;
                 } else if (q.type === 'smiley') {
                     html += `<div class="question-item"><div class="question-text">😊 ${escapeHtml(q.text)}</div><div class="smiley-rating">`;
@@ -861,7 +739,7 @@
         for (let q of allQuestions) {
             const qResponses = [];
             for (let r of allResponses) { const found = r.responses?.find(rr => rr.questionId === q.id); if (found) qResponses.push(found); }
-            html += `<div class="result-card"><div class="result-question">📋 ${escapeHtml(q.text)}</div>`;
+            html += `<div class="result-card" id="result_${q.id}"><div class="result-question">📋 ${escapeHtml(q.text)}</div>`;
             if (q.type === 'rating') {
                 const counts = [0,0,0,0,0];
                 qResponses.forEach(r => { if (r.value >=1 && r.value <=5) counts[r.value-1]++; });
@@ -895,6 +773,42 @@
                 if (canvas) {
                     if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
                     charts[`admin_${q.id}`] = new Chart(canvas, { type: 'bar', data: { labels: ['Very Poor','Poor','Average','Good','Excellent'], datasets: [{ label: 'Responses', data: Object.values(counts), backgroundColor: ['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50'] }] }, options: { responsive: true } });
+                }
+            }
+        }
+    }
+    
+    // PDF Export Function
+    async function exportResultsToPDF() {
+        const resultsContainer = document.getElementById('adminResultsContainer');
+        if (!resultsContainer) return;
+        const originalContent = resultsContainer.innerHTML;
+        const loadingMsg = document.createElement('div');
+        loadingMsg.style.textAlign = 'center';
+        loadingMsg.style.padding = '20px';
+        loadingMsg.innerHTML = 'Generating PDF... Please wait.';
+        resultsContainer.appendChild(loadingMsg);
+        
+        try {
+            const { jsPDF } = window.jspdf;
+            const canvas = await html2canvas(resultsContainer, { scale: 2, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 190;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let position = 0;
+            pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+            pdf.save(`Koveli_Lounge_Survey_Results_${new Date().toISOString().slice(0,19)}.pdf`);
+        } catch (err) {
+            console.error('PDF Error:', err);
+            alert('Error generating PDF. Please try again.');
+        } finally {
+            resultsContainer.innerHTML = originalContent;
+            // Re-initialize charts after restoring content
+            for (let q of allQuestions) {
+                const canvas = document.getElementById(`adminChart_${q.id}`);
+                if (canvas && charts[`admin_${q.id}`]) {
+                    charts[`admin_${q.id}`] = new Chart(canvas, charts[`admin_${q.id}`].config);
                 }
             }
         }
@@ -1001,12 +915,12 @@
     document.getElementById('addQuestionBtn').addEventListener('click', addNewQuestion);
     document.getElementById('closeThankyouBtn').addEventListener('click', closeThankYou);
     document.getElementById('adminPassInput').addEventListener('keypress', e => { if (e.key === 'Enter') verifyAdmin(); });
+    document.getElementById('exportResultsPdfBtn')?.addEventListener('click', exportResultsToPDF);
     
     function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[m])); }
     
     async function initApp() { if (firestoreReady) { await loadCategories(); await loadQuestions(); } }
     
-    // Device Auth Flow
     const deviceModal = document.getElementById('deviceAuthModal');
     const devicePasswordInput = document.getElementById('devicePasswordInput');
     const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
