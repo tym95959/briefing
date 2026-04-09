@@ -558,9 +558,9 @@
     }
     
     function updateFloatingEmoji(moodValue) {
-        const emojis = { 1: '😞', 2: '😐', 3: '🙂', 4: '😊', 5: '😍' };
+        const emojis = { 1: '😔', 2: '😕', 3: '😐', 4: '🙂', 5: '😊' };
         const colors = { 1: '#ef5350', 2: '#ff9800', 3: '#ffc107', 4: '#8bc34a', 5: '#4caf50' };
-        floatingEmoji.innerHTML = emojis[moodValue] || '😊';
+        floatingEmoji.innerHTML = emojis[moodValue] || '😐';
         floatingEmoji.style.borderColor = colors[moodValue] || '#ffd700';
         gsap.fromTo(floatingEmoji, { scale: 1 }, { scale: 1.2, duration: 0.2, yoyo: true, repeat: 1 });
     }
@@ -602,13 +602,13 @@
         return answered;
     }
     
-    // Emotional Animations
-    function createTears(x, y, count = 10) {
+    // Emotional Animations - ONLY tears and shy for poor/very poor, stars for others
+    function createTears(x, y, count = 12) {
         for (let i = 0; i < count; i++) {
             setTimeout(() => {
                 const tear = document.createElement('div');
                 tear.className = 'tear-drop';
-                tear.innerHTML = ['💧', '😢', '💧', '😭', '💧'][Math.floor(Math.random() * 6)];
+                tear.innerHTML = ['💧', '💦', '😢', '💧', '😭'][Math.floor(Math.random() * 5)];
                 tear.style.left = (x + (Math.random() - 0.5) * 100) + 'px';
                 tear.style.top = (y - 10) + 'px';
                 tear.style.fontSize = (0.8 + Math.random() * 0.8) + 'rem';
@@ -619,11 +619,11 @@
     }
     
     function createShyBlush(x, y) {
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 6; i++) {
             setTimeout(() => {
                 const shy = document.createElement('div');
                 shy.className = 'shy-blush';
-                const emojis = ['😳', '🥺'];
+                const emojis = ['😳', '🥺', '🙈', '😅', '🤭'];
                 shy.innerHTML = emojis[Math.floor(Math.random() * emojis.length)];
                 shy.style.left = (x + (Math.random() - 0.5) * 80) + 'px';
                 shy.style.top = (y - 15) + 'px';
@@ -634,41 +634,33 @@
         }
     }
     
+    function createStarsOnly(x, y, count = 6) {
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const star = document.createElement('div');
+                star.className = 'floating-element';
+                star.innerHTML = '⭐';
+                star.style.left = (x + (Math.random() - 0.5) * 70) + 'px';
+                star.style.top = (y - 20) + 'px';
+                star.style.fontSize = (0.8 + Math.random() * 0.8) + 'rem';
+                star.style.color = '#ffd700';
+                document.body.appendChild(star);
+                setTimeout(() => star.remove(), 1000);
+            }, i * 80);
+        }
+    }
+    
     function createEmotionalFeedback(value, x, y) {
         if (value === 1 || value === 'very-poor') {
-            createTears(x, y, 12);
+            createTears(x, y, 14);
+            createShyBlush(x, y);
             gsap.fromTo(document.body, { backgroundColor: '#d4a86a' }, { backgroundColor: '#c9964e', duration: 0.3, yoyo: true, repeat: 1 });
         } else if (value === 2 || value === 'poor') {
             createTears(x, y, 8);
             createShyBlush(x, y);
-        } else if (value === 3 || value === 'average') {
-            createShyBlush(x, y);
-        } else if (value === 4 || value === 'good') {
-            for (let i = 0; i < 5; i++) {
-                setTimeout(() => {
-                    const star = document.createElement('div');
-                    star.className = 'floating-element';
-                    star.innerHTML = '⭐';
-                    star.style.left = (x + (Math.random() - 0.5) * 60) + 'px';
-                    star.style.top = (y - 20) + 'px';
-                    star.style.fontSize = (1 + Math.random()) + 'rem';
-                    document.body.appendChild(star);
-                    setTimeout(() => star.remove(), 1000);
-                }, i * 100);
-            }
-        } else if (value === 5 || value === 'excellent') {
-            for (let i = 0; i < 8; i++) {
-                setTimeout(() => {
-                    const star = document.createElement('div');
-                    star.className = 'floating-element';
-                    star.innerHTML = ['⭐', '🌟', '✨', '🎉'][Math.floor(Math.random() * 4)];
-                    star.style.left = (x + (Math.random() - 0.5) * 80) + 'px';
-                    star.style.top = (y - 20) + 'px';
-                    star.style.fontSize = (1 + Math.random() * 0.8) + 'rem';
-                    document.body.appendChild(star);
-                    setTimeout(() => star.remove(), 1000);
-                }, i * 80);
-            }
+        } else {
+            // For average, good, excellent - only stars, no happy emojis
+            createStarsOnly(x, y, 5);
         }
     }
     
@@ -946,7 +938,6 @@
             }
         }
         
-        // Disable button to prevent double submission
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Submitting...';
         
