@@ -31,7 +31,6 @@
             max-width: 1400px;
             margin: 0 auto;
         }
-        /* Header */
         .header {
             text-align: center;
             margin-bottom: 32px;
@@ -48,7 +47,6 @@
             color: #5a7a97;
             margin-top: 6px;
         }
-        /* Admin Link - subtle but accessible */
         .admin-link {
             position: fixed;
             bottom: 20px;
@@ -67,7 +65,6 @@
             background: rgba(29,111,143,0.2);
             color: #0e5a77;
         }
-        /* Survey Form - Main View */
         .survey-container {
             max-width: 800px;
             margin: 0 auto;
@@ -159,7 +156,6 @@
         .submit-btn:hover {
             transform: translateY(-2px);
         }
-        /* Admin Panel - Hidden by default */
         .admin-container {
             background: white;
             border-radius: 36px;
@@ -313,7 +309,6 @@
             padding: 40px;
             color: #7c9ab8;
         }
-        /* Password Modal */
         .password-modal {
             position: fixed;
             top: 0;
@@ -341,7 +336,6 @@
             border: 1.5px solid #e2eaf2;
             margin: 20px 0;
         }
-        /* Back to Survey Button in Admin */
         .back-to-survey {
             margin-bottom: 20px;
             display: inline-block;
@@ -430,18 +424,19 @@
         </div>
     </div>
 
-    <!-- Subtle Admin Link (bottom right) -->
+    <!-- Subtle Admin Link (bottom right) - Only shows after page loads -->
     <div class="admin-link" id="adminLinkBtn">
         <i class="fas fa-lock"></i> Admin Portal
     </div>
 </div>
 
-<!-- Password Modal for Admin Access -->
+<!-- Password Modal for Admin Access (uses SUPERVISOR_PASSWORD from config.js) -->
 <div id="passwordModal" class="password-modal hidden">
     <div class="password-box">
         <i class="fas fa-shield-alt" style="font-size: 2rem; color: #1d6f8f;"></i>
-        <h3 style="margin: 16px 0;">Admin Access Required</h3>
-        <input type="password" id="adminPassword" placeholder="Enter admin password" autocomplete="off">
+        <h3 style="margin: 16px 0;">Supervisor Access Required</h3>
+        <p style="font-size: 0.8rem; color: #7c9ab8;">Enter supervisor password to manage surveys</p>
+        <input type="password" id="adminPassword" placeholder="Enter supervisor password" autocomplete="off">
         <button id="verifyAdminBtn" style="background: #1d6f8f; color: white; border: none; padding: 12px 24px; border-radius: 40px; cursor: pointer; width: 100%;">Verify & Enter</button>
         <button id="cancelAdminBtn" style="margin-top: 12px; background: #eef3fc; border: none; padding: 10px; border-radius: 40px; cursor: pointer; width: 100%;">Cancel</button>
         <p id="adminPasswordError" style="color: #c62828; margin-top: 12px;"></p>
@@ -460,15 +455,21 @@
         } catch (err) { console.error(err); }
     } else {
         console.error("Firebase not initialized");
-        // Show user-friendly message
         document.getElementById('surveyQuestions').innerHTML = '<div class="loading">⚠️ Connecting to server... Please refresh if issue persists.</div>';
     }
 
-    // Admin password from config.js
-    let ADMIN_PASS = null;
-    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined') ADMIN_PASS = MASTER_PASSWORD_GLOBAL;
-    else if (typeof SUPERVISOR_PASSWORD !== 'undefined') ADMIN_PASS = SUPERVISOR_PASSWORD;
-    else ADMIN_PASS = "Admin123";
+    // SUPERVISOR_PASSWORD from config.js (no page-level password prompt)
+    let SUPERVISOR_PASS = null;
+    if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
+        SUPERVISOR_PASS = SUPERVISOR_PASSWORD;
+        console.log("Using SUPERVISOR_PASSWORD from config");
+    } else if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
+        SUPERVISOR_PASS = MASTER_PASSWORD_GLOBAL;
+        console.log("Using MASTER_PASSWORD_GLOBAL as fallback");
+    } else {
+        SUPERVISOR_PASS = "Admin123";
+        console.warn("Using fallback password 'Admin123' - set SUPERVISOR_PASSWORD in config.js");
+    }
 
     // Global state
     let currentQuestions = [];
@@ -509,7 +510,6 @@
             if (docSnap.exists) {
                 currentQuestions = docSnap.data().questions || [];
             } else {
-                // Default questions
                 currentQuestions = [
                     { id: "q1", text: "How satisfied are you with our service?", type: "rating" },
                     { id: "q2", text: "How likely are you to travel with us again?", type: "rating" },
@@ -573,7 +573,6 @@
         });
         surveyQuestionsDiv.innerHTML = html;
         
-        // Attach rating button events
         document.querySelectorAll('.rating-options').forEach(container => {
             const qid = container.getAttribute('data-qid');
             const btns = container.querySelectorAll('.rating-btn');
@@ -625,7 +624,6 @@
         try {
             await db.collection("surveyResponses").add(submission);
             showSurveyMessage("✓ Thank you for your valuable feedback!", "success");
-            // Reset form
             document.getElementById('surveyForm').reset();
             document.querySelectorAll('.rating-btn').forEach(btn => btn.classList.remove('selected'));
             document.querySelectorAll('.text-response').forEach(t => t.value = '');
@@ -670,7 +668,6 @@
         });
         questionsListDiv.innerHTML = html;
         
-        // Edit handlers
         document.querySelectorAll('.edit-question-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.getAttribute('data-id');
@@ -687,7 +684,6 @@
             });
         });
         
-        // Delete handlers
         document.querySelectorAll('.delete-question-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.getAttribute('data-id');
@@ -819,12 +815,12 @@
     }
     
     function verifyAdminPassword() {
-        if (adminPassword.value === ADMIN_PASS) {
+        if (adminPassword.value === SUPERVISOR_PASS) {
             isAdminAuthenticated = true;
             hidePasswordModal();
             switchToAdmin();
         } else {
-            adminPasswordError.innerText = "Incorrect password. Access denied.";
+            adminPasswordError.innerText = "Incorrect supervisor password. Access denied.";
         }
     }
     
@@ -838,7 +834,6 @@
     function switchToSurvey() {
         adminView.classList.add('hidden');
         surveyView.classList.remove('hidden');
-        // Refresh survey view in case questions changed
         renderSurvey();
     }
     
@@ -850,14 +845,13 @@
         }
     }
 
-    // ========== INIT ==========
+    // ========== INIT - Page loads survey immediately, no password prompt ==========
     async function init() {
         await loadQuestions();
         renderSurvey();
         
         surveyForm.addEventListener('submit', submitSurvey);
         
-        // Admin controls
         adminLinkBtn.addEventListener('click', requestAdminAccess);
         backToSurveyBtn.addEventListener('click', switchToSurvey);
         showAddQuestionBtn.addEventListener('click', () => {
@@ -882,6 +876,7 @@
         return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
     }
     
+    // Start the application - survey shows immediately, no password required
     init();
 </script>
 </body>
