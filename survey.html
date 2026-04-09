@@ -309,7 +309,7 @@
             padding: 40px;
             color: #7c9ab8;
         }
-        .password-modal {
+        .supervisor-modal {
             position: fixed;
             top: 0;
             left: 0;
@@ -322,14 +322,14 @@
             justify-content: center;
             z-index: 1000;
         }
-        .password-box {
+        .supervisor-box {
             background: white;
             padding: 32px;
             border-radius: 32px;
             width: 350px;
             text-align: center;
         }
-        .password-box input {
+        .supervisor-box input {
             width: 100%;
             padding: 14px;
             border-radius: 30px;
@@ -346,6 +346,77 @@
             font-size: 0.7rem;
             color: #7e9bb5;
         }
+        /* Device Auth Modal */
+        .device-auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .device-auth-card {
+            background: white;
+            border-radius: 32px;
+            padding: 32px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            animation: fadeInScale 0.3s ease;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .device-auth-card i {
+            font-size: 4rem;
+            color: #1d6f8f;
+            margin-bottom: 16px;
+        }
+        .device-auth-card h2 {
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+            color: #1a4c6e;
+        }
+        .device-auth-card p {
+            font-size: 0.8rem;
+            color: #5a7a97;
+            margin-bottom: 20px;
+        }
+        .device-auth-card input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 40px;
+            border: 2px solid #e2eaf2;
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .device-auth-card input:focus {
+            outline: none;
+            border-color: #1d6f8f;
+        }
+        .device-auth-card button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .device-error {
+            color: #c62828;
+            font-size: 0.75rem;
+            margin-top: 12px;
+        }
         @media (max-width: 768px) {
             body { padding: 16px; }
             .survey-body { padding: 20px; }
@@ -353,7 +424,7 @@
     </style>
 </head>
 <body>
-<div class="container">
+<div class="container" id="appContainer" style="display: none;">
     <!-- SURVEY VIEW - Default visible to passengers -->
     <div id="surveyView">
         <div class="survey-container">
@@ -424,26 +495,67 @@
         </div>
     </div>
 
-    <!-- Subtle Admin Link (bottom right) - Only shows after page loads -->
+    <!-- Subtle Admin Link (bottom right) -->
     <div class="admin-link" id="adminLinkBtn">
         <i class="fas fa-lock"></i> Admin Portal
     </div>
 </div>
 
-<!-- Password Modal for Admin Access (uses SUPERVISOR_PASSWORD from config.js) -->
-<div id="passwordModal" class="password-modal hidden">
-    <div class="password-box">
+<!-- Supervisor Password Modal (only appears when Admin Portal is clicked) -->
+<div id="supervisorModal" class="supervisor-modal hidden">
+    <div class="supervisor-box">
         <i class="fas fa-shield-alt" style="font-size: 2rem; color: #1d6f8f;"></i>
         <h3 style="margin: 16px 0;">Supervisor Access Required</h3>
         <p style="font-size: 0.8rem; color: #7c9ab8;">Enter supervisor password to manage surveys</p>
-        <input type="password" id="adminPassword" placeholder="Enter supervisor password" autocomplete="off">
-        <button id="verifyAdminBtn" style="background: #1d6f8f; color: white; border: none; padding: 12px 24px; border-radius: 40px; cursor: pointer; width: 100%;">Verify & Enter</button>
-        <button id="cancelAdminBtn" style="margin-top: 12px; background: #eef3fc; border: none; padding: 10px; border-radius: 40px; cursor: pointer; width: 100%;">Cancel</button>
-        <p id="adminPasswordError" style="color: #c62828; margin-top: 12px;"></p>
+        <input type="password" id="supervisorPasswordInput" placeholder="Enter supervisor password" autocomplete="off">
+        <button id="verifySupervisorBtn" style="background: #1d6f8f; color: white; border: none; padding: 12px 24px; border-radius: 40px; cursor: pointer; width: 100%;">Verify & Enter</button>
+        <button id="cancelSupervisorBtn" style="margin-top: 12px; background: #eef3fc; border: none; padding: 10px; border-radius: 40px; cursor: pointer; width: 100%;">Cancel</button>
+        <p id="supervisorError" style="color: #c62828; margin-top: 12px;"></p>
+    </div>
+</div>
+
+<!-- Device Authorization Modal (First-time entry only) -->
+<div id="deviceAuthModal" class="device-auth-overlay">
+    <div class="device-auth-card">
+        <i class="fas fa-microchip"></i>
+        <h2>Device Authorization</h2>
+        <p>This device needs to be authorized.<br>Enter the master password to register this device.</p>
+        <input type="password" id="devicePasswordInput" placeholder="Enter Device Authorization Password" autocomplete="off">
+        <button id="authorizeDeviceBtn">Authorize Device</button>
+        <div id="deviceAuthError" class="device-error"></div>
     </div>
 </div>
 
 <script>
+    // ========== DEVICE AUTHORIZATION SYSTEM ==========
+    const DEVICE_STORAGE_KEY = "passenger_survey_device_authorized";
+    
+    let DEVICE_MASTER_PASSWORD = null;
+    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
+        DEVICE_MASTER_PASSWORD = MASTER_PASSWORD_GLOBAL;
+    } else if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
+        DEVICE_MASTER_PASSWORD = SUPERVISOR_PASSWORD;
+    } else {
+        DEVICE_MASTER_PASSWORD = "Admin123";
+    }
+    
+    function isDeviceAuthorized() {
+        return localStorage.getItem(DEVICE_STORAGE_KEY) === "true";
+    }
+    
+    function authorizeDevice(password) {
+        if (password === DEVICE_MASTER_PASSWORD) {
+            localStorage.setItem(DEVICE_STORAGE_KEY, "true");
+            return true;
+        }
+        return false;
+    }
+    
+    window.resetDeviceAuth = function() {
+        localStorage.removeItem(DEVICE_STORAGE_KEY);
+        location.reload();
+    };
+
     // ========== FIREBASE INITIALIZATION ==========
     let db, firestoreReady = false;
     
@@ -455,25 +567,21 @@
         } catch (err) { console.error(err); }
     } else {
         console.error("Firebase not initialized");
-        document.getElementById('surveyQuestions').innerHTML = '<div class="loading">⚠️ Connecting to server... Please refresh if issue persists.</div>';
     }
 
-    // SUPERVISOR_PASSWORD from config.js (no page-level password prompt)
+    // SUPERVISOR_PASSWORD from config.js
     let SUPERVISOR_PASS = null;
     if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
         SUPERVISOR_PASS = SUPERVISOR_PASSWORD;
-        console.log("Using SUPERVISOR_PASSWORD from config");
     } else if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
         SUPERVISOR_PASS = MASTER_PASSWORD_GLOBAL;
-        console.log("Using MASTER_PASSWORD_GLOBAL as fallback");
     } else {
         SUPERVISOR_PASS = "Admin123";
-        console.warn("Using fallback password 'Admin123' - set SUPERVISOR_PASSWORD in config.js");
     }
 
     // Global state
     let currentQuestions = [];
-    let isAdminAuthenticated = false;
+    let isSupervisorAuthenticated = false;
     let ratingCharts = {};
 
     // DOM Elements
@@ -495,11 +603,13 @@
     const totalResponsesSpan = document.getElementById('totalResponses');
     const avgRatingSpan = document.getElementById('avgRating');
     const refreshResultsBtn = document.getElementById('refreshResultsBtn');
-    const passwordModal = document.getElementById('passwordModal');
-    const adminPassword = document.getElementById('adminPassword');
-    const verifyAdminBtn = document.getElementById('verifyAdminBtn');
-    const cancelAdminBtn = document.getElementById('cancelAdminBtn');
-    const adminPasswordError = document.getElementById('adminPasswordError');
+    
+    // Supervisor modal elements
+    const supervisorModal = document.getElementById('supervisorModal');
+    const supervisorPasswordInput = document.getElementById('supervisorPasswordInput');
+    const verifySupervisorBtn = document.getElementById('verifySupervisorBtn');
+    const cancelSupervisorBtn = document.getElementById('cancelSupervisorBtn');
+    const supervisorError = document.getElementById('supervisorError');
 
     // ========== LOAD QUESTIONS ==========
     async function loadQuestions() {
@@ -536,7 +646,7 @@
         }
     }
 
-    // ========== RENDER SURVEY (Passenger View) ==========
+    // ========== RENDER SURVEY ==========
     function renderSurvey() {
         if (!surveyQuestionsDiv) return;
         if (!currentQuestions.length) {
@@ -642,7 +752,7 @@
         }, 4000);
     }
 
-    // ========== RENDER ADMIN QUESTIONS LIST ==========
+    // ========== RENDER ADMIN QUESTIONS ==========
     async function renderAdminQuestions() {
         if (!questionsListDiv) return;
         await loadQuestions();
@@ -660,7 +770,7 @@
                         <span class="question-type-badge">${q.type === 'rating' ? '⭐ Rating' : '📝 Text'}</span>
                     </div>
                     <div class="question-actions">
-                        <button class="edit-question-btn" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}"><i class="fas fa-edit"></i></button>
+                        <button class="edit-question-btn" data-id="${q.id}" data-text="${escapeHtml(q.text)}"><i class="fas fa-edit"></i></button>
                         <button class="delete-question-btn" data-id="${q.id}"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
@@ -691,7 +801,7 @@
                     alert("Cannot delete the last question. Add another one first.");
                     return;
                 }
-                if (confirm("Delete this question? All existing responses remain but this question won't appear in new surveys.")) {
+                if (confirm("Delete this question?")) {
                     const updated = currentQuestions.filter(q => q.id !== id);
                     await saveQuestions(updated);
                     await renderAdminQuestions();
@@ -760,7 +870,7 @@
                         <div class="result-chart">
                             <h4>${escapeHtml(q.text)}</h4>
                             <canvas id="${chartId}" style="max-height: 250px;"></canvas>
-                            <div style="margin-top: 12px; font-size:0.8rem;">Responses: ${values.length}</div>
+                            <div style="margin-top: 12px;">Responses: ${values.length}</div>
                         </div>
                     `;
                     setTimeout(() => {
@@ -773,7 +883,7 @@
                                     labels: ['⭐ 1', '⭐ 2', '⭐ 3', '⭐ 4', '⭐ 5'],
                                     datasets: [{ label: 'Responses', data: counts, backgroundColor: '#2c7da0', borderRadius: 8 }]
                                 },
-                                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
+                                options: { responsive: true, maintainAspectRatio: true }
                             });
                         }
                     }, 50);
@@ -789,7 +899,6 @@
                             <div class="response-list">
                                 ${textResponses.length === 0 ? '<div class="loading">No responses yet</div>' : 
                                     textResponses.slice(0, 20).map(t => `<div class="response-item"><div class="response-meta"><i class="fas fa-comment"></i> Response</div><div>${escapeHtml(t)}</div></div>`).join('')}
-                                ${textResponses.length > 20 ? '<div style="text-align:center; margin-top:8px;">... and ' + (textResponses.length - 20) + ' more</div>' : ''}
                             </div>
                         </div>
                     `;
@@ -802,25 +911,25 @@
         }
     }
 
-    // ========== ADMIN AUTH & VIEW SWITCHING ==========
-    function showAdminPasswordModal() {
-        passwordModal.classList.remove('hidden');
-        adminPassword.value = "";
-        adminPasswordError.innerText = "";
-        adminPassword.focus();
+    // ========== SUPERVISOR AUTH & VIEW SWITCHING ==========
+    function showSupervisorModal() {
+        supervisorModal.classList.remove('hidden');
+        supervisorPasswordInput.value = "";
+        supervisorError.innerText = "";
+        supervisorPasswordInput.focus();
     }
     
-    function hidePasswordModal() {
-        passwordModal.classList.add('hidden');
+    function hideSupervisorModal() {
+        supervisorModal.classList.add('hidden');
     }
     
-    function verifyAdminPassword() {
-        if (adminPassword.value === SUPERVISOR_PASS) {
-            isAdminAuthenticated = true;
-            hidePasswordModal();
+    function verifySupervisorPassword() {
+        if (supervisorPasswordInput.value === SUPERVISOR_PASS) {
+            isSupervisorAuthenticated = true;
+            hideSupervisorModal();
             switchToAdmin();
         } else {
-            adminPasswordError.innerText = "Incorrect supervisor password. Access denied.";
+            supervisorError.innerText = "Incorrect supervisor password. Access denied.";
         }
     }
     
@@ -838,20 +947,19 @@
     }
     
     function requestAdminAccess() {
-        if (isAdminAuthenticated) {
+        if (isSupervisorAuthenticated) {
             switchToAdmin();
         } else {
-            showAdminPasswordModal();
+            showSupervisorModal();
         }
     }
 
-    // ========== INIT - Page loads survey immediately, no password prompt ==========
-    async function init() {
+    // ========== INIT ==========
+    async function initApp() {
         await loadQuestions();
         renderSurvey();
         
         surveyForm.addEventListener('submit', submitSurvey);
-        
         adminLinkBtn.addEventListener('click', requestAdminAccess);
         backToSurveyBtn.addEventListener('click', switchToSurvey);
         showAddQuestionBtn.addEventListener('click', () => {
@@ -866,18 +974,50 @@
         saveNewQuestionBtn.addEventListener('click', addNewQuestion);
         refreshResultsBtn.addEventListener('click', loadResults);
         
-        verifyAdminBtn.addEventListener('click', verifyAdminPassword);
-        cancelAdminBtn.addEventListener('click', hidePasswordModal);
-        adminPassword.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyAdminPassword(); });
+        verifySupervisorBtn.addEventListener('click', verifySupervisorPassword);
+        cancelSupervisorBtn.addEventListener('click', hideSupervisorModal);
+        supervisorPasswordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifySupervisorPassword(); });
     }
     
     function escapeHtml(str) {
         if (!str) return '';
         return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
     }
-    
-    // Start the application - survey shows immediately, no password required
-    init();
+
+    // ========== DEVICE AUTHORIZATION FLOW ==========
+    const deviceModal = document.getElementById('deviceAuthModal');
+    const devicePasswordInput = document.getElementById('devicePasswordInput');
+    const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
+    const deviceAuthError = document.getElementById('deviceAuthError');
+    const appContainer = document.getElementById('appContainer');
+
+    function handleDeviceAuthorization() {
+        const enteredPassword = devicePasswordInput.value;
+        if (authorizeDevice(enteredPassword)) {
+            deviceModal.style.display = 'none';
+            appContainer.style.display = 'block';
+            initApp();
+        } else {
+            deviceAuthError.textContent = 'Invalid authorization password. Access denied.';
+            devicePasswordInput.value = '';
+            devicePasswordInput.focus();
+        }
+    }
+
+    // Check if device is already authorized
+    if (isDeviceAuthorized()) {
+        deviceModal.style.display = 'none';
+        appContainer.style.display = 'block';
+        initApp();
+    } else {
+        deviceModal.style.display = 'flex';
+        appContainer.style.display = 'none';
+        authorizeDeviceBtn.addEventListener('click', handleDeviceAuthorization);
+        devicePasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleDeviceAuthorization();
+        });
+        devicePasswordInput.focus();
+    }
 </script>
 </body>
 </html>
