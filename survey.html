@@ -47,7 +47,6 @@
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3);
             overflow: hidden;
         }
-        /* Lounge Header with Single Background Image */
         .survey-header {
             position: relative;
             padding: 30px 40px;
@@ -111,7 +110,6 @@
         }
         .progress-fill { width: 0%; height: 100%; background: #ffd700; border-radius: 2px; transition: width 0.5s ease; }
         
-        /* Floating Emoji */
         .floating-emoji {
             position: fixed;
             bottom: 100px;
@@ -134,7 +132,31 @@
         .floating-emoji:hover { transform: scale(1.1); }
         @keyframes floatBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         
-        /* Category Sections */
+        .tear-drop {
+            position: fixed;
+            pointer-events: none;
+            z-index: 2000;
+            font-size: 1.2rem;
+            animation: fallTear 1.5s ease-in forwards;
+        }
+        @keyframes fallTear {
+            0% { opacity: 1; transform: translateY(0) scale(0.5); }
+            30% { opacity: 1; transform: translateY(30px) scale(1); }
+            100% { opacity: 0; transform: translateY(120px) scale(0.8); }
+        }
+        .shy-blush {
+            position: fixed;
+            pointer-events: none;
+            z-index: 2000;
+            font-size: 1.5rem;
+            animation: shyPop 0.8s ease-out forwards;
+        }
+        @keyframes shyPop {
+            0% { opacity: 0; transform: scale(0); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+        
         .category-section {
             margin-bottom: 25px;
             border-radius: 28px;
@@ -256,6 +278,7 @@
             box-shadow: 0 4px 12px rgba(212,160,23,0.3);
         }
         .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212,160,23,0.4); }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
         .floating-element {
             position: fixed;
             pointer-events: none;
@@ -424,6 +447,9 @@
         }
         .hidden { display: none; }
         .status-msg { text-align: center; padding: 12px; border-radius: 40px; margin-top: 15px; }
+        .status-msg.success { background: #e0f7e8; color: #2e7d32; }
+        .status-msg.error { background: #ffebee; color: #c62828; }
+        .status-msg.info { background: #e3f2fd; color: #1565c0; }
         footer { text-align: center; margin-top: 30px; font-size: 0.7rem; color: rgba(255,250,240,0.8); }
         @media (max-width: 700px) {
             .survey-header { padding: 20px 25px; min-height: 220px; }
@@ -450,9 +476,9 @@
             <form id="surveyForm">
                 <div id="surveyQuestionsContainer"></div>
                 <div style="text-align: center;">
-                    <button type="submit" class="submit-btn"><i class="fas fa-paper-plane"></i> Submit Your Feedback</button>
+                    <button type="submit" class="submit-btn" id="submitSurveyBtn"><i class="fas fa-paper-plane"></i> Submit Your Feedback</button>
                 </div>
-                <div id="surveyMessage" class="status-msg"></div>
+                <div id="surveyMessage" class="status-msg" style="display: none;"></div>
             </form>
         </div>
     </div>
@@ -514,9 +540,23 @@
     let allQuestions = [];
     let categories = [];
     let charts = {};
-    if (typeof firebase !== 'undefined' && firebase.apps.length) { try { db = firebase.firestore(); firestoreReady = true; } catch(e) {} }
+    if (typeof firebase !== 'undefined' && firebase.apps.length) { try { db = firebase.firestore(); firestoreReady = true; } catch(e) { console.error("Firebase error:", e); } }
     
     const floatingEmoji = document.getElementById('floatingEmoji');
+    const submitBtn = document.getElementById('submitSurveyBtn');
+    const surveyMessage = document.getElementById('surveyMessage');
+    
+    function showMessage(msg, type) {
+        surveyMessage.textContent = msg;
+        surveyMessage.className = `status-msg ${type}`;
+        surveyMessage.style.display = 'block';
+        setTimeout(() => {
+            if (surveyMessage.style.display === 'block') {
+                surveyMessage.style.display = 'none';
+            }
+        }, 4000);
+    }
+    
     function updateFloatingEmoji(moodValue) {
         const emojis = { 1: '😞', 2: '😐', 3: '🙂', 4: '😊', 5: '😍' };
         const colors = { 1: '#ef5350', 2: '#ff9800', 3: '#ffc107', 4: '#8bc34a', 5: '#4caf50' };
@@ -524,6 +564,7 @@
         floatingEmoji.style.borderColor = colors[moodValue] || '#ffd700';
         gsap.fromTo(floatingEmoji, { scale: 1 }, { scale: 1.2, duration: 0.2, yoyo: true, repeat: 1 });
     }
+    
     function calculateOverallMood() {
         let totalScore = 0, answeredCount = 0;
         allQuestions.forEach(q => {
@@ -533,12 +574,184 @@
             } else if (q.type === 'smiley') {
                 const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
                 if (selected) { const score = { 'very-poor':1, 'poor':2, 'average':3, 'good':4, 'excellent':5 }[selected.value]; if (score) { totalScore += score; answeredCount++; } }
+            } else if (q.type === 'text') {
+                const textarea = document.querySelector(`textarea[name="q_${q.id}"]`);
+                if (textarea && textarea.value.trim()) { answeredCount++; }
             }
         });
         if (answeredCount === 0) return 3;
         return Math.round(totalScore / answeredCount);
     }
+    
     function refreshFloatingEmoji() { updateFloatingEmoji(calculateOverallMood()); }
+    
+    function getAnsweredCount() {
+        let answered = 0;
+        allQuestions.forEach(q => {
+            if (q.type === 'rating') {
+                const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+                if (selected) answered++;
+            } else if (q.type === 'smiley') {
+                const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+                if (selected) answered++;
+            } else if (q.type === 'text') {
+                const textarea = document.querySelector(`textarea[name="q_${q.id}"]`);
+                if (textarea && textarea.value.trim()) answered++;
+            }
+        });
+        return answered;
+    }
+    
+    // Emotional Animations
+    function createTears(x, y, count = 10) {
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const tear = document.createElement('div');
+                tear.className = 'tear-drop';
+                tear.innerHTML = ['💧', '💦', '😢', '💧', '😭', '💧'][Math.floor(Math.random() * 6)];
+                tear.style.left = (x + (Math.random() - 0.5) * 100) + 'px';
+                tear.style.top = (y - 10) + 'px';
+                tear.style.fontSize = (0.8 + Math.random() * 0.8) + 'rem';
+                document.body.appendChild(tear);
+                setTimeout(() => tear.remove(), 1500);
+            }, i * 60);
+        }
+    }
+    
+    function createShyBlush(x, y) {
+        for (let i = 0; i < 8; i++) {
+            setTimeout(() => {
+                const shy = document.createElement('div');
+                shy.className = 'shy-blush';
+                const emojis = ['😳', '🥺', '🙈', '😅', '🤭', '😊'];
+                shy.innerHTML = emojis[Math.floor(Math.random() * emojis.length)];
+                shy.style.left = (x + (Math.random() - 0.5) * 80) + 'px';
+                shy.style.top = (y - 15) + 'px';
+                shy.style.fontSize = (1 + Math.random() * 0.8) + 'rem';
+                document.body.appendChild(shy);
+                setTimeout(() => shy.remove(), 800);
+            }, i * 50);
+        }
+    }
+    
+    function createEmotionalFeedback(value, x, y) {
+        if (value === 1 || value === 'very-poor') {
+            createTears(x, y, 12);
+            gsap.fromTo(document.body, { backgroundColor: '#d4a86a' }, { backgroundColor: '#c9964e', duration: 0.3, yoyo: true, repeat: 1 });
+        } else if (value === 2 || value === 'poor') {
+            createTears(x, y, 8);
+            createShyBlush(x, y);
+        } else if (value === 3 || value === 'average') {
+            createShyBlush(x, y);
+        } else if (value === 4 || value === 'good') {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const star = document.createElement('div');
+                    star.className = 'floating-element';
+                    star.innerHTML = '⭐';
+                    star.style.left = (x + (Math.random() - 0.5) * 60) + 'px';
+                    star.style.top = (y - 20) + 'px';
+                    star.style.fontSize = (1 + Math.random()) + 'rem';
+                    document.body.appendChild(star);
+                    setTimeout(() => star.remove(), 1000);
+                }, i * 100);
+            }
+        } else if (value === 5 || value === 'excellent') {
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    const star = document.createElement('div');
+                    star.className = 'floating-element';
+                    star.innerHTML = ['⭐', '🌟', '✨', '🎉'][Math.floor(Math.random() * 4)];
+                    star.style.left = (x + (Math.random() - 0.5) * 80) + 'px';
+                    star.style.top = (y - 20) + 'px';
+                    star.style.fontSize = (1 + Math.random() * 0.8) + 'rem';
+                    document.body.appendChild(star);
+                    setTimeout(() => star.remove(), 1000);
+                }, i * 80);
+            }
+        }
+    }
+    
+    function getCategoryClass(name) {
+        const n = name.toLowerCase();
+        if (n.includes('service')) return 'service';
+        if (n.includes('clean')) return 'cleanliness';
+        if (n.includes('comfort')) return 'comfort';
+        if (n.includes('staff')) return 'staff';
+        if (n.includes('food')) return 'food';
+        return 'General';
+    }
+    
+    function showThankYouWithMood() {
+        const mood = calculateOverallMood();
+        const messages = { 
+            1: { title: "We'll Do Better! 🙏", sub: "Your honest feedback helps us improve. Thank you for being truthful!" }, 
+            2: { title: "Noted with Thanks 📝", sub: "We appreciate your feedback and will work on improvements." }, 
+            3: { title: "Thank You! 🌟", sub: "Your feedback helps us maintain our standards." }, 
+            4: { title: "We're Grateful! 🎉", sub: "Thank you for your positive feedback! We'll keep it up." }, 
+            5: { title: "Absolutely Amazing! 🏆", sub: "Thank you for your wonderful feedback! You made our day!" } 
+        };
+        const msg = messages[mood] || messages[3];
+        document.getElementById('thankyouMessage').innerHTML = msg.title;
+        document.getElementById('thankyouSubMessage').innerHTML = msg.sub;
+        const overlay = document.getElementById('thankyouOverlay');
+        overlay.classList.add('active');
+        for (let i = 0; i < 40; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.className = 'floating-element';
+                confetti.innerHTML = mood >= 4 ? ['🎉','✨','🌟','⭐','🎊','🏆'][Math.floor(Math.random()*6)] : ['📝','💭','🙏','✨'][Math.floor(Math.random()*4)];
+                confetti.style.left = Math.random() * window.innerWidth + 'px';
+                confetti.style.top = window.innerHeight - 50 + 'px';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 1500);
+            }, i * 80);
+        }
+    }
+    
+    function closeThankYou() { document.getElementById('thankyouOverlay').classList.remove('active'); }
+    
+    function attachHandlers() {
+        document.querySelectorAll('.rating-option').forEach(opt => {
+            opt.removeEventListener('click', ratingHandler);
+            opt.addEventListener('click', ratingHandler);
+        });
+        document.querySelectorAll('.smiley-option').forEach(opt => {
+            opt.removeEventListener('click', smileyHandler);
+            opt.addEventListener('click', smileyHandler);
+        });
+        setupDoubleClickCancel();
+    }
+    
+    function ratingHandler(e) {
+        const parent = this.closest('.rating-options');
+        parent.querySelectorAll('.rating-option').forEach(o => o.classList.remove('selected'));
+        this.classList.add('selected');
+        const radio = this.querySelector('input');
+        if (radio) radio.checked = true;
+        const value = parseInt(this.getAttribute('data-value'));
+        const rect = this.getBoundingClientRect();
+        createEmotionalFeedback(value, rect.left + rect.width/2, rect.top + rect.height/2);
+        gsap.fromTo(this, { scale: 1 }, { scale: 1.15, duration: 0.2, yoyo: true, repeat: 1 });
+        refreshFloatingEmoji();
+        updateProgress();
+    }
+    
+    function smileyHandler(e) {
+        const parent = this.closest('.smiley-rating');
+        parent.querySelectorAll('.smiley-option').forEach(o => o.classList.remove('selected'));
+        this.classList.add('selected');
+        const radio = this.querySelector('input');
+        if (radio) radio.checked = true;
+        const value = this.getAttribute('data-value');
+        const scoreMap = { 'very-poor':1, 'poor':2, 'average':3, 'good':4, 'excellent':5 };
+        const score = scoreMap[value] || 3;
+        const rect = this.getBoundingClientRect();
+        createEmotionalFeedback(score, rect.left + rect.width/2, rect.top + rect.height/2);
+        gsap.fromTo(this, { scale: 1 }, { scale: 1.1, duration: 0.2, yoyo: true, repeat: 1 });
+        refreshFloatingEmoji();
+        updateProgress();
+    }
     
     function setupDoubleClickCancel() {
         document.querySelectorAll('.rating-option, .smiley-option').forEach(opt => {
@@ -546,6 +759,7 @@
             opt.addEventListener('dblclick', cancelHandler);
         });
     }
+    
     function cancelHandler(e) {
         e.stopPropagation();
         const radio = this.querySelector('input');
@@ -567,94 +781,8 @@
         }
     }
     
-    function getCategoryClass(name) {
-        const n = name.toLowerCase();
-        if (n.includes('service')) return 'service';
-        if (n.includes('clean')) return 'cleanliness';
-        if (n.includes('comfort')) return 'comfort';
-        if (n.includes('staff')) return 'staff';
-        if (n.includes('food')) return 'food';
-        return 'General';
-    }
-    
-    function createFlyingStars(count, x, y) {
-        for (let i = 0; i < count; i++) {
-            setTimeout(() => {
-                const star = document.createElement('div');
-                star.className = 'floating-element';
-                star.innerHTML = i % 2 === 0 ? '⭐' : '🌟';
-                star.style.left = (x + (Math.random() - 0.5) * 60) + 'px';
-                star.style.top = (y - 20) + 'px';
-                star.style.fontSize = (1 + Math.random() * 1.2) + 'rem';
-                star.style.color = count <= 2 ? '#ef5350' : (count === 3 ? '#ffc107' : '#4caf50');
-                document.body.appendChild(star);
-                setTimeout(() => star.remove(), 1000);
-            }, i * 70);
-        }
-    }
-    
-    function showThankYouWithMood() {
-        const mood = calculateOverallMood();
-        const messages = { 1: { title: "We'll Do Better! 🙏", sub: "Your honest feedback helps us improve." }, 2: { title: "Noted with Thanks 📝", sub: "We appreciate your feedback and will work on improvements." }, 3: { title: "Thank You! 🌟", sub: "Your feedback helps us maintain our standards." }, 4: { title: "We're Grateful! 🎉", sub: "Thank you for your positive feedback!" }, 5: { title: "Absolutely Amazing! 🏆", sub: "Thank you for your wonderful feedback! You made our day!" } };
-        const msg = messages[mood] || messages[3];
-        document.getElementById('thankyouMessage').innerHTML = msg.title;
-        document.getElementById('thankyouSubMessage').innerHTML = msg.sub;
-        const overlay = document.getElementById('thankyouOverlay');
-        overlay.classList.add('active');
-        for (let i = 0; i < 40; i++) {
-            setTimeout(() => {
-                const confetti = document.createElement('div');
-                confetti.className = 'floating-element';
-                confetti.innerHTML = mood >= 4 ? ['🎉','✨','🌟','⭐','🎊','🏆'][Math.floor(Math.random()*6)] : ['📝','💭','🙏','✨'][Math.floor(Math.random()*4)];
-                confetti.style.left = Math.random() * window.innerWidth + 'px';
-                confetti.style.top = window.innerHeight - 50 + 'px';
-                document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 1500);
-            }, i * 80);
-        }
-    }
-    function closeThankYou() { document.getElementById('thankyouOverlay').classList.remove('active'); }
-    
-    function attachHandlers() {
-        document.querySelectorAll('.rating-option').forEach(opt => { opt.removeEventListener('click', ratingHandler); opt.addEventListener('click', ratingHandler); });
-        document.querySelectorAll('.smiley-option').forEach(opt => { opt.removeEventListener('click', smileyHandler); opt.addEventListener('click', smileyHandler); });
-        setupDoubleClickCancel();
-    }
-    function ratingHandler(e) {
-        const parent = this.closest('.rating-options');
-        parent.querySelectorAll('.rating-option').forEach(o => o.classList.remove('selected'));
-        this.classList.add('selected');
-        const radio = this.querySelector('input');
-        if (radio) radio.checked = true;
-        const value = parseInt(this.getAttribute('data-value'));
-        const rect = this.getBoundingClientRect();
-        createFlyingStars(value, rect.left + rect.width/2, rect.top + rect.height/2);
-        gsap.fromTo(this, { scale: 1 }, { scale: 1.15, duration: 0.2, yoyo: true, repeat: 1 });
-        refreshFloatingEmoji();
-        updateProgress();
-    }
-    function smileyHandler(e) {
-        const parent = this.closest('.smiley-rating');
-        parent.querySelectorAll('.smiley-option').forEach(o => o.classList.remove('selected'));
-        this.classList.add('selected');
-        const radio = this.querySelector('input');
-        if (radio) radio.checked = true;
-        const value = this.getAttribute('data-value');
-        const scoreMap = { 'very-poor':1, 'poor':2, 'average':3, 'good':4, 'excellent':5 };
-        const score = scoreMap[value] || 3;
-        const rect = this.getBoundingClientRect();
-        createFlyingStars(score, rect.left + rect.width/2, rect.top + rect.height/2);
-        gsap.fromTo(this, { scale: 1 }, { scale: 1.1, duration: 0.2, yoyo: true, repeat: 1 });
-        refreshFloatingEmoji();
-        updateProgress();
-    }
     function updateProgress() {
-        let answered = 0;
-        allQuestions.forEach(q => {
-            const radio = document.querySelector(`input[name="q_${q.id}"]:checked`);
-            if (radio) answered++;
-            else { const textarea = document.querySelector(`textarea[name="q_${q.id}"]`); if (textarea && textarea.value.trim()) answered++; }
-        });
+        const answered = getAnsweredCount();
         const percent = allQuestions.length > 0 ? (answered / allQuestions.length) * 100 : 0;
         document.getElementById('progressFill').style.width = percent + '%';
     }
@@ -668,6 +796,7 @@
         renderCategoryUI();
     }
     async function saveCategories() { if (firestoreReady) await db.collection('surveyConfig').doc('categories').set({ list: categories }); }
+    
     function renderCategoryUI() {
         const div = document.getElementById('categoryList');
         if (!div) return;
@@ -707,15 +836,15 @@
             questions.forEach(q => {
                 if (q.type === 'rating') {
                     html += `<div class="question-item"><div class="question-text">📌 ${escapeHtml(q.text)}</div><div class="rating-options">`;
-                    for (let s=1; s<=5; s++) { const emoji = s===1?'😟':s===2?'🙁':s===3?'😐':s===4?'🙂':'😊'; html += `<label class="rating-option" data-value="${s}"><input type="radio" name="q_${q.id}" value="${s}" required><span class="rating-emoji-icon">${emoji}</span><span class="rating-label">${s}</span></label>`; }
+                    for (let s=1; s<=5; s++) { const emoji = s===1?'😟':s===2?'🙁':s===3?'😐':s===4?'🙂':'😊'; html += `<label class="rating-option" data-value="${s}"><input type="radio" name="q_${q.id}" value="${s}"><span class="rating-emoji-icon">${emoji}</span><span class="rating-label">${s}</span></label>`; }
                     html += `</div></div>`;
                 } else if (q.type === 'smiley') {
                     html += `<div class="question-item"><div class="question-text">😊 ${escapeHtml(q.text)}</div><div class="smiley-rating">`;
                     const opts = [{val:'very-poor',emoji:'😟',label:'Very Poor'},{val:'poor',emoji:'🙁',label:'Poor'},{val:'average',emoji:'😐',label:'Average'},{val:'good',emoji:'🙂',label:'Good'},{val:'excellent',emoji:'😊',label:'Excellent'}];
-                    opts.forEach(opt => { html += `<label class="smiley-option" data-value="${opt.val}"><input type="radio" name="q_${q.id}" value="${opt.val}" required style="display:none;"><div class="smiley-icon">${opt.emoji}</div><div style="font-size:0.65rem;">${opt.label}</div></label>`; });
+                    opts.forEach(opt => { html += `<label class="smiley-option" data-value="${opt.val}"><input type="radio" name="q_${q.id}" value="${opt.val}" style="display:none;"><div class="smiley-icon">${opt.emoji}</div><div style="font-size:0.65rem;">${opt.label}</div></label>`; });
                     html += `</div></div>`;
                 } else {
-                    html += `<div class="question-item"><div class="question-text">✍️ ${escapeHtml(q.text)}</div><textarea name="q_${q.id}" class="text-response" rows="3" placeholder="Share your thoughts..." required></textarea></div>`;
+                    html += `<div class="question-item"><div class="question-text">✍️ ${escapeHtml(q.text)}</div><textarea name="q_${q.id}" class="text-response" rows="3" placeholder="Share your thoughts..."></textarea></div>`;
                 }
             });
             html += `</div></div>`;
@@ -726,7 +855,10 @@
         refreshFloatingEmoji();
         document.querySelectorAll('.rating-option, .smiley-option, textarea').forEach(el => {
             el.addEventListener('click', () => setTimeout(updateProgress, 50));
-            if (el.tagName === 'TEXTAREA') el.addEventListener('input', updateProgress);
+            if (el.tagName === 'TEXTAREA') el.addEventListener('input', () => { updateProgress(); refreshFloatingEmoji(); });
+            if (el.querySelector('input')) {
+                el.querySelector('input').addEventListener('change', () => { updateProgress(); refreshFloatingEmoji(); });
+            }
         });
     }
     
@@ -778,17 +910,68 @@
         }
     }
     
-    // PDF Export Function
+    // SUBMIT HANDLER WITH PARTIAL SUBMISSION CONFIRMATION
+    document.getElementById('surveyForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!firestoreReady) { showMessage("System error. Please try again.", "error"); return; }
+        
+        const formData = new FormData(e.target);
+        const responses = [];
+        const totalQuestions = allQuestions.length;
+        const answeredCount = getAnsweredCount();
+        
+        for (let q of allQuestions) {
+            const val = formData.get(`q_${q.id}`);
+            if (val && val.trim()) {
+                responses.push({ questionId: q.id, questionText: q.text, questionType: q.type, value: val, submittedAt: new Date().toISOString() });
+            } else {
+                const textarea = document.querySelector(`textarea[name="q_${q.id}"]`);
+                if (textarea && textarea.value.trim()) {
+                    responses.push({ questionId: q.id, questionText: q.text, questionType: q.type, value: textarea.value.trim(), submittedAt: new Date().toISOString() });
+                }
+            }
+        }
+        
+        if (responses.length === 0) {
+            showMessage("Please answer at least one question before submitting.", "info");
+            return;
+        }
+        
+        // If not all questions are answered, ask for confirmation
+        if (responses.length < totalQuestions) {
+            const confirmSubmit = confirm(`You have answered ${responses.length} out of ${totalQuestions} questions.\n\nWould you like to submit your feedback with your current selections?\n\n(You can always come back to complete the rest later)`);
+            if (!confirmSubmit) {
+                showMessage("Submission cancelled. Please complete more questions or submit again.", "info");
+                return;
+            }
+        }
+        
+        // Disable button to prevent double submission
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Submitting...';
+        
+        try {
+            await db.collection('surveyResponses').add({ responses, submittedAt: new Date().toISOString(), partial: responses.length < totalQuestions });
+            e.target.reset();
+            document.querySelectorAll('.rating-option.selected, .smiley-option.selected').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.text-response').forEach(el => el.value = '');
+            showThankYouWithMood();
+            updateProgress();
+            refreshFloatingEmoji();
+            showMessage("✓ Thank you for your valuable feedback!", "success");
+        } catch(err) {
+            console.error(err);
+            showMessage("Error submitting survey. Please try again.", "error");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Your Feedback';
+        }
+    });
+    
     async function exportResultsToPDF() {
         const resultsContainer = document.getElementById('adminResultsContainer');
         if (!resultsContainer) return;
         const originalContent = resultsContainer.innerHTML;
-        const loadingMsg = document.createElement('div');
-        loadingMsg.style.textAlign = 'center';
-        loadingMsg.style.padding = '20px';
-        loadingMsg.innerHTML = 'Generating PDF... Please wait.';
-        resultsContainer.appendChild(loadingMsg);
-        
         try {
             const { jsPDF } = window.jspdf;
             const canvas = await html2canvas(resultsContainer, { scale: 2, backgroundColor: '#ffffff' });
@@ -796,43 +979,13 @@
             const pdf = new jsPDF('p', 'mm', 'a4');
             const imgWidth = 190;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            let position = 0;
-            pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+            pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
             pdf.save(`Koveli_Lounge_Survey_Results_${new Date().toISOString().slice(0,19)}.pdf`);
         } catch (err) {
             console.error('PDF Error:', err);
             alert('Error generating PDF. Please try again.');
-        } finally {
-            resultsContainer.innerHTML = originalContent;
-            // Re-initialize charts after restoring content
-            for (let q of allQuestions) {
-                const canvas = document.getElementById(`adminChart_${q.id}`);
-                if (canvas && charts[`admin_${q.id}`]) {
-                    charts[`admin_${q.id}`] = new Chart(canvas, charts[`admin_${q.id}`].config);
-                }
-            }
         }
     }
-    
-    document.getElementById('surveyForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!firestoreReady) { document.getElementById('surveyMessage').innerHTML = '<span style="color:#c62828;">System error</span>'; return; }
-        const formData = new FormData(e.target);
-        const responses = [];
-        for (let q of allQuestions) {
-            const val = formData.get(`q_${q.id}`);
-            if (val) responses.push({ questionId: q.id, questionText: q.text, questionType: q.type, value: val, submittedAt: new Date().toISOString() });
-        }
-        if (responses.length === 0) { document.getElementById('surveyMessage').innerHTML = '<span style="color:#e65100;">Please answer at least one question</span>'; return; }
-        try {
-            await db.collection('surveyResponses').add({ responses, submittedAt: new Date().toISOString() });
-            e.target.reset();
-            document.querySelectorAll('.rating-option.selected, .smiley-option.selected').forEach(el => el.classList.remove('selected'));
-            showThankYouWithMood();
-            updateProgress();
-            refreshFloatingEmoji();
-        } catch(err) { document.getElementById('surveyMessage').innerHTML = '<span style="color:#c62828;">Error submitting</span>'; }
-    });
     
     function renderAdminQuestions() {
         const div = document.getElementById('questionsAdminList');
