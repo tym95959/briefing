@@ -445,8 +445,8 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -454,50 +454,72 @@
         }
         .device-box {
             background: white;
-            padding: 28px 24px;
+            padding: 32px 28px;
             border-radius: 32px;
-            width: 340px;
+            width: 360px;
             text-align: center;
-            box-shadow: 0 20px 35px rgba(0,0,0,0.2);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
         }
         .device-box i {
-            font-size: 3rem;
+            font-size: 3.5rem;
             color: #1d6f8f;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
         .device-box h3 {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             margin-bottom: 8px;
+            color: #1a4c6e;
         }
         .device-box p {
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             color: #5a7a97;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
         .device-box input {
             width: 100%;
-            padding: 12px;
+            padding: 12px 16px;
             border-radius: 40px;
-            border: 1.5px solid #e2eaf2;
-            margin: 12px 0;
-            font-size: 0.9rem;
+            border: 2px solid #e2eaf2;
+            margin: 16px 0;
+            font-size: 0.95rem;
             text-align: center;
+            transition: all 0.2s;
+        }
+        .device-box input:focus {
+            outline: none;
+            border-color: #1d6f8f;
         }
         .device-box button {
             background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
             color: white;
             border: none;
-            padding: 10px;
+            padding: 12px;
             border-radius: 40px;
             width: 100%;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            font-size: 0.9rem;
+            font-size: 1rem;
+            transition: transform 0.1s;
+        }
+        .device-box button:hover {
+            transform: translateY(-1px);
+        }
+        .device-box button:active {
+            transform: translateY(1px);
         }
         .device-error {
             color: #c62828;
-            font-size: 0.7rem;
-            margin-top: 8px;
+            font-size: 0.75rem;
+            margin-top: 12px;
+            font-weight: 500;
+        }
+        .device-success {
+            color: #2e7d32;
         }
         .hidden { display: none; }
         footer {
@@ -633,7 +655,7 @@
     <div class="device-box">
         <i class="fas fa-shield-alt"></i>
         <h3>Device Authorization Required</h3>
-        <p>Enter the master password to register this device.<br>One-time only.</p>
+        <p>This device needs to be authorized first.<br>Enter the master password to continue.</p>
         <input type="password" id="deviceAuthPassword" placeholder="Enter Master Password" autocomplete="off">
         <button id="submitDeviceAuthBtn">Authorize Device</button>
         <div id="deviceAuthError" class="device-error"></div>
@@ -641,33 +663,70 @@
 </div>
 
 <script>
-    // Retrieve MASTER_PASSWORD_GLOBAL from config.js (Admin123)
-    // DEVICE_REGISTRATION_KEY: stores registration flag in localStorage
-    const STORAGE_DEVICE_KEY = "koveli_device_registered";
+    // STORAGE KEY for device registration
+    const STORAGE_DEVICE_KEY = "koveli_lounge_device_registered";
     
-    // Helper to get master password (from config.js global variable)
-    let MASTER_PASS = "Admin123"; // fallback
+    // Get master password from config.js - try multiple possible variable names
+    let MASTER_PASS = null;
+    
+    // Debug: log what's available from config
+    console.log("Checking config.js variables...");
+    
+    // Try to get the password from various possible global variables
     if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined') {
         MASTER_PASS = MASTER_PASSWORD_GLOBAL;
+        console.log("Found MASTER_PASSWORD_GLOBAL");
     } else if (typeof SUPERVISOR_PASSWORD !== 'undefined') {
-        // In case config uses SUPERVISOR_PASSWORD as admin pass, but we need master device pass.
-        // We'll use MASTER_PASSWORD_GLOBAL specifically. If missing, use SUPERVISOR_PASSWORD as fallback.
         MASTER_PASS = SUPERVISOR_PASSWORD;
+        console.log("Found SUPERVISOR_PASSWORD");
+    } else if (typeof ADMIN_PASSWORD !== 'undefined') {
+        MASTER_PASS = ADMIN_PASSWORD;
+        console.log("Found ADMIN_PASSWORD");
+    } else {
+        // Fallback - check window object for any password-like variables
+        for (let key in window) {
+            if (key.toLowerCase().includes('password') || key.toLowerCase().includes('master') || key.toLowerCase().includes('admin')) {
+                if (typeof window[key] === 'string' && window[key].length > 0) {
+                    MASTER_PASS = window[key];
+                    console.log("Found password in:", key);
+                    break;
+                }
+            }
+        }
     }
+    
+    // If still no password, use default (but show warning)
+    if (!MASTER_PASS) {
+        console.warn("No password found in config.js! Using default 'Admin123'. Please set MASTER_PASSWORD_GLOBAL in config.js");
+        MASTER_PASS = "Admin123";
+    }
+    
+    console.log("Device authorization initialized with password from config");
     
     // Check if device already authorized
     function isDeviceAuthorized() {
-        return localStorage.getItem(STORAGE_DEVICE_KEY) === "true";
+        const registered = localStorage.getItem(STORAGE_DEVICE_KEY);
+        console.log("Device authorized check:", registered === "true");
+        return registered === "true";
     }
     
-    // Authorize device: stores flag permanently
+    // Authorize device - stores flag permanently in localStorage
     function authorizeDevice(password) {
-        if (password === MASTER_PASS) {
+        const isValid = (password === MASTER_PASS);
+        console.log("Password validation:", isValid ? "SUCCESS" : "FAILED");
+        if (isValid) {
             localStorage.setItem(STORAGE_DEVICE_KEY, "true");
+            localStorage.setItem("koveli_device_authorized_at", new Date().toISOString());
             return true;
         }
         return false;
     }
+    
+    // Clear device authorization (for testing/admin - can be called from console)
+    window.clearDeviceAuth = function() {
+        localStorage.removeItem(STORAGE_DEVICE_KEY);
+        location.reload();
+    };
     
     // Firebase & Global Variables
     let db, firestoreReady = false;
@@ -677,10 +736,10 @@
             firestoreReady = true;
             console.log("Firebase ready");
         } else {
-            console.error("Firebase not initialized");
+            console.error("Firebase not initialized - check fire.js");
         }
     } catch (err) { 
-        console.error(err);
+        console.error("Firebase error:", err);
     }
 
     const MORNING_SLOTS = [
@@ -704,57 +763,6 @@
     let isSupervisor = false;
     let isAdminCollapsed = false;
 
-    // DOM Elements (from appContent)
-    let staffRoleBtn, supervisorRoleBtn, adminPanel, toggleAdminBtn, mainDate, mainShift, shiftStatusBadge, reopenShiftBtn, closeShiftBtn;
-    let allocationContainer, tasksContainer, tasksInfo, newCategoryName, addCategoryBtn, categoryList, newTaskName, taskCategorySelect;
-    let taskTypeSelect, dropdownOptionsDiv, dropdownOptions, addTaskBtn, staffListContainer, newStaffName, addStaffBtn, adminFeedback;
-    let exportFullPdfBtn, printAllocationBtn, passwordModal, supervisorPassword, verifyPasswordBtn, cancelPasswordBtn, passwordError;
-    
-    // Lazy load references after DOM ready
-    function bindElements() {
-        staffRoleBtn = document.getElementById('staffRoleBtn');
-        supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
-        adminPanel = document.getElementById('adminPanel');
-        toggleAdminBtn = document.getElementById('toggleAdminBtn');
-        mainDate = document.getElementById('mainDate');
-        mainShift = document.getElementById('mainShift');
-        shiftStatusBadge = document.getElementById('shiftStatusBadge');
-        reopenShiftBtn = document.getElementById('reopenShiftBtn');
-        closeShiftBtn = document.getElementById('closeShiftBtn');
-        allocationContainer = document.getElementById('allocationContainer');
-        tasksContainer = document.getElementById('tasksContainer');
-        tasksInfo = document.getElementById('tasksInfo');
-        newCategoryName = document.getElementById('newCategoryName');
-        addCategoryBtn = document.getElementById('addCategoryBtn');
-        categoryList = document.getElementById('categoryList');
-        newTaskName = document.getElementById('newTaskName');
-        taskCategorySelect = document.getElementById('taskCategorySelect');
-        taskTypeSelect = document.getElementById('taskTypeSelect');
-        dropdownOptionsDiv = document.getElementById('dropdownOptionsDiv');
-        dropdownOptions = document.getElementById('dropdownOptions');
-        addTaskBtn = document.getElementById('addTaskBtn');
-        staffListContainer = document.getElementById('staffListContainer');
-        newStaffName = document.getElementById('newStaffName');
-        addStaffBtn = document.getElementById('addStaffBtn');
-        adminFeedback = document.getElementById('adminFeedback');
-        exportFullPdfBtn = document.getElementById('exportFullPdfBtn');
-        printAllocationBtn = document.getElementById('printAllocationBtn');
-        // password modal elements not needed for device auth but keep supervisor password separate (already there but we keep original supervisor flow)
-        // supervisor password elements (for supervisor role access)
-        passwordModal = document.getElementById('passwordModal');
-        supervisorPassword = document.getElementById('supervisorPassword');
-        verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
-        cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
-        passwordError = document.getElementById('passwordError');
-        
-        if (taskTypeSelect) {
-            taskTypeSelect.addEventListener('change', () => {
-                if (dropdownOptionsDiv) dropdownOptionsDiv.style.display = taskTypeSelect.value === 'dropdown' ? 'block' : 'none';
-            });
-        }
-    }
-    
-    // ----- All Original App Functions (shortened but fully functional) -----
     function getSODRecordId(date, shift) { return `sod_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTaskRecordId(date, shift) { return `tasks_${date}_${shift}`.replace(/\s/g, '_'); }
     
@@ -779,7 +787,6 @@
         return Array.from(categories).sort();
     }
     
-    // Update category UI, rename, delete etc - Simplified keep consistency
     async function renameCategory(oldCategory, newCategory) {
         const updatedTasks = globalTasks.map(task => {
             const taskCategory = task.category || "General";
@@ -798,11 +805,16 @@
         });
         await saveGlobalTasks(updatedTasks);
         updateCategoryUI();
-        if (adminFeedback) adminFeedback.innerText = `Category "${categoryToDelete}" deleted`;
-        setTimeout(() => { if(adminFeedback) adminFeedback.innerText = ""; }, 2000);
+        const adminFeedback = document.getElementById('adminFeedback');
+        if (adminFeedback) {
+            adminFeedback.innerText = `Category "${categoryToDelete}" deleted`;
+            setTimeout(() => { adminFeedback.innerText = ""; }, 2000);
+        }
     }
     
     function updateCategoryUI() {
+        const categoryList = document.getElementById('categoryList');
+        const taskCategorySelect = document.getElementById('taskCategorySelect');
         if (!categoryList) return;
         const categories = getUniqueCategories();
         categoryList.innerHTML = categories.map(cat => `
@@ -833,65 +845,427 @@
         });
     }
     
-    // placeholders for other core functions: loadSOD, renderAllocation, assignStaff, removeStaff, loadGlobalTasks, saveGlobalTasks, loadTaskRecord, updateShiftStatusUI, completeTask, acknowledgeTask, submitDropdown, closeShift, reopenShiftFn, renderTasks, loadStaff, addStaffMember, addTask, addCategory, refreshAll, onDateShiftChange, printAllocationSheet, exportFullReport, setRole, verifyPassword, initApp.
-    // We will integrate original implementations but must ensure they reference correct elements.
-    // Since full code is long but we keep core logic from original, using same functions.
+    async function loadSOD() { 
+        if (!db || !currentDate || !currentShift) return; 
+        const recordId = getSODRecordId(currentDate, currentShift); 
+        try { 
+            const docSnap = await db.collection("sodRecords").doc(recordId).get(); 
+            if (docSnap.exists) currentSODRecord = { id: docSnap.id, ...docSnap.data() }; 
+            else { 
+                const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS; 
+                const allocations = {}; 
+                slots.forEach(slot => { 
+                    allocations[slot.id] = {}; 
+                    slot.areas.forEach(area => { allocations[slot.id][area] = []; }); 
+                }); 
+                currentSODRecord = { date: currentDate, shift: currentShift, allocations, createdAt: new Date().toISOString() }; 
+                await db.collection("sodRecords").doc(recordId).set(currentSODRecord); 
+                currentSODRecord.id = recordId; 
+            } 
+            renderAllocation(); 
+        } catch(err) { console.error(err); } 
+    }
     
-    // SIMPLIFIED but maintain full functionality: embed original implementations (reused from previous code).
-    // For brevity, we'll copy the core logic (already provided) but ensure device auth gate prevents any usage before authorization.
-    // The original code logic will be attached after device auth success.
+    function renderAllocation() { 
+        if (!currentSODRecord) return; 
+        const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS; 
+        const allocations = currentSODRecord.allocations || {}; 
+        const canEdit = currentRole === "supervisor" && currentTaskRecord?.status !== "closed"; 
+        let html = '<table class="allocation-table"><thead><tr><th class="area-col">Area / Time</th>'; 
+        slots.forEach(slot => { html += `<th>${slot.name}</th>`; }); 
+        html += '<tr></thead><tbody>'; 
+        const areas = ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
+        areas.forEach(area => { 
+            html += `<tr><td class="area-col"><strong>${area}</strong></td>`; 
+            slots.forEach(slot => { 
+                const assigned = (allocations[slot.id] && allocations[slot.id][area]) || []; 
+                let staffHtml = assigned.map(s => `<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit ? `<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" style="background:none; border:none; color:#c62828;">✖</button>` : ''}</span>`).join(''); 
+                if (canEdit) staffHtml += `<div><select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g,'_')}" style="width:100%;"><option value="">Add</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select><button class="assign-btn" data-slot="${slot.id}" data-area="${area}" style="background:#4caf50; color:white; border:none; border-radius:12px; padding:2px 6px;">Assign</button></div>`; 
+                html += `<td class="staff-list-cell">${staffHtml}</td>`; 
+            }); 
+            html += '</tr>'; 
+        }); 
+        html += '</tbody></table>'; 
+        const allocationContainer = document.getElementById('allocationContainer');
+        if(allocationContainer) allocationContainer.innerHTML = html; 
+        if(canEdit){ 
+            document.querySelectorAll('.assign-btn').forEach(btn => btn.addEventListener('click', async (e) => { 
+                const slotId = btn.getAttribute('data-slot'); 
+                const area = btn.getAttribute('data-area'); 
+                const sel = document.getElementById(`staffSel_${slotId}_${area.replace(/\s/g,'_')}`); 
+                if(sel && sel.value) await assignStaff(slotId, area, sel.value); 
+            })); 
+            document.querySelectorAll('.remove-staff').forEach(btn => btn.addEventListener('click', async (e) => { 
+                const slotId = btn.getAttribute('data-slot'); 
+                const area = btn.getAttribute('data-area'); 
+                const staffName = btn.getAttribute('data-staff'); 
+                await removeStaff(slotId, area, staffName); 
+            })); 
+        } 
+    }
     
-    // The script will load but appContent hidden until device auth.
-    // We'll define all necessary functions in a closure, then after device auth, show app and init.
+    async function assignStaff(slotId, area, staffName) { 
+        if(!currentSODRecord) return; 
+        const allocations = {...currentSODRecord.allocations}; 
+        if(!allocations[slotId]) allocations[slotId]={}; 
+        if(!allocations[slotId][area]) allocations[slotId][area]=[]; 
+        if(!allocations[slotId][area].includes(staffName)){ 
+            allocations[slotId][area].push(staffName); 
+            await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); 
+            currentSODRecord.allocations=allocations; 
+            renderAllocation(); 
+        } 
+    }
     
-    async function loadSOD() { /* same as original */ if (!db || !currentDate || !currentShift) return; const recordId = getSODRecordId(currentDate, currentShift); try { const docSnap = await db.collection("sodRecords").doc(recordId).get(); if (docSnap.exists) currentSODRecord = { id: docSnap.id, ...docSnap.data() }; else { const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS; const allocations = {}; slots.forEach(slot => { allocations[slot.id] = {}; slot.areas.forEach(area => { allocations[slot.id][area] = []; }); }); currentSODRecord = { date: currentDate, shift: currentShift, allocations, createdAt: new Date().toISOString() }; await db.collection("sodRecords").doc(recordId).set(currentSODRecord); currentSODRecord.id = recordId; } renderAllocation(); } catch(err) { console.error(err); } }
-    function renderAllocation() { /* abbreviated but functional */ if (!currentSODRecord) return; const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS; const allocations = currentSODRecord.allocations || {}; const canEdit = currentRole === "supervisor" && currentTaskRecord?.status !== "closed"; let html = '<table class="allocation-table"><thead><tr><th class="area-col">Area / Time</th>'; slots.forEach(slot => { html += `<th>${slot.name}</th>`; }); html += '</tr></thead><tbody>'; const areas = ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area => { html += `<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot => { const assigned = (allocations[slot.id] && allocations[slot.id][area]) || []; let staffHtml = assigned.map(s => `<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit ? `<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" style="background:none; border:none; color:#c62828;">✖</button>` : ''}</span>`).join(''); if (canEdit) staffHtml += `<div><select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g,'_')}" style="width:100%;"><option value="">Add</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select><button class="assign-btn" data-slot="${slot.id}" data-area="${area}" style="background:#4caf50; color:white; border:none; border-radius:12px; padding:2px 6px;">Assign</button></div>`; html += `<td class="staff-list-cell">${staffHtml}</td>`; }); html += '</tr>'; }); html += '</tbody></table>'; if(allocationContainer) allocationContainer.innerHTML = html; if(canEdit){ document.querySelectorAll('.assign-btn').forEach(btn => btn.addEventListener('click', async (e) => { const slotId = btn.getAttribute('data-slot'); const area = btn.getAttribute('data-area'); const sel = document.getElementById(`staffSel_${slotId}_${area.replace(/\s/g,'_')}`); if(sel && sel.value) await assignStaff(slotId, area, sel.value); })); document.querySelectorAll('.remove-staff').forEach(btn => btn.addEventListener('click', async (e) => { const slotId = btn.getAttribute('data-slot'); const area = btn.getAttribute('data-area'); const staffName = btn.getAttribute('data-staff'); await removeStaff(slotId, area, staffName); })); } }
-    async function assignStaff(slotId, area, staffName) { if(!currentSODRecord) return; const allocations = {...currentSODRecord.allocations}; if(!allocations[slotId]) allocations[slotId]={}; if(!allocations[slotId][area]) allocations[slotId][area]=[]; if(!allocations[slotId][area].includes(staffName)){ allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); } }
-    async function removeStaff(slotId, area, staffName) { if(!currentSODRecord) return; const allocations = {...currentSODRecord.allocations}; if(allocations[slotId] && allocations[slotId][area]){ allocations[slotId][area] = allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); } }
-    async function loadGlobalTasks() { if (!db) return; const docSnap = await db.collection("globalConfig").doc("tasks").get(); globalTasks = docSnap.exists ? docSnap.data().tasks || [] : []; updateCategoryUI(); renderTasks(); }
-    async function saveGlobalTasks(tasks) { await db.collection("globalConfig").doc("tasks").set({ tasks }); globalTasks = tasks; updateCategoryUI(); renderTasks(); }
-    async function loadTaskRecord() { if (!db || !currentDate || !currentShift) return; const recordId = getTaskRecordId(currentDate, currentShift); const docSnap = await db.collection("taskRecords").doc(recordId).get(); if (docSnap.exists) currentTaskRecord = { id: docSnap.id, ...docSnap.data() }; else { currentTaskRecord = { date: currentDate, shift: currentShift, status: "open", doneTasks: {}, acknowledgedTasks: {}, dropdownSelections: [] }; await db.collection("taskRecords").doc(recordId).set(currentTaskRecord); currentTaskRecord.id = recordId; } updateShiftStatusUI(); renderTasks(); }
-    function updateShiftStatusUI() { if (!shiftStatusBadge || !closeShiftBtn || !reopenShiftBtn) return; const isClosed = currentTaskRecord?.status === "closed"; shiftStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`; if (currentRole === "supervisor") { closeShiftBtn.classList.toggle('hidden', isClosed); reopenShiftBtn.classList.toggle('hidden', !isClosed); } else { closeShiftBtn.classList.add('hidden'); reopenShiftBtn.classList.add('hidden'); } }
-    async function completeTask(taskId, taskName, staffName) { if (!currentTaskRecord || currentTaskRecord.status === "closed") { alert("Shift closed"); return; } if (!staffName) { alert("Select staff"); return; } const doneTasks = { ...currentTaskRecord.doneTasks }; if (doneTasks[taskId]) { alert("Already completed"); return; } doneTasks[taskId] = { doneBy: staffName, doneAt: new Date().toISOString() }; await db.collection("taskRecords").doc(currentTaskRecord.id).set({ doneTasks }, { merge: true }); currentTaskRecord.doneTasks = doneTasks; renderTasks(); }
-    async function acknowledgeTask(taskId, taskName, staffName) { if (!currentTaskRecord || currentTaskRecord.status === "closed") { alert("Shift closed"); return; } if (!staffName) return; const ackTasks = { ...currentTaskRecord.acknowledgedTasks }; let acks = ackTasks[taskId] || []; if (acks.includes(staffName)) { alert("Already acknowledged"); return; } acks.push(staffName); ackTasks[taskId] = acks; await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); currentTaskRecord.acknowledgedTasks = ackTasks; renderTasks(); }
-    async function submitDropdown(taskId, taskName, selectedValue, additionalText, staffName) { if (!currentTaskRecord || currentTaskRecord.status === "closed") { alert("Shift closed"); return; } if (!selectedValue || !staffName) return; const selections = [...(currentTaskRecord.dropdownSelections || [])]; if (selections.find(s => s.taskId === taskId && s.staffName === staffName)) { alert("Already submitted"); return; } selections.push({ taskId, taskName, staffName, selectedValue, additionalText: additionalText || "", submittedAt: new Date().toISOString() }); await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); currentTaskRecord.dropdownSelections = selections; renderTasks(); }
-    async function closeShift() { if (!currentTaskRecord || currentTaskRecord.status === "closed") return; const pending = getPendingTasksCount(); if(pending > 0 && !confirm(`Pending ${pending} task(s). Close anyway?`)) return; await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true }); currentTaskRecord.status = "closed"; updateShiftStatusUI(); renderTasks(); renderAllocation(); }
-    async function reopenShiftFn() { if (!currentTaskRecord || currentTaskRecord.status !== "closed") return; if (!confirm("Reopen shift?")) return; await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "open" }, { merge: true }); currentTaskRecord.status = "open"; updateShiftStatusUI(); renderTasks(); }
-    function renderTasks() { if (!currentTaskRecord || !globalTasks.length) { if(tasksContainer) tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>'; return; } /* abbreviated but full logic integrated via original style */ const doneTasks = currentTaskRecord.doneTasks || {}; const ackTasks = currentTaskRecord.acknowledgedTasks || {}; const selections = currentTaskRecord.dropdownSelections || []; const tasksByCategory = {}; globalTasks.forEach(task => { const cat = task.category || "General"; if(!tasksByCategory[cat]) tasksByCategory[cat] = []; tasksByCategory[cat].push(task); }); let html = ''; for(const [cat, tasks] of Object.entries(tasksByCategory)){ html += `<div class="task-category"><div class="category-header"><div class="category-header-left"><i class="fas fa-folder"></i><span>${escapeHtml(cat)}</span></div></div><div class="category-tasks">`; tasks.forEach(task => { const isDone = doneTasks[task.id]; const taskAcks = ackTasks[task.id] || []; const taskSelections = selections.filter(s => s.taskId === task.id); if(currentRole === "staff" && currentTaskRecord?.status !== "closed"){ let controls = ''; if(task.type === 'done') controls = `<div class="flex-row"><select id="staffSel_${task.id}" class="action-select">${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select><button class="do-done" data-id="${task.id}">Complete</button></div>`; else if(task.type === 'acknowledge') controls = `<div class="flex-row"><select id="staffSel_${task.id}" class="action-select">${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select><button class="do-ack" data-id="${task.id}">Acknowledge</button></div>`; else controls = `<div class="flex-row"><select id="staffSel_${task.id}" class="action-select">${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select><select id="dropSel_${task.id}" class="action-dropdown">${task.options?.map(o=>`<option>${escapeHtml(o)}</option>`).join('')||''}</select><input id="addText_${task.id}" placeholder="Note" maxlength="5"><button class="do-drop" data-id="${task.id}">Submit</button></div>`; html += `<div class="task-item"><div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div></div>${controls}</div>`; } else { let statusHtml = ''; if(task.type==='done') statusHtml = isDone ? `✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}` : '⏳ Pending'; else if(task.type==='acknowledge') statusHtml = `✅ Acknowledged: ${taskAcks.join(', ')}`; else statusHtml = taskSelections.map(s=>`👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}`).join(', ')||'⏳ No submissions'; html += `<div class="task-item"><div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div></div><div class="completed-info">${statusHtml}</div></div>`; } }); html += `</div></div>`; } if(tasksContainer) tasksContainer.innerHTML = html; if(currentRole === "staff" && currentTaskRecord?.status !== "closed"){ document.querySelectorAll('.do-done').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); const sel=document.getElementById(`staffSel_${id}`); if(sel) await completeTask(id,"",sel.value); })); document.querySelectorAll('.do-ack').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); const sel=document.getElementById(`staffSel_${id}`); if(sel) await acknowledgeTask(id,"",sel.value); })); document.querySelectorAll('.do-drop').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); const staffSel=document.getElementById(`staffSel_${id}`); const dropSel=document.getElementById(`dropSel_${id}`); const addText=document.getElementById(`addText_${id}`); if(staffSel && dropSel) await submitDropdown(id,"",dropSel.value, addText?.value||"", staffSel.value); })); } const pendingCount = getPendingTasksCount(); if(tasksInfo) tasksInfo.innerHTML = currentTaskRecord?.status === "closed" ? "Shift closed" : `Pending: ${pendingCount}`; }
-    async function loadStaff() { if (!db) return; const snapshot = await db.collection("staff").orderBy("name").get(); staffList = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })); if(staffListContainer) staffListContainer.innerHTML = staffList.map(s => `<span class="staff-tag">👤 ${escapeHtml(s.name)}</span>`).join('') || '<span>No staff</span>'; }
-    async function addStaffMember(name) { if(!name.trim()) return; await db.collection("staff").add({ name: name.trim(), createdAt: new Date().toISOString() }); await loadStaff(); if(newStaffName) newStaffName.value = ""; }
-    async function addTask() { if(!newTaskName.value.trim()) return; const category = taskCategorySelect.value; if(!category) return; const newTask = { id: Date.now().toString(), name: newTaskName.value.trim(), category, type: taskTypeSelect.value, options: taskTypeSelect.value === 'dropdown' && dropdownOptions.value ? dropdownOptions.value.split(',').map(o=>o.trim()) : null }; await saveGlobalTasks([...globalTasks, newTask]); newTaskName.value = ""; if(dropdownOptions) dropdownOptions.value = ""; }
-    async function addCategory() { const newCat = newCategoryName.value.trim(); if(!newCat) return; if(getUniqueCategories().includes(newCat)) return; updateCategoryUI(); newCategoryName.value = ""; }
+    async function removeStaff(slotId, area, staffName) { 
+        if(!currentSODRecord) return; 
+        const allocations = {...currentSODRecord.allocations}; 
+        if(allocations[slotId] && allocations[slotId][area]){ 
+            allocations[slotId][area] = allocations[slotId][area].filter(s=>s!==staffName); 
+            await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); 
+            currentSODRecord.allocations=allocations; 
+            renderAllocation(); 
+        } 
+    }
+    
+    async function loadGlobalTasks() { 
+        if (!db) return; 
+        const docSnap = await db.collection("globalConfig").doc("tasks").get(); 
+        globalTasks = docSnap.exists ? docSnap.data().tasks || [] : []; 
+        updateCategoryUI(); 
+        renderTasks(); 
+    }
+    
+    async function saveGlobalTasks(tasks) { 
+        await db.collection("globalConfig").doc("tasks").set({ tasks }); 
+        globalTasks = tasks; 
+        updateCategoryUI(); 
+        renderTasks(); 
+    }
+    
+    async function loadTaskRecord() { 
+        if (!db || !currentDate || !currentShift) return; 
+        const recordId = getTaskRecordId(currentDate, currentShift); 
+        const docSnap = await db.collection("taskRecords").doc(recordId).get(); 
+        if (docSnap.exists) currentTaskRecord = { id: docSnap.id, ...docSnap.data() }; 
+        else { 
+            currentTaskRecord = { date: currentDate, shift: currentShift, status: "open", doneTasks: {}, acknowledgedTasks: {}, dropdownSelections: [] }; 
+            await db.collection("taskRecords").doc(recordId).set(currentTaskRecord); 
+            currentTaskRecord.id = recordId; 
+        } 
+        updateShiftStatusUI(); 
+        renderTasks(); 
+    }
+    
+    function updateShiftStatusUI() { 
+        const shiftStatusBadge = document.getElementById('shiftStatusBadge');
+        const closeShiftBtn = document.getElementById('closeShiftBtn');
+        const reopenShiftBtn = document.getElementById('reopenShiftBtn');
+        if (!shiftStatusBadge) return; 
+        const isClosed = currentTaskRecord?.status === "closed"; 
+        shiftStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open'; 
+        shiftStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`; 
+        if (currentRole === "supervisor" && closeShiftBtn && reopenShiftBtn) { 
+            closeShiftBtn.classList.toggle('hidden', isClosed); 
+            reopenShiftBtn.classList.toggle('hidden', !isClosed); 
+        } 
+    }
+    
+    async function completeTask(taskId, taskName, staffName) { 
+        if (!currentTaskRecord || currentTaskRecord.status === "closed") { alert("Shift closed"); return; } 
+        if (!staffName) { alert("Select staff"); return; } 
+        const doneTasks = { ...currentTaskRecord.doneTasks }; 
+        if (doneTasks[taskId]) { alert("Already completed"); return; } 
+        doneTasks[taskId] = { doneBy: staffName, doneAt: new Date().toISOString() }; 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ doneTasks }, { merge: true }); 
+        currentTaskRecord.doneTasks = doneTasks; 
+        renderTasks(); 
+    }
+    
+    async function acknowledgeTask(taskId, taskName, staffName) { 
+        if (!currentTaskRecord || currentTaskRecord.status === "closed") { alert("Shift closed"); return; } 
+        if (!staffName) return; 
+        const ackTasks = { ...currentTaskRecord.acknowledgedTasks }; 
+        let acks = ackTasks[taskId] || []; 
+        if (acks.includes(staffName)) { alert("Already acknowledged"); return; } 
+        acks.push(staffName); 
+        ackTasks[taskId] = acks; 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
+        currentTaskRecord.acknowledgedTasks = ackTasks; 
+        renderTasks(); 
+    }
+    
+    async function submitDropdown(taskId, taskName, selectedValue, additionalText, staffName) { 
+        if (!currentTaskRecord || currentTaskRecord.status === "closed") { alert("Shift closed"); return; } 
+        if (!selectedValue || !staffName) return; 
+        const selections = [...(currentTaskRecord.dropdownSelections || [])]; 
+        if (selections.find(s => s.taskId === taskId && s.staffName === staffName)) { alert("Already submitted"); return; } 
+        selections.push({ taskId, taskName, staffName, selectedValue, additionalText: additionalText || "", submittedAt: new Date().toISOString() }); 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
+        currentTaskRecord.dropdownSelections = selections; 
+        renderTasks(); 
+    }
+    
+    async function closeShift() { 
+        if (!currentTaskRecord || currentTaskRecord.status === "closed") return; 
+        const pending = getPendingTasksCount(); 
+        if(pending > 0 && !confirm(`Pending ${pending} task(s). Close anyway?`)) return; 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true }); 
+        currentTaskRecord.status = "closed"; 
+        updateShiftStatusUI(); 
+        renderTasks(); 
+        renderAllocation(); 
+    }
+    
+    async function reopenShiftFn() { 
+        if (!currentTaskRecord || currentTaskRecord.status !== "closed") return; 
+        if (!confirm("Reopen shift?")) return; 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "open" }, { merge: true }); 
+        currentTaskRecord.status = "open"; 
+        updateShiftStatusUI(); 
+        renderTasks(); 
+    }
+    
+    function renderTasks() { 
+        if (!currentTaskRecord || !globalTasks.length) { 
+            const tasksContainer = document.getElementById('tasksContainer');
+            if(tasksContainer) tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>'; 
+            return; 
+        } 
+        const doneTasks = currentTaskRecord.doneTasks || {}; 
+        const ackTasks = currentTaskRecord.acknowledgedTasks || {}; 
+        const selections = currentTaskRecord.dropdownSelections || []; 
+        const tasksByCategory = {}; 
+        globalTasks.forEach(task => { 
+            const cat = task.category || "General"; 
+            if(!tasksByCategory[cat]) tasksByCategory[cat] = []; 
+            tasksByCategory[cat].push(task); 
+        }); 
+        let html = ''; 
+        for(const [cat, tasks] of Object.entries(tasksByCategory)){ 
+            html += `<div class="task-category"><div class="category-header"><div class="category-header-left"><i class="fas fa-folder"></i><span>${escapeHtml(cat)}</span></div></div><div class="category-tasks">`; 
+            tasks.forEach(task => { 
+                if(currentRole === "staff" && currentTaskRecord?.status !== "closed"){ 
+                    let controls = ''; 
+                    const staffOptions = `<select id="staffSel_${task.id}" class="action-select"><option value="">-- Select staff --</option>${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select>`;
+                    if(task.type === 'done') controls = `<div class="flex-row">${staffOptions}<button class="do-done" data-id="${task.id}">Complete</button></div>`; 
+                    else if(task.type === 'acknowledge') controls = `<div class="flex-row">${staffOptions}<button class="do-ack" data-id="${task.id}">Acknowledge</button></div>`; 
+                    else controls = `<div class="flex-row">${staffOptions}<select id="dropSel_${task.id}" class="action-dropdown"><option value="">Select</option>${(task.options||[]).map(o=>`<option>${escapeHtml(o)}</option>`).join('')}</select><input id="addText_${task.id}" placeholder="Note" maxlength="5"><button class="do-drop" data-id="${task.id}">Submit</button></div>`; 
+                    html += `<div class="task-item"><div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div></div>${controls}</div>`; 
+                } else { 
+                    let statusHtml = ''; 
+                    if(task.type==='done') statusHtml = doneTasks[task.id] ? `✅ Completed by ${escapeHtml(doneTasks[task.id].doneBy)}` : '⏳ Pending'; 
+                    else if(task.type==='acknowledge') statusHtml = `✅ Acknowledged: ${(ackTasks[task.id]||[]).join(', ')}`; 
+                    else statusHtml = (selections.filter(s=>s.taskId===task.id).map(s=>`👤 ${escapeHtml(s.staffName)}: ${escapeHtml(s.selectedValue)}`).join(', '))||'⏳ No submissions'; 
+                    html += `<div class="task-item"><div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div></div><div class="completed-info">${statusHtml}</div></div>`; 
+                } 
+            }); 
+            html += `</div></div>`; 
+        } 
+        const tasksContainer = document.getElementById('tasksContainer');
+        if(tasksContainer) tasksContainer.innerHTML = html; 
+        if(currentRole === "staff" && currentTaskRecord?.status !== "closed"){ 
+            document.querySelectorAll('.do-done').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); const sel=document.getElementById(`staffSel_${id}`); if(sel) await completeTask(id,"",sel.value); })); 
+            document.querySelectorAll('.do-ack').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); const sel=document.getElementById(`staffSel_${id}`); if(sel) await acknowledgeTask(id,"",sel.value); })); 
+            document.querySelectorAll('.do-drop').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); const staffSel=document.getElementById(`staffSel_${id}`); const dropSel=document.getElementById(`dropSel_${id}`); const addText=document.getElementById(`addText_${id}`); if(staffSel && dropSel) await submitDropdown(id,"",dropSel.value, addText?.value||"", staffSel.value); })); 
+        } 
+        const pendingCount = getPendingTasksCount(); 
+        const tasksInfo = document.getElementById('tasksInfo');
+        if(tasksInfo) tasksInfo.innerHTML = currentTaskRecord?.status === "closed" ? "Shift closed" : `Pending: ${pendingCount}`; 
+    }
+    
+    async function loadStaff() { 
+        if (!db) return; 
+        const snapshot = await db.collection("staff").orderBy("name").get(); 
+        staffList = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })); 
+        const staffListContainer = document.getElementById('staffListContainer');
+        if(staffListContainer) staffListContainer.innerHTML = staffList.map(s => `<span class="staff-tag">👤 ${escapeHtml(s.name)}</span>`).join('') || '<span>No staff</span>'; 
+    }
+    
+    async function addStaffMember(name) { 
+        if(!name.trim()) return; 
+        await db.collection("staff").add({ name: name.trim(), createdAt: new Date().toISOString() }); 
+        await loadStaff(); 
+        const newStaffName = document.getElementById('newStaffName');
+        if(newStaffName) newStaffName.value = ""; 
+    }
+    
+    async function addTask() { 
+        const newTaskName = document.getElementById('newTaskName');
+        const taskCategorySelect = document.getElementById('taskCategorySelect');
+        const taskTypeSelect = document.getElementById('taskTypeSelect');
+        const dropdownOptions = document.getElementById('dropdownOptions');
+        if(!newTaskName.value.trim()) return; 
+        const category = taskCategorySelect.value; 
+        if(!category) return; 
+        const newTask = { id: Date.now().toString(), name: newTaskName.value.trim(), category, type: taskTypeSelect.value, options: taskTypeSelect.value === 'dropdown' && dropdownOptions.value ? dropdownOptions.value.split(',').map(o=>o.trim()) : null }; 
+        await saveGlobalTasks([...globalTasks, newTask]); 
+        newTaskName.value = ""; 
+        if(dropdownOptions) dropdownOptions.value = ""; 
+    }
+    
+    async function addCategory() { 
+        const newCategoryName = document.getElementById('newCategoryName');
+        const newCat = newCategoryName.value.trim(); 
+        if(!newCat) return; 
+        if(getUniqueCategories().includes(newCat)) return; 
+        updateCategoryUI(); 
+        newCategoryName.value = ""; 
+    }
+    
     async function refreshAll() { await loadSOD(); await loadTaskRecord(); }
-    async function onDateShiftChange() { if (currentRole !== "supervisor") return; currentDate = mainDate.value; currentShift = mainShift.value; localStorage.setItem('selectedDate', currentDate); localStorage.setItem('selectedShift', currentShift); await refreshAll(); }
-    function printAllocationSheet() { /* same as original */ if(!currentDate||!currentShift) return; const slots = currentShift === "Morning"? MORNING_SLOTS:EVENING_SLOTS; const allocations = currentSODRecord?.allocations||{}; let html = `<h2>Allocation ${currentDate} ${currentShift}</h2><table border="1"><tr><th>Area</th>${slots.map(s=>`<th>${s.name}</th>`).join('')}</tr>`; ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"].forEach(area=>{ html+=`<tr><td>${area}</td>`; slots.forEach(slot=>{ const assigned = (allocations[slot.id]?.[area]||[]).join(', ')||'—'; html+=`<td>${assigned}</td>`; }); html+=`</tr>`; }); const win = window.open('','_blank'); win.document.write(`<html><head><title>Allocation</title><style>body{font-family:Arial;}</style></head><body>${html}<script>window.print();setTimeout(window.close,500);<\/script></body></html>`); win.document.close(); }
-    function exportFullReport() { /* original style */ if(!currentDate||!currentShift) return; const slots = currentShift === "Morning"? MORNING_SLOTS:EVENING_SLOTS; const allocations = currentSODRecord?.allocations||{}; let allocHtml = `<h3>Staff Allocation</h3><table border="1"><tr><th>Area</th>${slots.map(s=>`<th>${s.name}</th>`).join('')}</tr>`; ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"].forEach(area=>{ allocHtml+=`<tr><td>${area}</td>`; slots.forEach(slot=>{ const assigned = (allocations[slot.id]?.[area]||[]).join(', ')||'—'; allocHtml+=`<td>${assigned}</td>`; }); allocHtml+=`</tr>`; }); let tasksHtml = '<h3>Tasks</h3><table border="1"><tr><th>Task</th><th>Status</th></tr>'; globalTasks.forEach(task=>{ let status = ''; if(task.type==='done') status = currentTaskRecord?.doneTasks?.[task.id] ? 'Completed' : 'Pending'; else status = 'Recorded'; tasksHtml+=`<tr><td>${task.name}</td><td>${status}</td></tr>`; }); tasksHtml+='</table>'; const win = window.open('','_blank'); win.document.write(`<html><head><title>Report ${currentDate}</title><style>body{font-family:Arial;}</style></head><body><h1>Shift Report ${currentDate} ${currentShift}</h1>${allocHtml}${tasksHtml}<script>window.print();setTimeout(window.close,500);<\/script></body></html>`); win.document.close(); }
-    function setRole(role) { if(role === "supervisor" && !isSupervisor) { if(passwordModal) passwordModal.classList.remove('hidden'); return; } currentRole = role; if(role === "supervisor"){ if(adminPanel) adminPanel.classList.remove("hidden"); staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled = false; mainShift.disabled = false; if(currentDate && currentShift) loadTaskRecord(); } else { if(adminPanel) adminPanel.classList.add("hidden"); supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled = true; mainShift.disabled = true; } renderAllocation(); renderTasks(); updateShiftStatusUI(); }
-    function verifyPassword() { if(typeof SUPERVISOR_PASSWORD !== 'undefined' && supervisorPassword.value === SUPERVISOR_PASSWORD){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); if(adminFeedback) adminFeedback.innerText = "Access granted"; } else if(passwordError) passwordError.innerText = "Wrong password"; }
+    
+    async function onDateShiftChange() { 
+        if (currentRole !== "supervisor") return; 
+        const mainDate = document.getElementById('mainDate');
+        const mainShift = document.getElementById('mainShift');
+        currentDate = mainDate.value; 
+        currentShift = mainShift.value; 
+        localStorage.setItem('selectedDate', currentDate); 
+        localStorage.setItem('selectedShift', currentShift); 
+        await refreshAll(); 
+    }
+    
+    function printAllocationSheet() { 
+        if(!currentDate||!currentShift) return; 
+        const slots = currentShift === "Morning"? MORNING_SLOTS:EVENING_SLOTS; 
+        const allocations = currentSODRecord?.allocations||{}; 
+        let html = `<h2>Allocation ${currentDate} ${currentShift}</h2><table border="1"><thead><tr><th>Area</th>${slots.map(s=>`<th>${s.name}</th>`).join('')}</tr></thead><tbody>`; 
+        ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"].forEach(area=>{ 
+            html+=`<tr><td>${area}</td>`; 
+            slots.forEach(slot=>{ const assigned = (allocations[slot.id]?.[area]||[]).join(', ')||'—'; html+=`<td>${assigned}</td>`; }); 
+            html+=`</tr>`; 
+        }); 
+        html+=`</tbody></table>`; 
+        const win = window.open('','_blank'); 
+        win.document.write(`<html><head><title>Allocation</title><style>body{font-family:Arial;}</style></head><body>${html}<script>window.print();setTimeout(window.close,500);<\/script></body></html>`); 
+        win.document.close(); 
+    }
+    
+    function exportFullReport() { 
+        if(!currentDate||!currentShift) return; 
+        const slots = currentShift === "Morning"? MORNING_SLOTS:EVENING_SLOTS; 
+        const allocations = currentSODRecord?.allocations||{}; 
+        let allocHtml = `<h3>Staff Allocation</h3><table border="1"><thead><tr><th>Area</th>${slots.map(s=>`<th>${s.name}</th>`).join('')}</tr></thead><tbody>`; 
+        ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"].forEach(area=>{ 
+            allocHtml+=`<tr><td>${area}</td>`; 
+            slots.forEach(slot=>{ const assigned = (allocations[slot.id]?.[area]||[]).join(', ')||'—'; allocHtml+=`<td>${assigned}</td>`; }); 
+            allocHtml+=`</tr>`; 
+        }); 
+        allocHtml+=`</tbody></table>`; 
+        let tasksHtml = '<h3>Tasks</h3><table border="1"><thead><tr><th>Task</th><th>Status</th></tr></thead><tbody>'; 
+        globalTasks.forEach(task=>{ let status = ''; if(task.type==='done') status = currentTaskRecord?.doneTasks?.[task.id] ? 'Completed' : 'Pending'; else status = 'Recorded'; tasksHtml+=`<tr><td>${task.name}</td><td>${status}</td></tr>`; }); 
+        tasksHtml+='</tbody></table>'; 
+        const win = window.open('','_blank'); 
+        win.document.write(`<html><head><title>Report ${currentDate}</title><style>body{font-family:Arial;}</style></head><body><h1>Shift Report ${currentDate} ${currentShift}</h1>${allocHtml}${tasksHtml}<script>window.print();setTimeout(window.close,500);<\/script></body></html>`); 
+        win.document.close(); 
+    }
+    
+    function setRole(role) { 
+        const staffRoleBtn = document.getElementById('staffRoleBtn');
+        const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
+        const adminPanel = document.getElementById('adminPanel');
+        const mainDate = document.getElementById('mainDate');
+        const mainShift = document.getElementById('mainShift');
+        const passwordModal = document.getElementById('passwordModal');
+        
+        if(role === "supervisor" && !isSupervisor) { 
+            if(passwordModal) passwordModal.classList.remove('hidden'); 
+            return; 
+        } 
+        currentRole = role; 
+        if(role === "supervisor"){ 
+            if(adminPanel) adminPanel.classList.remove("hidden"); 
+            if(staffRoleBtn) staffRoleBtn.classList.remove("active"); 
+            if(supervisorRoleBtn) supervisorRoleBtn.classList.add("active"); 
+            if(mainDate) mainDate.disabled = false; 
+            if(mainShift) mainShift.disabled = false; 
+            if(currentDate && currentShift) loadTaskRecord(); 
+        } else { 
+            if(adminPanel) adminPanel.classList.add("hidden"); 
+            if(supervisorRoleBtn) supervisorRoleBtn.classList.remove("active"); 
+            if(staffRoleBtn) staffRoleBtn.classList.add("active"); 
+            if(mainDate) mainDate.disabled = true; 
+            if(mainShift) mainShift.disabled = true; 
+        } 
+        renderAllocation(); 
+        renderTasks(); 
+        updateShiftStatusUI(); 
+    }
+    
+    function verifyPassword() { 
+        const supervisorPassword = document.getElementById('supervisorPassword');
+        const passwordModal = document.getElementById('passwordModal');
+        const passwordError = document.getElementById('passwordError');
+        if(typeof SUPERVISOR_PASSWORD !== 'undefined' && supervisorPassword.value === SUPERVISOR_PASSWORD){ 
+            isSupervisor=true; 
+            if(passwordModal) passwordModal.classList.add('hidden'); 
+            setRole("supervisor"); 
+            const adminFeedback = document.getElementById('adminFeedback');
+            if(adminFeedback) adminFeedback.innerText = "Access granted"; 
+        } else if(passwordError) passwordError.innerText = "Wrong password"; 
+    }
     
     function initApp() {
-        bindElements();
+        // Bind all DOM elements and set up event listeners
         const savedDate = localStorage.getItem('selectedDate');
         const savedShift = localStorage.getItem('selectedShift');
         currentDate = savedDate || new Date().toISOString().slice(0,10);
         currentShift = savedShift || "";
-        if(mainDate) mainDate.value = currentDate;
-        if(mainShift) mainShift.value = currentShift;
-        if(firestoreReady) { loadGlobalTasks(); loadStaff(); loadSOD(); loadTaskRecord(); }
-        if(mainDate) mainDate.addEventListener('change', onDateShiftChange);
-        if(mainShift) mainShift.addEventListener('change', onDateShiftChange);
+        
+        const mainDateInput = document.getElementById('mainDate');
+        const mainShiftSelect = document.getElementById('mainShift');
+        if(mainDateInput) mainDateInput.value = currentDate;
+        if(mainShiftSelect) mainShiftSelect.value = currentShift;
+        
+        if(firestoreReady) { 
+            loadGlobalTasks(); 
+            loadStaff(); 
+            loadSOD(); 
+            loadTaskRecord(); 
+        }
+        
+        if(mainDateInput) mainDateInput.addEventListener('change', onDateShiftChange);
+        if(mainShiftSelect) mainShiftSelect.addEventListener('change', onDateShiftChange);
+        
+        const staffRoleBtn = document.getElementById('staffRoleBtn');
+        const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
+        const addTaskBtn = document.getElementById('addTaskBtn');
+        const addStaffBtn = document.getElementById('addStaffBtn');
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        const closeShiftBtn = document.getElementById('closeShiftBtn');
+        const reopenShiftBtn = document.getElementById('reopenShiftBtn');
+        const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
+        const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
+        const exportFullPdfBtn = document.getElementById('exportFullPdfBtn');
+        const printAllocationBtn = document.getElementById('printAllocationBtn');
+        const toggleAdminBtn = document.getElementById('toggleAdminBtn');
+        const adminPanel = document.getElementById('adminPanel');
+        
         if(staffRoleBtn) staffRoleBtn.addEventListener('click', ()=>setRole("staff"));
         if(supervisorRoleBtn) supervisorRoleBtn.addEventListener('click', ()=>setRole("supervisor"));
         if(addTaskBtn) addTaskBtn.addEventListener('click', addTask);
-        if(addStaffBtn) addStaffBtn.addEventListener('click', ()=>addStaffMember(newStaffName.value));
+        if(addStaffBtn) {
+            const newStaffNameInput = document.getElementById('newStaffName');
+            addStaffBtn.addEventListener('click', ()=>addStaffMember(newStaffNameInput?.value || ""));
+        }
         if(addCategoryBtn) addCategoryBtn.addEventListener('click', addCategory);
         if(closeShiftBtn) closeShiftBtn.addEventListener('click', closeShift);
         if(reopenShiftBtn) reopenShiftBtn.addEventListener('click', reopenShiftFn);
         if(verifyPasswordBtn) verifyPasswordBtn.addEventListener('click', verifyPassword);
-        if(cancelPasswordBtn) cancelPasswordBtn.addEventListener('click', ()=>passwordModal.classList.add('hidden'));
+        if(cancelPasswordBtn) {
+            const passwordModal = document.getElementById('passwordModal');
+            cancelPasswordBtn.addEventListener('click', ()=>passwordModal?.classList.add('hidden'));
+        }
         if(exportFullPdfBtn) exportFullPdfBtn.addEventListener('click', exportFullReport);
         if(printAllocationBtn) printAllocationBtn.addEventListener('click', printAllocationSheet);
-        if(toggleAdminBtn) toggleAdminBtn.addEventListener('click', () => { isAdminCollapsed = !isAdminCollapsed; if(adminPanel) adminPanel.classList.toggle('collapsed', isAdminCollapsed); toggleAdminBtn.innerHTML = isAdminCollapsed ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>'; });
+        if(toggleAdminBtn && adminPanel) {
+            toggleAdminBtn.addEventListener('click', () => { 
+                isAdminCollapsed = !isAdminCollapsed; 
+                adminPanel.classList.toggle('collapsed', isAdminCollapsed); 
+                toggleAdminBtn.innerHTML = isAdminCollapsed ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>'; 
+            });
+        }
         setRole("staff");
     }
     
@@ -916,9 +1290,11 @@
         } else {
             deviceErrorSpan.innerText = "Invalid master password. Access denied.";
             devicePasswordInput.value = "";
+            devicePasswordInput.focus();
         }
     }
     
+    // Check if device is already authorized
     if (isDeviceAuthorized()) {
         deviceModal.classList.add('hidden');
         document.getElementById('appContent').style.display = 'block';
@@ -927,6 +1303,7 @@
         deviceModal.classList.remove('hidden');
         submitDeviceBtn.addEventListener('click', handleDeviceAuth);
         devicePasswordInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') handleDeviceAuth(); });
+        devicePasswordInput.focus();
     }
 </script>
 </body>
