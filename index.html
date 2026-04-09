@@ -246,12 +246,88 @@
             margin: 20px 0;
             font-size: 1rem;
         }
+        /* Device Auth Modal Styles */
+        .device-auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .device-auth-card {
+            background: white;
+            border-radius: 32px;
+            padding: 32px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            animation: fadeInScale 0.3s ease;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .device-auth-card i {
+            font-size: 4rem;
+            color: #1d6f8f;
+            margin-bottom: 16px;
+        }
+        .device-auth-card h2 {
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+            color: #1a4c6e;
+        }
+        .device-auth-card p {
+            font-size: 0.8rem;
+            color: #5a7a97;
+            margin-bottom: 20px;
+        }
+        .device-auth-card input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 40px;
+            border: 2px solid #e2eaf2;
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .device-auth-card input:focus {
+            outline: none;
+            border-color: #1d6f8f;
+        }
+        .device-auth-card button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .device-auth-card button:hover {
+            transform: translateY(-1px);
+        }
+        .device-auth-card button:active {
+            transform: translateY(1px);
+        }
+        .device-error {
+            color: #c62828;
+            font-size: 0.75rem;
+            margin-top: 12px;
+            font-weight: 500;
+        }
         .hidden {
             display: none;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
         }
         .readonly-note {
             font-size: 0.7rem;
@@ -266,7 +342,6 @@
             font-size: 0.7rem;
             color: #7e9bb5;
         }
-        /* Staff View Briefing Display */
         .staff-briefing-list {
             margin-top: 20px;
             max-height: 550px;
@@ -304,7 +379,6 @@
             line-height: 1.6;
             color: #2c3e50;
         }
-        /* Supervisor Briefings List */
         .supervisor-briefing-list {
             margin-top: 20px;
             max-height: 400px;
@@ -354,10 +428,23 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8aa9c4;
+            font-size: 0.9rem;
+        }
+        .badge {
+            background: #eef2f8;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
-<div class="container">
+<div class="container" id="appContainer" style="display: none;">
     <div class="header">
         <h1><i class="fas fa-scroll"></i> Briefing Minutes · Point Log</h1>
         <p>View and manage daily briefing notes</p>
@@ -463,10 +550,56 @@
     </div>
 </div>
 
-<script>
-    // SUPERVISOR_PASSWORD is loaded from config.js
-    // Firebase is initialized from fire.js
+<!-- Device Authorization Modal (First-time entry) -->
+<div id="deviceAuthModal" class="device-auth-overlay">
+    <div class="device-auth-card">
+        <i class="fas fa-microchip"></i>
+        <h2>Device Authorization</h2>
+        <p>This device needs to be authorized.<br>Enter the master password to register this device.</p>
+        <input type="password" id="devicePasswordInput" placeholder="Enter Device Authorization Password" autocomplete="off">
+        <button id="authorizeDeviceBtn">Authorize Device</button>
+        <div id="deviceAuthError" class="device-error"></div>
+    </div>
+</div>
 
+<script>
+    // ========== DEVICE AUTHORIZATION SYSTEM ==========
+    const DEVICE_STORAGE_KEY = "briefing_vault_device_authorized";
+    
+    // Get master password from config.js
+    let DEVICE_MASTER_PASSWORD = null;
+    
+    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
+        DEVICE_MASTER_PASSWORD = MASTER_PASSWORD_GLOBAL;
+        console.log("Device auth: Using MASTER_PASSWORD_GLOBAL");
+    } else if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
+        DEVICE_MASTER_PASSWORD = SUPERVISOR_PASSWORD;
+        console.log("Device auth: Using SUPERVISOR_PASSWORD");
+    } else {
+        DEVICE_MASTER_PASSWORD = "Admin123";
+        console.warn("Device auth: Using fallback password 'Admin123'");
+    }
+    
+    function isDeviceAuthorized() {
+        return localStorage.getItem(DEVICE_STORAGE_KEY) === "true";
+    }
+    
+    function authorizeDevice(password) {
+        if (password === DEVICE_MASTER_PASSWORD) {
+            localStorage.setItem(DEVICE_STORAGE_KEY, "true");
+            localStorage.setItem("briefing_vault_authorized_at", new Date().toISOString());
+            return true;
+        }
+        return false;
+    }
+    
+    // Optional: Reset device auth from console
+    window.resetDeviceAuth = function() {
+        localStorage.removeItem(DEVICE_STORAGE_KEY);
+        location.reload();
+    };
+    
+    // ========== FIREBASE INITIALIZATION ==========
     let db, firestoreReady = false;
     
     if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
@@ -477,11 +610,9 @@
         } catch (err) {
             console.error("Firestore init error:", err);
             firestoreReady = false;
-            alert("❌ Firestore error. Check fire.js");
         }
     } else {
         console.error("Firebase not initialized.");
-        alert("❌ fire.js not loaded. Please make sure fire.js is in the same directory.");
         firestoreReady = false;
     }
     
@@ -491,14 +622,12 @@
     let isLoading = false;
     let isSupervisorMode = false;
     
-    // DOM elements - Staff View
+    // DOM elements
     const staffPanel = document.getElementById('staffPanel');
     const supervisorPanel = document.getElementById('supervisorPanel');
     const staffDate = document.getElementById('staffDate');
     const staffBriefingsContainer = document.getElementById('staffBriefingsContainer');
     const staffFeedback = document.getElementById('staffFeedback');
-    
-    // DOM elements - Supervisor View
     const supervisorDate = document.getElementById('supervisorDate');
     const supervisorBriefingsList = document.getElementById('supervisorBriefingsList');
     const supervisorSelect = document.getElementById('supervisorSelect');
@@ -510,8 +639,6 @@
     const deleteCurrentBtn = document.getElementById('deleteCurrentBtn');
     const formFeedback = document.getElementById('formFeedback');
     const formModeBadge = document.getElementById('formModeBadge');
-    
-    // DOM elements - Common
     const staffRoleBtn = document.getElementById('staffRoleBtn');
     const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const passwordModal = document.getElementById('passwordModal');
@@ -660,7 +787,6 @@
         // Add click event to load briefing into edit form
         document.querySelectorAll('.supervisor-briefing-card').forEach(card => {
             card.addEventListener('click', () => {
-                // Remove selected class from all
                 document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
                 
@@ -691,7 +817,6 @@
         });
     }
     
-    // Reset form for new entry
     function resetFormToNew() {
         currentEditId = null;
         formModeBadge.innerHTML = '✨ New Entry';
@@ -700,8 +825,6 @@
         pointsTextarea.value = "";
         autoLoadStatus.innerHTML = "";
         formFeedback.innerHTML = "";
-        
-        // Remove selected class from cards
         document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected'));
     }
     
@@ -757,7 +880,6 @@
             }
             formFeedback.className = 'status-msg success-msg';
             
-            // Refresh both views
             await loadSupervisorBriefings();
             if (staffDate.value === dateVal) {
                 await loadStaffBriefings();
@@ -900,7 +1022,7 @@
         }
     }
     
-    async function init() {
+    async function initApp() {
         const todayStr = getTodayDate();
         staffDate.value = todayStr;
         supervisorDate.value = todayStr;
@@ -927,7 +1049,40 @@
         });
     }
     
-    init();
+    // ========== DEVICE AUTHORIZATION FLOW ==========
+    const deviceModal = document.getElementById('deviceAuthModal');
+    const devicePasswordInput = document.getElementById('devicePasswordInput');
+    const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
+    const deviceAuthError = document.getElementById('deviceAuthError');
+    const appContainer = document.getElementById('appContainer');
+
+    function handleDeviceAuthorization() {
+        const enteredPassword = devicePasswordInput.value;
+        if (authorizeDevice(enteredPassword)) {
+            deviceModal.style.display = 'none';
+            appContainer.style.display = 'block';
+            initApp();
+        } else {
+            deviceAuthError.textContent = 'Invalid authorization password. Access denied.';
+            devicePasswordInput.value = '';
+            devicePasswordInput.focus();
+        }
+    }
+
+    // Check if device is already authorized
+    if (isDeviceAuthorized()) {
+        deviceModal.style.display = 'none';
+        appContainer.style.display = 'block';
+        initApp();
+    } else {
+        deviceModal.style.display = 'flex';
+        appContainer.style.display = 'none';
+        authorizeDeviceBtn.addEventListener('click', handleDeviceAuthorization);
+        devicePasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleDeviceAuthorization();
+        });
+        devicePasswordInput.focus();
+    }
 </script>
 </body>
 </html>
