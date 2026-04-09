@@ -126,31 +126,23 @@
         }
         .form-group input:disabled, .form-group select:disabled {
             background: #f5f7fa;
-            color: #888;
+            color: #666;
             cursor: not-allowed;
-        }
-        .form-group input:focus, .form-group select:focus, .big-textarea:focus {
-            border-color: #2c7da0;
-            box-shadow: 0 0 0 3px rgba(44,125,160,0.15);
         }
         .big-textarea {
             width: 100%;
             padding: 18px 22px;
             border-radius: 28px;
             border: 1.5px solid #e2eaf2;
-            background: #ffffff;
+            background: #f5f7fa;
             font-size: 0.95rem;
             line-height: 1.6;
             resize: vertical;
             min-height: 280px;
             font-family: 'Inter', monospace;
-            transition: 0.2s;
+            color: #1a2c3e;
+            cursor: default;
             outline: none;
-        }
-        .big-textarea:disabled {
-            background: #f5f7fa;
-            color: #888;
-            cursor: not-allowed;
         }
         .action-buttons {
             display: flex;
@@ -351,22 +343,6 @@
             font-size: 0.8rem;
             font-weight: 500;
         }
-        .firebase-badge {
-            background: #e8f0fe;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 0.8rem;
-        }
-        .warning-msg {
-            background: #fff3e0;
-            color: #c97e00;
-            border-left: 3px solid #ff9800;
-        }
-        .success-msg {
-            background: #e0f7e8;
-            color: #2e7d32;
-            border-left: 3px solid #4caf50;
-        }
         .info-msg {
             background: #e3f2fd;
             color: #1565c0;
@@ -413,6 +389,13 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+        .readonly-note {
+            font-size: 0.7rem;
+            color: #7c9ab8;
+            margin-top: 8px;
+            text-align: center;
+            font-style: italic;
+        }
         footer {
             text-align: center;
             margin-top: 40px;
@@ -433,20 +416,21 @@
     </div>
 
     <div class="dashboard">
-        <div class="entry-panel">
+        <!-- STAFF VIEW PANEL - Read Only -->
+        <div class="entry-panel" id="staffViewPanel">
             <div class="card">
                 <div class="card-title">
-                    <i class="fas fa-pen-fancy" style="color:#2c7da0;"></i> 
-                    <span>Briefing Entry</span>
-                    <span id="formModeBadge" class="badge-date" style="margin-left: auto;">✨ View Only</span>
+                    <i class="fas fa-eye" style="color:#2c7da0;"></i> 
+                    <span>View Briefing Notes</span>
+                    <span class="badge-date" style="margin-left: auto;">👁️ Read Only</span>
                 </div>
                 <div class="form-group">
-                    <label><i class="far fa-calendar-alt"></i> Date</label>
-                    <input type="date" id="entryDate" value="" disabled>
+                    <label><i class="far fa-calendar-alt"></i> Select Date</label>
+                    <input type="date" id="viewDate" value="">
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-user-tie"></i> Supervisor</label>
-                    <select id="supervisorSelect" disabled>
+                    <select id="viewSupervisor">
                         <option value="">-- Select Supervisor --</option>
                         <option value="Sobah">Sobah</option>
                         <option value="Shiara">Shiara</option>
@@ -458,7 +442,50 @@
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-clock"></i> Shift</label>
-                    <select id="shiftSelect" disabled>
+                    <select id="viewShift">
+                        <option value="">-- Select Shift --</option>
+                        <option value="Morning">🌅 Morning</option>
+                        <option value="Afternoon">🌇 Afternoon</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-file-lines"></i> Briefing Notes / Points</label>
+                    <textarea id="viewPointsText" class="big-textarea" placeholder="Select Date, Supervisor and Shift to view briefing notes..." readonly></textarea>
+                </div>
+                <div id="viewFeedback" class="status-msg info-msg"></div>
+                <div class="readonly-note">
+                    <i class="fas fa-info-circle"></i> Staff view - Read only. Contact supervisor for modifications.
+                </div>
+            </div>
+        </div>
+
+        <!-- SUPERVISOR VIEW PANEL - Editable (Hidden by default) -->
+        <div class="entry-panel hidden" id="supervisorViewPanel">
+            <div class="card">
+                <div class="card-title">
+                    <i class="fas fa-pen-fancy" style="color:#2c7da0;"></i> 
+                    <span>Briefing Entry (Edit Mode)</span>
+                    <span id="formModeBadge" class="badge-date" style="margin-left: auto;">✏️ Edit Mode</span>
+                </div>
+                <div class="form-group">
+                    <label><i class="far fa-calendar-alt"></i> Date</label>
+                    <input type="date" id="entryDate" value="">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-user-tie"></i> Supervisor</label>
+                    <select id="supervisorSelect">
+                        <option value="">-- Select Supervisor --</option>
+                        <option value="Sobah">Sobah</option>
+                        <option value="Shiara">Shiara</option>
+                        <option value="Musrifa">Musrifa</option>
+                        <option value="Hussain">Hussain</option>
+                        <option value="Inaz">Inaz</option>
+                        <option value="Hamdulla">Hamdulla</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-clock"></i> Shift</label>
+                    <select id="shiftSelect">
                         <option value="">-- Select Shift --</option>
                         <option value="Morning">🌅 Morning</option>
                         <option value="Afternoon">🌇 Afternoon</option>
@@ -466,17 +493,18 @@
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-file-lines"></i> Briefing Notes / Points <span id="autoLoadStatus" class="loading-indicator"></span></label>
-                    <textarea id="pointsText" class="big-textarea" placeholder="Select Date, Supervisor and Shift to view notes..." disabled></textarea>
+                    <textarea id="pointsText" class="big-textarea" style="background: white; cursor: text;" placeholder="Select Date, Supervisor and Shift to load existing notes...&#10;Then edit or add more content, then click Save."></textarea>
                 </div>
                 <div class="action-buttons">
-                    <button id="saveBtn" class="btn-primary" disabled><i class="fas fa-save"></i> Save</button>
-                    <button id="clearFormBtn" class="btn-secondary" disabled><i class="fas fa-eraser"></i> Clear</button>
-                    <button id="deleteCurrentBtn" class="btn-outline" disabled><i class="fas fa-trash-alt"></i> Delete</button>
+                    <button id="saveBtn" class="btn-primary"><i class="fas fa-save"></i> Save</button>
+                    <button id="clearFormBtn" class="btn-secondary"><i class="fas fa-eraser"></i> Clear</button>
+                    <button id="deleteCurrentBtn" class="btn-outline"><i class="fas fa-trash-alt"></i> Delete</button>
                 </div>
                 <div id="formFeedback" class="status-msg"></div>
             </div>
         </div>
 
+        <!-- History Panel (Common for both views) -->
         <div class="history-panel">
             <div class="card">
                 <div class="card-title">
@@ -541,9 +569,16 @@
     let isLoading = false;
     let isSupervisorMode = false;
     
-    // DOM elements
-    const staffRoleBtn = document.getElementById('staffRoleBtn');
-    const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
+    // DOM elements - Staff View
+    const staffViewPanel = document.getElementById('staffViewPanel');
+    const supervisorViewPanel = document.getElementById('supervisorViewPanel');
+    const viewDate = document.getElementById('viewDate');
+    const viewSupervisor = document.getElementById('viewSupervisor');
+    const viewShift = document.getElementById('viewShift');
+    const viewPointsText = document.getElementById('viewPointsText');
+    const viewFeedback = document.getElementById('viewFeedback');
+    
+    // DOM elements - Supervisor View
     const dateInput = document.getElementById('entryDate');
     const supervisorSelect = document.getElementById('supervisorSelect');
     const shiftSelect = document.getElementById('shiftSelect');
@@ -554,6 +589,10 @@
     const deleteCurrentBtn = document.getElementById('deleteCurrentBtn');
     const formFeedback = document.getElementById('formFeedback');
     const formModeBadge = document.getElementById('formModeBadge');
+    
+    // DOM elements - Common
+    const staffRoleBtn = document.getElementById('staffRoleBtn');
+    const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const viewDatePicker = document.getElementById('viewDatePicker');
     const refreshViewBtn = document.getElementById('refreshViewBtn');
     const historyEntriesContainer = document.getElementById('historyEntriesContainer');
@@ -570,44 +609,67 @@
         return today.toISOString().slice(0,10);
     }
     
-    function enableEditMode(enable) {
-        dateInput.disabled = !enable;
-        supervisorSelect.disabled = !enable;
-        shiftSelect.disabled = !enable;
-        pointsTextarea.disabled = !enable;
-        saveBtn.disabled = !enable;
-        clearFormBtn.disabled = !enable;
-        deleteCurrentBtn.disabled = !enable;
+    // Staff View: Load briefing
+    async function loadStaffBriefing() {
+        if (!firestoreReady) {
+            viewPointsText.value = "Firebase not connected.";
+            return;
+        }
         
-        if (enable) {
-            formModeBadge.innerHTML = '✏️ Edit Mode (Supervisor)';
-            formModeBadge.style.background = '#fff3e0';
-        } else {
-            formModeBadge.innerHTML = '👁️ View Only (Staff)';
-            formModeBadge.style.background = '#eef2f8';
+        const dateVal = viewDate.value;
+        const supervisor = viewSupervisor.value;
+        const shift = viewShift.value;
+        
+        if (!dateVal || !supervisor || !shift) {
+            viewPointsText.value = "Please select Date, Supervisor and Shift to view briefing notes.";
+            viewFeedback.innerHTML = "⏳ Select all fields to view briefing notes";
+            return;
+        }
+        
+        viewFeedback.innerHTML = "🔍 Loading briefing notes...";
+        
+        try {
+            const snapshot = await db.collection("briefingMinutes")
+                .where("date", "==", dateVal)
+                .get();
+            
+            const existing = snapshot.docs.find(doc => {
+                const data = doc.data();
+                return data.supervisor === supervisor && data.shift === shift;
+            });
+            
+            if (existing) {
+                const data = existing.data();
+                viewPointsText.value = data.pointsText || '';
+                viewFeedback.innerHTML = `✅ Briefing notes for ${supervisor} (${shift}) on ${dateVal}`;
+                viewFeedback.className = 'status-msg info-msg';
+            } else {
+                viewPointsText.value = "No briefing notes found for the selected criteria.";
+                viewFeedback.innerHTML = "📝 No briefing notes available for this selection.";
+                viewFeedback.className = 'status-msg info-msg';
+            }
+        } catch (err) {
+            console.error(err);
+            viewPointsText.value = "Error loading briefing notes.";
+            viewFeedback.innerHTML = "⚠️ Error loading data.";
         }
     }
     
+    // Supervisor View Functions
     function resetFormToNew(dateValue = null) {
         currentEditId = null;
+        formModeBadge.innerHTML = '✨ New Entry Mode';
         const targetDate = dateValue || currentSelectedDate;
         dateInput.value = targetDate;
-        if (!isSupervisorMode) {
-            // In staff mode, just display values but don't allow editing
-            supervisorSelect.value = "";
-            shiftSelect.value = "";
-            pointsTextarea.value = "";
-        } else {
-            supervisorSelect.value = "";
-            shiftSelect.value = "";
-            pointsTextarea.value = "";
-        }
+        supervisorSelect.value = "";
+        shiftSelect.value = "";
+        pointsTextarea.value = "";
         autoLoadStatus.innerHTML = "";
     }
     
     function loadEntryForEdit(entry) {
-        if (!isSupervisorMode) return;
         currentEditId = entry.id;
+        formModeBadge.innerHTML = '✏️ Editing Existing Entry';
         dateInput.value = entry.date;
         supervisorSelect.value = entry.supervisor;
         shiftSelect.value = entry.shift;
@@ -633,9 +695,7 @@
         if (!date || !supervisor || !shift) return null;
         
         isLoading = true;
-        if (isSupervisorMode) {
-            autoLoadStatus.innerHTML = "🔍 Loading...";
-        }
+        autoLoadStatus.innerHTML = "🔍 Loading...";
         
         try {
             const snapshot = await db.collection("briefingMinutes")
@@ -649,42 +709,18 @@
             
             if (existing) {
                 const entryData = { id: existing.id, ...existing.data() };
-                if (isSupervisorMode) {
-                    loadEntryForEdit(entryData);
-                } else {
-                    // Staff mode - just display, don't allow edit
-                    currentEditId = entryData.id;
-                    dateInput.value = entryData.date;
-                    supervisorSelect.value = entryData.supervisor;
-                    shiftSelect.value = entryData.shift;
-                    pointsTextarea.value = entryData.pointsText || '';
-                    autoLoadStatus.innerHTML = "✓ Loaded (Read Only)";
-                    setTimeout(() => {
-                        if (autoLoadStatus.innerHTML === "✓ Loaded (Read Only)") {
-                            autoLoadStatus.innerHTML = "";
-                        }
-                    }, 2000);
-                }
+                loadEntryForEdit(entryData);
                 return entryData;
             } else {
                 currentEditId = null;
-                if (isSupervisorMode) {
-                    pointsTextarea.value = "";
-                    autoLoadStatus.innerHTML = "📝 No existing notes. Create new.";
-                    setTimeout(() => {
-                        if (autoLoadStatus.innerHTML === "📝 No existing notes. Create new.") {
-                            autoLoadStatus.innerHTML = "";
-                        }
-                    }, 2000);
-                } else {
-                    pointsTextarea.value = "";
-                    autoLoadStatus.innerHTML = "📝 No notes found";
-                    setTimeout(() => {
-                        if (autoLoadStatus.innerHTML === "📝 No notes found") {
-                            autoLoadStatus.innerHTML = "";
-                        }
-                    }, 2000);
-                }
+                formModeBadge.innerHTML = '✨ New Entry Mode';
+                pointsTextarea.value = "";
+                autoLoadStatus.innerHTML = "📝 No existing notes. Create new.";
+                setTimeout(() => {
+                    if (autoLoadStatus.innerHTML === "📝 No existing notes. Create new.") {
+                        autoLoadStatus.innerHTML = "";
+                    }
+                }, 2000);
                 return null;
             }
         } catch (err) {
@@ -719,6 +755,7 @@
         } else {
             if (!isLoading) {
                 currentEditId = null;
+                formModeBadge.innerHTML = '✨ New Entry Mode';
                 pointsTextarea.value = "";
                 autoLoadStatus.innerHTML = "";
             }
@@ -747,12 +784,6 @@
     async function saveEntry() {
         if (!firestoreReady) {
             formFeedback.innerHTML = "❌ Firebase not connected.";
-            formFeedback.className = 'status-msg warning-msg';
-            return;
-        }
-        
-        if (!isSupervisorMode) {
-            formFeedback.innerHTML = "❌ Only supervisors can save entries.";
             formFeedback.className = 'status-msg warning-msg';
             return;
         }
@@ -834,13 +865,6 @@
             formFeedback.className = 'status-msg warning-msg';
             return;
         }
-        
-        if (!isSupervisorMode) {
-            formFeedback.innerHTML = "❌ Only supervisors can delete entries.";
-            formFeedback.className = 'status-msg warning-msg';
-            return;
-        }
-        
         if (!confirm("Delete this briefing minute? Action permanent.")) return;
         try {
             await db.collection("briefingMinutes").doc(entryId).delete();
@@ -948,10 +972,10 @@
                         <span class="supervisor-name"><i class="fas fa-user-check"></i> ${safeSupervisor}</span>
                         <span class="shift-badge"><i class="fas fa-clock"></i> ${safeShift}</span>
                     </div>
-                    <div class="entry-actions-icon">
-                        ${isSupervisorMode ? `<i class="fas fa-edit edit-entry" data-id="${entry.id}" title="Edit this briefing"></i>` : ''}
-                        ${isSupervisorMode ? `<i class="fas fa-trash-alt delete-entry" data-id="${entry.id}" title="Delete this briefing"></i>` : ''}
-                    </div>
+                    ${isSupervisorMode ? `<div class="entry-actions-icon">
+                        <i class="fas fa-edit edit-entry" data-id="${entry.id}" title="Edit this briefing"></i>
+                        <i class="fas fa-trash-alt delete-entry" data-id="${entry.id}" title="Delete this briefing"></i>
+                    </div>` : ''}
                 </div>
                 <div class="briefing-content">${safePoints}</div>
             `;
@@ -997,14 +1021,7 @@
             const docSnap = await docRef.get();
             if (docSnap.exists) {
                 const entryData = { id: docSnap.id, ...docSnap.data() };
-                if (isSupervisorMode) {
-                    loadEntryForEdit(entryData);
-                } else {
-                    dateInput.value = entryData.date;
-                    supervisorSelect.value = entryData.supervisor;
-                    shiftSelect.value = entryData.shift;
-                    pointsTextarea.value = entryData.pointsText || '';
-                }
+                loadEntryForEdit(entryData);
             } else {
                 formFeedback.innerHTML = "Entry does not exist.";
                 formFeedback.className = 'status-msg warning-msg';
@@ -1033,10 +1050,6 @@
     }
     
     function handleClearForm() {
-        if (!isSupervisorMode) {
-            formFeedback.innerHTML = "ℹ️ Only supervisors can clear the form.";
-            return;
-        }
         resetFormToNew(getTodayDate());
         formFeedback.innerHTML = "Form cleared. Ready for new entry.";
         formFeedback.className = 'status-msg success-msg';
@@ -1072,31 +1085,57 @@
     
     function setSupervisorMode(enable) {
         isSupervisorMode = enable;
-        enableEditMode(enable);
         
         if (enable) {
+            // Show supervisor panel, hide staff panel
+            staffViewPanel.classList.add('hidden');
+            supervisorViewPanel.classList.remove('hidden');
             staffRoleBtn.classList.remove('active');
             supervisorRoleBtn.classList.add('active');
+            
+            // Initialize supervisor form
+            const todayStr = getTodayDate();
+            dateInput.value = todayStr;
+            currentSelectedDate = todayStr;
+            resetFormToNew(todayStr);
+            
+            // Reload history with edit buttons
+            const currentViewDate = viewDatePicker.value;
+            if (currentViewDate) {
+                loadEntriesForViewDate(currentViewDate);
+            }
+            
             formFeedback.innerHTML = "✅ Supervisor mode enabled. You can edit and add entries.";
             formFeedback.className = 'status-msg success-msg';
         } else {
+            // Show staff panel, hide supervisor panel
+            staffViewPanel.classList.remove('hidden');
+            supervisorViewPanel.classList.add('hidden');
             supervisorRoleBtn.classList.remove('active');
             staffRoleBtn.classList.add('active');
-            formFeedback.innerHTML = "👁️ Staff mode enabled. View only.";
-            formFeedback.className = 'status-msg info-msg';
+            
+            // Initialize staff view
+            const todayStr = getTodayDate();
+            viewDate.value = todayStr;
+            
+            // Reload history without edit buttons
+            const currentViewDate = viewDatePicker.value;
+            if (currentViewDate) {
+                loadEntriesForViewDate(currentViewDate);
+            }
+            
+            // Clear staff view fields
+            viewPointsText.value = "";
+            viewFeedback.innerHTML = "";
+            viewSupervisor.value = "";
+            viewShift.value = "";
+            
+            viewFeedback.innerHTML = "👁️ Staff view - Read only. Select date, supervisor and shift to view briefing notes.";
+            viewFeedback.className = 'status-msg info-msg';
         }
-        
-        // Reload current view to show/hide edit buttons
-        const currentViewDate = viewDatePicker.value;
-        if (currentViewDate) {
-            loadEntriesForViewDate(currentViewDate);
-        }
-        
-        // Reload current selection in entry panel
-        onSelectionChange();
         
         setTimeout(() => {
-            if(formFeedback.innerHTML.includes('mode')) {
+            if(formFeedback && formFeedback.innerHTML && formFeedback.innerHTML.includes('mode')) {
                 formFeedback.innerHTML = '';
                 formFeedback.className = 'status-msg';
             }
@@ -1125,10 +1164,9 @@
     
     async function init() {
         const todayStr = getTodayDate();
-        currentSelectedDate = todayStr;
-        dateInput.value = todayStr;
+        viewDate.value = todayStr;
         viewDatePicker.value = todayStr;
-        resetFormToNew(todayStr);
+        dateInput.value = todayStr;
         
         if (firestoreReady) {
             await loadEntriesForViewDate(todayStr);
@@ -1137,12 +1175,20 @@
         // Set initial mode to staff (read-only)
         setSupervisorMode(false);
         
+        // Staff view event listeners
+        viewDate.addEventListener('change', loadStaffBriefing);
+        viewSupervisor.addEventListener('change', loadStaffBriefing);
+        viewShift.addEventListener('change', loadStaffBriefing);
+        
+        // Supervisor view event listeners
         saveBtn.addEventListener('click', saveEntry);
         clearFormBtn.addEventListener('click', handleClearForm);
         deleteCurrentBtn.addEventListener('click', deleteCurrentEditing);
         dateInput.addEventListener('change', onLeftDateChange);
         supervisorSelect.addEventListener('change', onSelectionChange);
         shiftSelect.addEventListener('change', onSelectionChange);
+        
+        // Common event listeners
         refreshViewBtn.addEventListener('click', () => {
             const selectedDate = viewDatePicker.value;
             if (selectedDate && firestoreReady) loadEntriesForViewDate(selectedDate);
