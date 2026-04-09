@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Passenger Survey · Feedback System</title>
+    <title>Passenger Survey · Share Your Experience</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -23,86 +23,67 @@
             font-family: 'Inter', sans-serif;
         }
         body {
-            background: linear-gradient(135deg, #e8f0fe 0%, #dce4f0 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
         }
-        /* Header */
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
+        /* Main Survey Card */
+        .survey-wrapper {
+            background: rgba(255,255,255,0.95);
+            border-radius: 48px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
         }
-        .header h1 {
+        .survey-header {
+            background: linear-gradient(135deg, #1a4c6e, #2c6e8f);
+            padding: 40px 40px 30px;
+            text-align: center;
+            color: white;
+        }
+        .survey-header h1 {
             font-size: 2.2rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #1a4c6e, #2c6e8f);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-        }
-        .header p {
-            color: #5a7a97;
-            margin-top: 5px;
-        }
-        /* Role Tabs */
-        .tabs {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        .tab-btn {
-            background: white;
-            border: none;
-            padding: 12px 32px;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        .tab-btn.active {
-            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
-            color: white;
-            box-shadow: 0 4px 12px rgba(29,111,143,0.3);
-        }
-        /* Main Content */
-        .content-panel {
-            display: none;
-        }
-        .content-panel.active {
-            display: block;
-        }
-        /* Survey Form */
-        .survey-card, .admin-card, .results-card {
-            background: white;
-            border-radius: 32px;
-            padding: 32px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-        }
-        .survey-title {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #1a4c6e;
             margin-bottom: 10px;
         }
-        .survey-subtitle {
-            color: #7c9ab8;
+        .survey-header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+        .rating-emoji {
+            font-size: 3rem;
+            margin-top: 15px;
+        }
+        /* Category Sections */
+        .category-section {
             margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #eef2f8;
+            background: white;
+            border-radius: 32px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .category-title {
+            background: linear-gradient(135deg, #f8fbfe, #eef3fc);
+            padding: 18px 25px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1a4c6e;
+            border-left: 5px solid #2c7da0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .category-questions {
+            padding: 20px 25px;
         }
         .question-item {
             margin-bottom: 28px;
-            padding: 20px;
+            padding: 18px;
             background: #fafdff;
             border-radius: 24px;
             border: 1px solid #eef2f8;
@@ -118,35 +99,69 @@
             color: #1a4c6e;
             margin-bottom: 15px;
         }
+        /* Rating Options with Emojis */
         .rating-options {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             flex-wrap: wrap;
         }
         .rating-option {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             cursor: pointer;
-            padding: 8px 16px;
+            padding: 10px 18px;
             background: white;
-            border-radius: 40px;
-            border: 1.5px solid #e2eaf2;
+            border-radius: 60px;
+            border: 2px solid #e2eaf2;
             transition: all 0.2s;
+            min-width: 70px;
         }
         .rating-option:hover {
             border-color: #2c7da0;
             background: #eef3fc;
+            transform: translateY(-2px);
+        }
+        .rating-option.selected {
+            border-color: #1d6f8f;
+            background: linear-gradient(135deg, #e8f4f8, #d4eaf2);
         }
         .rating-option input {
-            accent-color: #1d6f8f;
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
+            display: none;
         }
+        .rating-emoji-icon {
+            font-size: 1.8rem;
+        }
+        .rating-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        /* Smiley Rating */
+        .smiley-rating {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .smiley-option {
+            text-align: center;
+            cursor: pointer;
+            padding: 10px 15px;
+            border-radius: 60px;
+            transition: all 0.2s;
+        }
+        .smiley-option.selected {
+            background: #e8f5e9;
+            transform: scale(1.05);
+        }
+        .smiley-icon {
+            font-size: 2rem;
+        }
+        /* Text Response */
         .text-response {
             width: 100%;
-            padding: 12px 16px;
+            padding: 14px 18px;
             border-radius: 28px;
             border: 1.5px solid #e2eaf2;
             font-size: 0.9rem;
@@ -158,185 +173,211 @@
             border-color: #2c7da0;
             box-shadow: 0 0 0 3px rgba(44,125,160,0.1);
         }
+        /* Submit Button */
         .submit-btn {
             background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
             color: white;
             border: none;
-            padding: 14px 32px;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 1rem;
+            padding: 16px 40px;
+            border-radius: 60px;
+            font-weight: 700;
+            font-size: 1.1rem;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             transition: all 0.3s;
+            margin: 20px 0 30px;
         }
         .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 14px rgba(29,111,143,0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(29,111,143,0.3);
         }
-        /* Admin Panel */
-        .admin-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        .add-question-btn {
-            background: linear-gradient(135deg, #4caf50, #43a047);
+        /* Admin Button (Small floating) */
+        .admin-fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #2c3e50, #1a252f);
             color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 40px;
-            font-weight: 600;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .question-admin-item {
-            background: #fafdff;
-            border-radius: 20px;
-            padding: 18px;
-            margin-bottom: 12px;
-            border: 1px solid #eef2f8;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        .question-info {
-            flex: 2;
-        }
-        .question-type {
-            font-size: 0.7rem;
-            color: #7c9ab8;
-            margin-top: 5px;
-        }
-        .admin-actions {
-            display: flex;
-            gap: 10px;
-        }
-        .edit-btn, .delete-btn {
-            background: none;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 30px;
+            justify-content: center;
             cursor: pointer;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            z-index: 100;
+            border: none;
+            font-size: 1.2rem;
         }
-        .edit-btn {
-            background: #fff3e0;
-            color: #e65100;
+        .admin-fab:hover {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
         }
-        .delete-btn {
-            background: #ffebee;
-            color: #c62828;
-        }
-        /* Modal */
-        .modal {
+        /* Admin Panel (Modal Style) */
+        .admin-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px);
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
         }
-        .modal-content {
+        .admin-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .admin-container {
             background: white;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 85vh;
             border-radius: 32px;
-            padding: 28px;
-            width: 450px;
-            max-width: 90%;
-        }
-        .modal-content h3 {
-            margin-bottom: 20px;
-            color: #1a4c6e;
-        }
-        .modal-content input, .modal-content select, .modal-content textarea {
-            width: 100%;
-            padding: 12px 16px;
-            border-radius: 28px;
-            border: 1.5px solid #e2eaf2;
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-            outline: none;
-        }
-        .modal-buttons {
+            overflow: hidden;
             display: flex;
-            gap: 12px;
-            justify-content: flex-end;
+            flex-direction: column;
         }
-        .modal-buttons button {
-            padding: 10px 24px;
-            border-radius: 40px;
+        .admin-header {
+            background: linear-gradient(135deg, #1a4c6e, #2c6e8f);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .admin-header h2 {
+            font-size: 1.3rem;
+        }
+        .close-admin {
+            background: none;
             border: none;
-            font-weight: 600;
+            color: white;
+            font-size: 1.5rem;
             cursor: pointer;
         }
-        /* Results Panel */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 24px;
-            margin-bottom: 30px;
+        .admin-tabs {
+            display: flex;
+            border-bottom: 1px solid #eef2f8;
+            background: #f8fbfe;
         }
-        .stat-card {
-            background: linear-gradient(135deg, #f8fbfe, #ffffff);
-            border-radius: 24px;
-            padding: 20px;
-            text-align: center;
-            border: 1px solid #eef2f8;
+        .admin-tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
         }
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 800;
+        .admin-tab.active {
+            border-bottom: 3px solid #1d6f8f;
             color: #1d6f8f;
         }
-        .stat-label {
+        .admin-content {
+            padding: 25px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        /* Category Management */
+        .category-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .category-chip {
+            background: #eef2fa;
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .add-category {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        .add-category input {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 30px;
+            border: 1.5px solid #e2eaf2;
+        }
+        /* Question List in Admin */
+        .admin-question-item {
+            background: #fafdff;
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border: 1px solid #eef2f8;
+        }
+        .admin-question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .admin-question-text {
+            font-weight: 600;
+        }
+        .admin-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .admin-actions button {
+            background: none;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        .edit-question { background: #fff3e0; color: #e65100; }
+        .delete-question { background: #ffebee; color: #c62828; }
+        .question-meta {
+            font-size: 0.7rem;
             color: #7c9ab8;
             margin-top: 5px;
         }
-        .result-question-card {
-            background: white;
-            border-radius: 24px;
-            padding: 20px;
+        /* Results in Admin */
+        .result-card {
+            background: #f8fbfe;
+            border-radius: 20px;
+            padding: 18px;
             margin-bottom: 20px;
-            border: 1px solid #eef2f8;
         }
-        .result-question-text {
+        .result-question {
             font-weight: 700;
-            font-size: 1rem;
-            color: #1a4c6e;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
-        canvas {
-            max-height: 250px;
+        .result-stats {
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+        canvas { max-height: 180px; margin-top: 10px; }
+        .response-list {
+            max-height: 150px;
+            overflow-y: auto;
             margin-top: 10px;
         }
-        .response-list {
-            margin-top: 15px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
         .response-item {
-            background: #f8fbfe;
-            padding: 8px 12px;
+            background: white;
+            padding: 6px 12px;
             border-radius: 20px;
-            margin-bottom: 6px;
-            font-size: 0.8rem;
+            margin-bottom: 5px;
+            font-size: 0.75rem;
         }
         .password-modal {
             position: fixed;
@@ -345,534 +386,523 @@
             right: 0;
             bottom: 0;
             background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 1100;
         }
         .hidden { display: none; }
-        .loading {
+        .status-msg {
             text-align: center;
-            padding: 40px;
-            color: #7c9ab8;
+            padding: 12px;
+            border-radius: 40px;
+            margin-top: 15px;
         }
         footer {
             text-align: center;
-            margin-top: 40px;
+            margin-top: 30px;
             font-size: 0.7rem;
-            color: #7e9bb5;
+            color: rgba(255,255,255,0.7);
+        }
+        @media (max-width: 700px) {
+            .survey-header h1 { font-size: 1.5rem; }
+            .rating-options { gap: 8px; }
+            .rating-option { padding: 6px 12px; min-width: 55px; }
+            .rating-emoji-icon { font-size: 1.2rem; }
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="header">
-        <h1><i class="fas fa-clipboard-list"></i> Passenger Survey</h1>
-        <p>Share your feedback to help us improve your experience</p>
-    </div>
-
-    <div class="tabs">
-        <button class="tab-btn active" data-tab="survey"><i class="fas fa-poll"></i> Take Survey</button>
-        <button class="tab-btn" data-tab="admin"><i class="fas fa-cog"></i> Admin Panel</button>
-        <button class="tab-btn" data-tab="results"><i class="fas fa-chart-bar"></i> Results</button>
-    </div>
-
-    <!-- Survey Panel -->
-    <div id="surveyPanel" class="content-panel active">
-        <div class="survey-card">
-            <h2 class="survey-title"><i class="fas fa-smile"></i> Passenger Feedback</h2>
-            <p class="survey-subtitle">Your feedback helps us serve you better. Please take a moment to share your experience.</p>
+    <div class="survey-wrapper">
+        <div class="survey-header">
+            <h1><i class="fas fa-smile-wink"></i> Tell Us About Your Journey</h1>
+            <p>Your feedback helps us create amazing experiences</p>
+            <div class="rating-emoji">✈️ 🌟 🎯</div>
+        </div>
+        
+        <div style="padding: 30px 40px;">
             <form id="surveyForm">
-                <div id="surveyQuestions"></div>
-                <div style="margin-top: 30px; text-align: center;">
-                    <button type="submit" class="submit-btn"><i class="fas fa-paper-plane"></i> Submit Feedback</button>
+                <div id="surveyQuestionsContainer"></div>
+                <div style="text-align: center;">
+                    <button type="submit" class="submit-btn"><i class="fas fa-paper-plane"></i> Submit Your Feedback</button>
                 </div>
+                <div id="surveyMessage" class="status-msg"></div>
             </form>
-            <div id="surveyMessage" class="status-msg" style="margin-top: 20px; text-align: center;"></div>
         </div>
     </div>
+    <footer>✈️ Your feedback matters | We value your opinion</footer>
+</div>
 
-    <!-- Admin Panel -->
-    <div id="adminPanel" class="content-panel">
-        <div class="admin-card">
-            <div class="admin-header">
-                <h3><i class="fas fa-questions"></i> Manage Survey Questions</h3>
-                <button id="openAddQuestionModal" class="add-question-btn"><i class="fas fa-plus"></i> Add Question</button>
+<!-- Admin FAB Button -->
+<button class="admin-fab" id="adminFabBtn"><i class="fas fa-cog"></i></button>
+
+<!-- Admin Overlay Panel -->
+<div id="adminOverlay" class="admin-overlay">
+    <div class="admin-container">
+        <div class="admin-header">
+            <h2><i class="fas fa-chalkboard-user"></i> Admin Dashboard</h2>
+            <button class="close-admin" id="closeAdminBtn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="admin-tabs">
+            <div class="admin-tab active" data-admin-tab="manage">📋 Manage Questions</div>
+            <div class="admin-tab" data-admin-tab="results">📊 Survey Results</div>
+        </div>
+        <div class="admin-content" id="adminContent">
+            <!-- Manage Questions Tab -->
+            <div id="manageTab">
+                <div class="add-category">
+                    <input type="text" id="newCategoryName" placeholder="New category name (e.g., 'Service Quality', 'Cleanliness')">
+                    <button id="addCategoryBtn" style="background:#1d6f8f; color:white; border:none; padding:0 20px; border-radius:30px; cursor:pointer;">Add Category</button>
+                </div>
+                <div id="categoryList" class="category-list"></div>
+                
+                <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <select id="selectedCategory" style="padding:10px 16px; border-radius:30px; border:1.5px solid #e2eaf2;">
+                        <option value="">-- Select Category --</option>
+                    </select>
+                    <select id="questionTypeSelect" style="padding:10px 16px; border-radius:30px; border:1.5px solid #e2eaf2;">
+                        <option value="rating">⭐ Star Rating (1-5)</option>
+                        <option value="smiley">😊 Smiley Rating (Poor to Excellent)</option>
+                        <option value="text">📝 Text Response</option>
+                    </select>
+                    <input type="text" id="newQuestionText" placeholder="Question text" style="flex:1; padding:10px 16px; border-radius:30px; border:1.5px solid #e2eaf2;">
+                    <button id="addQuestionBtn" style="background:#4caf50; color:white; border:none; padding:0 25px; border-radius:30px; cursor:pointer;">Add Question</button>
+                </div>
+                <div id="questionsAdminList"></div>
             </div>
-            <div id="questionsList"></div>
-        </div>
-    </div>
-
-    <!-- Results Panel -->
-    <div id="resultsPanel" class="content-panel">
-        <div class="results-card">
-            <h3><i class="fas fa-chart-line"></i> Survey Results</h3>
-            <div class="stats-grid" id="statsGrid"></div>
-            <div id="resultsContainer"></div>
+            <!-- Results Tab -->
+            <div id="resultsTab" style="display: none;">
+                <div id="adminResultsContainer"></div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Add/Edit Question Modal -->
-<div id="questionModal" class="modal hidden">
-    <div class="modal-content">
-        <h3 id="modalTitle">Add Question</h3>
-        <input type="text" id="questionText" placeholder="Question text">
-        <select id="questionType">
-            <option value="rating">⭐ Rating (1-5 stars)</option>
-            <option value="text">📝 Text Response</option>
-        </select>
-        <input type="hidden" id="editQuestionId">
-        <div class="modal-buttons">
-            <button id="cancelModalBtn" style="background: #eef3fc;">Cancel</button>
-            <button id="saveQuestionBtn" style="background: #1d6f8f; color: white;">Save</button>
-        </div>
-    </div>
-</div>
-
-<!-- Admin Password Modal -->
+<!-- Password Modal -->
 <div id="adminPasswordModal" class="password-modal hidden">
-    <div class="password-box" style="background: white; padding: 32px; border-radius: 32px; width: 350px; text-align: center;">
-        <i class="fas fa-lock" style="font-size: 2rem; color: #1d6f8f;"></i>
-        <h3 style="margin: 16px 0;">Admin Access</h3>
-        <input type="password" id="adminPasswordInput" placeholder="Enter admin password" style="width: 100%; padding: 12px; border-radius: 28px; border: 1.5px solid #e2eaf2;">
-        <button id="verifyAdminBtn" style="margin-top: 16px; background: #1d6f8f; color: white; border: none; padding: 10px 20px; border-radius: 28px; width: 100%; cursor: pointer;">Verify</button>
-        <button id="cancelAdminBtn" style="margin-top: 10px; background: #eef3fc; border: none; padding: 10px 20px; border-radius: 28px; width: 100%; cursor: pointer;">Cancel</button>
-        <p id="adminPasswordError" style="color: #c62828; margin-top: 10px; font-size: 0.8rem;"></p>
+    <div style="background:white; padding:32px; border-radius:32px; width:350px; text-align:center;">
+        <i class="fas fa-lock" style="font-size:2rem; color:#1d6f8f;"></i>
+        <h3 style="margin:16px 0;">Admin Access</h3>
+        <input type="password" id="adminPassInput" placeholder="Enter admin password" style="width:100%; padding:12px; border-radius:28px; border:1.5px solid #e2eaf2;">
+        <button id="verifyAdminPassBtn" style="margin-top:16px; background:#1d6f8f; color:white; border:none; padding:10px; border-radius:28px; width:100%; cursor:pointer;">Verify</button>
+        <button id="cancelAdminPassBtn" style="margin-top:10px; background:#eef3fc; border:none; padding:10px; border-radius:28px; width:100%; cursor:pointer;">Cancel</button>
+        <p id="adminPassError" style="color:#c62828; margin-top:10px;"></p>
     </div>
 </div>
 
 <script>
-    // Firebase is initialized from fire.js
-    // SUPERVISOR_PASSWORD is loaded from config.js
-    
+    // Firebase initialized from fire.js, SUPERVISOR_PASSWORD from config.js
     let db, firestoreReady = false;
     let adminAuthenticated = false;
-    let currentQuestions = [];
+    let allQuestions = [];
+    let categories = [];
     let charts = {};
     
     if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
         try {
             db = firebase.firestore();
             firestoreReady = true;
-            console.log("Firebase ready");
-        } catch (err) {
-            console.error("Firestore error:", err);
-        }
+        } catch(e) { console.error(e); }
     }
     
     // DOM Elements
-    const surveyPanel = document.getElementById('surveyPanel');
-    const adminPanel = document.getElementById('adminPanel');
-    const resultsPanel = document.getElementById('resultsPanel');
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const surveyQuestionsDiv = document.getElementById('surveyQuestions');
-    const questionsListDiv = document.getElementById('questionsList');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const statsGrid = document.getElementById('statsGrid');
-    const openModalBtn = document.getElementById('openAddQuestionModal');
-    const questionModal = document.getElementById('questionModal');
-    const cancelModalBtn = document.getElementById('cancelModalBtn');
-    const saveQuestionBtn = document.getElementById('saveQuestionBtn');
-    const modalTitle = document.getElementById('modalTitle');
-    const questionText = document.getElementById('questionText');
-    const questionType = document.getElementById('questionType');
-    const editQuestionId = document.getElementById('editQuestionId');
+    const surveyContainer = document.getElementById('surveyQuestionsContainer');
     const surveyForm = document.getElementById('surveyForm');
     const surveyMessage = document.getElementById('surveyMessage');
-    const adminPasswordModal = document.getElementById('adminPasswordModal');
-    const adminPasswordInput = document.getElementById('adminPasswordInput');
-    const verifyAdminBtn = document.getElementById('verifyAdminBtn');
-    const cancelAdminBtn = document.getElementById('cancelAdminBtn');
-    const adminPasswordError = document.getElementById('adminPasswordError');
+    const adminFab = document.getElementById('adminFabBtn');
+    const adminOverlay = document.getElementById('adminOverlay');
+    const closeAdminBtn = document.getElementById('closeAdminBtn');
+    const adminTabs = document.querySelectorAll('.admin-tab');
+    const manageTab = document.getElementById('manageTab');
+    const resultsTab = document.getElementById('resultsTab');
+    const categoryListDiv = document.getElementById('categoryList');
+    const selectedCategory = document.getElementById('selectedCategory');
+    const questionsAdminList = document.getElementById('questionsAdminList');
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+    const newCategoryName = document.getElementById('newCategoryName');
+    const addQuestionBtn = document.getElementById('addQuestionBtn');
+    const newQuestionText = document.getElementById('newQuestionText');
+    const questionTypeSelect = document.getElementById('questionTypeSelect');
+    const adminResultsContainer = document.getElementById('adminResultsContainer');
+    const passwordModal = document.getElementById('adminPasswordModal');
+    const adminPassInput = document.getElementById('adminPassInput');
+    const verifyAdminPassBtn = document.getElementById('verifyAdminPassBtn');
+    const cancelAdminPassBtn = document.getElementById('cancelAdminPassBtn');
+    const adminPassError = document.getElementById('adminPassError');
     
-    // Load Questions from Firestore
+    // Load Categories
+    async function loadCategories() {
+        if (!firestoreReady) return;
+        const docRef = db.collection('surveyConfig').doc('categories');
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+            categories = docSnap.data().list || [];
+        } else {
+            categories = ['General'];
+            await docRef.set({ list: categories });
+        }
+        renderCategoryUI();
+    }
+    
+    async function saveCategories() {
+        if (!firestoreReady) return;
+        await db.collection('surveyConfig').doc('categories').set({ list: categories });
+    }
+    
+    function renderCategoryUI() {
+        categoryListDiv.innerHTML = categories.map(cat => `
+            <span class="category-chip">
+                ${escapeHtml(cat)}
+                <button class="delete-cat" data-cat="${escapeHtml(cat)}" style="background:none; border:none; color:#c62828; cursor:pointer;">✖</button>
+            </span>
+        `).join('');
+        
+        selectedCategory.innerHTML = '<option value="">-- Select Category --</option>' + 
+            categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+        
+        document.querySelectorAll('.delete-cat').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const cat = btn.getAttribute('data-cat');
+                if (confirm(`Delete category "${cat}"? Questions will be moved to General.`)) {
+                    for (let q of allQuestions) {
+                        if (q.category === cat) {
+                            await db.collection('surveyQuestions').doc(q.id).update({ category: 'General' });
+                        }
+                    }
+                    categories = categories.filter(c => c !== cat);
+                    await saveCategories();
+                    await loadQuestions();
+                }
+            });
+        });
+    }
+    
+    // Load Questions
     async function loadQuestions() {
         if (!firestoreReady) return;
-        try {
-            const snapshot = await db.collection('surveyQuestions').orderBy('order', 'asc').get();
-            currentQuestions = [];
-            snapshot.forEach(doc => {
-                currentQuestions.push({ id: doc.id, ...doc.data() });
-            });
-            renderSurveyQuestions();
-            if (adminAuthenticated) renderAdminQuestions();
-        } catch (err) {
-            console.error("Error loading questions:", err);
-        }
+        const snapshot = await db.collection('surveyQuestions').orderBy('order', 'asc').get();
+        allQuestions = [];
+        snapshot.forEach(doc => {
+            allQuestions.push({ id: doc.id, ...doc.data(), category: doc.data().category || 'General' });
+        });
+        renderSurvey();
+        if (adminAuthenticated) renderAdminQuestions();
     }
     
-    // Render Survey Form
-    function renderSurveyQuestions() {
-        if (!surveyQuestionsDiv) return;
-        if (currentQuestions.length === 0) {
-            surveyQuestionsDiv.innerHTML = '<div class="loading">Loading survey questions...</div>';
-            return;
-        }
+    // Render Survey with Categories
+    function renderSurvey() {
+        if (!surveyContainer) return;
+        const grouped = {};
+        allQuestions.forEach(q => {
+            const cat = q.category || 'General';
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(q);
+        });
         
         let html = '';
-        currentQuestions.forEach((q, index) => {
-            if (q.type === 'rating') {
-                html += `
-                    <div class="question-item">
-                        <div class="question-text">${index + 1}. ${escapeHtml(q.text)}</div>
-                        <div class="rating-options">
-                            ${[1,2,3,4,5].map(star => `
-                                <label class="rating-option">
-                                    <input type="radio" name="q_${q.id}" value="${star}" required>
-                                    <span>${star} ${star === 1 ? '★' : '★'}</span>
-                                </label>
-                            `).join('')}
+        for (let [category, questions] of Object.entries(grouped)) {
+            html += `<div class="category-section">
+                <div class="category-title"><i class="fas fa-folder-open"></i> ${escapeHtml(category)}</div>
+                <div class="category-questions">`;
+            questions.forEach((q, idx) => {
+                if (q.type === 'rating') {
+                    html += `
+                        <div class="question-item" data-qid="${q.id}">
+                            <div class="question-text">📌 ${escapeHtml(q.text)}</div>
+                            <div class="rating-options" data-qid="${q.id}">
+                                ${[1,2,3,4,5].map(star => `
+                                    <label class="rating-option" data-value="${star}">
+                                        <input type="radio" name="q_${q.id}" value="${star}" required>
+                                        <span class="rating-emoji-icon">${star === 1 ? '😞' : star === 2 ? '😐' : star === 3 ? '🙂' : star === 4 ? '😊' : '😍'}</span>
+                                        <span class="rating-label">${star}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
                         </div>
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div class="question-item">
-                        <div class="question-text">${index + 1}. ${escapeHtml(q.text)}</div>
-                        <textarea name="q_${q.id}" class="text-response" rows="3" placeholder="Please share your thoughts..." required></textarea>
-                    </div>
-                `;
-            }
+                    `;
+                } else if (q.type === 'smiley') {
+                    html += `
+                        <div class="question-item" data-qid="${q.id}">
+                            <div class="question-text">😊 ${escapeHtml(q.text)}</div>
+                            <div class="smiley-rating" data-qid="${q.id}">
+                                ${[
+                                    {val:'very-poor', emoji:'😠', label:'Very Poor'},
+                                    {val:'poor', emoji:'🙁', label:'Poor'},
+                                    {val:'average', emoji:'😐', label:'Average'},
+                                    {val:'good', emoji:'🙂', label:'Good'},
+                                    {val:'excellent', emoji:'😍', label:'Excellent'}
+                                ].map(opt => `
+                                    <label class="smiley-option" data-value="${opt.val}">
+                                        <input type="radio" name="q_${q.id}" value="${opt.val}" required style="display:none;">
+                                        <div class="smiley-icon">${opt.emoji}</div>
+                                        <div style="font-size:0.7rem;">${opt.label}</div>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="question-item" data-qid="${q.id}">
+                            <div class="question-text">✍️ ${escapeHtml(q.text)}</div>
+                            <textarea name="q_${q.id}" class="text-response" rows="3" placeholder="Share your thoughts..." required></textarea>
+                        </div>
+                    `;
+                }
+            });
+            html += `</div></div>`;
+        }
+        surveyContainer.innerHTML = html || '<div style="padding:40px; text-align:center;">Loading survey...</div>';
+        
+        // Add click handlers for rating options
+        document.querySelectorAll('.rating-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const parent = this.closest('.rating-options');
+                parent.querySelectorAll('.rating-option').forEach(o => o.classList.remove('selected'));
+                this.classList.add('selected');
+                const radio = this.querySelector('input');
+                if (radio) radio.checked = true;
+            });
         });
-        surveyQuestionsDiv.innerHTML = html;
+        document.querySelectorAll('.smiley-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const parent = this.closest('.smiley-rating');
+                parent.querySelectorAll('.smiley-option').forEach(o => o.classList.remove('selected'));
+                this.classList.add('selected');
+                const radio = this.querySelector('input');
+                if (radio) radio.checked = true;
+            });
+        });
     }
     
-    // Render Admin Questions List
+    // Render Admin Questions
     function renderAdminQuestions() {
-        if (!questionsListDiv) return;
-        if (currentQuestions.length === 0) {
-            questionsListDiv.innerHTML = '<div class="loading">No questions yet. Click "Add Question" to create one.</div>';
-            return;
-        }
+        if (!questionsAdminList) return;
+        const grouped = {};
+        allQuestions.forEach(q => {
+            const cat = q.category || 'General';
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(q);
+        });
         
         let html = '';
-        currentQuestions.forEach((q, index) => {
-            const typeLabel = q.type === 'rating' ? '⭐ Rating (1-5)' : '📝 Text Response';
-            html += `
-                <div class="question-admin-item">
-                    <div class="question-info">
-                        <strong>${index + 1}. ${escapeHtml(q.text)}</strong>
-                        <div class="question-type">${typeLabel}</div>
+        for (let [category, questions] of Object.entries(grouped)) {
+            html += `<div style="margin-bottom:20px;"><h4 style="margin-bottom:10px; color:#1a4c6e;">📁 ${escapeHtml(category)}</h4>`;
+            questions.forEach(q => {
+                const typeName = q.type === 'rating' ? '⭐ Rating' : (q.type === 'smiley' ? '😊 Smiley' : '📝 Text');
+                html += `
+                    <div class="admin-question-item" data-id="${q.id}">
+                        <div class="admin-question-header">
+                            <span class="admin-question-text">${escapeHtml(q.text)}</span>
+                            <div class="admin-actions">
+                                <button class="edit-question" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}" data-cat="${escapeHtml(q.category)}">Edit</button>
+                                <button class="delete-question" data-id="${q.id}">Delete</button>
+                            </div>
+                        </div>
+                        <div class="question-meta">Type: ${typeName} | Category: ${escapeHtml(q.category)}</div>
                     </div>
-                    <div class="admin-actions">
-                        <button class="edit-btn" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}"><i class="fas fa-edit"></i> Edit</button>
-                        <button class="delete-btn" data-id="${q.id}"><i class="fas fa-trash"></i> Delete</button>
-                    </div>
-                </div>
-            `;
-        });
-        questionsListDiv.innerHTML = html;
+                `;
+            });
+            html += `</div>`;
+        }
+        questionsAdminList.innerHTML = html || '<p>No questions yet. Add one above.</p>';
         
-        // Add event listeners
-        document.querySelectorAll('.edit-btn').forEach(btn => {
+        document.querySelectorAll('.edit-question').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
                 const text = btn.getAttribute('data-text');
                 const type = btn.getAttribute('data-type');
-                openEditModal(id, text, type);
+                const cat = btn.getAttribute('data-cat');
+                editQuestion(id, text, type, cat);
             });
         });
-        document.querySelectorAll('.delete-btn').forEach(btn => {
+        document.querySelectorAll('.delete-question').forEach(btn => {
             btn.addEventListener('click', () => deleteQuestion(btn.getAttribute('data-id')));
         });
     }
     
-    // Add/Edit Question
-    function openAddModal() {
-        modalTitle.textContent = 'Add Question';
-        questionText.value = '';
-        questionType.value = 'rating';
-        editQuestionId.value = '';
-        questionModal.classList.remove('hidden');
-    }
-    
-    function openEditModal(id, text, type) {
-        modalTitle.textContent = 'Edit Question';
-        questionText.value = text;
-        questionType.value = type;
-        editQuestionId.value = id;
-        questionModal.classList.remove('hidden');
-    }
-    
-    async function saveQuestion() {
-        const text = questionText.value.trim();
-        const type = questionType.value;
-        const editId = editQuestionId.value;
-        
-        if (!text) {
-            alert("Please enter question text");
-            return;
-        }
-        
-        try {
-            if (editId) {
-                await db.collection('surveyQuestions').doc(editId).update({ text, type });
-            } else {
-                const newOrder = currentQuestions.length;
-                await db.collection('surveyQuestions').add({ text, type, order: newOrder });
-            }
-            questionModal.classList.add('hidden');
-            await loadQuestions();
-        } catch (err) {
-            console.error("Error saving question:", err);
-            alert("Error saving question");
-        }
+    async function editQuestion(id, oldText, oldType, oldCat) {
+        const newText = prompt("Edit question text:", oldText);
+        if (!newText) return;
+        const newType = prompt("Edit type (rating/smiley/text):", oldType);
+        if (!newType || !['rating','smiley','text'].includes(newType)) return;
+        const newCat = prompt("Edit category:", oldCat);
+        if (!newCat) return;
+        await db.collection('surveyQuestions').doc(id).update({ text: newText, type: newType, category: newCat });
+        await loadQuestions();
     }
     
     async function deleteQuestion(id) {
-        if (!confirm("Delete this question? All responses will be lost.")) return;
-        try {
-            await db.collection('surveyQuestions').doc(id).delete();
-            await loadQuestions();
-        } catch (err) {
-            console.error("Error deleting question:", err);
-            alert("Error deleting question");
-        }
+        if (!confirm("Delete this question?")) return;
+        await db.collection('surveyQuestions').doc(id).delete();
+        await loadQuestions();
     }
     
-    // Submit Survey Response
-    async function submitSurvey(e) {
+    async function addNewCategory() {
+        const name = newCategoryName.value.trim();
+        if (!name) return;
+        if (categories.includes(name)) { alert("Category exists"); return; }
+        categories.push(name);
+        await saveCategories();
+        newCategoryName.value = '';
+        await loadCategories();
+    }
+    
+    async function addNewQuestion() {
+        const category = selectedCategory.value;
+        if (!category) { alert("Select a category"); return; }
+        const text = newQuestionText.value.trim();
+        if (!text) { alert("Enter question text"); return; }
+        const type = questionTypeSelect.value;
+        const newOrder = allQuestions.length;
+        await db.collection('surveyQuestions').add({ text, type, category, order: newOrder });
+        newQuestionText.value = '';
+        await loadQuestions();
+    }
+    
+    // Submit Survey
+    surveyForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!firestoreReady) {
-            surveyMessage.innerHTML = '<span style="color:#c62828;">⚠️ System error. Please try again later.</span>';
-            return;
-        }
-        
-        const formData = new FormData(e.target);
+        if (!firestoreReady) { surveyMessage.innerHTML = '<span style="color:#c62828;">System error. Try again.</span>'; return; }
+        const formData = new FormData(surveyForm);
         const responses = [];
-        
-        for (const question of currentQuestions) {
-            const value = formData.get(`q_${question.id}`);
-            if (value) {
-                responses.push({
-                    questionId: question.id,
-                    questionText: question.text,
-                    questionType: question.type,
-                    value: question.type === 'rating' ? parseInt(value) : value,
-                    submittedAt: new Date().toISOString()
-                });
+        for (let q of allQuestions) {
+            const val = formData.get(`q_${q.id}`);
+            if (val) {
+                responses.push({ questionId: q.id, questionText: q.text, questionType: q.type, value: val, submittedAt: new Date().toISOString() });
             }
         }
-        
-        if (responses.length === 0) {
-            surveyMessage.innerHTML = '<span style="color:#e65100;">⚠️ Please answer at least one question.</span>';
-            return;
-        }
-        
+        if (responses.length === 0) { surveyMessage.innerHTML = '<span style="color:#e65100;">Please answer at least one question.</span>'; return; }
         try {
-            await db.collection('surveyResponses').add({
-                responses: responses,
-                submittedAt: new Date().toISOString()
-            });
+            await db.collection('surveyResponses').add({ responses, submittedAt: new Date().toISOString() });
             surveyForm.reset();
-            surveyMessage.innerHTML = '<span style="color:#2e7d32;">✅ Thank you for your feedback!</span>';
-            setTimeout(() => { surveyMessage.innerHTML = ''; }, 3000);
-        } catch (err) {
-            console.error("Error submitting:", err);
-            surveyMessage.innerHTML = '<span style="color:#c62828;">❌ Error submitting. Please try again.</span>';
-        }
-    }
-    
-    // Load Results
-    async function loadResults() {
-        if (!firestoreReady) return;
-        
-        resultsContainer.innerHTML = '<div class="loading">Loading results...</div>';
-        statsGrid.innerHTML = '';
-        
-        try {
-            const responsesSnapshot = await db.collection('surveyResponses').get();
-            const allResponses = [];
-            responsesSnapshot.forEach(doc => {
-                allResponses.push(doc.data());
-            });
-            
-            const totalResponses = allResponses.length;
-            
-            // Stats Grid
-            statsGrid.innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-number">${totalResponses}</div>
-                    <div class="stat-label">Total Responses</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${currentQuestions.length}</div>
-                    <div class="stat-label">Survey Questions</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${new Date().toLocaleDateString()}</div>
-                    <div class="stat-label">Last Updated</div>
-                </div>
-            `;
-            
-            // Process results per question
-            let resultsHtml = '';
-            
-            for (const question of currentQuestions) {
-                const questionResponses = [];
-                for (const response of allResponses) {
-                    const qResponse = response.responses.find(r => r.questionId === question.id);
-                    if (qResponse) questionResponses.push(qResponse);
-                }
-                
-                resultsHtml += `
-                    <div class="result-question-card">
-                        <div class="result-question-text">📋 ${escapeHtml(question.text)}</div>
-                        <div id="chart_${question.id}" style="max-width: 100%;"></div>
-                `;
-                
-                if (question.type === 'rating') {
-                    const ratings = [0,0,0,0,0];
-                    questionResponses.forEach(r => {
-                        if (r.value >= 1 && r.value <= 5) ratings[r.value - 1]++;
-                    });
-                    const avgRating = questionResponses.length > 0 
-                        ? (questionResponses.reduce((sum, r) => sum + r.value, 0) / questionResponses.length).toFixed(1)
-                        : 0;
-                    
-                    resultsHtml += `
-                        <div style="margin-top: 15px; display: flex; gap: 20px; flex-wrap: wrap;">
-                            <div><strong>Average Rating:</strong> ${avgRating} / 5 ★</div>
-                            <div><strong>Responses:</strong> ${questionResponses.length}</div>
-                        </div>
-                        <canvas id="canvas_${question.id}" style="max-height: 200px; margin-top: 15px;"></canvas>
-                    `;
-                } else {
-                    resultsHtml += `
-                        <div style="margin-top: 10px;"><strong>Responses (${questionResponses.length}):</strong></div>
-                        <div class="response-list">
-                            ${questionResponses.map(r => `<div class="response-item">✍️ ${escapeHtml(r.value)}</div>`).join('')}
-                            ${questionResponses.length === 0 ? '<div class="response-item">No responses yet</div>' : ''}
-                        </div>
-                    `;
-                }
-                resultsHtml += `</div>`;
-            }
-            
-            resultsContainer.innerHTML = resultsHtml;
-            
-            // Create charts for rating questions
-            for (const question of currentQuestions) {
-                if (question.type === 'rating') {
-                    const questionResponses = [];
-                    for (const response of allResponses) {
-                        const qResponse = response.responses.find(r => r.questionId === question.id);
-                        if (qResponse) questionResponses.push(qResponse);
-                    }
-                    const ratings = [0,0,0,0,0];
-                    questionResponses.forEach(r => {
-                        if (r.value >= 1 && r.value <= 5) ratings[r.value - 1]++;
-                    });
-                    
-                    const canvas = document.getElementById(`canvas_${question.id}`);
-                    if (canvas) {
-                        const ctx = canvas.getContext('2d');
-                        if (charts[question.id]) charts[question.id].destroy();
-                        charts[question.id] = new Chart(ctx, {
-                            type: 'bar',
-                            data: {
-                                labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
-                                datasets: [{
-                                    label: 'Number of Responses',
-                                    data: ratings,
-                                    backgroundColor: ['#ef5350', '#ff9800', '#ffc107', '#8bc34a', '#4caf50'],
-                                    borderRadius: 8
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: true,
-                                plugins: {
-                                    legend: { position: 'top' },
-                                    tooltip: { callbacks: { label: (ctx) => `${ctx.raw} responses` } }
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-            
-        } catch (err) {
-            console.error("Error loading results:", err);
-            resultsContainer.innerHTML = '<div class="loading">Error loading results</div>';
-        }
-    }
-    
-    // Tab Switching with Admin Auth
-    function switchTab(tabId) {
-        document.querySelectorAll('.content-panel').forEach(panel => panel.classList.remove('active'));
-        document.getElementById(`${tabId}Panel`).classList.add('active');
-        tabBtns.forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.getAttribute('data-tab') === tabId) btn.classList.add('active');
-        });
-        
-        if (tabId === 'admin') {
-            if (!adminAuthenticated) {
-                adminPasswordModal.classList.remove('hidden');
-                document.getElementById(`${tabId}Panel`).classList.remove('active');
-                document.getElementById('surveyPanel').classList.add('active');
-                tabBtns.forEach(btn => {
-                    btn.classList.remove('active');
-                    if (btn.getAttribute('data-tab') === 'survey') btn.classList.add('active');
-                });
-            } else {
-                renderAdminQuestions();
-            }
-        } else if (tabId === 'results') {
-            loadResults();
-        }
-    }
-    
-    function verifyAdmin() {
-        const password = adminPasswordInput.value;
-        if (typeof SUPERVISOR_PASSWORD !== 'undefined' && password === SUPERVISOR_PASSWORD) {
-            adminAuthenticated = true;
-            adminPasswordModal.classList.add('hidden');
-            renderAdminQuestions();
-            document.getElementById('adminPanel').classList.add('active');
-            document.getElementById('surveyPanel').classList.remove('active');
-            document.getElementById('resultsPanel').classList.remove('active');
-            tabBtns.forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-tab') === 'admin') btn.classList.add('active');
-            });
-            adminPasswordInput.value = '';
-            adminPasswordError.textContent = '';
-        } else {
-            adminPasswordError.textContent = 'Incorrect password';
-        }
-    }
-    
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
-    }
-    
-    // Event Listeners
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
+            surveyMessage.innerHTML = '<span style="color:#2e7d32;">✅ Thank you for your valuable feedback!</span>';
+            setTimeout(() => surveyMessage.innerHTML = '', 3000);
+        } catch(err) { surveyMessage.innerHTML = '<span style="color:#c62828;">Error submitting. Try again.</span>'; }
     });
     
-    openModalBtn.addEventListener('click', openAddModal);
-    cancelModalBtn.addEventListener('click', () => questionModal.classList.add('hidden'));
-    saveQuestionBtn.addEventListener('click', saveQuestion);
-    surveyForm.addEventListener('submit', submitSurvey);
-    verifyAdminBtn.addEventListener('click', verifyAdmin);
-    cancelAdminBtn.addEventListener('click', () => adminPasswordModal.classList.add('hidden'));
-    adminPasswordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyAdmin(); });
-    
-    // Initialize
-    async function init() {
-        if (firestoreReady) {
-            await loadQuestions();
+    // Load Admin Results
+    async function loadAdminResults() {
+        adminResultsContainer.innerHTML = '<div style="padding:20px; text-align:center;">Loading results...</div>';
+        const responsesSnap = await db.collection('surveyResponses').get();
+        const allResponses = [];
+        responsesSnap.forEach(doc => allResponses.push(doc.data()));
+        
+        let html = `<div style="margin-bottom:20px; background:#eef3fc; padding:15px; border-radius:20px;">
+            <h3>📊 Summary</h3>
+            <p>Total Responses: <strong>${allResponses.length}</strong></p>
+        </div>`;
+        
+        for (let q of allQuestions) {
+            const qResponses = [];
+            for (let r of allResponses) {
+                const found = r.responses.find(rr => rr.questionId === q.id);
+                if (found) qResponses.push(found);
+            }
+            html += `<div class="result-card">
+                <div class="result-question">📋 ${escapeHtml(q.text)}</div>`;
+            if (q.type === 'rating') {
+                const counts = [0,0,0,0,0];
+                qResponses.forEach(r => { if (r.value >=1 && r.value <=5) counts[r.value-1]++; });
+                const avg = qResponses.length ? (qResponses.reduce((s,r)=>s+parseInt(r.value),0)/qResponses.length).toFixed(1) : 0;
+                html += `<div class="result-stats">Average: ${avg} / 5 ★ | Responses: ${qResponses.length}</div>
+                        <canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`;
+            } else if (q.type === 'smiley') {
+                const counts = { 'very-poor':0, 'poor':0, 'average':0, 'good':0, 'excellent':0 };
+                qResponses.forEach(r => { if (counts[r.value] !== undefined) counts[r.value]++; });
+                html += `<div class="result-stats">Responses: ${qResponses.length}</div>
+                        <canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`;
+            } else {
+                html += `<div class="result-stats">Responses (${qResponses.length}):</div>
+                        <div class="response-list">${qResponses.map(r => `<div class="response-item">✍️ ${escapeHtml(r.value)}</div>`).join('')}</div>`;
+            }
+            html += `</div>`;
         }
-        // Set default date for staff view
-        const today = new Date().toISOString().slice(0,10);
+        adminResultsContainer.innerHTML = html;
+        
+        // Create charts
+        for (let q of allQuestions) {
+            if (q.type === 'rating') {
+                const qResponses = [];
+                for (let r of allResponses) {
+                    const found = r.responses.find(rr => rr.questionId === q.id);
+                    if (found) qResponses.push(found);
+                }
+                const counts = [0,0,0,0,0];
+                qResponses.forEach(r => { if (r.value >=1 && r.value <=5) counts[r.value-1]++; });
+                const canvas = document.getElementById(`adminChart_${q.id}`);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
+                    charts[`admin_${q.id}`] = new Chart(ctx, {
+                        type: 'bar',
+                        data: { labels: ['1★','2★','3★','4★','5★'], datasets: [{ label: 'Responses', data: counts, backgroundColor: ['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50'] }] },
+                        options: { responsive: true, maintainAspectRatio: true }
+                    });
+                }
+            } else if (q.type === 'smiley') {
+                const qResponses = [];
+                for (let r of allResponses) {
+                    const found = r.responses.find(rr => rr.questionId === q.id);
+                    if (found) qResponses.push(found);
+                }
+                const counts = { 'very-poor':0, 'poor':0, 'average':0, 'good':0, 'excellent':0 };
+                qResponses.forEach(r => { if (counts[r.value] !== undefined) counts[r.value]++; });
+                const canvas = document.getElementById(`adminChart_${q.id}`);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
+                    charts[`admin_${q.id}`] = new Chart(ctx, {
+                        type: 'bar',
+                        data: { labels: ['Very Poor','Poor','Average','Good','Excellent'], datasets: [{ label: 'Responses', data: Object.values(counts), backgroundColor: '#ff9800' }] },
+                        options: { responsive: true, maintainAspectRatio: true }
+                    });
+                }
+            }
+        }
     }
     
+    // Admin Panel Tabs
+    adminTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            adminTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const tabName = tab.getAttribute('data-admin-tab');
+            if (tabName === 'manage') { manageTab.style.display = 'block'; resultsTab.style.display = 'none'; renderAdminQuestions(); }
+            else { manageTab.style.display = 'none'; resultsTab.style.display = 'block'; loadAdminResults(); }
+        });
+    });
+    
+    // Admin Authentication
+    function showAdminAuth() { passwordModal.classList.remove('hidden'); }
+    function hideAdminAuth() { passwordModal.classList.add('hidden'); }
+    function verifyAdmin() {
+        if (typeof SUPERVISOR_PASSWORD !== 'undefined' && adminPassInput.value === SUPERVISOR_PASSWORD) {
+            adminAuthenticated = true;
+            hideAdminAuth();
+            adminOverlay.classList.add('active');
+            loadQuestions();
+            renderAdminQuestions();
+        } else { adminPassError.textContent = 'Wrong password'; }
+    }
+    
+    adminFab.addEventListener('click', showAdminAuth);
+    closeAdminBtn.addEventListener('click', () => adminOverlay.classList.remove('active'));
+    verifyAdminPassBtn.addEventListener('click', verifyAdmin);
+    cancelAdminPassBtn.addEventListener('click', hideAdminAuth);
+    adminPassInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyAdmin(); });
+    addCategoryBtn.addEventListener('click', addNewCategory);
+    addQuestionBtn.addEventListener('click', addNewQuestion);
+    
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[m])); }
+    
+    async function init() {
+        if (firestoreReady) {
+            await loadCategories();
+            await loadQuestions();
+        }
+    }
     init();
 </script>
 </body>
