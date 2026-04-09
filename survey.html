@@ -31,7 +31,6 @@
             position: relative;
             overflow-x: hidden;
         }
-        /* Animated Background Particles */
         .particle {
             position: fixed;
             background: rgba(255, 215, 0, 0.15);
@@ -56,7 +55,6 @@
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3);
             overflow: hidden;
         }
-        /* Lounge Header - Light Golden Theme */
         .survey-header {
             background: linear-gradient(135deg, #f5e6c8 0%, #eed9b0 50%, #e6cc96 100%);
             padding: 30px 40px;
@@ -142,7 +140,6 @@
             border-radius: 2px;
             transition: width 0.5s ease;
         }
-        /* Category Sections */
         .category-section {
             margin-bottom: 25px;
             border-radius: 28px;
@@ -155,7 +152,6 @@
             transform: translateY(-2px);
             box-shadow: 0 12px 30px -10px rgba(0,0,0,0.12);
         }
-        /* Category Themes with Golden Accents */
         .category-section.service { border-left: 6px solid #d4a017; }
         .category-section.cleanliness { border-left: 6px solid #c8a84e; }
         .category-section.comfort { border-left: 6px solid #e0b84d; }
@@ -228,7 +224,6 @@
         .rating-option[data-value="5"]:hover, .rating-option[data-value="5"].selected { background: #4caf50; color: white; transform: scale(1.05); }
         .rating-emoji-icon { font-size: 1.6rem; }
         .rating-label { font-size: 0.7rem; font-weight: 600; }
-        /* Smiley Rating */
         .smiley-rating {
             display: flex;
             gap: 12px;
@@ -414,6 +409,77 @@
             justify-content: center;
             z-index: 1100;
         }
+        /* Device Auth Modal */
+        .device-auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+        .device-auth-card {
+            background: white;
+            border-radius: 32px;
+            padding: 32px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            animation: fadeInScale 0.3s ease;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .device-auth-card i {
+            font-size: 4rem;
+            color: #d4a017;
+            margin-bottom: 16px;
+        }
+        .device-auth-card h2 {
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+            color: #8b6914;
+        }
+        .device-auth-card p {
+            font-size: 0.8rem;
+            color: #5a7a97;
+            margin-bottom: 20px;
+        }
+        .device-auth-card input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 40px;
+            border: 2px solid #e2eaf2;
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .device-auth-card input:focus {
+            outline: none;
+            border-color: #d4a017;
+        }
+        .device-auth-card button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #d4a017, #b8860b);
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .device-error {
+            color: #c62828;
+            font-size: 0.75rem;
+            margin-top: 12px;
+        }
         .hidden { display: none; }
         .status-msg { text-align: center; padding: 12px; border-radius: 40px; margin-top: 15px; }
         footer { text-align: center; margin-top: 30px; font-size: 0.7rem; color: rgba(255,250,240,0.8); position: relative; z-index: 1; }
@@ -426,7 +492,7 @@
     </style>
 </head>
 <body>
-<div class="container">
+<div class="container" id="appContainer" style="display: none;">
     <div class="survey-wrapper">
         <div class="survey-header">
             <div class="lounge-badge">
@@ -439,7 +505,7 @@
                 </div>
             </div>
             <div class="welcome-text">
-                <h2><i class=""></i> Welcome, Valued Guest</h2>
+                <h2><i class="fas fa-star-of-life"></i> Welcome, Valued Guest</h2>
                 <p>Your feedback helps us deliver an exceptional lounge experience</p>
             </div>
             <div class="progress-bar">
@@ -457,7 +523,7 @@
             </form>
         </div>
     </div>
-    <footer>✨ Koveli Lounge ✨</footer>
+    <footer>✨ Koveli Lounge · Elevating Your Journey ✨</footer>
 </div>
 
 <button class="admin-fab" id="adminFabBtn"><i class="fas fa-cog"></i></button>
@@ -520,7 +586,49 @@
     </div>
 </div>
 
+<!-- Device Authorization Modal -->
+<div id="deviceAuthModal" class="device-auth-overlay">
+    <div class="device-auth-card">
+        <i class="fas fa-microchip"></i>
+        <h2>Device Authorization Required</h2>
+        <p>This device needs to be authorized.<br>Enter the master password to continue.</p>
+        <input type="password" id="devicePasswordInput" placeholder="Enter Master Password" autocomplete="off">
+        <button id="authorizeDeviceBtn">Authorize Device</button>
+        <div id="deviceAuthError" class="device-error"></div>
+    </div>
+</div>
+
 <script>
+    // ========== DEVICE AUTHORIZATION ==========
+    const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
+    
+    let DEVICE_MASTER_PASSWORD = null;
+    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
+        DEVICE_MASTER_PASSWORD = MASTER_PASSWORD_GLOBAL;
+    } else if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
+        DEVICE_MASTER_PASSWORD = SUPERVISOR_PASSWORD;
+    } else {
+        DEVICE_MASTER_PASSWORD = "Admin123";
+    }
+    
+    function isDeviceAuthorized() {
+        return localStorage.getItem(DEVICE_STORAGE_KEY) === "true";
+    }
+    
+    function authorizeDevice(password) {
+        if (password === DEVICE_MASTER_PASSWORD) {
+            localStorage.setItem(DEVICE_STORAGE_KEY, "true");
+            return true;
+        }
+        return false;
+    }
+    
+    window.resetDeviceAuth = function() {
+        localStorage.removeItem(DEVICE_STORAGE_KEY);
+        location.reload();
+    };
+
+    // ========== FIREBASE INITIALIZATION ==========
     let db, firestoreReady = false;
     let adminAuthenticated = false;
     let allQuestions = [];
@@ -644,7 +752,8 @@
             }
         });
         const percent = total > 0 ? (answered / total) * 100 : 0;
-        document.getElementById('progressFill').style.width = percent + '%';
+        const progressFill = document.getElementById('progressFill');
+        if (progressFill) progressFill.style.width = percent + '%';
     }
     
     async function loadCategories() {
@@ -660,9 +769,10 @@
     
     function renderCategoryUI() {
         const div = document.getElementById('categoryList');
+        if (!div) return;
         div.innerHTML = categories.map(cat => `<span class="category-chip">${escapeHtml(cat)}<button class="delete-cat" data-cat="${escapeHtml(cat)}" style="background:none; border:none; color:#c62828; cursor:pointer;">✖</button></span>`).join('');
         const sel = document.getElementById('selectedCategory');
-        sel.innerHTML = '<option value="">-- Select Category --</option>' + categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+        if (sel) sel.innerHTML = '<option value="">-- Select Category --</option>' + categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
         document.querySelectorAll('.delete-cat').forEach(btn => btn.addEventListener('click', async () => {
             const cat = btn.getAttribute('data-cat');
             if (confirm(`Delete "${cat}"? Questions move to General.`)) {
@@ -731,7 +841,7 @@
             html += `<div style="margin-bottom:20px;"><h4 style="margin-bottom:10px; color:#8b6914;">📁 ${escapeHtml(cat)}</h4>`;
             questions.forEach(q => {
                 const typeName = q.type === 'rating' ? '⭐ Rating' : (q.type === 'smiley' ? '😊 Smiley' : '📝 Text');
-                html += `<div class="admin-question-item"><div class="admin-question-header"><span class="admin-question-text">${escapeHtml(q.text)}</span><div class="admin-actions"><button class="edit-question" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}" data-cat="${escapeHtml(q.category)}">Edit</button><button class="delete-question" data-id="${q.id}">Delete</button></div></div><div class="question-meta">Type: ${typeName} | Category: ${escapeHtml(q.category)}</div></div>`;
+                html += `<div class="admin-question-item"><div><span class="admin-question-text">${escapeHtml(q.text)}</span><div style="margin-top:8px;"><button class="edit-question" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}" data-cat="${escapeHtml(q.category)}">Edit</button><button class="delete-question" data-id="${q.id}">Delete</button></div></div><div class="question-meta" style="font-size:0.7rem; color:#a0782c; margin-top:5px;">Type: ${typeName} | Category: ${escapeHtml(q.category)}</div></div>`;
             });
             html += `</div>`;
         }
@@ -875,8 +985,46 @@
     
     function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[m])); }
     
-    async function init() { if (firestoreReady) { await loadCategories(); await loadQuestions(); } }
-    init();
+    async function initApp() { 
+        if (firestoreReady) { 
+            await loadCategories(); 
+            await loadQuestions(); 
+        } 
+    }
+    
+    // ========== DEVICE AUTHORIZATION FLOW ==========
+    const deviceModal = document.getElementById('deviceAuthModal');
+    const devicePasswordInput = document.getElementById('devicePasswordInput');
+    const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
+    const deviceAuthError = document.getElementById('deviceAuthError');
+    const appContainer = document.getElementById('appContainer');
+
+    function handleDeviceAuthorization() {
+        const enteredPassword = devicePasswordInput.value;
+        if (authorizeDevice(enteredPassword)) {
+            deviceModal.style.display = 'none';
+            appContainer.style.display = 'block';
+            initApp();
+        } else {
+            deviceAuthError.textContent = 'Invalid master password. Access denied.';
+            devicePasswordInput.value = '';
+            devicePasswordInput.focus();
+        }
+    }
+
+    if (isDeviceAuthorized()) {
+        deviceModal.style.display = 'none';
+        appContainer.style.display = 'block';
+        initApp();
+    } else {
+        deviceModal.style.display = 'flex';
+        appContainer.style.display = 'none';
+        authorizeDeviceBtn.addEventListener('click', handleDeviceAuthorization);
+        devicePasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleDeviceAuthorization();
+        });
+        devicePasswordInput.focus();
+    }
 </script>
 </body>
 </html>
