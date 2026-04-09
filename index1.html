@@ -82,7 +82,7 @@
         }
         .supervisor-panel {
             flex: 1.2;
-            min-width: 480px;
+            min-width: 450px;
         }
         .card {
             background: white;
@@ -246,12 +246,88 @@
             margin: 20px 0;
             font-size: 1rem;
         }
+        /* Device Auth Modal Styles */
+        .device-auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .device-auth-card {
+            background: white;
+            border-radius: 32px;
+            padding: 32px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            animation: fadeInScale 0.3s ease;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .device-auth-card i {
+            font-size: 4rem;
+            color: #1d6f8f;
+            margin-bottom: 16px;
+        }
+        .device-auth-card h2 {
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+            color: #1a4c6e;
+        }
+        .device-auth-card p {
+            font-size: 0.8rem;
+            color: #5a7a97;
+            margin-bottom: 20px;
+        }
+        .device-auth-card input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 40px;
+            border: 2px solid #e2eaf2;
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .device-auth-card input:focus {
+            outline: none;
+            border-color: #1d6f8f;
+        }
+        .device-auth-card button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .device-auth-card button:hover {
+            transform: translateY(-1px);
+        }
+        .device-auth-card button:active {
+            transform: translateY(1px);
+        }
+        .device-error {
+            color: #c62828;
+            font-size: 0.75rem;
+            margin-top: 12px;
+            font-weight: 500;
+        }
         .hidden {
             display: none;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
         }
         .readonly-note {
             font-size: 0.7rem;
@@ -266,7 +342,6 @@
             font-size: 0.7rem;
             color: #7e9bb5;
         }
-        /* Staff View Briefing Display */
         .staff-briefing-list {
             margin-top: 20px;
             max-height: 550px;
@@ -304,68 +379,6 @@
             line-height: 1.6;
             color: #2c3e50;
         }
-        /* Supervisor Category Management */
-        .category-section {
-            margin-bottom: 24px;
-            padding: 16px;
-            background: #f8fbfe;
-            border-radius: 24px;
-        }
-        .category-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .category-title {
-            font-weight: 700;
-            color: #1a4c6e;
-        }
-        .category-badge {
-            background: #eef2fa;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-        }
-        .category-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 12px;
-        }
-        .category-item {
-            background: white;
-            border: 1px solid #e2eaf2;
-            border-radius: 30px;
-            padding: 6px 16px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .category-item:hover {
-            border-color: #2c7da0;
-            background: #eef3fc;
-        }
-        .category-item.active {
-            background: #1d6f8f;
-            color: white;
-            border-color: #1d6f8f;
-        }
-        .delete-category {
-            background: none;
-            border: none;
-            color: #c62828;
-            cursor: pointer;
-            font-size: 0.7rem;
-            padding: 2px;
-        }
-        .delete-category:hover {
-            transform: scale(1.1);
-        }
-        /* Supervisor Briefings List with Category Filter */
         .supervisor-briefing-list {
             margin-top: 20px;
             max-height: 400px;
@@ -415,36 +428,26 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .category-selector {
-            margin-top: 8px;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: wrap;
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8aa9c4;
+            font-size: 0.9rem;
         }
-        .category-select {
-            padding: 6px 12px;
-            border-radius: 25px;
-            border: 1.5px solid #e2eaf2;
-            font-size: 0.75rem;
-            background: white;
-        }
-        .move-category-btn {
-            background: #ff9800;
-            color: white;
-            border: none;
+        .badge {
+            background: #eef2f8;
             padding: 4px 12px;
-            border-radius: 25px;
+            border-radius: 40px;
             font-size: 0.7rem;
-            cursor: pointer;
+            font-weight: 500;
         }
     </style>
 </head>
 <body>
-<div class="container">
+<div class="container" id="appContainer" style="display: none;">
     <div class="header">
         <h1><i class="fas fa-scroll"></i> Briefing Minutes · Point Log</h1>
-        <p>View and manage daily briefing notes with categories</p>
+        <p>View and manage daily briefing notes</p>
     </div>
 
     <div class="role-bar">
@@ -475,28 +478,13 @@
             </div>
         </div>
 
-        <!-- SUPERVISOR VIEW PANEL - With Categories -->
+        <!-- SUPERVISOR VIEW PANEL - Edit Mode with Date Selection -->
         <div class="supervisor-panel hidden" id="supervisorPanel">
             <div class="card">
                 <div class="card-title">
                     <i class="fas fa-pen-fancy" style="color:#2c7da0;"></i> 
-                    <span>Briefing Management</span>
-                    <span class="badge" style="margin-left: auto; background:#fff3e0;">✏️ Edit Mode</span>
-                </div>
-                
-                <!-- Category Management Section -->
-                <div class="category-section">
-                    <div class="category-header">
-                        <span class="category-title"><i class="fas fa-tags"></i> Categories</span>
-                        <button id="addCategoryBtn" class="btn-secondary" style="padding: 4px 12px; font-size: 0.7rem;"><i class="fas fa-plus"></i> Add Category</button>
-                    </div>
-                    <div id="categoryList" class="category-list">
-                        <span class="category-item active" data-category="All">All</span>
-                    </div>
-                    <div style="margin-top: 12px; display: flex; gap: 8px;">
-                        <input type="text" id="newCategoryInput" placeholder="New category name" style="flex:1; padding: 8px 12px; border-radius: 25px; border: 1.5px solid #e2eaf2; font-size: 0.8rem;">
-                        <button id="createCategoryBtn" class="btn-primary" style="padding: 8px 16px; font-size: 0.75rem;">Create</button>
-                    </div>
+                    <span>Briefing Entry (Edit Mode)</span>
+                    <span id="formModeBadge" class="badge" style="margin-left: auto; background:#fff3e0;">✨ New</span>
                 </div>
                 
                 <!-- Date Selector for Supervisor -->
@@ -505,7 +493,7 @@
                     <input type="date" id="supervisorDate" value="">
                 </div>
                 
-                <!-- List of Briefings for Selected Date with Category Filter -->
+                <!-- List of Briefings for Selected Date -->
                 <div id="supervisorBriefingsList" class="supervisor-briefing-list">
                     <div class="empty-state">📅 Select a date to view briefings</div>
                 </div>
@@ -562,10 +550,56 @@
     </div>
 </div>
 
-<script>
-    // SUPERVISOR_PASSWORD is loaded from config.js
-    // Firebase is initialized from fire.js
+<!-- Device Authorization Modal (First-time entry) -->
+<div id="deviceAuthModal" class="device-auth-overlay">
+    <div class="device-auth-card">
+        <i class="fas fa-microchip"></i>
+        <h2>Device Authorization</h2>
+        <p>This device needs to be authorized.<br>Enter the master password to register this device.</p>
+        <input type="password" id="devicePasswordInput" placeholder="Enter Device Authorization Password" autocomplete="off">
+        <button id="authorizeDeviceBtn">Authorize Device</button>
+        <div id="deviceAuthError" class="device-error"></div>
+    </div>
+</div>
 
+<script>
+    // ========== DEVICE AUTHORIZATION SYSTEM ==========
+    const DEVICE_STORAGE_KEY = "briefing_vault_device_authorized";
+    
+    // Get master password from config.js
+    let DEVICE_MASTER_PASSWORD = null;
+    
+    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
+        DEVICE_MASTER_PASSWORD = MASTER_PASSWORD_GLOBAL;
+        console.log("Device auth: Using MASTER_PASSWORD_GLOBAL");
+    } else if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
+        DEVICE_MASTER_PASSWORD = SUPERVISOR_PASSWORD;
+        console.log("Device auth: Using SUPERVISOR_PASSWORD");
+    } else {
+        DEVICE_MASTER_PASSWORD = "Admin123";
+        console.warn("Device auth: Using fallback password 'Admin123'");
+    }
+    
+    function isDeviceAuthorized() {
+        return localStorage.getItem(DEVICE_STORAGE_KEY) === "true";
+    }
+    
+    function authorizeDevice(password) {
+        if (password === DEVICE_MASTER_PASSWORD) {
+            localStorage.setItem(DEVICE_STORAGE_KEY, "true");
+            localStorage.setItem("briefing_vault_authorized_at", new Date().toISOString());
+            return true;
+        }
+        return false;
+    }
+    
+    // Optional: Reset device auth from console
+    window.resetDeviceAuth = function() {
+        localStorage.removeItem(DEVICE_STORAGE_KEY);
+        location.reload();
+    };
+    
+    // ========== FIREBASE INITIALIZATION ==========
     let db, firestoreReady = false;
     
     if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
@@ -576,29 +610,24 @@
         } catch (err) {
             console.error("Firestore init error:", err);
             firestoreReady = false;
-            alert("❌ Firestore error. Check fire.js");
         }
     } else {
         console.error("Firebase not initialized.");
-        alert("❌ fire.js not loaded. Please make sure fire.js is in the same directory.");
         firestoreReady = false;
     }
     
     // Global state
     let currentEditId = null;
     let currentBriefings = [];
-    let categories = ['All'];
-    let selectedCategory = 'All';
+    let isLoading = false;
     let isSupervisorMode = false;
     
-    // DOM elements - Staff View
+    // DOM elements
     const staffPanel = document.getElementById('staffPanel');
     const supervisorPanel = document.getElementById('supervisorPanel');
     const staffDate = document.getElementById('staffDate');
     const staffBriefingsContainer = document.getElementById('staffBriefingsContainer');
     const staffFeedback = document.getElementById('staffFeedback');
-    
-    // DOM elements - Supervisor View
     const supervisorDate = document.getElementById('supervisorDate');
     const supervisorBriefingsList = document.getElementById('supervisorBriefingsList');
     const supervisorSelect = document.getElementById('supervisorSelect');
@@ -609,12 +638,7 @@
     const clearFormBtn = document.getElementById('clearFormBtn');
     const deleteCurrentBtn = document.getElementById('deleteCurrentBtn');
     const formFeedback = document.getElementById('formFeedback');
-    const categoryList = document.getElementById('categoryList');
-    const newCategoryInput = document.getElementById('newCategoryInput');
-    const createCategoryBtn = document.getElementById('createCategoryBtn');
-    const addCategoryBtn = document.getElementById('addCategoryBtn');
-    
-    // DOM elements - Common
+    const formModeBadge = document.getElementById('formModeBadge');
     const staffRoleBtn = document.getElementById('staffRoleBtn');
     const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const passwordModal = document.getElementById('passwordModal');
@@ -628,151 +652,24 @@
         return today.toISOString().slice(0,10);
     }
     
-    // Load categories from Firestore
-    async function loadCategories() {
-        if (!firestoreReady) return;
-        try {
-            const docRef = db.collection("globalConfig").doc("categories");
-            const docSnap = await docRef.get();
-            if (docSnap.exists) {
-                const savedCategories = docSnap.data().categories || [];
-                categories = ['All', ...savedCategories.filter(c => c !== 'All')];
-            } else {
-                categories = ['All'];
-                await docRef.set({ categories: [] });
-            }
-            renderCategoryList();
-        } catch (err) {
-            console.error("Error loading categories:", err);
-        }
-    }
-    
-    // Save categories to Firestore
-    async function saveCategories() {
-        if (!firestoreReady) return;
-        const categoriesToSave = categories.filter(c => c !== 'All');
-        try {
-            await db.collection("globalConfig").doc("categories").set({ categories: categoriesToSave });
-        } catch (err) {
-            console.error("Error saving categories:", err);
-        }
-    }
-    
-    // Add new category
-    async function addNewCategory() {
-        const newCategory = newCategoryInput.value.trim();
-        if (!newCategory) {
-            formFeedback.innerHTML = "⚠️ Enter category name";
-            formFeedback.className = 'status-msg warning-msg';
-            setTimeout(() => {
-                if (formFeedback.innerHTML.includes('Enter')) formFeedback.innerHTML = '';
-            }, 2000);
-            return;
-        }
-        if (categories.includes(newCategory)) {
-            formFeedback.innerHTML = "⚠️ Category already exists";
-            formFeedback.className = 'status-msg warning-msg';
-            setTimeout(() => {
-                if (formFeedback.innerHTML.includes('already')) formFeedback.innerHTML = '';
-            }, 2000);
-            return;
-        }
-        categories.push(newCategory);
-        await saveCategories();
-        renderCategoryList();
-        newCategoryInput.value = "";
-        formFeedback.innerHTML = `✅ Category "${newCategory}" added`;
-        formFeedback.className = 'status-msg success-msg';
-        setTimeout(() => {
-            if (formFeedback.innerHTML.includes('added')) formFeedback.innerHTML = '';
-        }, 2000);
-    }
-    
-    // Delete category
-    async function deleteCategory(category) {
-        if (category === 'All') return;
-        if (!confirm(`Delete category "${category}"? Briefings in this category will be moved to "Uncategorized".`)) return;
-        
-        // Update all briefings with this category to Uncategorized
-        if (currentBriefings.length > 0) {
-            for (const briefing of currentBriefings) {
-                if (briefing.category === category) {
-                    await db.collection("briefingMinutes").doc(briefing.id).update({ category: "Uncategorized" });
-                }
-            }
-        }
-        
-        categories = categories.filter(c => c !== category);
-        await saveCategories();
-        renderCategoryList();
-        
-        if (selectedCategory === category) {
-            selectedCategory = 'All';
-            renderCategoryList();
-        }
-        await loadSupervisorBriefings();
-        
-        formFeedback.innerHTML = `🗑️ Category "${category}" deleted`;
-        formFeedback.className = 'status-msg success-msg';
-        setTimeout(() => {
-            if (formFeedback.innerHTML.includes('deleted')) formFeedback.innerHTML = '';
-        }, 2000);
-    }
-    
-    // Render category list
-    function renderCategoryList() {
-        categoryList.innerHTML = categories.map(cat => `
-            <span class="category-item ${selectedCategory === cat ? 'active' : ''}" data-category="${cat}">
-                ${cat}
-                ${cat !== 'All' ? `<button class="delete-category" data-category="${cat}">✖</button>` : ''}
-            </span>
-        `).join('');
-        
-        // Add click event to category items
-        document.querySelectorAll('.category-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                if (e.target.classList.contains('delete-category')) return;
-                const cat = item.getAttribute('data-category');
-                selectedCategory = cat;
-                renderCategoryList();
-                filterBriefingsByCategory();
-            });
-        });
-        
-        // Add delete event to delete buttons
-        document.querySelectorAll('.delete-category').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const cat = btn.getAttribute('data-category');
-                deleteCategory(cat);
-            });
-        });
-    }
-    
-    // Filter briefings by selected category
-    function filterBriefingsByCategory() {
-        if (!currentBriefings) return;
-        let filteredBriefings = currentBriefings;
-        if (selectedCategory !== 'All') {
-            filteredBriefings = currentBriefings.filter(b => b.category === selectedCategory);
-        }
-        renderSupervisorBriefingsList(filteredBriefings);
-    }
-    
     // Staff View: Load all briefings for selected date
     async function loadStaffBriefings() {
         if (!firestoreReady) {
             staffBriefingsContainer.innerHTML = '<div class="empty-state">⚠️ Firebase not connected.</div>';
+            staffFeedback.innerHTML = "❌ Firebase connection error";
+            staffFeedback.className = 'status-msg warning-msg';
             return;
         }
         
         const dateVal = staffDate.value;
         if (!dateVal) {
             staffBriefingsContainer.innerHTML = '<div class="empty-state">📅 Please select a date to view briefing notes</div>';
+            staffFeedback.innerHTML = "📅 Select a date to view briefings";
+            staffFeedback.className = 'status-msg info-msg';
             return;
         }
         
-        staffFeedback.innerHTML = "🔍 Loading briefings...";
+        staffFeedback.innerHTML = "🔍 Loading briefings for " + dateVal + "...";
         staffFeedback.className = 'status-msg info-msg';
         
         try {
@@ -786,8 +683,8 @@
             });
             
             if (entriesList.length === 0) {
-                staffBriefingsContainer.innerHTML = '<div class="empty-state">📝 No briefing notes available for this date</div>';
-                staffFeedback.innerHTML = "📝 No briefings found";
+                staffBriefingsContainer.innerHTML = '<div class="empty-state">📝 No briefing notes available for ' + dateVal + '</div>';
+                staffFeedback.innerHTML = "📝 No briefings found for this date";
                 staffFeedback.className = 'status-msg info-msg';
                 return;
             }
@@ -797,20 +694,18 @@
                 const safeSupervisor = escapeHtml(entry.supervisor);
                 const safeShift = escapeHtml(entry.shift);
                 const safePoints = escapeHtml(entry.pointsText || '').replace(/\n/g, '<br>');
-                const category = entry.category || 'Uncategorized';
                 displayHtml += `
                     <div class="staff-briefing-card">
                         <div class="staff-briefing-header">
                             <span class="staff-badge"><i class="fas fa-user-tie"></i> ${safeSupervisor}</span>
                             <span class="staff-badge"><i class="fas fa-clock"></i> ${safeShift}</span>
-                            <span class="staff-badge"><i class="fas fa-tag"></i> ${escapeHtml(category)}</span>
                         </div>
                         <div class="staff-briefing-text">${safePoints}</div>
                     </div>
                 `;
             });
             staffBriefingsContainer.innerHTML = displayHtml;
-            staffFeedback.innerHTML = `✅ ${entriesList.length} briefing(s) found`;
+            staffFeedback.innerHTML = `✅ ${entriesList.length} briefing(s) found for ${dateVal}`;
             staffFeedback.className = 'status-msg success-msg';
             
         } catch (err) {
@@ -823,6 +718,7 @@
         setTimeout(() => {
             if (staffFeedback.innerHTML.includes('found') || staffFeedback.innerHTML.includes('Error')) {
                 staffFeedback.innerHTML = '';
+                staffFeedback.className = 'status-msg';
             }
         }, 3000);
     }
@@ -847,8 +743,7 @@
             
             const entriesList = [];
             snapshot.forEach(doc => {
-                const data = doc.data();
-                entriesList.push({ id: doc.id, ...data, category: data.category || 'Uncategorized' });
+                entriesList.push({ id: doc.id, ...doc.data() });
             });
             
             entriesList.sort((a, b) => {
@@ -858,7 +753,7 @@
             });
             
             currentBriefings = entriesList;
-            filterBriefingsByCategory();
+            renderSupervisorBriefingsList();
             
         } catch (err) {
             console.error(err);
@@ -866,34 +761,24 @@
         }
     }
     
-    function renderSupervisorBriefingsList(briefings) {
-        if (briefings.length === 0) {
-            supervisorBriefingsList.innerHTML = '<div class="empty-state">📝 No briefings for this date in this category. Create a new one below.</div>';
+    function renderSupervisorBriefingsList() {
+        if (currentBriefings.length === 0) {
+            supervisorBriefingsList.innerHTML = '<div class="empty-state">📝 No briefings for this date. Create a new one below.</div>';
             return;
         }
         
         let html = '';
-        briefings.forEach(briefing => {
+        currentBriefings.forEach(briefing => {
             const safeSupervisor = escapeHtml(briefing.supervisor);
             const safeShift = escapeHtml(briefing.shift);
             const previewText = (briefing.pointsText || '').substring(0, 80);
-            const category = briefing.category || 'Uncategorized';
             html += `
-                <div class="supervisor-briefing-card" data-id="${briefing.id}" data-supervisor="${safeSupervisor}" data-shift="${safeShift}" data-points="${escapeHtml(briefing.pointsText || '')}" data-category="${escapeHtml(category)}">
+                <div class="supervisor-briefing-card" data-id="${briefing.id}" data-supervisor="${safeSupervisor}" data-shift="${safeShift}" data-points="${escapeHtml(briefing.pointsText || '')}">
                     <div class="supervisor-briefing-header">
                         <span class="supervisor-badge"><i class="fas fa-user-tie"></i> ${safeSupervisor}</span>
                         <span class="supervisor-badge"><i class="fas fa-clock"></i> ${safeShift}</span>
-                        <span class="supervisor-badge"><i class="fas fa-tag"></i> ${escapeHtml(category)}</span>
                     </div>
                     <div class="supervisor-briefing-preview">${previewText}${(briefing.pointsText || '').length > 80 ? '...' : ''}</div>
-                    <div class="category-selector">
-                        <select class="category-select" data-id="${briefing.id}">
-                            <option value="">Move to category...</option>
-                            ${categories.filter(c => c !== 'All').map(c => `<option value="${escapeHtml(c)}" ${category === c ? 'selected disabled' : ''}>${escapeHtml(c)}</option>`).join('')}
-                            <option value="Uncategorized" ${category === 'Uncategorized' ? 'selected disabled' : ''}>Uncategorized</option>
-                        </select>
-                        <button class="move-category-btn" data-id="${briefing.id}">Move</button>
-                    </div>
                 </div>
             `;
         });
@@ -901,9 +786,7 @@
         
         // Add click event to load briefing into edit form
         document.querySelectorAll('.supervisor-briefing-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                if (e.target.classList.contains('category-select') || e.target.classList.contains('move-category-btn')) return;
-                
+            card.addEventListener('click', () => {
                 document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
                 
@@ -913,50 +796,35 @@
                 const points = card.getAttribute('data-points');
                 
                 currentEditId = id;
+                formModeBadge.innerHTML = '✏️ Editing Entry';
                 supervisorSelect.value = supervisor;
                 shiftSelect.value = shift;
                 pointsTextarea.value = points;
                 autoLoadStatus.innerHTML = "✓ Loaded";
                 setTimeout(() => {
-                    if (autoLoadStatus.innerHTML === "✓ Loaded") autoLoadStatus.innerHTML = "";
+                    if (autoLoadStatus.innerHTML === "✓ Loaded") {
+                        autoLoadStatus.innerHTML = "";
+                    }
                 }, 1500);
                 formFeedback.innerHTML = `✏️ Editing ${supervisor} (${shift})`;
                 formFeedback.className = 'status-msg info-msg';
                 setTimeout(() => {
-                    if (formFeedback.innerHTML.includes('Editing')) formFeedback.innerHTML = '';
-                }, 2000);
-            });
-        });
-        
-        // Add move category functionality
-        document.querySelectorAll('.move-category-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const id = btn.getAttribute('data-id');
-                const select = btn.parentElement.querySelector('.category-select');
-                const newCategory = select.value;
-                if (!newCategory) return;
-                
-                await db.collection("briefingMinutes").doc(id).update({ category: newCategory });
-                await loadSupervisorBriefings();
-                formFeedback.innerHTML = `✅ Moved to category: ${newCategory}`;
-                formFeedback.className = 'status-msg success-msg';
-                setTimeout(() => {
-                    if (formFeedback.innerHTML.includes('Moved')) formFeedback.innerHTML = '';
+                    if (formFeedback.innerHTML.includes('Editing')) {
+                        formFeedback.innerHTML = '';
+                    }
                 }, 2000);
             });
         });
     }
     
-    // Reset form for new entry
     function resetFormToNew() {
         currentEditId = null;
+        formModeBadge.innerHTML = '✨ New Entry';
         supervisorSelect.value = "";
         shiftSelect.value = "";
         pointsTextarea.value = "";
         autoLoadStatus.innerHTML = "";
         formFeedback.innerHTML = "";
-        
         document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected'));
     }
     
@@ -998,7 +866,6 @@
             supervisor: supervisor,
             shift: shift,
             pointsText: pointsVal,
-            category: 'Uncategorized',
             updatedAt: new Date().toISOString()
         };
         
@@ -1014,11 +881,15 @@
             formFeedback.className = 'status-msg success-msg';
             
             await loadSupervisorBriefings();
-            if (staffDate.value === dateVal) await loadStaffBriefings();
+            if (staffDate.value === dateVal) {
+                await loadStaffBriefings();
+            }
             resetFormToNew();
             
             setTimeout(() => {
-                if (formFeedback.innerHTML.includes('✅')) formFeedback.innerHTML = '';
+                if (formFeedback.innerHTML.includes('✅')) {
+                    formFeedback.innerHTML = '';
+                }
             }, 2000);
         } catch (err) {
             console.error(err);
@@ -1038,10 +909,14 @@
             await loadSupervisorBriefings();
             
             const currentDateVal = supervisorDate.value;
-            if (staffDate.value === currentDateVal) await loadStaffBriefings();
+            if (staffDate.value === currentDateVal) {
+                await loadStaffBriefings();
+            }
             
             setTimeout(() => {
-                if (formFeedback.innerHTML.includes('deleted')) formFeedback.innerHTML = '';
+                if (formFeedback.innerHTML.includes('deleted')) {
+                    formFeedback.innerHTML = '';
+                }
             }, 2000);
         } catch (err) {
             formFeedback.innerHTML = "Error: " + err.message;
@@ -1057,7 +932,9 @@
             formFeedback.innerHTML = "ℹ️ Select a briefing from the list to delete.";
             formFeedback.className = 'status-msg';
             setTimeout(() => {
-                if (formFeedback.innerHTML.includes('Select')) formFeedback.innerHTML = '';
+                if (formFeedback.innerHTML.includes('Select')) {
+                    formFeedback.innerHTML = '';
+                }
             }, 2000);
         }
     }
@@ -1067,7 +944,9 @@
         formFeedback.innerHTML = "Form cleared";
         formFeedback.className = 'status-msg success-msg';
         setTimeout(() => {
-            if (formFeedback.innerHTML === "Form cleared") formFeedback.innerHTML = '';
+            if (formFeedback.innerHTML === "Form cleared") {
+                formFeedback.innerHTML = '';
+            }
         }, 1500);
     }
     
@@ -1092,11 +971,10 @@
             
             const todayStr = getTodayDate();
             supervisorDate.value = todayStr;
-            loadCategories();
             loadSupervisorBriefings();
             resetFormToNew();
             
-            formFeedback.innerHTML = "✅ Supervisor mode enabled. Create categories and manage briefings.";
+            formFeedback.innerHTML = "✅ Supervisor mode enabled. Select a date to view and edit briefings.";
             formFeedback.className = 'status-msg success-msg';
         } else {
             staffPanel.classList.remove('hidden');
@@ -1115,9 +993,12 @@
         setTimeout(() => {
             if(formFeedback && formFeedback.innerHTML && formFeedback.innerHTML.includes('mode')) {
                 formFeedback.innerHTML = '';
+                formFeedback.className = 'status-msg';
             }
             if(staffFeedback && staffFeedback.innerHTML === "👁️ Staff view - Select a date to view briefing notes.") {
-                setTimeout(() => { staffFeedback.innerHTML = ''; }, 3000);
+                setTimeout(() => {
+                    staffFeedback.innerHTML = '';
+                }, 3000);
             }
         }, 3000);
     }
@@ -1141,14 +1022,13 @@
         }
     }
     
-    async function init() {
+    async function initApp() {
         const todayStr = getTodayDate();
         staffDate.value = todayStr;
         supervisorDate.value = todayStr;
         
         if (firestoreReady) {
             await loadStaffBriefings();
-            await loadCategories();
         }
         
         setSupervisorMode(false);
@@ -1159,11 +1039,6 @@
         saveBtn.addEventListener('click', saveBriefing);
         clearFormBtn.addEventListener('click', clearForm);
         deleteCurrentBtn.addEventListener('click', deleteCurrentBriefing);
-        createCategoryBtn.addEventListener('click', addNewCategory);
-        addCategoryBtn.addEventListener('click', () => newCategoryInput.focus());
-        newCategoryInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addNewCategory();
-        });
         
         staffRoleBtn.addEventListener('click', () => setSupervisorMode(false));
         supervisorRoleBtn.addEventListener('click', showPasswordModal);
@@ -1174,7 +1049,40 @@
         });
     }
     
-    init();
+    // ========== DEVICE AUTHORIZATION FLOW ==========
+    const deviceModal = document.getElementById('deviceAuthModal');
+    const devicePasswordInput = document.getElementById('devicePasswordInput');
+    const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
+    const deviceAuthError = document.getElementById('deviceAuthError');
+    const appContainer = document.getElementById('appContainer');
+
+    function handleDeviceAuthorization() {
+        const enteredPassword = devicePasswordInput.value;
+        if (authorizeDevice(enteredPassword)) {
+            deviceModal.style.display = 'none';
+            appContainer.style.display = 'block';
+            initApp();
+        } else {
+            deviceAuthError.textContent = 'Invalid authorization password. Access denied.';
+            devicePasswordInput.value = '';
+            devicePasswordInput.focus();
+        }
+    }
+
+    // Check if device is already authorized
+    if (isDeviceAuthorized()) {
+        deviceModal.style.display = 'none';
+        appContainer.style.display = 'block';
+        initApp();
+    } else {
+        deviceModal.style.display = 'flex';
+        appContainer.style.display = 'none';
+        authorizeDeviceBtn.addEventListener('click', handleDeviceAuthorization);
+        devicePasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleDeviceAuthorization();
+        });
+        devicePasswordInput.focus();
+    }
 </script>
 </body>
 </html>
