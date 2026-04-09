@@ -94,6 +94,11 @@
             background: white;
             outline: none;
         }
+        .date-selector input:disabled, .date-selector select:disabled {
+            background: #f5f7fa;
+            color: #666;
+            cursor: not-allowed;
+        }
         .status-badge {
             display: inline-flex;
             align-items: center;
@@ -165,7 +170,6 @@
         .allocation-bottom {
             width: 100%;
         }
-        /* Task Categories */
         .task-category {
             margin-bottom: 20px;
             border: 1px solid #e2eaf2;
@@ -487,8 +491,8 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-clipboard-list"></i> Staff on Duty · Shift Manager</h1>
-        <p>Staff Allocation | Task Management </p>
+        <h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1>
+        <p>Staff Allocation | Task Management | Category Based Tasks</p>
     </div>
 
     <div class="role-bar">
@@ -498,11 +502,11 @@
 
     <div class="date-bar">
         <div class="date-selector">
-            <input type="date" id="mainDate" value="">
-            <select id="mainShift">
+            <input type="date" id="mainDate" value="" disabled>
+            <select id="mainShift" disabled>
                 <option value="">Select Shift</option>
-                <option value="Morning">🌅 Morning</option>
-                <option value="Evening">🌙 Evening</option>
+                <option value="Morning">🌅 Morning (07:30-15:30)</option>
+                <option value="Evening">🌙 Evening (15:30-23:30)</option>
             </select>
         </div>
         <div class="action-buttons">
@@ -521,7 +525,7 @@
         <div class="card">
             <div class="card-title">
                 <i class="fas fa-tasks"></i>
-                <span>Shift Tasks</span>
+                <span>Daily Tasks by Category</span>
             </div>
             <div id="tasksContainer" class="tasks-list">
                 <div class="empty-msg">Select date and shift</div>
@@ -559,11 +563,11 @@
                 </div>
                 <div id="categoryList" style="margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 6px;"></div>
                 
-                <h4 style="margin-bottom: 8px; font-size: 0.8rem;">Add Task</h4>
-                <input type="text" id="newTaskName" placeholder="Task name">
+                <h4 style="margin-bottom: 8px; font-size: 0.8rem;">Add Task to Category</h4>
                 <select id="taskCategorySelect">
                     <option value="">-- Select Category --</option>
                 </select>
+                <input type="text" id="newTaskName" placeholder="Task name">
                 <select id="taskTypeSelect">
                     <option value="done">✅ Single Staff Done</option>
                     <option value="acknowledge">👥 Multi-Acknowledge</option>
@@ -703,7 +707,6 @@
         return pending;
     }
 
-    // Get unique categories from tasks
     function getUniqueCategories() {
         const categories = new Set();
         globalTasks.forEach(task => {
@@ -720,14 +723,12 @@
             <span class="staff-tag" style="display: inline-flex; align-items: center; gap: 6px;">
                 📁 ${escapeHtml(cat)}
                 <button class="edit-category-small" data-category="${escapeHtml(cat)}" style="background:none; border:none; color:#ff9800; cursor:pointer;"><i class="fas fa-edit"></i></button>
-                <button class="delete-category-small" data-category="${escapeHtml(cat)}" style="background:none; border:none; color:#c62828; cursor:pointer;"><i class="fas fa-trash"></i></button>
+                ${cat !== "General" ? `<button class="delete-category-small" data-category="${escapeHtml(cat)}" style="background:none; border:none; color:#c62828; cursor:pointer;"><i class="fas fa-trash"></i></button>` : ''}
             </span>
         `).join('');
         
-        // Update category dropdown
         taskCategorySelect.innerHTML = '<option value="">-- Select Category --</option>' + categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
         
-        // Add event listeners for category edit/delete
         document.querySelectorAll('.edit-category-small').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const oldCategory = btn.getAttribute('data-category');
@@ -814,7 +815,7 @@
         
         let tableHtml = '<table class="allocation-table"><thead><tr><th class="area-col">Area / Time</th>';
         slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
-        tableHtml += '</tr></thead><tbody>';
+        tableHtml += '</table></thead><tbody>';
         
         const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
         areas.forEach(area => {
@@ -1030,7 +1031,7 @@
                         <i class="fas fa-folder"></i>
                         <span class="category-name">${escapeHtml(category)}</span>
                     </div>
-                    ${currentRole === "supervisor" && !isClosed ? `<div><button class="edit-category-btn" data-category="${escapeHtml(category)}"><i class="fas fa-edit"></i> Rename</button><button class="delete-category-btn" data-category="${escapeHtml(category)}"><i class="fas fa-trash"></i> Delete</button></div>` : ''}
+                    ${currentRole === "supervisor" && !isClosed ? `<div><button class="edit-category-btn" data-category="${escapeHtml(category)}"><i class="fas fa-edit"></i> Rename</button>${category !== "General" ? `<button class="delete-category-btn" data-category="${escapeHtml(category)}"><i class="fas fa-trash"></i> Delete</button>` : ''}</div>` : ''}
                 </div>
                 <div class="category-tasks" id="category-${category.replace(/\s/g, '_')}"></div>
             `;
@@ -1175,7 +1176,6 @@
             setTimeout(() => adminFeedback.innerText = "", 2000);
             return;
         }
-        // Just add a dummy task to create category, or just update UI
         updateCategoryUI();
         newCategoryName.value = "";
         adminFeedback.innerText = `Category "${newCategory}" created`;
@@ -1188,11 +1188,27 @@
     }
 
     async function onDateShiftChange() {
+        if (currentRole !== "supervisor") return;
         currentDate = mainDate.value;
         currentShift = mainShift.value;
         localStorage.setItem('selectedDate', currentDate);
         localStorage.setItem('selectedShift', currentShift);
         await refreshAll();
+    }
+
+    function updateFormAccess() {
+        const isSupervisorRole = (currentRole === "supervisor" && isSupervisor);
+        mainDate.disabled = !isSupervisorRole;
+        mainShift.disabled = !isSupervisorRole;
+        
+        if (isSupervisorRole && currentDate && currentShift) {
+            loadShiftRecord(currentDate, currentShift);
+        }
+    }
+
+    async function loadShiftRecord(date, shift) {
+        if (!date || !shift) return;
+        await loadTaskRecord();
     }
 
     function printAllocationSheet() {
@@ -1235,7 +1251,7 @@
         
         let tableHtml = '<table class="alloc-table"><thead><tr><th>Area / Time</th>';
         slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
-        tableHtml += '</tr></thead><tbody>';
+        tableHtml += '<tr></thead><tbody>';
         areas.forEach(area => {
             tableHtml += `<tr><td class="area-col"><strong>${area}</strong></td>`;
             slots.forEach(slot => {
@@ -1289,10 +1305,17 @@
             adminPanel.classList.remove("hidden");
             staffRoleBtn.classList.remove("active");
             supervisorRoleBtn.classList.add("active");
+            mainDate.disabled = false;
+            mainShift.disabled = false;
+            if (currentDate && currentShift) {
+                loadTaskRecord();
+            }
         } else {
             adminPanel.classList.add("hidden");
             supervisorRoleBtn.classList.remove("active");
             staffRoleBtn.classList.add("active");
+            mainDate.disabled = true;
+            mainShift.disabled = true;
         }
         renderAllocation();
         renderTasks();
@@ -1319,7 +1342,8 @@
         if (firestoreReady) {
             await loadGlobalTasks();
             await loadStaff();
-            await refreshAll();
+            await loadSOD();
+            await loadTaskRecord();
         }
         
         mainDate.addEventListener('change', onDateShiftChange);
