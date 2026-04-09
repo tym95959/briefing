@@ -7,6 +7,9 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- External Configuration Files -->
+    <script src="fire.js"></script>
+    <script src="config.js"></script>
     <!-- Google Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -492,7 +495,7 @@
 <div class="container">
     <div class="header">
         <h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1>
-        <p>Staff Allocation | Task Management </p>
+        <p>Staff Allocation | Task Management | Category Based Tasks</p>
     </div>
 
     <div class="role-bar">
@@ -505,8 +508,8 @@
             <input type="date" id="mainDate" value="" disabled>
             <select id="mainShift" disabled>
                 <option value="">Select Shift</option>
-                <option value="Morning">🌅 Morning</option>
-                <option value="Evening">🌙 Evening</option>
+                <option value="Morning">🌅 Morning (07:30-15:30)</option>
+                <option value="Evening">🌙 Evening (15:30-23:30)</option>
             </select>
         </div>
         <div class="action-buttons">
@@ -604,22 +607,23 @@
 </div>
 
 <script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyALK_YlhFl6XOTDY54SOhk4DUDLPq1PBEE",
-        authDomain: "briefing-ded2b.firebaseapp.com",
-        projectId: "briefing-ded2b",
-        storageBucket: "briefing-ded2b.firebasestorage.app",
-        messagingSenderId: "583386183547",
-        appId: "1:583386183547:web:945d92eaa3d13f513defde"
-    };
-    const SUPERVISOR_PASSWORD = "admin123";
+    // SUPERVISOR_PASSWORD is loaded from config.js
+    // Firebase is initialized from fire.js
 
     let db, firestoreReady = false;
     try {
-        if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        firestoreReady = true;
-    } catch (err) { alert("Firebase connection error."); }
+        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+            db = firebase.firestore();
+            firestoreReady = true;
+            console.log("Firebase ready");
+        } else {
+            console.error("Firebase not initialized");
+            alert("Firebase connection error. Check fire.js file.");
+        }
+    } catch (err) { 
+        console.error(err);
+        alert("Firebase connection error."); 
+    }
 
     const MORNING_SLOTS = [
         { id: "slot1", name: "07:30 - 10:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] },
@@ -815,7 +819,7 @@
         
         let tableHtml = '<table class="allocation-table"><thead><tr><th class="area-col">Area / Time</th>';
         slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
-        tableHtml += '</table></thead><tbody>';
+        tableHtml += '<tr></thead><tbody>';
         
         const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
         areas.forEach(area => {
@@ -829,7 +833,7 @@
                 tableHtml += `<td class="staff-list-cell">
                     ${assigned.map(s => `<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit ? `<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:9px;">✖</button>` : ''}</span>`).join('')}
                     ${staffHtml}
-                  </td>`;
+                   </td>`;
             });
             tableHtml += '</tr>';
         });
@@ -1196,21 +1200,6 @@
         await refreshAll();
     }
 
-    function updateFormAccess() {
-        const isSupervisorRole = (currentRole === "supervisor" && isSupervisor);
-        mainDate.disabled = !isSupervisorRole;
-        mainShift.disabled = !isSupervisorRole;
-        
-        if (isSupervisorRole && currentDate && currentShift) {
-            loadShiftRecord(currentDate, currentShift);
-        }
-    }
-
-    async function loadShiftRecord(date, shift) {
-        if (!date || !shift) return;
-        await loadTaskRecord();
-    }
-
     function printAllocationSheet() {
         if (!currentDate || !currentShift) { alert("Please select date and shift first"); return; }
         const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
@@ -1247,11 +1236,11 @@
         const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
         const doneTasks = currentTaskRecord?.doneTasks || {};
         const ackTasks = currentTaskRecord?.acknowledgedTasks || {};
-        const selections = currentTaskRecord?.dropdownSelections || {};
+        const selections = currentTaskRecord?.dropdownSelections || [];
         
         let tableHtml = '<table class="alloc-table"><thead><tr><th>Area / Time</th>';
         slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
-        tableHtml += '<tr></thead><tbody>';
+        tableHtml += '</tr></thead><tbody>';
         areas.forEach(area => {
             tableHtml += `<tr><td class="area-col"><strong>${area}</strong></td>`;
             slots.forEach(slot => {
@@ -1278,7 +1267,7 @@
                     const acks = ackTasks[task.id] || [];
                     statusHtml = acks.length > 0 ? `✅ Acknowledged by:<ul>${acks.map(n => `<li>👤 ${escapeHtml(n)}</li>`).join('')}</ul>` : `⏳ No acknowledgments yet`;
                 } else {
-                    const subs = selections[task.id] || [];
+                    const subs = selections.filter(s => s.taskId === task.id);
                     statusHtml = subs.length > 0 ? `📋 Submissions:<ul>${subs.map(s => `<li>👤 ${escapeHtml(s.staffName)} selected: <strong>${escapeHtml(s.selectedValue)}</strong>${s.additionalText ? ` (${escapeHtml(s.additionalText)})` : ''}<br><span style="font-size:9px;">at ${new Date(s.submittedAt).toLocaleString()}</span></li>`).join('')}</ul>` : `⏳ No submissions yet`;
                 }
                 tasksHtml += `<tr><td style="font-weight:bold;">${escapeHtml(category)}</td><td>📋 ${escapeHtml(task.name)}</td><td>${statusHtml}</td></tr>`;
@@ -1323,12 +1312,14 @@
     }
 
     function verifyPassword() {
-        if (supervisorPassword.value === SUPERVISOR_PASSWORD) {
+        if (typeof SUPERVISOR_PASSWORD !== 'undefined' && supervisorPassword.value === SUPERVISOR_PASSWORD) {
             isSupervisor = true;
             passwordModal.classList.add('hidden');
             setRole("supervisor");
             adminFeedback.innerText = "Access granted";
-        } else passwordError.innerText = "Wrong password";
+        } else {
+            passwordError.innerText = "Wrong password";
+        }
     }
 
     async function init() {
