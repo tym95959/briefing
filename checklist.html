@@ -465,6 +465,86 @@
             border: 1.5px solid #e2eaf2;
             margin: 16px 0;
         }
+        /* Device Auth Modal Styles */
+        .device-auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .device-auth-card {
+            background: white;
+            border-radius: 32px;
+            padding: 32px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            animation: fadeInScale 0.3s ease;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .device-auth-card i {
+            font-size: 4rem;
+            color: #1d6f8f;
+            margin-bottom: 16px;
+        }
+        .device-auth-card h2 {
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+            color: #1a4c6e;
+        }
+        .device-auth-card p {
+            font-size: 0.8rem;
+            color: #5a7a97;
+            margin-bottom: 20px;
+        }
+        .device-auth-card input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 40px;
+            border: 2px solid #e2eaf2;
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .device-auth-card input:focus {
+            outline: none;
+            border-color: #1d6f8f;
+        }
+        .device-auth-card button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .device-auth-card button:hover {
+            transform: translateY(-1px);
+        }
+        .device-auth-card button:active {
+            transform: translateY(1px);
+        }
+        .device-error {
+            color: #c62828;
+            font-size: 0.75rem;
+            margin-top: 12px;
+            font-weight: 500;
+        }
         .hidden { display: none; }
         footer {
             text-align: center;
@@ -492,7 +572,7 @@
     </style>
 </head>
 <body>
-<div class="container">
+<div class="container" id="appContainer" style="display: none;">
     <div class="header">
         <h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1>
         <p>Staff Allocation | Task Management</p>
@@ -523,7 +603,6 @@
         </div>
     </div>
 
-    <!-- Checklist Full Width with Categories -->
     <div class="checklist-full">
         <div class="card">
             <div class="card-title">
@@ -537,7 +616,6 @@
         </div>
     </div>
 
-    <!-- Allocation Bottom -->
     <div class="allocation-bottom">
         <div class="card">
             <div class="card-title">
@@ -550,7 +628,6 @@
         </div>
     </div>
 
-    <!-- Admin Panel (Floating on right - Toggleable) -->
     <div class="admin-panel hidden" id="adminPanel">
         <button class="toggle-admin-btn" id="toggleAdminBtn"><i class="fas fa-eye-slash"></i></button>
         <div class="card">
@@ -592,7 +669,6 @@
             <div id="adminFeedback" class="info-text"></div>
         </div>
     </div>
-    
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -606,10 +682,61 @@
     </div>
 </div>
 
-<script>
-    // SUPERVISOR_PASSWORD is loaded from config.js
-    // Firebase is initialized from fire.js
+<!-- Device Authorization Modal (First-time entry) -->
+<div id="deviceAuthModal" class="device-auth-overlay">
+    <div class="device-auth-card">
+        <i class="fas fa-microchip"></i>
+        <h2>Device Authorization</h2>
+        <p>This device needs to be authorized.<br>Enter the master password to register this device.</p>
+        <input type="password" id="devicePasswordInput" placeholder="Enter Device Authorization Password" autocomplete="off">
+        <button id="authorizeDeviceBtn">Authorize Device</button>
+        <div id="deviceAuthError" class="device-error"></div>
+    </div>
+</div>
 
+<script>
+    // ========== DEVICE AUTHORIZATION SYSTEM ==========
+    // Uses localStorage to remember authorized device permanently
+    const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
+    
+    // Get master password from config.js (MASTER_PASSWORD_GLOBAL or fallback)
+    let DEVICE_MASTER_PASSWORD = null;
+    
+    // Try to get password from config.js global variables
+    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
+        DEVICE_MASTER_PASSWORD = MASTER_PASSWORD_GLOBAL;
+        console.log("Device auth: Using MASTER_PASSWORD_GLOBAL");
+    } else if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
+        DEVICE_MASTER_PASSWORD = SUPERVISOR_PASSWORD;
+        console.log("Device auth: Using SUPERVISOR_PASSWORD");
+    } else {
+        // Fallback - should match your config.js
+        DEVICE_MASTER_PASSWORD = "Admin123";
+        console.warn("Device auth: Using fallback password 'Admin123'");
+    }
+    
+    // Check if device is already authorized
+    function isDeviceAuthorized() {
+        return localStorage.getItem(DEVICE_STORAGE_KEY) === "true";
+    }
+    
+    // Authorize device (stores in localStorage permanently)
+    function authorizeDevice(password) {
+        if (password === DEVICE_MASTER_PASSWORD) {
+            localStorage.setItem(DEVICE_STORAGE_KEY, "true");
+            localStorage.setItem("device_authorized_at", new Date().toISOString());
+            return true;
+        }
+        return false;
+    }
+    
+    // Optional: Function to clear device authorization (for admin reset - can be called from console)
+    window.resetDeviceAuth = function() {
+        localStorage.removeItem(DEVICE_STORAGE_KEY);
+        location.reload();
+    };
+    
+    // ========== FIREBASE INITIALIZATION ==========
     let db, firestoreReady = false;
     try {
         if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
@@ -618,11 +745,9 @@
             console.log("Firebase ready");
         } else {
             console.error("Firebase not initialized");
-            alert("Firebase connection error. Check fire.js file.");
         }
     } catch (err) { 
         console.error(err);
-        alert("Firebase connection error."); 
     }
 
     const MORNING_SLOTS = [
@@ -646,6 +771,7 @@
     let isSupervisor = false;
     let isAdminCollapsed = false;
 
+    // DOM Elements
     const staffRoleBtn = document.getElementById('staffRoleBtn');
     const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const adminPanel = document.getElementById('adminPanel');
@@ -679,9 +805,11 @@
     const exportFullPdfBtn = document.getElementById('exportFullPdfBtn');
     const printAllocationBtn = document.getElementById('printAllocationBtn');
 
-    taskTypeSelect.addEventListener('change', () => {
-        dropdownOptionsDiv.style.display = taskTypeSelect.value === 'dropdown' ? 'block' : 'none';
-    });
+    if (taskTypeSelect) {
+        taskTypeSelect.addEventListener('change', () => {
+            if (dropdownOptionsDiv) dropdownOptionsDiv.style.display = taskTypeSelect.value === 'dropdown' ? 'block' : 'none';
+        });
+    }
 
     function toggleAdminPanel() {
         isAdminCollapsed = !isAdminCollapsed;
@@ -723,15 +851,18 @@
 
     function updateCategoryUI() {
         const categories = getUniqueCategories();
-        categoryList.innerHTML = categories.map(cat => `
-            <span class="staff-tag" style="display: inline-flex; align-items: center; gap: 6px;">
-                📁 ${escapeHtml(cat)}
-                <button class="edit-category-small" data-category="${escapeHtml(cat)}" style="background:none; border:none; color:#ff9800; cursor:pointer;"><i class="fas fa-edit"></i></button>
-                ${cat !== "General" ? `<button class="delete-category-small" data-category="${escapeHtml(cat)}" style="background:none; border:none; color:#c62828; cursor:pointer;"><i class="fas fa-trash"></i></button>` : ''}
-            </span>
-        `).join('');
-        
-        taskCategorySelect.innerHTML = '<option value="">-- Select Category --</option>' + categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+        if (categoryList) {
+            categoryList.innerHTML = categories.map(cat => `
+                <span class="staff-tag" style="display: inline-flex; align-items: center; gap: 6px;">
+                    📁 ${escapeHtml(cat)}
+                    <button class="edit-category-small" data-category="${escapeHtml(cat)}" style="background:none; border:none; color:#ff9800; cursor:pointer;"><i class="fas fa-edit"></i></button>
+                    ${cat !== "General" ? `<button class="delete-category-small" data-category="${escapeHtml(cat)}" style="background:none; border:none; color:#c62828; cursor:pointer;"><i class="fas fa-trash"></i></button>` : ''}
+                </span>
+            `).join('');
+        }
+        if (taskCategorySelect) {
+            taskCategorySelect.innerHTML = '<option value="">-- Select Category --</option>' + categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+        }
         
         document.querySelectorAll('.edit-category-small').forEach(btn => {
             btn.addEventListener('click', async () => {
@@ -746,8 +877,8 @@
             btn.addEventListener('click', async () => {
                 const categoryToDelete = btn.getAttribute('data-category');
                 if (categoryToDelete === "General") {
-                    adminFeedback.innerText = "Cannot delete General category";
-                    setTimeout(() => adminFeedback.innerText = "", 2000);
+                    if (adminFeedback) adminFeedback.innerText = "Cannot delete General category";
+                    setTimeout(() => { if(adminFeedback) adminFeedback.innerText = ""; }, 2000);
                     return;
                 }
                 const taskCount = globalTasks.filter(t => (t.category || "General") === categoryToDelete).length;
@@ -781,13 +912,15 @@
         });
         await saveGlobalTasks(updatedTasks);
         updateCategoryUI();
-        adminFeedback.innerText = `Category "${categoryToDelete}" deleted, tasks moved to General`;
-        setTimeout(() => adminFeedback.innerText = "", 2000);
+        if (adminFeedback) {
+            adminFeedback.innerText = `Category "${categoryToDelete}" deleted, tasks moved to General`;
+            setTimeout(() => adminFeedback.innerText = "", 2000);
+        }
     }
 
     async function loadSOD() {
         if (!firestoreReady || !currentDate || !currentShift) {
-            allocationContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
+            if (allocationContainer) allocationContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
             return;
         }
         const recordId = getSODRecordId(currentDate, currentShift);
@@ -812,7 +945,7 @@
     }
 
     function renderAllocation() {
-        if (!currentSODRecord) return;
+        if (!currentSODRecord || !allocationContainer) return;
         const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
         const allocations = currentSODRecord.allocations || {};
         const canEdit = currentRole === "supervisor" && currentTaskRecord?.status !== "closed";
@@ -903,7 +1036,7 @@
 
     async function loadTaskRecord() {
         if (!firestoreReady || !currentDate || !currentShift) {
-            tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
+            if (tasksContainer) tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
             return;
         }
         const recordId = getTaskRecordId(currentDate, currentShift);
@@ -923,15 +1056,15 @@
     }
 
     function updateShiftStatusUI() {
-        if (!currentTaskRecord) return;
+        if (!currentTaskRecord || !shiftStatusBadge) return;
         const isClosed = currentTaskRecord.status === "closed";
         shiftStatusBadge.innerHTML = isClosed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open';
         shiftStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
         
-        if (currentRole === "supervisor") {
+        if (currentRole === "supervisor" && closeShiftBtn && reopenShiftBtn) {
             closeShiftBtn.classList.toggle('hidden', isClosed);
             reopenShiftBtn.classList.toggle('hidden', !isClosed);
-        } else {
+        } else if (closeShiftBtn && reopenShiftBtn) {
             closeShiftBtn.classList.add('hidden');
             reopenShiftBtn.classList.add('hidden');
         }
@@ -981,9 +1114,7 @@
         const pendingCount = getPendingTasksCount();
         if (pendingCount > 0) {
             const confirmMsg = `There ${pendingCount === 1 ? 'is' : 'are'} ${pendingCount} pending task${pendingCount === 1 ? '' : 's'}. Are you sure you want to close the shift?`;
-            if (!confirm(confirmMsg)) {
-                return;
-            }
+            if (!confirm(confirmMsg)) return;
         } else {
             if (!confirm("Close this shift? All tasks are completed.")) return;
         }
@@ -993,8 +1124,10 @@
         updateShiftStatusUI();
         renderTasks();
         renderAllocation();
-        adminFeedback.innerText = "Shift closed successfully";
-        setTimeout(() => adminFeedback.innerText = "", 3000);
+        if (adminFeedback) {
+            adminFeedback.innerText = "Shift closed successfully";
+            setTimeout(() => { if(adminFeedback) adminFeedback.innerText = ""; }, 3000);
+        }
     }
 
     async function reopenShiftFn() {
@@ -1004,13 +1137,15 @@
         currentTaskRecord.status = "open";
         updateShiftStatusUI();
         renderTasks();
-        adminFeedback.innerText = "Shift reopened";
-        setTimeout(() => adminFeedback.innerText = "", 2000);
+        if (adminFeedback) {
+            adminFeedback.innerText = "Shift reopened";
+            setTimeout(() => { if(adminFeedback) adminFeedback.innerText = ""; }, 2000);
+        }
     }
 
     function renderTasks() {
         if (!currentTaskRecord || !globalTasks.length) {
-            tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
+            if (tasksContainer) tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
             return;
         }
         const isClosed = currentTaskRecord.status === "closed";
@@ -1025,7 +1160,7 @@
             tasksByCategory[category].push(task);
         });
         
-        tasksContainer.innerHTML = '';
+        if (tasksContainer) tasksContainer.innerHTML = '';
         for (const [category, tasks] of Object.entries(tasksByCategory)) {
             const categoryDiv = document.createElement('div');
             categoryDiv.className = 'task-category';
@@ -1074,29 +1209,29 @@
                     const editBtns = (currentRole === "supervisor" && !isClosed) ? `<div><button class="edit-task" data-id="${task.id}" data-name="${escapeHtml(task.name)}" style="background:#ff9800; border:none; padding:3px 10px; border-radius:20px; margin-left:5px; cursor:pointer; font-size:0.65rem;">Edit</button><button class="delete-task" data-id="${task.id}" style="background:#dc3545; border:none; padding:3px 10px; border-radius:20px; margin-left:5px; cursor:pointer; font-size:0.65rem;">Del</button></div>` : '';
                     taskDiv.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}</div>${editBtns}</div>${statusHtml}`;
                 }
-                categoryTasksDiv.appendChild(taskDiv);
+                if (categoryTasksDiv) categoryTasksDiv.appendChild(taskDiv);
             });
-            tasksContainer.appendChild(categoryDiv);
+            if (tasksContainer) tasksContainer.appendChild(categoryDiv);
         }
         
         if (currentRole === "staff" && currentTaskRecord?.status !== "closed") {
             document.querySelectorAll('.do-done').forEach(btn => btn.addEventListener('click', async (e) => {
                 const id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
                 const sel = document.getElementById(`staffSel_${id}`);
-                await completeTask(id, name, sel.value);
+                if (sel) await completeTask(id, name, sel.value);
             }));
             document.querySelectorAll('.do-ack').forEach(btn => btn.addEventListener('click', async (e) => {
                 const id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
                 const sel = document.getElementById(`staffSel_${id}`);
-                await acknowledgeTask(id, name, sel.value);
-                sel.value = "";
+                if (sel) await acknowledgeTask(id, name, sel.value);
+                if (sel) sel.value = "";
             }));
             document.querySelectorAll('.do-drop').forEach(btn => btn.addEventListener('click', async (e) => {
                 const id = btn.getAttribute('data-id'), name = btn.getAttribute('data-name');
                 const staffSel = document.getElementById(`staffSel_${id}`);
                 const dropSel = document.getElementById(`dropSel_${id}`);
                 const addText = document.getElementById(`addText_${id}`);
-                await submitDropdown(id, name, dropSel?.value, addText?.value, staffSel.value);
+                if (staffSel && dropSel) await submitDropdown(id, name, dropSel?.value, addText?.value, staffSel.value);
                 if (staffSel) staffSel.value = "";
                 if (dropSel) dropSel.value = "";
                 if (addText) addText.value = "";
@@ -1141,49 +1276,57 @@
         const ackCount = Object.values(currentTaskRecord.acknowledgedTasks || {}).reduce((s, a) => s + a.length, 0);
         const dropCount = (currentTaskRecord.dropdownSelections || []).length;
         const pendingCount = getPendingTasksCount();
-        tasksInfo.innerHTML = isClosed ? "Shift closed" : `Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount} | ${pendingCount > 0 ? `⚠️ ${pendingCount} pending` : '✅ All completed'}`;
+        if (tasksInfo) tasksInfo.innerHTML = isClosed ? "Shift closed" : `Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount} | ${pendingCount > 0 ? `⚠️ ${pendingCount} pending` : '✅ All completed'}`;
     }
 
     async function loadStaff() {
         if (!firestoreReady) return;
         const snapshot = await db.collection("staff").orderBy("name").get();
         staffList = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-        staffListContainer.innerHTML = staffList.map(s => `<span class="staff-tag">👤 ${escapeHtml(s.name)}</span>`).join('') || '<span class="staff-tag">No staff</span>';
+        if (staffListContainer) staffListContainer.innerHTML = staffList.map(s => `<span class="staff-tag">👤 ${escapeHtml(s.name)}</span>`).join('') || '<span class="staff-tag">No staff</span>';
     }
 
     async function addStaffMember(name) {
-        if (!name.trim()) { adminFeedback.innerText = "Enter name"; return; }
+        if (!name.trim()) { if (adminFeedback) adminFeedback.innerText = "Enter name"; return; }
         await db.collection("staff").add({ name: name.trim(), createdAt: new Date().toISOString() });
         await loadStaff();
-        newStaffName.value = "";
-        adminFeedback.innerText = "Staff added";
-        setTimeout(() => adminFeedback.innerText = "", 2000);
+        if (newStaffName) newStaffName.value = "";
+        if (adminFeedback) {
+            adminFeedback.innerText = "Staff added";
+            setTimeout(() => { if(adminFeedback) adminFeedback.innerText = ""; }, 2000);
+        }
     }
 
     async function addTask() {
-        if (!newTaskName.value.trim()) { adminFeedback.innerText = "Enter task name"; return; }
+        if (!newTaskName.value.trim()) { if (adminFeedback) adminFeedback.innerText = "Enter task name"; return; }
         const category = taskCategorySelect.value;
-        if (!category) { adminFeedback.innerText = "Select a category"; return; }
+        if (!category) { if (adminFeedback) adminFeedback.innerText = "Select a category"; return; }
         const newTask = { id: Date.now().toString(), name: newTaskName.value.trim(), category: category, type: taskTypeSelect.value, options: taskTypeSelect.value === 'dropdown' && dropdownOptions.value ? dropdownOptions.value.split(',').map(o => o.trim()) : null, createdAt: new Date().toISOString() };
         await saveGlobalTasks([...globalTasks, newTask]);
         newTaskName.value = "";
         if (dropdownOptions) dropdownOptions.value = "";
-        adminFeedback.innerText = "Task added to category: " + category;
-        setTimeout(() => adminFeedback.innerText = "", 2000);
+        if (adminFeedback) {
+            adminFeedback.innerText = "Task added to category: " + category;
+            setTimeout(() => { if(adminFeedback) adminFeedback.innerText = ""; }, 2000);
+        }
     }
 
     async function addCategory() {
         const newCategory = newCategoryName.value.trim();
-        if (!newCategory) { adminFeedback.innerText = "Enter category name"; return; }
+        if (!newCategory) { if (adminFeedback) adminFeedback.innerText = "Enter category name"; return; }
         if (getUniqueCategories().includes(newCategory)) {
-            adminFeedback.innerText = "Category already exists";
-            setTimeout(() => adminFeedback.innerText = "", 2000);
+            if (adminFeedback) {
+                adminFeedback.innerText = "Category already exists";
+                setTimeout(() => { if(adminFeedback) adminFeedback.innerText = ""; }, 2000);
+            }
             return;
         }
         updateCategoryUI();
         newCategoryName.value = "";
-        adminFeedback.innerText = `Category "${newCategory}" created`;
-        setTimeout(() => adminFeedback.innerText = "", 2000);
+        if (adminFeedback) {
+            adminFeedback.innerText = `Category "${newCategory}" created`;
+            setTimeout(() => { if(adminFeedback) adminFeedback.innerText = ""; }, 2000);
+        }
     }
 
     async function refreshAll() {
@@ -1208,7 +1351,7 @@
         
         let tableHtml = '<table class="alloc-table"><thead><tr><th>Area / Time</th>';
         slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
-        tableHtml += '</table></thead><tbody>';
+        tableHtml += '</tr></thead><tbody>';
         areas.forEach(area => {
             tableHtml += `<tr><td class="area-col"><strong>${area}</strong></td>`;
             slots.forEach(slot => {
@@ -1240,7 +1383,7 @@
         
         let tableHtml = '<table class="alloc-table"><thead><tr><th>Area / Time</th>';
         slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
-        tableHtml += '</tr></thead><tbody>';
+        tableHtml += '</table></thead><tbody>';
         areas.forEach(area => {
             tableHtml += `<tr><td class="area-col"><strong>${area}</strong></td>`;
             slots.forEach(slot => {
@@ -1288,23 +1431,23 @@
     }
 
     function setRole(role) {
-        if (role === "supervisor" && !isSupervisor) { passwordModal.classList.remove('hidden'); return; }
+        if (role === "supervisor" && !isSupervisor) { if (passwordModal) passwordModal.classList.remove('hidden'); return; }
         currentRole = role;
         if (role === "supervisor") {
-            adminPanel.classList.remove("hidden");
-            staffRoleBtn.classList.remove("active");
-            supervisorRoleBtn.classList.add("active");
-            mainDate.disabled = false;
-            mainShift.disabled = false;
+            if (adminPanel) adminPanel.classList.remove("hidden");
+            if (staffRoleBtn) staffRoleBtn.classList.remove("active");
+            if (supervisorRoleBtn) supervisorRoleBtn.classList.add("active");
+            if (mainDate) mainDate.disabled = false;
+            if (mainShift) mainShift.disabled = false;
             if (currentDate && currentShift) {
                 loadTaskRecord();
             }
         } else {
-            adminPanel.classList.add("hidden");
-            supervisorRoleBtn.classList.remove("active");
-            staffRoleBtn.classList.add("active");
-            mainDate.disabled = true;
-            mainShift.disabled = true;
+            if (adminPanel) adminPanel.classList.add("hidden");
+            if (supervisorRoleBtn) supervisorRoleBtn.classList.remove("active");
+            if (staffRoleBtn) staffRoleBtn.classList.add("active");
+            if (mainDate) mainDate.disabled = true;
+            if (mainShift) mainShift.disabled = true;
         }
         renderAllocation();
         renderTasks();
@@ -1314,11 +1457,11 @@
     function verifyPassword() {
         if (typeof SUPERVISOR_PASSWORD !== 'undefined' && supervisorPassword.value === SUPERVISOR_PASSWORD) {
             isSupervisor = true;
-            passwordModal.classList.add('hidden');
+            if (passwordModal) passwordModal.classList.add('hidden');
             setRole("supervisor");
-            adminFeedback.innerText = "Access granted";
+            if (adminFeedback) adminFeedback.innerText = "Access granted";
         } else {
-            passwordError.innerText = "Wrong password";
+            if (passwordError) passwordError.innerText = "Wrong password";
         }
     }
 
@@ -1327,8 +1470,8 @@
         const savedShift = localStorage.getItem('selectedShift');
         currentDate = savedDate || new Date().toISOString().slice(0, 10);
         currentShift = savedShift || "";
-        mainDate.value = currentDate;
-        mainShift.value = currentShift;
+        if (mainDate) mainDate.value = currentDate;
+        if (mainShift) mainShift.value = currentShift;
         
         if (firestoreReady) {
             await loadGlobalTasks();
@@ -1337,25 +1480,60 @@
             await loadTaskRecord();
         }
         
-        mainDate.addEventListener('change', onDateShiftChange);
-        mainShift.addEventListener('change', onDateShiftChange);
-        staffRoleBtn.addEventListener('click', () => setRole("staff"));
-        supervisorRoleBtn.addEventListener('click', () => setRole("supervisor"));
-        addTaskBtn.addEventListener('click', addTask);
-        addStaffBtn.addEventListener('click', () => addStaffMember(newStaffName.value));
-        addCategoryBtn.addEventListener('click', addCategory);
-        closeShiftBtn.addEventListener('click', closeShift);
-        reopenShiftBtn.addEventListener('click', reopenShiftFn);
-        verifyPasswordBtn.addEventListener('click', verifyPassword);
-        cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
-        exportFullPdfBtn.addEventListener('click', exportFullReport);
-        printAllocationBtn.addEventListener('click', printAllocationSheet);
-        toggleAdminBtn.addEventListener('click', toggleAdminPanel);
+        if (mainDate) mainDate.addEventListener('change', onDateShiftChange);
+        if (mainShift) mainShift.addEventListener('change', onDateShiftChange);
+        if (staffRoleBtn) staffRoleBtn.addEventListener('click', () => setRole("staff"));
+        if (supervisorRoleBtn) supervisorRoleBtn.addEventListener('click', () => setRole("supervisor"));
+        if (addTaskBtn) addTaskBtn.addEventListener('click', addTask);
+        if (addStaffBtn) addStaffBtn.addEventListener('click', () => addStaffMember(newStaffName.value));
+        if (addCategoryBtn) addCategoryBtn.addEventListener('click', addCategory);
+        if (closeShiftBtn) closeShiftBtn.addEventListener('click', closeShift);
+        if (reopenShiftBtn) reopenShiftBtn.addEventListener('click', reopenShiftFn);
+        if (verifyPasswordBtn) verifyPasswordBtn.addEventListener('click', verifyPassword);
+        if (cancelPasswordBtn) cancelPasswordBtn.addEventListener('click', () => { if(passwordModal) passwordModal.classList.add('hidden'); });
+        if (exportFullPdfBtn) exportFullPdfBtn.addEventListener('click', exportFullReport);
+        if (printAllocationBtn) printAllocationBtn.addEventListener('click', printAllocationSheet);
+        if (toggleAdminBtn) toggleAdminBtn.addEventListener('click', toggleAdminPanel);
         setRole("staff");
     }
 
     function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
-    init();
+
+    // ========== DEVICE AUTHORIZATION FLOW ==========
+    const deviceModal = document.getElementById('deviceAuthModal');
+    const devicePasswordInput = document.getElementById('devicePasswordInput');
+    const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
+    const deviceAuthError = document.getElementById('deviceAuthError');
+    const appContainer = document.getElementById('appContainer');
+
+    function handleDeviceAuthorization() {
+        const enteredPassword = devicePasswordInput.value;
+        if (authorizeDevice(enteredPassword)) {
+            // Success - hide modal and show app
+            deviceModal.style.display = 'none';
+            appContainer.style.display = 'block';
+            init();
+        } else {
+            deviceAuthError.textContent = 'Invalid authorization password. Access denied.';
+            devicePasswordInput.value = '';
+            devicePasswordInput.focus();
+        }
+    }
+
+    // Check if device is already authorized
+    if (isDeviceAuthorized()) {
+        deviceModal.style.display = 'none';
+        appContainer.style.display = 'block';
+        init();
+    } else {
+        deviceModal.style.display = 'flex';
+        appContainer.style.display = 'none';
+        authorizeDeviceBtn.addEventListener('click', handleDeviceAuthorization);
+        devicePasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleDeviceAuthorization();
+        });
+        devicePasswordInput.focus();
+    }
 </script>
 </body>
 </html>
