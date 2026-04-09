@@ -35,13 +35,11 @@
             max-width: 1200px;
             margin: 0 auto;
         }
-        /* Main Survey Card */
         .survey-wrapper {
             background: rgba(255,255,255,0.98);
             border-radius: 48px;
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3);
             overflow: hidden;
-            backdrop-filter: blur(10px);
         }
         .survey-header {
             background: linear-gradient(135deg, #1a4c6e, #2c6e8f);
@@ -63,13 +61,39 @@
             margin-top: 15px;
             letter-spacing: 10px;
         }
-        /* Category Sections */
+        /* Category Sections with Themed Backgrounds */
         .category-section {
             margin-bottom: 30px;
-            background: white;
             border-radius: 32px;
             overflow: hidden;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .category-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.08;
+            pointer-events: none;
+            background-size: cover;
+        }
+        .category-section.service::before {
+            background: radial-gradient(circle at 10% 20%, #ffd700, transparent 70%);
+        }
+        .category-section.cleanliness::before {
+            background: repeating-linear-gradient(45deg, #4caf50, #4caf50 10px, #81c784 10px, #81c784 20px);
+        }
+        .category-section.comfort::before {
+            background: radial-gradient(ellipse at 70% 30%, #2196f3, transparent 60%);
+        }
+        .category-section.staff::before {
+            background: repeating-radial-gradient(circle at 20% 40%, #ff9800, #ff9800 8px, #ffc107 8px, #ffc107 16px);
+        }
+        .category-section.food::before {
+            background: linear-gradient(135deg, #ff5722, #ff9800, #ffeb3b);
         }
         .category-title {
             background: linear-gradient(135deg, #f8fbfe, #eef3fc);
@@ -81,9 +105,14 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            position: relative;
+            z-index: 1;
         }
         .category-questions {
             padding: 20px 25px;
+            position: relative;
+            z-index: 1;
+            background: rgba(255,255,255,0.95);
         }
         .question-item {
             margin-bottom: 28px;
@@ -103,7 +132,7 @@
             color: #1a4c6e;
             margin-bottom: 15px;
         }
-        /* Rating Options with Clean Emojis */
+        /* Rating Options with Color Coding */
         .rating-options {
             display: flex;
             gap: 15px;
@@ -122,20 +151,18 @@
             transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             min-width: 80px;
         }
-        .rating-option:hover {
-            border-color: #2c7da0;
-            background: #eef3fc;
-            transform: translateY(-3px) scale(1.02);
-        }
-        .rating-option.selected {
-            border-color: #1d6f8f;
-            background: linear-gradient(135deg, #e8f4f8, #d4eaf2);
-            transform: scale(1.05);
-        }
-        .rating-option input {
-            display: none;
-        }
-        .rating-emoji-icon {
+        /* Color coding based on rating value */
+        .rating-option[data-value="1"] { border-color: #ef5350; background: #ffebee; }
+        .rating-option[data-value="1"]:hover, .rating-option[data-value="1"].selected { background: #ef5350; color: white; border-color: #c62828; }
+        .rating-option[data-value="2"] { border-color: #ff9800; background: #fff3e0; }
+        .rating-option[data-value="2"]:hover, .rating-option[data-value="2"].selected { background: #ff9800; color: white; border-color: #e65100; }
+        .rating-option[data-value="3"] { border-color: #ffc107; background: #fff8e1; }
+        .rating-option[data-value="3"]:hover, .rating-option[data-value="3"].selected { background: #ffc107; color: white; border-color: #ff8f00; }
+        .rating-option[data-value="4"] { border-color: #8bc34a; background: #f1f8e9; }
+        .rating-option[data-value="4"]:hover, .rating-option[data-value="4"].selected { background: #8bc34a; color: white; border-color: #558b2f; }
+        .rating-option[data-value="5"] { border-color: #4caf50; background: #e8f5e9; }
+        .rating-option[data-value="5"]:hover, .rating-option[data-value="5"].selected { background: #4caf50; color: white; border-color: #2e7d32; }
+        .rating-option .rating-emoji-icon {
             font-size: 2rem;
             transition: transform 0.2s;
         }
@@ -145,9 +172,8 @@
         .rating-label {
             font-size: 0.75rem;
             font-weight: 600;
-            color: #5a7a97;
         }
-        /* Smiley Rating */
+        /* Smiley Rating with Color Coding */
         .smiley-rating {
             display: flex;
             gap: 15px;
@@ -163,14 +189,22 @@
             background: white;
             border: 2px solid #e2eaf2;
         }
+        .smiley-option[data-value="very-poor"] { border-color: #ef5350; background: #ffebee; }
+        .smiley-option[data-value="poor"] { border-color: #ff9800; background: #fff3e0; }
+        .smiley-option[data-value="average"] { border-color: #ffc107; background: #fff8e1; }
+        .smiley-option[data-value="good"] { border-color: #8bc34a; background: #f1f8e9; }
+        .smiley-option[data-value="excellent"] { border-color: #4caf50; background: #e8f5e9; }
         .smiley-option.selected {
-            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
-            border-color: #4caf50;
             transform: scale(1.05);
+            color: white;
         }
+        .smiley-option[data-value="very-poor"].selected { background: #ef5350; border-color: #c62828; }
+        .smiley-option[data-value="poor"].selected { background: #ff9800; border-color: #e65100; }
+        .smiley-option[data-value="average"].selected { background: #ffc107; border-color: #ff8f00; }
+        .smiley-option[data-value="good"].selected { background: #8bc34a; border-color: #558b2f; }
+        .smiley-option[data-value="excellent"].selected { background: #4caf50; border-color: #2e7d32; }
         .smiley-option:hover {
             transform: translateY(-3px);
-            border-color: #ff9800;
         }
         .smiley-icon {
             font-size: 2rem;
@@ -194,7 +228,6 @@
             border-color: #2c7da0;
             box-shadow: 0 0 0 3px rgba(44,125,160,0.1);
         }
-        /* Submit Button */
         .submit-btn {
             background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
             color: white;
@@ -214,7 +247,7 @@
             transform: translateY(-3px);
             box-shadow: 0 10px 25px rgba(29,111,143,0.3);
         }
-        /* Floating Elements for Animation */
+        /* Floating Animation Elements */
         .floating-element {
             position: fixed;
             pointer-events: none;
@@ -223,20 +256,11 @@
             animation: floatUp 1s ease-out forwards;
         }
         @keyframes floatUp {
-            0% {
-                opacity: 1;
-                transform: translateY(0) scale(0.5);
-            }
-            50% {
-                opacity: 1;
-                transform: translateY(-100px) scale(1.2);
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-200px) scale(1.5);
-            }
+            0% { opacity: 1; transform: translateY(0) scale(0.5); }
+            50% { opacity: 1; transform: translateY(-100px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-200px) scale(1.5); }
         }
-        /* Thank You Animation Overlay */
+        /* Thank You Overlay */
         .thankyou-overlay {
             position: fixed;
             top: 0;
@@ -273,10 +297,6 @@
             color: #1a4c6e;
             margin-bottom: 15px;
         }
-        .thankyou-card p {
-            color: #5a7a97;
-            margin-bottom: 20px;
-        }
         .confetti {
             font-size: 3rem;
             animation: bounce 0.5s ease infinite;
@@ -310,7 +330,6 @@
             transform: scale(1.1);
             background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
         }
-        /* Admin Panel */
         .admin-overlay {
             position: fixed;
             top: 0;
@@ -408,13 +427,6 @@
             padding: 15px;
             margin-bottom: 12px;
             border: 1px solid #eef2f8;
-        }
-        .admin-question-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
         }
         .edit-question, .delete-question {
             background: none;
@@ -517,7 +529,7 @@
         <div class="admin-content" id="adminContent">
             <div id="manageTab">
                 <div class="add-category">
-                    <input type="text" id="newCategoryName" placeholder="New category name">
+                    <input type="text" id="newCategoryName" placeholder="New category name (e.g., Service, Cleanliness, Comfort)">
                     <button id="addCategoryBtn" style="background:#1d6f8f; color:white; border:none; padding:0 20px; border-radius:30px;">Add Category</button>
                 </div>
                 <div id="categoryList" class="category-list"></div>
@@ -565,7 +577,6 @@
 </div>
 
 <script>
-    // Firebase initialized from fire.js, SUPERVISOR_PASSWORD from config.js
     let db, firestoreReady = false;
     let adminAuthenticated = false;
     let allQuestions = [];
@@ -579,8 +590,20 @@
         } catch(e) { console.error(e); }
     }
     
+    // Helper function to get category class for theming
+    function getCategoryClass(categoryName) {
+        const name = categoryName.toLowerCase();
+        if (name.includes('service')) return 'service';
+        if (name.includes('clean')) return 'cleanliness';
+        if (name.includes('comfort')) return 'comfort';
+        if (name.includes('staff') || name.includes('crew')) return 'staff';
+        if (name.includes('food') || name.includes('dining')) return 'food';
+        return '';
+    }
+    
     // Animation Functions
-    function createFlyingStars(count, x, y) {
+    function createFlyingStars(count, x, y, ratingValue) {
+        const colors = ratingValue <= 2 ? '#ef5350' : (ratingValue === 3 ? '#ffc107' : '#4caf50');
         for (let i = 0; i < count; i++) {
             setTimeout(() => {
                 const star = document.createElement('div');
@@ -589,13 +612,15 @@
                 star.style.left = (x + (Math.random() - 0.5) * 60) + 'px';
                 star.style.top = (y - 20) + 'px';
                 star.style.fontSize = (1 + Math.random() * 1.5) + 'rem';
+                star.style.color = colors;
                 document.body.appendChild(star);
                 setTimeout(() => star.remove(), 1000);
             }, i * 80);
         }
     }
     
-    function createFlyingEmojis(emoji, count, x, y) {
+    function createFlyingEmojis(emoji, count, x, y, ratingType) {
+        const color = (ratingType === 'very-poor' || ratingType === 'poor') ? '#ef5350' : (ratingType === 'average' ? '#ffc107' : '#4caf50');
         for (let i = 0; i < count; i++) {
             setTimeout(() => {
                 const el = document.createElement('div');
@@ -604,6 +629,7 @@
                 el.style.left = (x + (Math.random() - 0.5) * 80) + 'px';
                 el.style.top = (y - 20) + 'px';
                 el.style.fontSize = (1 + Math.random() * 1.2) + 'rem';
+                el.style.color = color;
                 document.body.appendChild(el);
                 setTimeout(() => el.remove(), 1000);
             }, i * 60);
@@ -613,7 +639,6 @@
     function showThankYouAnimation() {
         const overlay = document.getElementById('thankyouOverlay');
         overlay.classList.add('active');
-        // Create confetti effect
         for (let i = 0; i < 30; i++) {
             setTimeout(() => {
                 const confetti = document.createElement('div');
@@ -632,7 +657,6 @@
         document.getElementById('thankyouOverlay').classList.remove('active');
     }
     
-    // Attach click handlers for rating options with animations
     function attachRatingHandlers() {
         document.querySelectorAll('.rating-option').forEach(opt => {
             opt.removeEventListener('click', ratingClickHandler);
@@ -655,9 +679,7 @@
         const rect = this.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
         const y = rect.top + rect.height / 2;
-        createFlyingStars(value, x, y);
-        
-        // Add bounce animation
+        createFlyingStars(value, x, y, value);
         gsap.fromTo(this, { scale: 1 }, { scale: 1.2, duration: 0.2, yoyo: true, repeat: 1 });
     }
     
@@ -669,17 +691,16 @@
         if (radio) radio.checked = true;
         
         const value = this.getAttribute('data-value');
-        const emojiMap = { 'very-poor': '😠', 'poor': '🙁', 'average': '😐', 'good': '🙂', 'excellent': '😍' };
+        const emojiMap = { 'very-poor': '😟', 'poor': '🙁', 'average': '😐', 'good': '🙂', 'excellent': '😊' };
         const emoji = emojiMap[value] || '😊';
         const rect = this.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
         const y = rect.top + rect.height / 2;
-        createFlyingEmojis(emoji, 3, x, y);
-        
+        createFlyingEmojis(emoji, 3, x, y, value);
         gsap.fromTo(this, { scale: 1 }, { scale: 1.15, duration: 0.2, yoyo: true, repeat: 1 });
     }
     
-    // Load Categories and Questions
+    // Load Categories
     async function loadCategories() {
         if (!firestoreReady) return;
         const docRef = db.collection('surveyConfig').doc('categories');
@@ -751,19 +772,20 @@
         
         let html = '';
         for (let [category, questions] of Object.entries(grouped)) {
-            html += `<div class="category-section">
+            const categoryClass = getCategoryClass(category);
+            html += `<div class="category-section ${categoryClass}">
                 <div class="category-title"><i class="fas fa-folder-open"></i> ${escapeHtml(category)}</div>
                 <div class="category-questions">`;
             questions.forEach((q) => {
                 if (q.type === 'rating') {
                     html += `
-                        <div class="question-item" data-qid="${q.id}">
+                        <div class="question-item">
                             <div class="question-text">📌 ${escapeHtml(q.text)}</div>
-                            <div class="rating-options" data-qid="${q.id}">
+                            <div class="rating-options">
                                 ${[1,2,3,4,5].map(star => `
                                     <label class="rating-option" data-value="${star}">
                                         <input type="radio" name="q_${q.id}" value="${star}" required>
-                                        <span class="rating-emoji-icon">${star === 1 ? '😞' : star === 2 ? '😐' : star === 3 ? '🙂' : star === 4 ? '😊' : '😍'}</span>
+                                        <span class="rating-emoji-icon">${star === 1 ? '😟' : star === 2 ? '🙁' : star === 3 ? '😐' : star === 4 ? '🙂' : '😊'}</span>
                                         <span class="rating-label">${star}</span>
                                     </label>
                                 `).join('')}
@@ -772,15 +794,15 @@
                     `;
                 } else if (q.type === 'smiley') {
                     html += `
-                        <div class="question-item" data-qid="${q.id}">
+                        <div class="question-item">
                             <div class="question-text">😊 ${escapeHtml(q.text)}</div>
-                            <div class="smiley-rating" data-qid="${q.id}">
+                            <div class="smiley-rating">
                                 ${[
-                                    {val:'very-poor', emoji:'😠', label:'Very Poor'},
+                                    {val:'very-poor', emoji:'😟', label:'Very Poor'},
                                     {val:'poor', emoji:'🙁', label:'Poor'},
                                     {val:'average', emoji:'😐', label:'Average'},
                                     {val:'good', emoji:'🙂', label:'Good'},
-                                    {val:'excellent', emoji:'😍', label:'Excellent'}
+                                    {val:'excellent', emoji:'😊', label:'Excellent'}
                                 ].map(opt => `
                                     <label class="smiley-option" data-value="${opt.val}">
                                         <input type="radio" name="q_${q.id}" value="${opt.val}" required style="display:none;">
@@ -793,7 +815,7 @@
                     `;
                 } else {
                     html += `
-                        <div class="question-item" data-qid="${q.id}">
+                        <div class="question-item">
                             <div class="question-text">✍️ ${escapeHtml(q.text)}</div>
                             <textarea name="q_${q.id}" class="text-response" rows="3" placeholder="Share your thoughts..." required></textarea>
                         </div>
@@ -822,7 +844,7 @@
             questions.forEach(q => {
                 const typeName = q.type === 'rating' ? '⭐ Rating' : (q.type === 'smiley' ? '😊 Smiley' : '📝 Text');
                 html += `
-                    <div class="admin-question-item" data-id="${q.id}">
+                    <div class="admin-question-item">
                         <div class="admin-question-header">
                             <span class="admin-question-text">${escapeHtml(q.text)}</span>
                             <div class="admin-actions">
@@ -949,7 +971,6 @@
         }
         container.innerHTML = html;
         
-        // Create charts
         for (let q of allQuestions) {
             if (q.type === 'rating') {
                 const qResponses = [];
@@ -981,7 +1002,7 @@
                     if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
                     charts[`admin_${q.id}`] = new Chart(canvas, {
                         type: 'bar',
-                        data: { labels: ['Very Poor','Poor','Average','Good','Excellent'], datasets: [{ label: 'Responses', data: Object.values(counts), backgroundColor: '#ff9800' }] },
+                        data: { labels: ['Very Poor','Poor','Average','Good','Excellent'], datasets: [{ label: 'Responses', data: Object.values(counts), backgroundColor: ['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50'] }] },
                         options: { responsive: true, maintainAspectRatio: true }
                     });
                 }
