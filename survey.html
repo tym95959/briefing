@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Passenger Survey · Feedback System</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- External Configuration Files -->
+    <script src="fire.js"></script>
+    <script src="config.js"></script>
+    <!-- Chart.js for Results -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Google Fonts + Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f0f7ff 0%, #e8eef5 100%);
+            min-height: 100vh;
+            padding: 24px 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(145deg, #1a4c6e, #2c6e8f);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .header p {
+            color: #5a7a97;
+            margin-top: 6px;
+        }
+        /* Role Tabs */
+        .role-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .role-btn {
+            background: white;
+            border: 2px solid #e2eaf2;
+            padding: 12px 32px;
+            border-radius: 60px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+        }
+        .role-btn.active {
+            background: #1d6f8f;
+            border-color: #1d6f8f;
+            color: white;
+        }
+        /* Survey Form */
+        .survey-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 36px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .survey-header {
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+            color: white;
+            padding: 28px 32px;
+        }
+        .survey-header h2 {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+        }
+        .survey-header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        .survey-body {
+            padding: 32px;
+        }
+        .question-card {
+            margin-bottom: 28px;
+            padding: 20px;
+            background: #f8fbfe;
+            border-radius: 24px;
+            border: 1px solid #eef2f8;
+            transition: all 0.2s;
+        }
+        .question-text {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #1a4c6e;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .rating-options {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .rating-btn {
+            background: white;
+            border: 2px solid #e2eaf2;
+            padding: 10px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .rating-btn.selected {
+            background: #1d6f8f;
+            border-color: #1d6f8f;
+            color: white;
+        }
+        .text-response {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 20px;
+            border: 1.5px solid #e2eaf2;
+            font-size: 0.9rem;
+            resize: vertical;
+            outline: none;
+            transition: 0.2s;
+        }
+        .text-response:focus {
+            border-color: #2c7da0;
+            box-shadow: 0 0 0 3px rgba(44,125,160,0.1);
+        }
+        .submit-btn {
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+            transition: transform 0.1s;
+        }
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+        /* Admin Panel */
+        .admin-container {
+            background: white;
+            border-radius: 36px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            padding: 32px;
+        }
+        .admin-section {
+            margin-bottom: 40px;
+            border-bottom: 2px solid #eef2f8;
+            padding-bottom: 28px;
+        }
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1a4c6e;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .questions-list {
+            margin-bottom: 24px;
+        }
+        .question-item {
+            background: #f8fbfe;
+            padding: 16px 20px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .question-info {
+            flex: 1;
+        }
+        .question-type-badge {
+            font-size: 0.7rem;
+            background: #eef2fa;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .question-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            margin: 0 4px;
+            border-radius: 12px;
+            transition: 0.2s;
+        }
+        .edit-question-btn { color: #ff9800; }
+        .delete-question-btn { color: #c62828; }
+        .add-question-form {
+            background: #f8fbfe;
+            padding: 20px;
+            border-radius: 24px;
+            margin-top: 16px;
+        }
+        .form-row {
+            margin-bottom: 16px;
+        }
+        .form-row input, .form-row select, .form-row textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 20px;
+            border: 1.5px solid #e2eaf2;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .form-row label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-bottom: 6px;
+            color: #3d6b8c;
+        }
+        .btn-primary {
+            background: #1d6f8f;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background: #eef3fc;
+            border: 1px solid #cddfed;
+            padding: 10px 24px;
+            border-radius: 40px;
+            cursor: pointer;
+        }
+        /* Results Section */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #f8fbfe;
+            border-radius: 24px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #1d6f8f;
+        }
+        .result-chart {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8fbfe;
+            border-radius: 24px;
+        }
+        .result-chart canvas {
+            max-height: 300px;
+        }
+        .response-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .response-item {
+            background: #f8fbfe;
+            padding: 16px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+        }
+        .response-meta {
+            font-size: 0.7rem;
+            color: #7c9ab8;
+            margin-bottom: 8px;
+        }
+        .status-msg {
+            padding: 10px 18px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            margin-top: 12px;
+        }
+        .success-msg { background: #e0f7e8; color: #2e7d32; }
+        .error-msg { background: #ffebee; color: #c62828; }
+        .info-msg { background: #e3f2fd; color: #1565c0; }
+        .hidden { display: none; }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7c9ab8;
+        }
+        /* Password Modal */
+        .password-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .password-box {
+            background: white;
+            padding: 32px;
+            border-radius: 32px;
+            width: 350px;
+            text-align: center;
+        }
+        .password-box input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 30px;
+            border: 1.5px solid #e2eaf2;
+            margin: 20px 0;
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.7rem;
+            color: #7e9bb5;
+        }
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+            .survey-body { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1><i class="fas fa-smile"></i> Passenger Survey</h1>
+        <p>Share your experience with us</p>
+    </div>
+
+    <div class="role-tabs">
+        <button id="surveyTabBtn" class="role-btn active"><i class="fas fa-edit"></i> Take Survey</button>
+        <button id="adminTabBtn" class="role-btn"><i class="fas fa-chart-bar"></i> Admin Panel</button>
+    </div>
+
+    <!-- SURVEY VIEW -->
+    <div id="surveyView">
+        <div class="survey-container">
+            <div class="survey-header">
+                <h2><i class="fas fa-clipboard-list"></i> Passenger Feedback</h2>
+                <p>Your feedback helps us improve our service</p>
+            </div>
+            <div class="survey-body">
+                <form id="surveyForm">
+                    <div id="surveyQuestions"></div>
+                    <button type="submit" class="submit-btn"><i class="fas fa-paper-plane"></i> Submit Feedback</button>
+                </form>
+                <div id="surveyMessage" class="status-msg" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN VIEW -->
+    <div id="adminView" class="hidden">
+        <div class="admin-container">
+            <!-- Questions Management -->
+            <div class="admin-section">
+                <div class="section-title">
+                    <i class="fas fa-question-circle"></i> Manage Survey Questions
+                </div>
+                <div id="questionsList" class="questions-list">
+                    <div class="loading">Loading questions...</div>
+                </div>
+                <button id="showAddQuestionBtn" class="btn-secondary"><i class="fas fa-plus"></i> Add New Question</button>
+                <div id="addQuestionForm" class="add-question-form hidden">
+                    <h4 style="margin-bottom: 16px;">Add New Question</h4>
+                    <div class="form-row">
+                        <label>Question Text</label>
+                        <input type="text" id="newQuestionText" placeholder="e.g., How would you rate our service?">
+                    </div>
+                    <div class="form-row">
+                        <label>Question Type</label>
+                        <select id="newQuestionType">
+                            <option value="rating">⭐ Rating (1-5 stars)</option>
+                            <option value="text">📝 Text Answer</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <button id="saveNewQuestionBtn" class="btn-primary">Save Question</button>
+                        <button id="cancelAddQuestionBtn" class="btn-secondary">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Dashboard -->
+            <div class="admin-section">
+                <div class="section-title">
+                    <i class="fas fa-chart-line"></i> Survey Results
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalResponses">0</div>
+                        <div>Total Responses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="avgRating">-</div>
+                        <div>Average Rating</div>
+                    </div>
+                </div>
+                <div id="resultsContainer"></div>
+                <button id="refreshResultsBtn" class="btn-secondary"><i class="fas fa-sync-alt"></i> Refresh Results</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Password Modal for Admin -->
+<div id="passwordModal" class="password-modal hidden">
+    <div class="password-box">
+        <i class="fas fa-lock" style="font-size: 2rem; color: #1d6f8f;"></i>
+        <h3>Admin Access Required</h3>
+        <input type="password" id="adminPassword" placeholder="Enter admin password">
+        <button id="verifyAdminBtn" style="background: #1d6f8f; color: white; border: none; padding: 12px 24px; border-radius: 40px; cursor: pointer; width: 100%;">Verify</button>
+        <button id="cancelAdminBtn" style="margin-top: 12px; background: #eef3fc; border: none; padding: 10px; border-radius: 40px; cursor: pointer; width: 100%;">Cancel</button>
+        <p id="adminPasswordError" style="color: #c62828; margin-top: 12px;"></p>
+    </div>
+</div>
+
+<script>
+    // Firebase & Config
+    let db, firestoreReady = false;
+    
+    if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+        try {
+            db = firebase.firestore();
+            firestoreReady = true;
+            console.log("Firebase ready");
+        } catch (err) { console.error(err); }
+    } else {
+        console.error("Firebase not initialized");
+    }
+
+    // Admin password from config.js
+    let ADMIN_PASS = null;
+    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined') ADMIN_PASS = MASTER_PASSWORD_GLOBAL;
+    else if (typeof SUPERVISOR_PASSWORD !== 'undefined') ADMIN_PASS = SUPERVISOR_PASSWORD;
+    else ADMIN_PASS = "Admin123";
+
+    // Global state
+    let currentQuestions = [];
+    let isAdminAuthenticated = false;
+    let ratingCharts = {};
+
+    // DOM Elements
+    const surveyView = document.getElementById('surveyView');
+    const adminView = document.getElementById('adminView');
+    const surveyTabBtn = document.getElementById('surveyTabBtn');
+    const adminTabBtn = document.getElementById('adminTabBtn');
+    const surveyQuestionsDiv = document.getElementById('surveyQuestions');
+    const surveyForm = document.getElementById('surveyForm');
+    const surveyMessage = document.getElementById('surveyMessage');
+    const questionsListDiv = document.getElementById('questionsList');
+    const showAddQuestionBtn = document.getElementById('showAddQuestionBtn');
+    const addQuestionForm = document.getElementById('addQuestionForm');
+    const saveNewQuestionBtn = document.getElementById('saveNewQuestionBtn');
+    const cancelAddQuestionBtn = document.getElementById('cancelAddQuestionBtn');
+    const newQuestionText = document.getElementById('newQuestionText');
+    const newQuestionType = document.getElementById('newQuestionType');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const totalResponsesSpan = document.getElementById('totalResponses');
+    const avgRatingSpan = document.getElementById('avgRating');
+    const refreshResultsBtn = document.getElementById('refreshResultsBtn');
+    const passwordModal = document.getElementById('passwordModal');
+    const adminPassword = document.getElementById('adminPassword');
+    const verifyAdminBtn = document.getElementById('verifyAdminBtn');
+    const cancelAdminBtn = document.getElementById('cancelAdminBtn');
+    const adminPasswordError = document.getElementById('adminPasswordError');
+
+    // ========== LOAD QUESTIONS ==========
+    async function loadQuestions() {
+        if (!firestoreReady) return [];
+        try {
+            const docRef = db.collection("surveyConfig").doc("questions");
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                currentQuestions = docSnap.data().questions || [];
+            } else {
+                // Default questions
+                currentQuestions = [
+                    { id: "q1", text: "How satisfied are you with our service?", type: "rating" },
+                    { id: "q2", text: "How likely are you to travel with us again?", type: "rating" },
+                    { id: "q3", text: "Any additional feedback or suggestions?", type: "text" }
+                ];
+                await docRef.set({ questions: currentQuestions });
+            }
+            return currentQuestions;
+        } catch (err) {
+            console.error("Error loading questions:", err);
+            return [];
+        }
+    }
+
+    async function saveQuestions(questions) {
+        if (!firestoreReady) return false;
+        try {
+            await db.collection("surveyConfig").doc("questions").set({ questions });
+            currentQuestions = questions;
+            return true;
+        } catch (err) {
+            console.error("Error saving questions:", err);
+            return false;
+        }
+    }
+
+    // ========== RENDER SURVEY ==========
+    function renderSurvey() {
+        if (!surveyQuestionsDiv) return;
+        if (!currentQuestions.length) {
+            surveyQuestionsDiv.innerHTML = '<div class="loading">Loading survey questions...</div>';
+            return;
+        }
+        
+        let html = '';
+        currentQuestions.forEach((q, idx) => {
+            if (q.type === 'rating') {
+                html += `
+                    <div class="question-card" data-qid="${q.id}">
+                        <div class="question-text">
+                            <span>${idx + 1}. ${escapeHtml(q.text)}</span>
+                        </div>
+                        <div class="rating-options" data-qid="${q.id}">
+                            ${[1,2,3,4,5].map(star => `
+                                <button type="button" class="rating-btn" data-value="${star}">⭐ ${star}</button>
+                            `).join('')}
+                        </div>
+                        <input type="hidden" name="${q.id}" id="input_${q.id}" value="">
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="question-card" data-qid="${q.id}">
+                        <div class="question-text">
+                            <span>${idx + 1}. ${escapeHtml(q.text)}</span>
+                        </div>
+                        <textarea class="text-response" name="${q.id}" id="input_${q.id}" rows="3" placeholder="Your answer..."></textarea>
+                    </div>
+                `;
+            }
+        });
+        surveyQuestionsDiv.innerHTML = html;
+        
+        // Attach rating button events
+        document.querySelectorAll('.rating-options').forEach(container => {
+            const qid = container.getAttribute('data-qid');
+            const btns = container.querySelectorAll('.rating-btn');
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    btns.forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    const hiddenInput = document.getElementById(`input_${qid}`);
+                    if (hiddenInput) hiddenInput.value = btn.getAttribute('data-value');
+                });
+            });
+        });
+    }
+
+    // ========== SUBMIT SURVEY ==========
+    async function submitSurvey(event) {
+        event.preventDefault();
+        if (!firestoreReady) {
+            showSurveyMessage("Network error. Please try again.", "error");
+            return;
+        }
+        
+        const responses = {};
+        let allAnswered = true;
+        
+        for (const q of currentQuestions) {
+            const input = document.getElementById(`input_${q.id}`);
+            let value = input ? input.value : '';
+            if (q.type === 'rating') {
+                if (!value) allAnswered = false;
+                responses[q.id] = value ? parseInt(value) : null;
+            } else {
+                if (!value.trim()) allAnswered = false;
+                responses[q.id] = value.trim() || '';
+            }
+        }
+        
+        if (!allAnswered) {
+            showSurveyMessage("Please answer all questions before submitting.", "error");
+            return;
+        }
+        
+        const submission = {
+            responses: responses,
+            submittedAt: new Date().toISOString(),
+            userAgent: navigator.userAgent.substring(0, 200)
+        };
+        
+        try {
+            await db.collection("surveyResponses").add(submission);
+            showSurveyMessage("Thank you for your feedback!", "success");
+            document.getElementById('surveyForm').reset();
+            document.querySelectorAll('.rating-btn').forEach(btn => btn.classList.remove('selected'));
+        } catch (err) {
+            console.error(err);
+            showSurveyMessage("Error submitting survey. Please try again.", "error");
+        }
+    }
+    
+    function showSurveyMessage(msg, type) {
+        surveyMessage.textContent = msg;
+        surveyMessage.className = `status-msg ${type === 'success' ? 'success-msg' : 'error-msg'}`;
+        surveyMessage.style.display = 'block';
+        setTimeout(() => {
+            surveyMessage.style.display = 'none';
+        }, 4000);
+    }
+
+    // ========== RENDER ADMIN QUESTIONS LIST ==========
+    async function renderAdminQuestions() {
+        if (!questionsListDiv) return;
+        await loadQuestions();
+        if (!currentQuestions.length) {
+            questionsListDiv.innerHTML = '<div class="loading">No questions yet. Add some!</div>';
+            return;
+        }
+        
+        let html = '';
+        currentQuestions.forEach((q, idx) => {
+            html += `
+                <div class="question-item" data-id="${q.id}">
+                    <div class="question-info">
+                        <strong>${idx + 1}. ${escapeHtml(q.text)}</strong>
+                        <span class="question-type-badge">${q.type === 'rating' ? '⭐ Rating' : '📝 Text'}</span>
+                    </div>
+                    <div class="question-actions">
+                        <button class="edit-question-btn" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}"><i class="fas fa-edit"></i></button>
+                        <button class="delete-question-btn" data-id="${q.id}"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `;
+        });
+        questionsListDiv.innerHTML = html;
+        
+        // Edit handlers
+        document.querySelectorAll('.edit-question-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                const oldText = btn.getAttribute('data-text');
+                const oldType = btn.getAttribute('data-type');
+                const newText = prompt("Edit question text:", oldText);
+                if (newText && newText.trim()) {
+                    const updated = currentQuestions.map(q => 
+                        q.id === id ? { ...q, text: newText.trim() } : q
+                    );
+                    await saveQuestions(updated);
+                    await renderAdminQuestions();
+                    renderSurvey();
+                }
+            });
+        });
+        
+        // Delete handlers
+        document.querySelectorAll('.delete-question-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                if (currentQuestions.length <= 1) {
+                    alert("Cannot delete the last question. Add another one first.");
+                    return;
+                }
+                if (confirm("Delete this question? All associated responses will remain but this question won't appear in new surveys.")) {
+                    const updated = currentQuestions.filter(q => q.id !== id);
+                    await saveQuestions(updated);
+                    await renderAdminQuestions();
+                    renderSurvey();
+                    loadResults();
+                }
+            });
+        });
+    }
+    
+    async function addNewQuestion() {
+        const text = newQuestionText.value.trim();
+        const type = newQuestionType.value;
+        if (!text) {
+            alert("Please enter question text");
+            return;
+        }
+        const newId = "q" + Date.now();
+        const updated = [...currentQuestions, { id: newId, text: text, type: type }];
+        await saveQuestions(updated);
+        newQuestionText.value = "";
+        addQuestionForm.classList.add('hidden');
+        await renderAdminQuestions();
+        renderSurvey();
+        showAddQuestionBtn.classList.remove('hidden');
+    }
+    
+    // ========== LOAD RESULTS ==========
+    async function loadResults() {
+        if (!firestoreReady) return;
+        try {
+            const snapshot = await db.collection("surveyResponses").get();
+            const responses = [];
+            snapshot.forEach(doc => responses.push({ id: doc.id, ...doc.data() }));
+            
+            totalResponsesSpan.textContent = responses.length;
+            
+            // Calculate average rating for rating questions
+            let ratingSum = 0;
+            let ratingCount = 0;
+            const ratingData = {};
+            
+            responses.forEach(resp => {
+                const respData = resp.responses || {};
+                for (const [qid, val] of Object.entries(respData)) {
+                    if (typeof val === 'number') {
+                        ratingSum += val;
+                        ratingCount++;
+                        if (!ratingData[qid]) ratingData[qid] = [];
+                        ratingData[qid].push(val);
+                    }
+                }
+            });
+            
+            const avgRating = ratingCount > 0 ? (ratingSum / ratingCount).toFixed(1) : '-';
+            avgRatingSpan.textContent = avgRating;
+            
+            // Build results display
+            let resultsHtml = '';
+            for (const q of currentQuestions) {
+                if (q.type === 'rating') {
+                    const values = [];
+                    responses.forEach(resp => {
+                        const val = resp.responses?.[q.id];
+                        if (typeof val === 'number') values.push(val);
+                    });
+                    const counts = [0,0,0,0,0];
+                    values.forEach(v => { if (v>=1 && v<=5) counts[v-1]++; });
+                    const chartId = `chart_${q.id.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    resultsHtml += `
+                        <div class="result-chart">
+                            <h4>${escapeHtml(q.text)}</h4>
+                            <canvas id="${chartId}" style="max-height: 250px;"></canvas>
+                            <div style="margin-top: 12px; font-size:0.8rem;">Responses: ${values.length}</div>
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        const ctx = document.getElementById(chartId)?.getContext('2d');
+                        if (ctx) {
+                            if (ratingCharts[chartId]) ratingCharts[chartId].destroy();
+                            ratingCharts[chartId] = new Chart(ctx, {
+                                type: 'bar',
+                                data: {
+                                    labels: ['⭐ 1', '⭐ 2', '⭐ 3', '⭐ 4', '⭐ 5'],
+                                    datasets: [{ label: 'Responses', data: counts, backgroundColor: '#2c7da0', borderRadius: 8 }]
+                                },
+                                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
+                            });
+                        }
+                    }, 50);
+                } else {
+                    const textResponses = [];
+                    responses.forEach(resp => {
+                        const val = resp.responses?.[q.id];
+                        if (val && typeof val === 'string' && val.trim()) textResponses.push(val);
+                    });
+                    resultsHtml += `
+                        <div class="result-chart">
+                            <h4>${escapeHtml(q.text)}</h4>
+                            <div class="response-list">
+                                ${textResponses.length === 0 ? '<div class="loading">No responses yet</div>' : 
+                                    textResponses.map(t => `<div class="response-item"><div class="response-meta"><i class="fas fa-comment"></i> Response</div><div>${escapeHtml(t)}</div></div>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            resultsContainer.innerHTML = resultsHtml || '<div class="loading">No data available</div>';
+        } catch (err) {
+            console.error(err);
+            resultsContainer.innerHTML = '<div class="error-msg status-msg">Error loading results</div>';
+        }
+    }
+
+    // ========== ADMIN AUTH ==========
+    function showAdminPasswordModal() {
+        passwordModal.classList.remove('hidden');
+        adminPassword.value = "";
+        adminPasswordError.innerText = "";
+    }
+    
+    function hidePasswordModal() {
+        passwordModal.classList.add('hidden');
+    }
+    
+    function verifyAdminPassword() {
+        if (adminPassword.value === ADMIN_PASS) {
+            isAdminAuthenticated = true;
+            hidePasswordModal();
+            switchToAdmin();
+        } else {
+            adminPasswordError.innerText = "Incorrect password";
+        }
+    }
+    
+    async function switchToAdmin() {
+        adminView.classList.remove('hidden');
+        surveyView.classList.add('hidden');
+        surveyTabBtn.classList.remove('active');
+        adminTabBtn.classList.add('active');
+        await renderAdminQuestions();
+        await loadResults();
+    }
+    
+    function switchToSurvey() {
+        adminView.classList.add('hidden');
+        surveyView.classList.remove('hidden');
+        adminTabBtn.classList.remove('active');
+        surveyTabBtn.classList.add('active');
+        renderSurvey();
+    }
+
+    // ========== INIT ==========
+    async function init() {
+        await loadQuestions();
+        renderSurvey();
+        
+        surveyForm.addEventListener('submit', submitSurvey);
+        showAddQuestionBtn.addEventListener('click', () => {
+            addQuestionForm.classList.remove('hidden');
+            showAddQuestionBtn.classList.add('hidden');
+        });
+        cancelAddQuestionBtn.addEventListener('click', () => {
+            addQuestionForm.classList.add('hidden');
+            showAddQuestionBtn.classList.remove('hidden');
+            newQuestionText.value = "";
+        });
+        saveNewQuestionBtn.addEventListener('click', addNewQuestion);
+        refreshResultsBtn.addEventListener('click', loadResults);
+        
+        surveyTabBtn.addEventListener('click', switchToSurvey);
+        adminTabBtn.addEventListener('click', () => {
+            if (isAdminAuthenticated) {
+                switchToAdmin();
+            } else {
+                showAdminPasswordModal();
+            }
+        });
+        verifyAdminBtn.addEventListener('click', verifyAdminPassword);
+        cancelAdminBtn.addEventListener('click', hidePasswordModal);
+        adminPassword.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifyAdminPassword(); });
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+    }
+    
+    init();
+</script>
+</body>
+</html>
