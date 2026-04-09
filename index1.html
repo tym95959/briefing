@@ -7,8 +7,9 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External Firebase Configuration -->
+    <!-- External Configuration Files -->
     <script src="fire.js"></script>
+    <script src="config.js"></script>
     <!-- Google Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -76,15 +77,15 @@
             gap: 28px;
         }
         .staff-panel {
-            flex: 1.2;
+            flex: 1;
             min-width: 380px;
         }
         .supervisor-panel {
-            flex: 1.2;
+            flex: 1;
             min-width: 380px;
         }
         .history-panel {
-            flex: 1.8;
+            flex: 1.5;
             min-width: 480px;
         }
         .card {
@@ -96,7 +97,7 @@
             height: fit-content;
         }
         .card-title {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
             margin-bottom: 22px;
             display: flex;
@@ -137,19 +138,19 @@
             padding: 18px 22px;
             border-radius: 28px;
             border: 1.5px solid #e2eaf2;
-            background: #f5f7fa;
+            background: #ffffff;
             font-size: 0.95rem;
             line-height: 1.6;
             resize: vertical;
             min-height: 280px;
             font-family: 'Inter', monospace;
-            color: #1a2c3e;
-            cursor: default;
+            transition: 0.2s;
             outline: none;
         }
-        .editable-textarea {
-            background: #ffffff;
-            cursor: text;
+        .readonly-textarea {
+            background: #f5f7fa;
+            cursor: default;
+            color: #1a2c3e;
         }
         .action-buttons {
             display: flex;
@@ -171,16 +172,12 @@
             gap: 10px;
             color: #1d5b7c;
         }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
         .btn-primary {
             background: #1d6f8f;
             color: white;
             box-shadow: 0 6px 12px rgba(29,111,143,0.2);
         }
-        .btn-primary:hover:not(:disabled) {
+        .btn-primary:hover {
             background: #0e5a77;
             transform: translateY(-2px);
         }
@@ -188,14 +185,14 @@
             background: #f0f5fc;
             border: 1px solid #cddfed;
         }
-        .btn-secondary:hover:not(:disabled) {
+        .btn-secondary:hover {
             background: #e4edf7;
         }
         .btn-outline {
             background: transparent;
             border: 1.5px solid #cbdde9;
         }
-        .btn-outline:hover:not(:disabled) {
+        .btn-outline:hover {
             background: #f8fbfe;
         }
         .date-history-bar {
@@ -419,44 +416,27 @@
             font-size: 0.75rem;
             color: #7e9bb5;
         }
-        /* Briefing Display Card for Staff */
-        .briefing-display {
+        /* Staff View Briefing Display */
+        .staff-briefing-list {
+            margin-top: 20px;
+        }
+        .staff-briefing-card {
             background: #f8fbfe;
             border-radius: 24px;
             padding: 20px;
-            margin-top: 20px;
-            border: 1px solid #eef2f8;
-        }
-        .briefing-display-title {
-            font-weight: 700;
-            font-size: 0.9rem;
-            color: #2c7da0;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .briefing-display-content {
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: 0.9rem;
-            line-height: 1.6;
-            color: #1a2c3e;
-            background: white;
-            padding: 16px;
-            border-radius: 20px;
-            border: 1px solid #eef2f8;
-            min-height: 200px;
-        }
-        .briefing-meta-info {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
             margin-bottom: 16px;
-            padding-bottom: 12px;
+            border: 1px solid #eef2f8;
+        }
+        .staff-briefing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
             border-bottom: 1px solid #eef2f8;
         }
-        .meta-chip {
+        .staff-badge {
             background: #eef2fa;
             padding: 4px 14px;
             border-radius: 30px;
@@ -464,6 +444,13 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+        }
+        .staff-briefing-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #2c3e50;
         }
     </style>
 </head>
@@ -479,7 +466,7 @@
     </div>
 
     <div class="dashboard">
-        <!-- STAFF VIEW PANEL - Only briefing display, no entry fields -->
+        <!-- STAFF VIEW PANEL - Only date selector and briefing notes display -->
         <div class="staff-panel" id="staffPanel">
             <div class="card">
                 <div class="card-title">
@@ -491,15 +478,10 @@
                     <label><i class="far fa-calendar-alt"></i> Select Date</label>
                     <input type="date" id="staffDate" value="">
                 </div>
-                <div class="briefing-display" id="briefingDisplay">
-                    <div class="briefing-display-title">
-                        <i class="fas fa-file-alt"></i> Briefing Content
-                    </div>
-                    <div id="briefingDisplayContent" class="briefing-display-content">
-                        Select a date to view briefing notes
-                    </div>
+                <div id="staffBriefingsContainer" class="staff-briefing-list">
+                    <div class="empty-state">📅 Select a date to view briefing notes</div>
                 </div>
-                <div id="staffFeedback" class="status-msg info-msg"></div>
+                <div id="staffFeedback" class="status-msg"></div>
                 <div class="readonly-note">
                     <i class="fas fa-info-circle"></i> Staff view - Read only. Contact supervisor for modifications.
                 </div>
@@ -540,7 +522,7 @@
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-file-lines"></i> Briefing Notes / Points <span id="autoLoadStatus" class="loading-indicator"></span></label>
-                    <textarea id="pointsText" class="big-textarea editable-textarea" placeholder="Select Date, Supervisor and Shift to load existing notes...&#10;Then edit or add more content, then click Save."></textarea>
+                    <textarea id="pointsText" class="big-textarea" placeholder="Select Date, Supervisor and Shift to load existing notes...&#10;Then edit or add more content, then click Save."></textarea>
                 </div>
                 <div class="action-buttons">
                     <button id="saveBtn" class="btn-primary"><i class="fas fa-save"></i> Save</button>
@@ -587,10 +569,9 @@
 </div>
 
 <script>
-    // Supervisor Password
-    const SUPERVISOR_PASSWORD = "admin123";
-    
-    // Firebase is initialized from fire.js (external file)
+    // SUPERVISOR_PASSWORD is loaded from config.js
+    // Firebase is initialized from fire.js
+
     let db, firestoreReady = false;
     
     if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
@@ -620,7 +601,7 @@
     const staffPanel = document.getElementById('staffPanel');
     const supervisorPanel = document.getElementById('supervisorPanel');
     const staffDate = document.getElementById('staffDate');
-    const briefingDisplayContent = document.getElementById('briefingDisplayContent');
+    const staffBriefingsContainer = document.getElementById('staffBriefingsContainer');
     const staffFeedback = document.getElementById('staffFeedback');
     
     // DOM elements - Supervisor View
@@ -654,10 +635,10 @@
         return today.toISOString().slice(0,10);
     }
     
-    // Staff View: Load all briefings for selected date and display them
+    // Staff View: Load all briefings for selected date
     async function loadStaffBriefings() {
         if (!firestoreReady) {
-            briefingDisplayContent.innerHTML = "Firebase not connected. Please try again later.";
+            staffBriefingsContainer.innerHTML = '<div class="empty-state">⚠️ Firebase not connected. Please try again later.</div>';
             staffFeedback.innerHTML = "❌ Firebase connection error";
             staffFeedback.className = 'status-msg warning-msg';
             return;
@@ -665,7 +646,7 @@
         
         const dateVal = staffDate.value;
         if (!dateVal) {
-            briefingDisplayContent.innerHTML = "Please select a date to view briefing notes.";
+            staffBriefingsContainer.innerHTML = '<div class="empty-state">📅 Please select a date to view briefing notes</div>';
             staffFeedback.innerHTML = "📅 Select a date to view briefings";
             staffFeedback.className = 'status-msg info-msg';
             return;
@@ -685,7 +666,7 @@
             });
             
             if (entriesList.length === 0) {
-                briefingDisplayContent.innerHTML = "📝 No briefing notes available for " + dateVal;
+                staffBriefingsContainer.innerHTML = '<div class="empty-state">📝 No briefing notes available for ' + dateVal + '</div>';
                 staffFeedback.innerHTML = "📝 No briefings found for this date";
                 staffFeedback.className = 'status-msg info-msg';
                 return;
@@ -698,22 +679,22 @@
                 const safeShift = escapeHtml(entry.shift);
                 const safePoints = escapeHtml(entry.pointsText || '').replace(/\n/g, '<br>');
                 displayHtml += `
-                    <div style="margin-bottom: 20px; border-bottom: 1px solid #eef2f8; padding-bottom: 16px;">
-                        <div class="briefing-meta-info">
-                            <span class="meta-chip"><i class="fas fa-user-tie"></i> ${safeSupervisor}</span>
-                            <span class="meta-chip"><i class="fas fa-clock"></i> ${safeShift}</span>
+                    <div class="staff-briefing-card">
+                        <div class="staff-briefing-header">
+                            <span class="staff-badge"><i class="fas fa-user-tie"></i> ${safeSupervisor}</span>
+                            <span class="staff-badge"><i class="fas fa-clock"></i> ${safeShift}</span>
                         </div>
-                        <div style="white-space: pre-wrap; line-height: 1.6;">${safePoints}</div>
+                        <div class="staff-briefing-text">${safePoints}</div>
                     </div>
                 `;
             });
-            briefingDisplayContent.innerHTML = displayHtml;
+            staffBriefingsContainer.innerHTML = displayHtml;
             staffFeedback.innerHTML = `✅ ${entriesList.length} briefing(s) found for ${dateVal}`;
             staffFeedback.className = 'status-msg success-msg';
             
         } catch (err) {
             console.error(err);
-            briefingDisplayContent.innerHTML = "Error loading briefing notes. Please try again.";
+            staffBriefingsContainer.innerHTML = '<div class="empty-state">❌ Error loading briefing notes. Please try again.</div>';
             staffFeedback.innerHTML = "⚠️ Error loading data";
             staffFeedback.className = 'status-msg warning-msg';
         }
@@ -1236,8 +1217,8 @@
     }
     
     function verifyPassword() {
-        const enteredPassword = supervisorPassword.value;
-        if (enteredPassword === SUPERVISOR_PASSWORD) {
+        // Check if SUPERVISOR_PASSWORD is defined (from config.js)
+        if (typeof SUPERVISOR_PASSWORD !== 'undefined' && supervisorPassword.value === SUPERVISOR_PASSWORD) {
             hidePasswordModal();
             setSupervisorMode(true);
         } else {
