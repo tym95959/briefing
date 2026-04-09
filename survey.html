@@ -309,33 +309,6 @@
             padding: 40px;
             color: #7c9ab8;
         }
-        .supervisor-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-        .supervisor-box {
-            background: white;
-            padding: 32px;
-            border-radius: 32px;
-            width: 350px;
-            text-align: center;
-        }
-        .supervisor-box input {
-            width: 100%;
-            padding: 14px;
-            border-radius: 30px;
-            border: 1.5px solid #e2eaf2;
-            margin: 20px 0;
-        }
         .back-to-survey {
             margin-bottom: 20px;
             display: inline-block;
@@ -442,7 +415,7 @@
         </div>
     </div>
 
-    <!-- ADMIN VIEW - Hidden by default, password protected -->
+    <!-- ADMIN VIEW - Hidden by default, accessible via Admin Portal button (no password) -->
     <div id="adminView" class="hidden">
         <div class="admin-container">
             <button id="backToSurveyBtn" class="btn-secondary back-to-survey"><i class="fas fa-arrow-left"></i> Back to Survey</button>
@@ -495,22 +468,9 @@
         </div>
     </div>
 
-    <!-- Subtle Admin Link (bottom right) -->
+    <!-- Admin Portal Link (bottom right) - No password required -->
     <div class="admin-link" id="adminLinkBtn">
-        <i class="fas fa-lock"></i> Admin Portal
-    </div>
-</div>
-
-<!-- Supervisor Password Modal (only appears when Admin Portal is clicked) -->
-<div id="supervisorModal" class="supervisor-modal hidden">
-    <div class="supervisor-box">
-        <i class="fas fa-shield-alt" style="font-size: 2rem; color: #1d6f8f;"></i>
-        <h3 style="margin: 16px 0;">Supervisor Access Required</h3>
-        <p style="font-size: 0.8rem; color: #7c9ab8;">Enter supervisor password to manage surveys</p>
-        <input type="password" id="supervisorPasswordInput" placeholder="Enter supervisor password" autocomplete="off">
-        <button id="verifySupervisorBtn" style="background: #1d6f8f; color: white; border: none; padding: 12px 24px; border-radius: 40px; cursor: pointer; width: 100%;">Verify & Enter</button>
-        <button id="cancelSupervisorBtn" style="margin-top: 12px; background: #eef3fc; border: none; padding: 10px; border-radius: 40px; cursor: pointer; width: 100%;">Cancel</button>
-        <p id="supervisorError" style="color: #c62828; margin-top: 12px;"></p>
+        <i class="fas fa-chart-bar"></i> Admin Portal
     </div>
 </div>
 
@@ -569,19 +529,8 @@
         console.error("Firebase not initialized");
     }
 
-    // SUPERVISOR_PASSWORD from config.js
-    let SUPERVISOR_PASS = null;
-    if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
-        SUPERVISOR_PASS = SUPERVISOR_PASSWORD;
-    } else if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
-        SUPERVISOR_PASS = MASTER_PASSWORD_GLOBAL;
-    } else {
-        SUPERVISOR_PASS = "Admin123";
-    }
-
     // Global state
     let currentQuestions = [];
-    let isSupervisorAuthenticated = false;
     let ratingCharts = {};
 
     // DOM Elements
@@ -603,13 +552,6 @@
     const totalResponsesSpan = document.getElementById('totalResponses');
     const avgRatingSpan = document.getElementById('avgRating');
     const refreshResultsBtn = document.getElementById('refreshResultsBtn');
-    
-    // Supervisor modal elements
-    const supervisorModal = document.getElementById('supervisorModal');
-    const supervisorPasswordInput = document.getElementById('supervisorPasswordInput');
-    const verifySupervisorBtn = document.getElementById('verifySupervisorBtn');
-    const cancelSupervisorBtn = document.getElementById('cancelSupervisorBtn');
-    const supervisorError = document.getElementById('supervisorError');
 
     // ========== LOAD QUESTIONS ==========
     async function loadQuestions() {
@@ -801,7 +743,7 @@
                     alert("Cannot delete the last question. Add another one first.");
                     return;
                 }
-                if (confirm("Delete this question?")) {
+                if (confirm("Delete this question? All existing responses remain but this question won't appear in new surveys.")) {
                     const updated = currentQuestions.filter(q => q.id !== id);
                     await saveQuestions(updated);
                     await renderAdminQuestions();
@@ -911,28 +853,7 @@
         }
     }
 
-    // ========== SUPERVISOR AUTH & VIEW SWITCHING ==========
-    function showSupervisorModal() {
-        supervisorModal.classList.remove('hidden');
-        supervisorPasswordInput.value = "";
-        supervisorError.innerText = "";
-        supervisorPasswordInput.focus();
-    }
-    
-    function hideSupervisorModal() {
-        supervisorModal.classList.add('hidden');
-    }
-    
-    function verifySupervisorPassword() {
-        if (supervisorPasswordInput.value === SUPERVISOR_PASS) {
-            isSupervisorAuthenticated = true;
-            hideSupervisorModal();
-            switchToAdmin();
-        } else {
-            supervisorError.innerText = "Incorrect supervisor password. Access denied.";
-        }
-    }
-    
+    // ========== VIEW SWITCHING (No password required) ==========
     async function switchToAdmin() {
         surveyView.classList.add('hidden');
         adminView.classList.remove('hidden');
@@ -946,21 +867,13 @@
         renderSurvey();
     }
     
-    function requestAdminAccess() {
-        if (isSupervisorAuthenticated) {
-            switchToAdmin();
-        } else {
-            showSupervisorModal();
-        }
-    }
-
     // ========== INIT ==========
     async function initApp() {
         await loadQuestions();
         renderSurvey();
         
         surveyForm.addEventListener('submit', submitSurvey);
-        adminLinkBtn.addEventListener('click', requestAdminAccess);
+        adminLinkBtn.addEventListener('click', switchToAdmin);
         backToSurveyBtn.addEventListener('click', switchToSurvey);
         showAddQuestionBtn.addEventListener('click', () => {
             addQuestionForm.classList.remove('hidden');
@@ -973,10 +886,6 @@
         });
         saveNewQuestionBtn.addEventListener('click', addNewQuestion);
         refreshResultsBtn.addEventListener('click', loadResults);
-        
-        verifySupervisorBtn.addEventListener('click', verifySupervisorPassword);
-        cancelSupervisorBtn.addEventListener('click', hideSupervisorModal);
-        supervisorPasswordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') verifySupervisorPassword(); });
     }
     
     function escapeHtml(str) {
