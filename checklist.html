@@ -158,19 +158,6 @@
             align-items: center;
             gap: 5px;
         }
-        .force-close-shift-btn {
-            background: linear-gradient(135deg, #ff6f00, #e65100);
-            color: white;
-            border: none;
-            padding: 5px 14px;
-            border-radius: 30px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
         .checklist-full {
             width: 100%;
             margin-bottom: 16px;
@@ -193,8 +180,26 @@
             color: #1d6f8f;
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 8px;
             border-bottom: 1px solid #e2eaf2;
+        }
+        .category-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .edit-category-btn {
+            background: none;
+            border: none;
+            color: #ff9800;
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 15px;
+        }
+        .edit-category-btn:hover {
+            background: rgba(255,152,0,0.1);
         }
         .category-tasks {
             padding: 8px;
@@ -502,7 +507,6 @@
         <div class="shift-controls">
             <div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
             <button id="closeShiftBtn" class="close-shift-btn hidden"><i class="fas fa-lock"></i> Close Shift</button>
-            <button id="forceCloseShiftBtn" class="force-close-shift-btn hidden"><i class="fas fa-exclamation-triangle"></i> Force Close</button>
             <button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen</button>
         </div>
     </div>
@@ -567,7 +571,7 @@
             <div id="adminFeedback" class="info-text"></div>
         </div>
     </div>
-    <footer>✅ Tasks organized by category | Full Report shows all submissions with staff names</footer>
+    <footer>✅ Tasks organized by category | Click ✏️ on category to rename | Close shift with confirmation if tasks pending</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -629,7 +633,6 @@
     const shiftStatusBadge = document.getElementById('shiftStatusBadge');
     const reopenShiftBtn = document.getElementById('reopenShiftBtn');
     const closeShiftBtn = document.getElementById('closeShiftBtn');
-    const forceCloseShiftBtn = document.getElementById('forceCloseShiftBtn');
     const allocationContainer = document.getElementById('allocationContainer');
     const tasksContainer = document.getElementById('tasksContainer');
     const tasksInfo = document.getElementById('tasksInfo');
@@ -669,17 +672,18 @@
     function getSODRecordId(date, shift) { return `sod_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTaskRecordId(date, shift) { return `tasks_${date}_${shift}`.replace(/\s/g, '_'); }
 
-    function areAllTasksCompleted() {
-        if (!currentTaskRecord) return true;
+    function getPendingTasksCount() {
+        if (!currentTaskRecord || !globalTasks.length) return 0;
+        let pending = 0;
         const doneTasks = currentTaskRecord.doneTasks || {};
         const ackTasks = currentTaskRecord.acknowledgedTasks || {};
         const dropdownSelections = currentTaskRecord.dropdownSelections || [];
         for (const task of globalTasks) {
-            if (task.type === 'done' && !doneTasks[task.id]) return false;
-            if (task.type === 'acknowledge' && (ackTasks[task.id] || []).length === 0) return false;
-            if (task.type === 'dropdown' && dropdownSelections.filter(s => s.taskId === task.id).length === 0) return false;
+            if (task.type === 'done' && !doneTasks[task.id]) pending++;
+            else if (task.type === 'acknowledge' && (ackTasks[task.id] || []).length === 0) pending++;
+            else if (task.type === 'dropdown' && dropdownSelections.filter(s => s.taskId === task.id).length === 0) pending++;
         }
-        return true;
+        return pending;
     }
 
     async function loadSOD() {
@@ -730,7 +734,7 @@
                 tableHtml += `<td class="staff-list-cell">
                     ${assigned.map(s => `<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit ? `<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:9px;">✖</button>` : ''}</span>`).join('')}
                     ${staffHtml}
-                 </td>`;
+                  </td>`;
             });
             tableHtml += '<tr>';
         });
@@ -824,13 +828,10 @@
         shiftStatusBadge.className = `status-badge ${isClosed ? 'status-closed' : 'status-open'}`;
         
         if (currentRole === "supervisor") {
-            const allCompleted = areAllTasksCompleted();
-            closeShiftBtn.classList.toggle('hidden', isClosed || !allCompleted);
-            forceCloseShiftBtn.classList.toggle('hidden', isClosed || allCompleted);
+            closeShiftBtn.classList.toggle('hidden', isClosed);
             reopenShiftBtn.classList.toggle('hidden', !isClosed);
         } else {
             closeShiftBtn.classList.add('hidden');
-            forceCloseShiftBtn.classList.add('hidden');
             reopenShiftBtn.classList.add('hidden');
         }
     }
@@ -873,32 +874,50 @@
         updateShiftStatusUI();
     }
 
-    async function closeShift(isForce = false) {
+    async function closeShift() {
         if (!currentTaskRecord || currentTaskRecord.status === "closed") return;
-        const allCompleted = areAllTasksCompleted();
-        if (!allCompleted && !isForce) {
-            alert("Please complete all tasks before closing, or use Force Close.");
-            return;
+        
+        const pendingCount = getPendingTasksCount();
+        if (pendingCount > 0) {
+            const confirmMsg = `There ${pendingCount === 1 ? 'is' : 'are'} ${pendingCount} pending task${pendingCount === 1 ? '' : 's'}. Are you sure you want to close the shift?`;
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+        } else {
+            if (!confirm("Close this shift? All tasks are completed.")) return;
         }
-        if (!confirm(isForce ? "Force close shift with pending tasks?" : "Close this shift?")) return;
+        
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true });
         currentTaskRecord.status = "closed";
         updateShiftStatusUI();
         renderTasks();
         renderAllocation();
-        adminFeedback.innerText = isForce ? "Shift force closed" : "Shift closed";
+        adminFeedback.innerText = "Shift closed successfully";
         setTimeout(() => adminFeedback.innerText = "", 3000);
     }
 
     async function reopenShiftFn() {
         if (!currentTaskRecord || currentTaskRecord.status !== "closed") return;
-        if (!confirm("Reopen this shift?")) return;
+        if (!confirm("Reopen this shift? Staff can resume tasks.")) return;
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "open" }, { merge: true });
         currentTaskRecord.status = "open";
         updateShiftStatusUI();
         renderTasks();
         adminFeedback.innerText = "Shift reopened";
         setTimeout(() => adminFeedback.innerText = "", 2000);
+    }
+
+    async function renameCategory(oldCategory, newCategory) {
+        if (!newCategory || newCategory.trim() === "") return;
+        if (newCategory === oldCategory) return;
+        
+        const updatedTasks = globalTasks.map(task => {
+            if ((task.category || "General") === oldCategory) {
+                return { ...task, category: newCategory.trim() };
+            }
+            return task;
+        });
+        await saveGlobalTasks(updatedTasks);
     }
 
     function renderTasks() {
@@ -911,7 +930,6 @@
         const ackTasks = currentTaskRecord.acknowledgedTasks || {};
         const selections = currentTaskRecord.dropdownSelections || [];
         
-        // Group tasks by category
         const tasksByCategory = {};
         globalTasks.forEach(task => {
             const category = task.category || "General";
@@ -923,7 +941,16 @@
         for (const [category, tasks] of Object.entries(tasksByCategory)) {
             const categoryDiv = document.createElement('div');
             categoryDiv.className = 'task-category';
-            categoryDiv.innerHTML = `<div class="category-header"><i class="fas fa-folder"></i> ${escapeHtml(category)}</div><div class="category-tasks" id="category-${category.replace(/\s/g, '_')}"></div>`;
+            categoryDiv.innerHTML = `
+                <div class="category-header">
+                    <div class="category-header-left">
+                        <i class="fas fa-folder"></i>
+                        <span class="category-name">${escapeHtml(category)}</span>
+                    </div>
+                    ${currentRole === "supervisor" && !isClosed ? `<button class="edit-category-btn" data-category="${escapeHtml(category)}"><i class="fas fa-edit"></i> Rename</button>` : ''}
+                </div>
+                <div class="category-tasks" id="category-${category.replace(/\s/g, '_')}"></div>
+            `;
             const categoryTasksDiv = categoryDiv.querySelector('.category-tasks');
             
             tasks.forEach(task => {
@@ -997,12 +1024,22 @@
                 const id = btn.getAttribute('data-id');
                 if (confirm("Delete task?")) await saveGlobalTasks(globalTasks.filter(t => t.id !== id));
             }));
+            document.querySelectorAll('.edit-category-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const oldCategory = btn.getAttribute('data-category');
+                    const newCategory = prompt("Enter new category name:", oldCategory);
+                    if (newCategory && newCategory.trim() && newCategory !== oldCategory) {
+                        await renameCategory(oldCategory, newCategory);
+                    }
+                });
+            });
         }
         
         const doneCount = Object.keys(currentTaskRecord.doneTasks || {}).length;
         const ackCount = Object.values(currentTaskRecord.acknowledgedTasks || {}).reduce((s, a) => s + a.length, 0);
         const dropCount = (currentTaskRecord.dropdownSelections || []).length;
-        tasksInfo.innerHTML = isClosed ? "Shift closed" : `Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount}`;
+        const pendingCount = getPendingTasksCount();
+        tasksInfo.innerHTML = isClosed ? "Shift closed" : `Done: ${doneCount} | Acknowledged: ${ackCount} | Dropdown: ${dropCount} | ${pendingCount > 0 ? `⚠️ ${pendingCount} pending` : '✅ All completed'}`;
     }
 
     async function loadStaff() {
@@ -1054,7 +1091,7 @@
         
         let tableHtml = '<table class="alloc-table"><thead><tr><th>Area / Time</th>';
         slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
-        tableHtml += '<tr></thead><tbody>';
+        tableHtml += '</table></thead><tbody>';
         areas.forEach(area => {
             tableHtml += `<tr><td class="area-col"><strong>${area}</strong></td>`;
             slots.forEach(slot => {
@@ -1097,7 +1134,7 @@
         });
         tableHtml += '</tbody></table>';
         
-        let tasksHtml = '<table class="tasks-table"><thead><tr><th>Category</th><th>Task</th><th>Status / Details</th></tr></thead><tbody>';
+        let tasksHtml = '<table class="tasks-table"><thead><td><th>Category</th><th>Task</th><th>Status / Details</th></tr></thead><tbody>';
         const tasksByCategory = {};
         globalTasks.forEach(task => {
             const category = task.category || "General";
@@ -1179,8 +1216,7 @@
         supervisorRoleBtn.addEventListener('click', () => setRole("supervisor"));
         addTaskBtn.addEventListener('click', addTask);
         addStaffBtn.addEventListener('click', () => addStaffMember(newStaffName.value));
-        closeShiftBtn.addEventListener('click', () => closeShift(false));
-        forceCloseShiftBtn.addEventListener('click', () => closeShift(true));
+        closeShiftBtn.addEventListener('click', closeShift);
         reopenShiftBtn.addEventListener('click', reopenShiftFn);
         verifyPasswordBtn.addEventListener('click', verifyPassword);
         cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
