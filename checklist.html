@@ -151,18 +151,61 @@
         .allocation-bottom {
             width: 100%;
         }
+        /* Admin Panel - Toggleable */
         .admin-panel {
             position: fixed;
             right: 20px;
             top: 50%;
             transform: translateY(-50%);
-            width: 320px;
+            width: 340px;
             max-height: 85vh;
             overflow-y: auto;
             z-index: 100;
             box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
         }
-        .admin-panel.hidden {
+        .admin-panel.collapsed {
+            width: auto;
+            background: transparent;
+            box-shadow: none;
+            right: 10px;
+        }
+        .admin-panel.collapsed .card {
+            display: none;
+        }
+        .admin-panel .toggle-admin-btn {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            z-index: 101;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .admin-panel.collapsed .toggle-admin-btn {
+            position: static;
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
+        }
+        .admin-panel .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 16px;
+            border: 1px solid rgba(230,237,244,0.8);
+        }
+        .admin-panel.collapsed .card {
             display: none;
         }
         .card {
@@ -389,6 +432,15 @@
                 width: 100%;
                 margin-top: 16px;
             }
+            .admin-panel.collapsed {
+                width: 100%;
+            }
+            .admin-panel.collapsed .card {
+                display: block;
+            }
+            .admin-panel .toggle-admin-btn {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -448,8 +500,9 @@
         </div>
     </div>
 
-    <!-- Admin Panel (Floating on right) -->
+    <!-- Admin Panel (Floating on right - Toggleable) -->
     <div class="admin-panel hidden" id="adminPanel">
+        <button class="toggle-admin-btn" id="toggleAdminBtn"><i class="fas fa-eye-slash"></i></button>
         <div class="card">
             <div class="card-title">
                 <i class="fas fa-cog"></i>
@@ -532,10 +585,12 @@
     let globalTasks = [];
     let staffList = [];
     let isSupervisor = false;
+    let isAdminCollapsed = false;
 
     const staffRoleBtn = document.getElementById('staffRoleBtn');
     const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
     const adminPanel = document.getElementById('adminPanel');
+    const toggleAdminBtn = document.getElementById('toggleAdminBtn');
     const mainDate = document.getElementById('mainDate');
     const mainShift = document.getElementById('mainShift');
     const shiftStatusBadge = document.getElementById('shiftStatusBadge');
@@ -565,6 +620,18 @@
     taskTypeSelect.addEventListener('change', () => {
         dropdownOptionsDiv.style.display = taskTypeSelect.value === 'dropdown' ? 'block' : 'none';
     });
+
+    // Toggle admin panel visibility
+    function toggleAdminPanel() {
+        isAdminCollapsed = !isAdminCollapsed;
+        if (isAdminCollapsed) {
+            adminPanel.classList.add('collapsed');
+            toggleAdminBtn.innerHTML = '<i class="fas fa-eye"></i>';
+        } else {
+            adminPanel.classList.remove('collapsed');
+            toggleAdminBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        }
+    }
 
     function getSODRecordId(date, shift) { return `sod_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTaskRecordId(date, shift) { return `tasks_${date}_${shift}`.replace(/\s/g, '_'); }
@@ -1055,6 +1122,7 @@
         cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
         exportFullPdfBtn.addEventListener('click', exportFullReport);
         printAllocationBtn.addEventListener('click', printAllocationSheet);
+        toggleAdminBtn.addEventListener('click', toggleAdminPanel);
         setRole("staff");
     }
 
