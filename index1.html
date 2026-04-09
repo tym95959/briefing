@@ -81,8 +81,8 @@
             min-width: 380px;
         }
         .supervisor-panel {
-            flex: 1;
-            min-width: 380px;
+            flex: 1.2;
+            min-width: 450px;
         }
         .card {
             background: white;
@@ -145,10 +145,6 @@
         .big-textarea:focus {
             border-color: #2c7da0;
             box-shadow: 0 0 0 3px rgba(44,125,160,0.15);
-        }
-        .readonly-textarea {
-            background: #f5f7fa;
-            cursor: default;
         }
         .action-buttons {
             display: flex;
@@ -308,6 +304,56 @@
             line-height: 1.6;
             color: #2c3e50;
         }
+        /* Supervisor Briefings List */
+        .supervisor-briefing-list {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            border-top: 2px solid #eef2f8;
+            padding-top: 20px;
+        }
+        .supervisor-briefing-card {
+            background: #f8fbfe;
+            border-radius: 24px;
+            padding: 16px;
+            margin-bottom: 14px;
+            border: 1px solid #eef2f8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .supervisor-briefing-card:hover {
+            border-color: #2c7da0;
+            background: #ffffff;
+        }
+        .supervisor-briefing-card.selected {
+            border-color: #1d6f8f;
+            background: #eef3fc;
+            box-shadow: 0 2px 8px rgba(29,111,143,0.1);
+        }
+        .supervisor-briefing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .supervisor-badge {
+            background: #eef2fa;
+            padding: 3px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .supervisor-briefing-preview {
+            font-size: 0.8rem;
+            color: #5a7a97;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
@@ -345,7 +391,7 @@
             </div>
         </div>
 
-        <!-- SUPERVISOR VIEW PANEL - Edit Mode (Hidden by default) -->
+        <!-- SUPERVISOR VIEW PANEL - Edit Mode with Date Selection -->
         <div class="supervisor-panel hidden" id="supervisorPanel">
             <div class="card">
                 <div class="card-title">
@@ -353,40 +399,54 @@
                     <span>Briefing Entry (Edit Mode)</span>
                     <span id="formModeBadge" class="badge" style="margin-left: auto; background:#fff3e0;">✨ New</span>
                 </div>
+                
+                <!-- Date Selector for Supervisor -->
                 <div class="form-group">
-                    <label><i class="far fa-calendar-alt"></i> Date</label>
-                    <input type="date" id="entryDate" value="">
+                    <label><i class="far fa-calendar-alt"></i> Select Date</label>
+                    <input type="date" id="supervisorDate" value="">
                 </div>
-                <div class="form-group">
-                    <label><i class="fas fa-user-tie"></i> Supervisor</label>
-                    <select id="supervisorSelect">
-                        <option value="">-- Select Supervisor --</option>
-                        <option value="Sobah">Sobah</option>
-                        <option value="Shiara">Shiara</option>
-                        <option value="Musrifa">Musrifa</option>
-                        <option value="Hussain">Hussain</option>
-                        <option value="Inaz">Inaz</option>
-                        <option value="Hamdulla">Hamdulla</option>
-                    </select>
+                
+                <!-- List of Briefings for Selected Date -->
+                <div id="supervisorBriefingsList" class="supervisor-briefing-list">
+                    <div class="empty-state">📅 Select a date to view briefings</div>
                 </div>
-                <div class="form-group">
-                    <label><i class="fas fa-clock"></i> Shift</label>
-                    <select id="shiftSelect">
-                        <option value="">-- Select Shift --</option>
-                        <option value="Morning">🌅 Morning</option>
-                        <option value="Afternoon">🌇 Afternoon</option>
-                    </select>
+                
+                <!-- Edit Form -->
+                <div id="editFormSection" style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #eef2f8;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="color: #1a4c6e; font-size: 1rem;"><i class="fas fa-edit"></i> Edit / Create Briefing</h3>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-user-tie"></i> Supervisor</label>
+                        <select id="supervisorSelect">
+                            <option value="">-- Select Supervisor --</option>
+                            <option value="Sobah">Sobah</option>
+                            <option value="Shiara">Shiara</option>
+                            <option value="Musrifa">Musrifa</option>
+                            <option value="Hussain">Hussain</option>
+                            <option value="Inaz">Inaz</option>
+                            <option value="Hamdulla">Hamdulla</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-clock"></i> Shift</label>
+                        <select id="shiftSelect">
+                            <option value="">-- Select Shift --</option>
+                            <option value="Morning">🌅 Morning</option>
+                            <option value="Afternoon">🌇 Afternoon</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-file-lines"></i> Briefing Notes <span id="autoLoadStatus" class="loading-indicator"></span></label>
+                        <textarea id="pointsText" class="big-textarea" placeholder="Enter briefing notes..."></textarea>
+                    </div>
+                    <div class="action-buttons">
+                        <button id="saveBtn" class="btn-primary"><i class="fas fa-save"></i> Save</button>
+                        <button id="clearFormBtn" class="btn-secondary"><i class="fas fa-eraser"></i> Clear</button>
+                        <button id="deleteCurrentBtn" class="btn-outline"><i class="fas fa-trash-alt"></i> Delete</button>
+                    </div>
+                    <div id="formFeedback" class="status-msg"></div>
                 </div>
-                <div class="form-group">
-                    <label><i class="fas fa-file-lines"></i> Briefing Notes / Points <span id="autoLoadStatus" class="loading-indicator"></span></label>
-                    <textarea id="pointsText" class="big-textarea" placeholder="Select Date, Supervisor and Shift to load existing notes...&#10;Then edit or add more content, then click Save."></textarea>
-                </div>
-                <div class="action-buttons">
-                    <button id="saveBtn" class="btn-primary"><i class="fas fa-save"></i> Save</button>
-                    <button id="clearFormBtn" class="btn-secondary"><i class="fas fa-eraser"></i> Clear</button>
-                    <button id="deleteCurrentBtn" class="btn-outline"><i class="fas fa-trash-alt"></i> Delete</button>
-                </div>
-                <div id="formFeedback" class="status-msg"></div>
             </div>
         </div>
     </div>
@@ -427,7 +487,7 @@
     
     // Global state
     let currentEditId = null;
-    let currentSelectedDate = new Date().toISOString().slice(0,10);
+    let currentBriefings = [];
     let isLoading = false;
     let isSupervisorMode = false;
     
@@ -439,7 +499,8 @@
     const staffFeedback = document.getElementById('staffFeedback');
     
     // DOM elements - Supervisor View
-    const dateInput = document.getElementById('entryDate');
+    const supervisorDate = document.getElementById('supervisorDate');
+    const supervisorBriefingsList = document.getElementById('supervisorBriefingsList');
     const supervisorSelect = document.getElementById('supervisorSelect');
     const shiftSelect = document.getElementById('shiftSelect');
     const pointsTextarea = document.getElementById('pointsText');
@@ -535,275 +596,236 @@
         }, 3000);
     }
     
-    // Supervisor View Functions
-    function resetFormToNew(dateValue = null) {
+    // Supervisor View: Load briefings for selected date
+    async function loadSupervisorBriefings() {
+        if (!firestoreReady) {
+            supervisorBriefingsList.innerHTML = '<div class="empty-state">⚠️ Firebase not connected.</div>';
+            return;
+        }
+        
+        const dateVal = supervisorDate.value;
+        if (!dateVal) {
+            supervisorBriefingsList.innerHTML = '<div class="empty-state">📅 Select a date to view briefings</div>';
+            return;
+        }
+        
+        try {
+            const snapshot = await db.collection("briefingMinutes")
+                .where("date", "==", dateVal)
+                .get();
+            
+            const entriesList = [];
+            snapshot.forEach(doc => {
+                entriesList.push({ id: doc.id, ...doc.data() });
+            });
+            
+            entriesList.sort((a, b) => {
+                const timeA = a.createdAt || a.updatedAt || '';
+                const timeB = b.createdAt || b.updatedAt || '';
+                return timeA.localeCompare(timeB);
+            });
+            
+            currentBriefings = entriesList;
+            renderSupervisorBriefingsList();
+            
+        } catch (err) {
+            console.error(err);
+            supervisorBriefingsList.innerHTML = '<div class="empty-state">❌ Error loading briefings</div>';
+        }
+    }
+    
+    function renderSupervisorBriefingsList() {
+        if (currentBriefings.length === 0) {
+            supervisorBriefingsList.innerHTML = '<div class="empty-state">📝 No briefings for this date. Create a new one below.</div>';
+            return;
+        }
+        
+        let html = '';
+        currentBriefings.forEach(briefing => {
+            const safeSupervisor = escapeHtml(briefing.supervisor);
+            const safeShift = escapeHtml(briefing.shift);
+            const previewText = (briefing.pointsText || '').substring(0, 80);
+            html += `
+                <div class="supervisor-briefing-card" data-id="${briefing.id}" data-supervisor="${safeSupervisor}" data-shift="${safeShift}" data-points="${escapeHtml(briefing.pointsText || '')}">
+                    <div class="supervisor-briefing-header">
+                        <span class="supervisor-badge"><i class="fas fa-user-tie"></i> ${safeSupervisor}</span>
+                        <span class="supervisor-badge"><i class="fas fa-clock"></i> ${safeShift}</span>
+                    </div>
+                    <div class="supervisor-briefing-preview">${previewText}${(briefing.pointsText || '').length > 80 ? '...' : ''}</div>
+                </div>
+            `;
+        });
+        supervisorBriefingsList.innerHTML = html;
+        
+        // Add click event to load briefing into edit form
+        document.querySelectorAll('.supervisor-briefing-card').forEach(card => {
+            card.addEventListener('click', () => {
+                // Remove selected class from all
+                document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                
+                const id = card.getAttribute('data-id');
+                const supervisor = card.getAttribute('data-supervisor');
+                const shift = card.getAttribute('data-shift');
+                const points = card.getAttribute('data-points');
+                
+                currentEditId = id;
+                formModeBadge.innerHTML = '✏️ Editing Entry';
+                supervisorSelect.value = supervisor;
+                shiftSelect.value = shift;
+                pointsTextarea.value = points;
+                autoLoadStatus.innerHTML = "✓ Loaded";
+                setTimeout(() => {
+                    if (autoLoadStatus.innerHTML === "✓ Loaded") {
+                        autoLoadStatus.innerHTML = "";
+                    }
+                }, 1500);
+                formFeedback.innerHTML = `✏️ Editing ${supervisor} (${shift})`;
+                formFeedback.className = 'status-msg info-msg';
+                setTimeout(() => {
+                    if (formFeedback.innerHTML.includes('Editing')) {
+                        formFeedback.innerHTML = '';
+                    }
+                }, 2000);
+            });
+        });
+    }
+    
+    // Reset form for new entry
+    function resetFormToNew() {
         currentEditId = null;
-        formModeBadge.innerHTML = '✨ New Entry Mode';
-        const targetDate = dateValue || currentSelectedDate;
-        dateInput.value = targetDate;
+        formModeBadge.innerHTML = '✨ New Entry';
         supervisorSelect.value = "";
         shiftSelect.value = "";
         pointsTextarea.value = "";
         autoLoadStatus.innerHTML = "";
-    }
-    
-    function loadEntryForEdit(entry) {
-        currentEditId = entry.id;
-        formModeBadge.innerHTML = '✏️ Editing Existing Entry';
-        dateInput.value = entry.date;
-        supervisorSelect.value = entry.supervisor;
-        shiftSelect.value = entry.shift;
-        pointsTextarea.value = entry.pointsText || '';
-        autoLoadStatus.innerHTML = "✓ Loaded existing notes";
-        setTimeout(() => {
-            if (autoLoadStatus.innerHTML === "✓ Loaded existing notes") {
-                autoLoadStatus.innerHTML = "";
-            }
-        }, 2000);
-        formFeedback.innerHTML = `✏️ Loaded existing notes for ${entry.supervisor} (${entry.shift}). Edit and Save to update.`;
-        formFeedback.className = 'status-msg info-msg';
-        setTimeout(() => {
-            if (formFeedback.innerHTML.includes('Loaded')) {
-                formFeedback.innerHTML = '';
-                formFeedback.className = 'status-msg';
-            }
-        }, 3000);
-    }
-    
-    async function loadExistingEntry(date, supervisor, shift) {
-        if (!firestoreReady) return null;
-        if (!date || !supervisor || !shift) return null;
+        formFeedback.innerHTML = "";
         
-        isLoading = true;
-        autoLoadStatus.innerHTML = "🔍 Loading...";
-        
-        try {
-            const snapshot = await db.collection("briefingMinutes")
-                .where("date", "==", date)
-                .get();
-            
-            const existing = snapshot.docs.find(doc => {
-                const data = doc.data();
-                return data.supervisor === supervisor && data.shift === shift;
-            });
-            
-            if (existing) {
-                const entryData = { id: existing.id, ...existing.data() };
-                loadEntryForEdit(entryData);
-                return entryData;
-            } else {
-                currentEditId = null;
-                formModeBadge.innerHTML = '✨ New Entry Mode';
-                pointsTextarea.value = "";
-                autoLoadStatus.innerHTML = "📝 No existing notes. Create new.";
-                setTimeout(() => {
-                    if (autoLoadStatus.innerHTML === "📝 No existing notes. Create new.") {
-                        autoLoadStatus.innerHTML = "";
-                    }
-                }, 2000);
-                return null;
-            }
-        } catch (err) {
-            console.error("Load existing error:", err);
-            autoLoadStatus.innerHTML = "⚠️ Error loading";
-            setTimeout(() => {
-                if (autoLoadStatus.innerHTML === "⚠️ Error loading") {
-                    autoLoadStatus.innerHTML = "";
-                }
-            }, 2000);
-            return null;
-        } finally {
-            isLoading = false;
-        }
+        // Remove selected class from cards
+        document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected'));
     }
     
-    async function onSelectionChange() {
-        if (isLoading) return;
-        
-        const dateVal = dateInput.value;
-        const supervisor = supervisorSelect.value;
-        const shift = shiftSelect.value;
-        
-        if (dateVal && supervisor && shift) {
-            await loadExistingEntry(dateVal, supervisor, shift);
-        } else if (dateVal && supervisor && !shift) {
-            autoLoadStatus.innerHTML = "⏳ Select shift";
-        } else if (dateVal && !supervisor && shift) {
-            autoLoadStatus.innerHTML = "⏳ Select supervisor";
-        } else if (!dateVal && supervisor && shift) {
-            autoLoadStatus.innerHTML = "⏳ Select date";
-        } else {
-            if (!isLoading) {
-                currentEditId = null;
-                formModeBadge.innerHTML = '✨ New Entry Mode';
-                pointsTextarea.value = "";
-                autoLoadStatus.innerHTML = "";
-            }
-        }
-    }
-    
-    async function findExistingEntry(date, supervisor, shift) {
-        if (!firestoreReady) return null;
-        try {
-            const snapshot = await db.collection("briefingMinutes")
-                .where("date", "==", date)
-                .get();
-            
-            const existing = snapshot.docs.find(doc => {
-                const data = doc.data();
-                return data.supervisor === supervisor && data.shift === shift;
-            });
-            
-            return existing ? { id: existing.id, ...existing.data() } : null;
-        } catch (err) {
-            console.error("Find existing error:", err);
-            return null;
-        }
-    }
-    
-    async function saveEntry() {
+    async function saveBriefing() {
         if (!firestoreReady) {
-            formFeedback.innerHTML = "❌ Firebase not connected.";
+            formFeedback.innerHTML = "❌ Firebase not connected";
             formFeedback.className = 'status-msg warning-msg';
             return;
         }
         
-        const dateVal = dateInput.value;
+        const dateVal = supervisorDate.value;
         const supervisor = supervisorSelect.value;
         const shift = shiftSelect.value;
-        const pointsTextVal = pointsTextarea.value.trim();
+        const pointsVal = pointsTextarea.value.trim();
         
-        if (!dateVal) { 
-            formFeedback.innerHTML = "❌ Please select a date.";
+        if (!dateVal) {
+            formFeedback.innerHTML = "❌ Please select a date";
             formFeedback.className = 'status-msg warning-msg';
             return;
         }
-        if (!supervisor) { 
-            formFeedback.innerHTML = "❌ Select Supervisor.";
+        if (!supervisor) {
+            formFeedback.innerHTML = "❌ Select Supervisor";
             formFeedback.className = 'status-msg warning-msg';
             return;
         }
-        if (!shift) { 
-            formFeedback.innerHTML = "❌ Select Shift.";
+        if (!shift) {
+            formFeedback.innerHTML = "❌ Select Shift";
             formFeedback.className = 'status-msg warning-msg';
             return;
         }
-        if (!pointsTextVal) { 
-            formFeedback.innerHTML = "⚠️ Briefing notes cannot be empty.";
+        if (!pointsVal) {
+            formFeedback.innerHTML = "⚠️ Briefing notes cannot be empty";
             formFeedback.className = 'status-msg warning-msg';
             return;
         }
-        
-        const existingEntry = await findExistingEntry(dateVal, supervisor, shift);
         
         const entryData = {
             date: dateVal,
             supervisor: supervisor,
             shift: shift,
-            pointsText: pointsTextVal,
+            pointsText: pointsVal,
             updatedAt: new Date().toISOString()
         };
         
         try {
-            const entriesRef = db.collection("briefingMinutes");
-            
-            if (existingEntry) {
-                await entriesRef.doc(existingEntry.id).update(entryData);
-                formFeedback.innerHTML = `✅ UPDATED: Briefing for ${supervisor} (${shift}) on ${dateVal}`;
-                formFeedback.className = 'status-msg success-msg';
-                currentEditId = existingEntry.id;
+            if (currentEditId) {
+                await db.collection("briefingMinutes").doc(currentEditId).update(entryData);
+                formFeedback.innerHTML = `✅ Updated briefing for ${supervisor} (${shift})`;
             } else {
                 entryData.createdAt = new Date().toISOString();
-                const newDoc = await entriesRef.add(entryData);
-                formFeedback.innerHTML = `✅ NEW: Briefing created for ${supervisor} (${shift}) on ${dateVal}`;
-                formFeedback.className = 'status-msg success-msg';
-                currentEditId = newDoc.id;
+                await db.collection("briefingMinutes").add(entryData);
+                formFeedback.innerHTML = `✅ New briefing created for ${supervisor} (${shift})`;
             }
+            formFeedback.className = 'status-msg success-msg';
             
-            // Refresh staff view if same date is selected
+            // Refresh both views
+            await loadSupervisorBriefings();
             if (staffDate.value === dateVal) {
                 await loadStaffBriefings();
             }
+            resetFormToNew();
             
             setTimeout(() => {
-                if(formFeedback.innerHTML.includes('✅')) {
+                if (formFeedback.innerHTML.includes('✅')) {
                     formFeedback.innerHTML = '';
-                    formFeedback.className = 'status-msg';
                 }
-            }, 3000);
-            
+            }, 2000);
         } catch (err) {
             console.error(err);
-            formFeedback.innerHTML = "⚠️ Firebase save error: " + err.message;
+            formFeedback.innerHTML = "⚠️ Error saving: " + err.message;
             formFeedback.className = 'status-msg warning-msg';
         }
     }
     
-    async function deleteEntryById(entryId, entryDate) {
-        if (!firestoreReady) {
-            formFeedback.innerHTML = "❌ Firebase not connected.";
-            formFeedback.className = 'status-msg warning-msg';
-            return;
-        }
-        if (!confirm("Delete this briefing minute? Action permanent.")) return;
+    async function deleteBriefingById(id) {
+        if (!confirm("Delete this briefing? Action cannot be undone.")) return;
         try {
-            await db.collection("briefingMinutes").doc(entryId).delete();
-            formFeedback.innerHTML = "🗑️ Entry deleted from Firebase.";
+            await db.collection("briefingMinutes").doc(id).delete();
+            formFeedback.innerHTML = "🗑️ Briefing deleted";
             formFeedback.className = 'status-msg success-msg';
-            if (currentEditId === entryId) {
-                resetFormToNew(getTodayDate());
-                autoLoadStatus.innerHTML = "";
-            }
             
-            // Refresh staff view if same date is selected
-            if (staffDate.value === entryDate) {
+            if (currentEditId === id) resetFormToNew();
+            await loadSupervisorBriefings();
+            
+            const currentDateVal = supervisorDate.value;
+            if (staffDate.value === currentDateVal) {
                 await loadStaffBriefings();
             }
             
-            await onSelectionChange();
-            
             setTimeout(() => {
-                if(formFeedback.innerHTML.includes('deleted')) {
+                if (formFeedback.innerHTML.includes('deleted')) {
                     formFeedback.innerHTML = '';
-                    formFeedback.className = 'status-msg';
                 }
             }, 2000);
         } catch (err) {
-            formFeedback.innerHTML = "Delete error: " + err.message;
+            formFeedback.innerHTML = "Error: " + err.message;
             formFeedback.className = 'status-msg warning-msg';
         }
     }
     
-    async function deleteCurrentEditing() {
+    async function deleteCurrentBriefing() {
         if (currentEditId) {
-            await deleteEntryById(currentEditId, dateInput.value);
-            resetFormToNew(getTodayDate());
-            autoLoadStatus.innerHTML = "";
+            await deleteBriefingById(currentEditId);
+            resetFormToNew();
         } else {
-            formFeedback.innerHTML = "ℹ️ No entry is being edited. Select Date, Supervisor and Shift to edit an entry.";
+            formFeedback.innerHTML = "ℹ️ Select a briefing from the list to delete.";
             formFeedback.className = 'status-msg';
             setTimeout(() => {
-                if(formFeedback.innerHTML.includes('No entry')) {
+                if (formFeedback.innerHTML.includes('Select')) {
                     formFeedback.innerHTML = '';
                 }
             }, 2000);
         }
     }
     
-    function handleClearForm() {
-        resetFormToNew(getTodayDate());
-        formFeedback.innerHTML = "Form cleared. Ready for new entry.";
+    function clearForm() {
+        resetFormToNew();
+        formFeedback.innerHTML = "Form cleared";
         formFeedback.className = 'status-msg success-msg';
-        pointsTextarea.value = "";
-        supervisorSelect.value = "";
-        shiftSelect.value = "";
-        autoLoadStatus.innerHTML = "";
         setTimeout(() => {
-            if(formFeedback.innerHTML.includes('cleared')) {
+            if (formFeedback.innerHTML === "Form cleared") {
                 formFeedback.innerHTML = '';
-                formFeedback.className = 'status-msg';
             }
-        }, 2000);
+        }, 1500);
     }
     
     function escapeHtml(str) {
@@ -816,14 +838,6 @@
         });
     }
     
-    function onLeftDateChange() {
-        const newDate = dateInput.value;
-        if (newDate) {
-            currentSelectedDate = newDate;
-            onSelectionChange();
-        }
-    }
-    
     function setSupervisorMode(enable) {
         isSupervisorMode = enable;
         
@@ -834,11 +848,11 @@
             supervisorRoleBtn.classList.add('active');
             
             const todayStr = getTodayDate();
-            dateInput.value = todayStr;
-            currentSelectedDate = todayStr;
-            resetFormToNew(todayStr);
+            supervisorDate.value = todayStr;
+            loadSupervisorBriefings();
+            resetFormToNew();
             
-            formFeedback.innerHTML = "✅ Supervisor mode enabled. Select Date, Supervisor and Shift to edit or create new entries.";
+            formFeedback.innerHTML = "✅ Supervisor mode enabled. Select a date to view and edit briefings.";
             formFeedback.className = 'status-msg success-msg';
         } else {
             staffPanel.classList.remove('hidden');
@@ -889,7 +903,7 @@
     async function init() {
         const todayStr = getTodayDate();
         staffDate.value = todayStr;
-        dateInput.value = todayStr;
+        supervisorDate.value = todayStr;
         
         if (firestoreReady) {
             await loadStaffBriefings();
@@ -898,13 +912,11 @@
         setSupervisorMode(false);
         
         staffDate.addEventListener('change', loadStaffBriefings);
+        supervisorDate.addEventListener('change', loadSupervisorBriefings);
         
-        saveBtn.addEventListener('click', saveEntry);
-        clearFormBtn.addEventListener('click', handleClearForm);
-        deleteCurrentBtn.addEventListener('click', deleteCurrentEditing);
-        dateInput.addEventListener('change', onLeftDateChange);
-        supervisorSelect.addEventListener('change', onSelectionChange);
-        shiftSelect.addEventListener('change', onSelectionChange);
+        saveBtn.addEventListener('click', saveBriefing);
+        clearFormBtn.addEventListener('click', clearForm);
+        deleteCurrentBtn.addEventListener('click', deleteCurrentBriefing);
         
         staffRoleBtn.addEventListener('click', () => setSupervisorMode(false));
         supervisorRoleBtn.addEventListener('click', showPasswordModal);
