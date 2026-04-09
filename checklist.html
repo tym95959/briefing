@@ -189,17 +189,22 @@
             align-items: center;
             gap: 8px;
         }
-        .edit-category-btn {
+        .edit-category-btn, .delete-category-btn {
             background: none;
             border: none;
-            color: #ff9800;
             cursor: pointer;
             font-size: 0.7rem;
             padding: 2px 6px;
             border-radius: 15px;
         }
-        .edit-category-btn:hover {
-            background: rgba(255,152,0,0.1);
+        .edit-category-btn {
+            color: #ff9800;
+        }
+        .delete-category-btn {
+            color: #c62828;
+        }
+        .edit-category-btn:hover, .delete-category-btn:hover {
+            background: rgba(0,0,0,0.05);
         }
         .category-tasks {
             padding: 8px;
@@ -547,9 +552,18 @@
                 <span>Supervisor Controls</span>
             </div>
             <div class="admin-form">
-                <h4 style="margin-bottom: 8px; font-size: 0.8rem;">Add Task with Category</h4>
+                <h4 style="margin-bottom: 8px; font-size: 0.8rem;">Manage Categories</h4>
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <input type="text" id="newCategoryName" placeholder="New category name" style="flex:1;">
+                    <button id="addCategoryBtn" style="width: auto; padding: 8px 16px;">Add</button>
+                </div>
+                <div id="categoryList" style="margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                
+                <h4 style="margin-bottom: 8px; font-size: 0.8rem;">Add Task</h4>
                 <input type="text" id="newTaskName" placeholder="Task name">
-                <input type="text" id="taskCategory" placeholder="Category (e.g., 'Safety', 'Cleaning', 'Service')">
+                <select id="taskCategorySelect">
+                    <option value="">-- Select Category --</option>
+                </select>
                 <select id="taskTypeSelect">
                     <option value="done">✅ Single Staff Done</option>
                     <option value="acknowledge">👥 Multi-Acknowledge</option>
@@ -571,7 +585,7 @@
             <div id="adminFeedback" class="info-text"></div>
         </div>
     </div>
-    <footer>✅ Tasks organized by category | Click ✏️ on category to rename | Close shift with confirmation if tasks pending</footer>
+    <footer>✅ Create custom categories | Add tasks under categories | Rename/delete categories</footer>
 </div>
 
 <div id="passwordModal" class="password-modal hidden">
@@ -636,8 +650,11 @@
     const allocationContainer = document.getElementById('allocationContainer');
     const tasksContainer = document.getElementById('tasksContainer');
     const tasksInfo = document.getElementById('tasksInfo');
+    const newCategoryName = document.getElementById('newCategoryName');
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+    const categoryList = document.getElementById('categoryList');
     const newTaskName = document.getElementById('newTaskName');
-    const taskCategory = document.getElementById('taskCategory');
+    const taskCategorySelect = document.getElementById('taskCategorySelect');
     const taskTypeSelect = document.getElementById('taskTypeSelect');
     const dropdownOptionsDiv = document.getElementById('dropdownOptionsDiv');
     const dropdownOptions = document.getElementById('dropdownOptions');
@@ -686,6 +703,83 @@
         return pending;
     }
 
+    // Get unique categories from tasks
+    function getUniqueCategories() {
+        const categories = new Set();
+        globalTasks.forEach(task => {
+            if (task.category) categories.add(task.category);
+            else categories.add("General");
+        });
+        if (categories.size === 0) categories.add("General");
+        return Array.from(categories).sort();
+    }
+
+    function updateCategoryUI() {
+        const categories = getUniqueCategories();
+        categoryList.innerHTML = categories.map(cat => `
+            <span class="staff-tag" style="display: inline-flex; align-items: center; gap: 6px;">
+                📁 ${escapeHtml(cat)}
+                <button class="edit-category-small" data-category="${escapeHtml(cat)}" style="background:none; border:none; color:#ff9800; cursor:pointer;"><i class="fas fa-edit"></i></button>
+                <button class="delete-category-small" data-category="${escapeHtml(cat)}" style="background:none; border:none; color:#c62828; cursor:pointer;"><i class="fas fa-trash"></i></button>
+            </span>
+        `).join('');
+        
+        // Update category dropdown
+        taskCategorySelect.innerHTML = '<option value="">-- Select Category --</option>' + categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+        
+        // Add event listeners for category edit/delete
+        document.querySelectorAll('.edit-category-small').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const oldCategory = btn.getAttribute('data-category');
+                const newCategory = prompt("Enter new category name:", oldCategory);
+                if (newCategory && newCategory.trim() && newCategory !== oldCategory) {
+                    await renameCategory(oldCategory, newCategory.trim());
+                }
+            });
+        });
+        document.querySelectorAll('.delete-category-small').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const categoryToDelete = btn.getAttribute('data-category');
+                if (categoryToDelete === "General") {
+                    adminFeedback.innerText = "Cannot delete General category";
+                    setTimeout(() => adminFeedback.innerText = "", 2000);
+                    return;
+                }
+                const taskCount = globalTasks.filter(t => (t.category || "General") === categoryToDelete).length;
+                if (taskCount > 0 && !confirm(`Category "${categoryToDelete}" has ${taskCount} task(s). Delete category and move tasks to General?`)) {
+                    return;
+                }
+                await deleteCategory(categoryToDelete);
+            });
+        });
+    }
+
+    async function renameCategory(oldCategory, newCategory) {
+        const updatedTasks = globalTasks.map(task => {
+            const taskCategory = task.category || "General";
+            if (taskCategory === oldCategory) {
+                return { ...task, category: newCategory };
+            }
+            return task;
+        });
+        await saveGlobalTasks(updatedTasks);
+        updateCategoryUI();
+    }
+
+    async function deleteCategory(categoryToDelete) {
+        const updatedTasks = globalTasks.map(task => {
+            const taskCategory = task.category || "General";
+            if (taskCategory === categoryToDelete) {
+                return { ...task, category: "General" };
+            }
+            return task;
+        });
+        await saveGlobalTasks(updatedTasks);
+        updateCategoryUI();
+        adminFeedback.innerText = `Category "${categoryToDelete}" deleted, tasks moved to General`;
+        setTimeout(() => adminFeedback.innerText = "", 2000);
+    }
+
     async function loadSOD() {
         if (!firestoreReady || !currentDate || !currentShift) {
             allocationContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
@@ -720,7 +814,7 @@
         
         let tableHtml = '<table class="allocation-table"><thead><tr><th class="area-col">Area / Time</th>';
         slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
-        tableHtml += ' hilab</thead><tbody>';
+        tableHtml += '</tr></thead><tbody>';
         
         const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
         areas.forEach(area => {
@@ -736,7 +830,7 @@
                     ${staffHtml}
                   </td>`;
             });
-            tableHtml += '<tr>';
+            tableHtml += '</tr>';
         });
         tableHtml += '</tbody></table>';
         allocationContainer.innerHTML = tableHtml;
@@ -791,12 +885,14 @@
         const docRef = db.collection("globalConfig").doc("tasks");
         const docSnap = await docRef.get();
         globalTasks = docSnap.exists ? docSnap.data().tasks || [] : [];
+        updateCategoryUI();
         renderTasks();
     }
 
     async function saveGlobalTasks(tasks) {
         await db.collection("globalConfig").doc("tasks").set({ tasks });
         globalTasks = tasks;
+        updateCategoryUI();
         renderTasks();
     }
 
@@ -907,19 +1003,6 @@
         setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
-    async function renameCategory(oldCategory, newCategory) {
-        if (!newCategory || newCategory.trim() === "") return;
-        if (newCategory === oldCategory) return;
-        
-        const updatedTasks = globalTasks.map(task => {
-            if ((task.category || "General") === oldCategory) {
-                return { ...task, category: newCategory.trim() };
-            }
-            return task;
-        });
-        await saveGlobalTasks(updatedTasks);
-    }
-
     function renderTasks() {
         if (!currentTaskRecord || !globalTasks.length) {
             tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>';
@@ -947,7 +1030,7 @@
                         <i class="fas fa-folder"></i>
                         <span class="category-name">${escapeHtml(category)}</span>
                     </div>
-                    ${currentRole === "supervisor" && !isClosed ? `<button class="edit-category-btn" data-category="${escapeHtml(category)}"><i class="fas fa-edit"></i> Rename</button>` : ''}
+                    ${currentRole === "supervisor" && !isClosed ? `<div><button class="edit-category-btn" data-category="${escapeHtml(category)}"><i class="fas fa-edit"></i> Rename</button><button class="delete-category-btn" data-category="${escapeHtml(category)}"><i class="fas fa-trash"></i> Delete</button></div>` : ''}
                 </div>
                 <div class="category-tasks" id="category-${category.replace(/\s/g, '_')}"></div>
             `;
@@ -1025,12 +1108,26 @@
                 if (confirm("Delete task?")) await saveGlobalTasks(globalTasks.filter(t => t.id !== id));
             }));
             document.querySelectorAll('.edit-category-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
+                btn.addEventListener('click', async () => {
                     const oldCategory = btn.getAttribute('data-category');
                     const newCategory = prompt("Enter new category name:", oldCategory);
                     if (newCategory && newCategory.trim() && newCategory !== oldCategory) {
-                        await renameCategory(oldCategory, newCategory);
+                        await renameCategory(oldCategory, newCategory.trim());
                     }
+                });
+            });
+            document.querySelectorAll('.delete-category-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const categoryToDelete = btn.getAttribute('data-category');
+                    if (categoryToDelete === "General") {
+                        alert("Cannot delete General category");
+                        return;
+                    }
+                    const taskCount = globalTasks.filter(t => (t.category || "General") === categoryToDelete).length;
+                    if (taskCount > 0 && !confirm(`Category "${categoryToDelete}" has ${taskCount} task(s). Delete category and move tasks to General?`)) {
+                        return;
+                    }
+                    await deleteCategory(categoryToDelete);
                 });
             });
         }
@@ -1060,13 +1157,28 @@
 
     async function addTask() {
         if (!newTaskName.value.trim()) { adminFeedback.innerText = "Enter task name"; return; }
-        const category = taskCategory.value.trim() || "General";
+        const category = taskCategorySelect.value;
+        if (!category) { adminFeedback.innerText = "Select a category"; return; }
         const newTask = { id: Date.now().toString(), name: newTaskName.value.trim(), category: category, type: taskTypeSelect.value, options: taskTypeSelect.value === 'dropdown' && dropdownOptions.value ? dropdownOptions.value.split(',').map(o => o.trim()) : null, createdAt: new Date().toISOString() };
         await saveGlobalTasks([...globalTasks, newTask]);
         newTaskName.value = "";
-        taskCategory.value = "";
         if (dropdownOptions) dropdownOptions.value = "";
         adminFeedback.innerText = "Task added to category: " + category;
+        setTimeout(() => adminFeedback.innerText = "", 2000);
+    }
+
+    async function addCategory() {
+        const newCategory = newCategoryName.value.trim();
+        if (!newCategory) { adminFeedback.innerText = "Enter category name"; return; }
+        if (getUniqueCategories().includes(newCategory)) {
+            adminFeedback.innerText = "Category already exists";
+            setTimeout(() => adminFeedback.innerText = "", 2000);
+            return;
+        }
+        // Just add a dummy task to create category, or just update UI
+        updateCategoryUI();
+        newCategoryName.value = "";
+        adminFeedback.innerText = `Category "${newCategory}" created`;
         setTimeout(() => adminFeedback.innerText = "", 2000);
     }
 
@@ -1119,7 +1231,7 @@
         const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
         const doneTasks = currentTaskRecord?.doneTasks || {};
         const ackTasks = currentTaskRecord?.acknowledgedTasks || {};
-        const selections = currentTaskRecord?.dropdownSelections || [];
+        const selections = currentTaskRecord?.dropdownSelections || {};
         
         let tableHtml = '<table class="alloc-table"><thead><tr><th>Area / Time</th>';
         slots.forEach(slot => { tableHtml += `<th>${slot.name}</th>`; });
@@ -1134,7 +1246,7 @@
         });
         tableHtml += '</tbody></table>';
         
-        let tasksHtml = '<table class="tasks-table"><thead><td><th>Category</th><th>Task</th><th>Status / Details</th></tr></thead><tbody>';
+        let tasksHtml = '<table class="tasks-table"><thead><tr><th>Category</th><th>Task</th><th>Status / Details</th></tr></thead><tbody>';
         const tasksByCategory = {};
         globalTasks.forEach(task => {
             const category = task.category || "General";
@@ -1150,7 +1262,7 @@
                     const acks = ackTasks[task.id] || [];
                     statusHtml = acks.length > 0 ? `✅ Acknowledged by:<ul>${acks.map(n => `<li>👤 ${escapeHtml(n)}</li>`).join('')}</ul>` : `⏳ No acknowledgments yet`;
                 } else {
-                    const subs = selections.filter(s => s.taskId === task.id);
+                    const subs = selections[task.id] || [];
                     statusHtml = subs.length > 0 ? `📋 Submissions:<ul>${subs.map(s => `<li>👤 ${escapeHtml(s.staffName)} selected: <strong>${escapeHtml(s.selectedValue)}</strong>${s.additionalText ? ` (${escapeHtml(s.additionalText)})` : ''}<br><span style="font-size:9px;">at ${new Date(s.submittedAt).toLocaleString()}</span></li>`).join('')}</ul>` : `⏳ No submissions yet`;
                 }
                 tasksHtml += `<tr><td style="font-weight:bold;">${escapeHtml(category)}</td><td>📋 ${escapeHtml(task.name)}</td><td>${statusHtml}</td></tr>`;
@@ -1216,6 +1328,7 @@
         supervisorRoleBtn.addEventListener('click', () => setRole("supervisor"));
         addTaskBtn.addEventListener('click', addTask);
         addStaffBtn.addEventListener('click', () => addStaffMember(newStaffName.value));
+        addCategoryBtn.addEventListener('click', addCategory);
         closeShiftBtn.addEventListener('click', closeShift);
         reopenShiftBtn.addEventListener('click', reopenShiftFn);
         verifyPasswordBtn.addEventListener('click', verifyPassword);
