@@ -31,18 +31,6 @@
             position: relative;
             overflow-x: hidden;
         }
-        .particle {
-            position: fixed;
-            background: rgba(255, 215, 0, 0.15);
-            border-radius: 50%;
-            pointer-events: none;
-            animation: float 20s infinite ease-in-out;
-            z-index: 0;
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0) translateX(0); opacity: 0.2; }
-            50% { transform: translateY(-150px) translateX(80px); opacity: 0.5; }
-        }
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -55,22 +43,48 @@
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3);
             overflow: hidden;
         }
+        /* Lounge Header with Background Images */
         .survey-header {
-            background: linear-gradient(135deg, #f5e6c8 0%, #eed9b0 50%, #e6cc96 100%);
-            padding: 30px 40px;
             position: relative;
+            padding: 30px 40px;
             overflow: hidden;
+            min-height: 280px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
-        .survey-header::before {
+        .header-bg-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+        }
+        .header-bg-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+        .header-bg-slide.active { opacity: 1; }
+        .survey-header::after {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at 20% 40%, rgba(255,215,0,0.15) 0%, transparent 70%);
-            pointer-events: none;
+            background: linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 100%);
+            z-index: 1;
         }
+        .lounge-badge, .welcome-text, .progress-bar { position: relative; z-index: 2; }
         .lounge-badge {
             display: flex;
             align-items: center;
@@ -78,86 +92,88 @@
             flex-wrap: wrap;
             gap: 20px;
             margin-bottom: 20px;
-            position: relative;
-            z-index: 1;
         }
         .lounge-icon {
             display: flex;
             align-items: center;
             gap: 15px;
+            background: rgba(0,0,0,0.4);
+            padding: 8px 20px;
+            border-radius: 60px;
+            backdrop-filter: blur(5px);
         }
         .lounge-icon i {
             font-size: 2.5rem;
-            color: #b8860b;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            color: #ffd700;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
         .lounge-icon h1 {
             font-size: 1.8rem;
             font-weight: 700;
-            color: #8b6914;
-            letter-spacing: -0.5px;
+            color: #ffd700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .airport-name {
-            background: rgba(184, 134, 11, 0.12);
+            background: rgba(0,0,0,0.4);
             padding: 6px 16px;
             border-radius: 50px;
+            backdrop-filter: blur(5px);
         }
-        .airport-name p {
-            color: #8b6914;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-        .airport-name i {
-            margin-right: 5px;
-        }
-        .welcome-text {
-            margin-top: 15px;
-            position: relative;
-            z-index: 1;
-        }
-        .welcome-text h2 {
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: #8b6914;
-        }
-        .welcome-text p {
-            color: #a0782c;
-            margin-top: 5px;
-            font-size: 0.9rem;
-        }
+        .airport-name p { color: #ffd700; font-size: 0.85rem; font-weight: 500; }
+        .welcome-text { margin-top: 15px; }
+        .welcome-text h2 { font-size: 1.6rem; font-weight: 700; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .welcome-text p { color: #f5e6c8; margin-top: 5px; font-size: 0.95rem; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
         .progress-bar {
             width: 100%;
             height: 4px;
-            background: rgba(184, 134, 11, 0.2);
+            background: rgba(255,255,255,0.3);
             border-radius: 2px;
             margin-top: 25px;
             overflow: hidden;
         }
-        .progress-fill {
-            width: 0%;
-            height: 100%;
-            background: #d4a017;
-            border-radius: 2px;
-            transition: width 0.5s ease;
+        .progress-fill { width: 0%; height: 100%; background: #ffd700; border-radius: 2px; transition: width 0.5s ease; }
+        
+        /* Floating Emoji */
+        .floating-emoji {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            animation: floatBounce 2s ease-in-out infinite;
+            border: 3px solid #ffd700;
         }
+        .floating-emoji:hover { transform: scale(1.1); }
+        @keyframes floatBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        /* Category Sections */
         .category-section {
             margin-bottom: 25px;
             border-radius: 28px;
             overflow: hidden;
             box-shadow: 0 8px 25px -8px rgba(0,0,0,0.08);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition: transform 0.3s ease;
             background: white;
         }
-        .category-section:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 30px -10px rgba(0,0,0,0.12);
-        }
+        .category-section:hover { transform: translateY(-2px); }
         .category-section.service { border-left: 6px solid #d4a017; }
         .category-section.cleanliness { border-left: 6px solid #c8a84e; }
         .category-section.comfort { border-left: 6px solid #e0b84d; }
         .category-section.staff { border-left: 6px solid #d4a017; }
         .category-section.food { border-left: 6px solid #e6b830; }
-        .category-section.entertainment { border-left: 6px solid #cca84e; }
         .category-section.General { border-left: 6px solid #b8962c; }
         .category-title {
             padding: 15px 22px;
@@ -179,12 +195,7 @@
             border: 1px solid #f0e6d2;
             transition: all 0.3s ease;
         }
-        .question-item:hover {
-            background: white;
-            transform: translateX(5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            border-color: #d4a017;
-        }
+        .question-item:hover { background: white; transform: translateX(5px); border-color: #d4a017; }
         .question-text {
             font-weight: 700;
             font-size: 0.95rem;
@@ -194,11 +205,7 @@
             align-items: center;
             gap: 10px;
         }
-        .rating-options {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
+        .rating-options { display: flex; gap: 12px; flex-wrap: wrap; }
         .rating-option {
             display: flex;
             flex-direction: column;
@@ -224,18 +231,13 @@
         .rating-option[data-value="5"]:hover, .rating-option[data-value="5"].selected { background: #4caf50; color: white; transform: scale(1.05); }
         .rating-emoji-icon { font-size: 1.6rem; }
         .rating-label { font-size: 0.7rem; font-weight: 600; }
-        .smiley-rating {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
+        .smiley-rating { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
         .smiley-option {
             text-align: center;
             cursor: pointer;
             padding: 10px 16px;
             border-radius: 50px;
-            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transition: all 0.3s;
             background: white;
             border: 2px solid #e8ddc8;
         }
@@ -278,11 +280,7 @@
             margin: 20px 0 30px;
             box-shadow: 0 4px 12px rgba(212,160,23,0.3);
         }
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(212,160,23,0.4);
-            background: linear-gradient(135deg, #e0b030, #d4a017);
-        }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212,160,23,0.4); }
         .floating-element {
             position: fixed;
             pointer-events: none;
@@ -339,7 +337,6 @@
             justify-content: center;
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            transition: all 0.3s;
             z-index: 100;
             border: none;
             font-size: 1.2rem;
@@ -382,7 +379,7 @@
         }
         .close-admin { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
         .admin-tabs { display: flex; border-bottom: 1px solid #e8ddc8; background: #fefcf8; }
-        .admin-tab { padding: 12px 24px; cursor: pointer; font-weight: 600; transition: 0.2s; color: #6b4c1a; }
+        .admin-tab { padding: 12px 24px; cursor: pointer; font-weight: 600; color: #6b4c1a; }
         .admin-tab.active { border-bottom: 3px solid #d4a017; color: #d4a017; }
         .admin-content { padding: 25px; overflow-y: auto; flex: 1; }
         .category-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
@@ -397,20 +394,7 @@
         canvas { max-height: 150px; margin-top: 10px; }
         .response-list { max-height: 150px; overflow-y: auto; margin-top: 10px; }
         .response-item { background: white; padding: 6px 12px; border-radius: 20px; margin-bottom: 5px; font-size: 0.75rem; border: 1px solid #f0e6d2; }
-        .password-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1100;
-        }
-        /* Device Auth Modal */
-        .device-auth-overlay {
+        .password-modal, .device-auth-overlay {
             position: fixed;
             top: 0;
             left: 0;
@@ -423,48 +407,23 @@
             justify-content: center;
             z-index: 3000;
         }
-        .device-auth-card {
+        .device-auth-card, .password-box {
             background: white;
             border-radius: 32px;
             padding: 32px;
             width: 380px;
             text-align: center;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
-            animation: fadeInScale 0.3s ease;
         }
-        @keyframes fadeInScale {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .device-auth-card i {
-            font-size: 4rem;
-            color: #d4a017;
-            margin-bottom: 16px;
-        }
-        .device-auth-card h2 {
-            font-size: 1.4rem;
-            margin-bottom: 8px;
-            color: #8b6914;
-        }
-        .device-auth-card p {
-            font-size: 0.8rem;
-            color: #5a7a97;
-            margin-bottom: 20px;
-        }
-        .device-auth-card input {
+        .device-auth-card i, .password-box i { font-size: 4rem; color: #d4a017; margin-bottom: 16px; }
+        .device-auth-card input, .password-box input {
             width: 100%;
-            padding: 14px 18px;
+            padding: 14px;
             border-radius: 40px;
             border: 2px solid #e2eaf2;
-            font-size: 0.95rem;
-            margin-bottom: 16px;
+            margin: 16px 0;
             text-align: center;
         }
-        .device-auth-card input:focus {
-            outline: none;
-            border-color: #d4a017;
-        }
-        .device-auth-card button {
+        .device-auth-card button, .password-box button {
             width: 100%;
             padding: 12px;
             background: linear-gradient(135deg, #d4a017, #b8860b);
@@ -472,22 +431,15 @@
             border: none;
             border-radius: 40px;
             font-weight: 700;
-            font-size: 1rem;
             cursor: pointer;
-        }
-        .device-error {
-            color: #c62828;
-            font-size: 0.75rem;
-            margin-top: 12px;
         }
         .hidden { display: none; }
         .status-msg { text-align: center; padding: 12px; border-radius: 40px; margin-top: 15px; }
-        footer { text-align: center; margin-top: 30px; font-size: 0.7rem; color: rgba(255,250,240,0.8); position: relative; z-index: 1; }
+        footer { text-align: center; margin-top: 30px; font-size: 0.7rem; color: rgba(255,250,240,0.8); }
         @media (max-width: 700px) {
-            .survey-header { padding: 20px 25px; }
+            .survey-header { padding: 20px 25px; min-height: 220px; }
             .lounge-icon h1 { font-size: 1.3rem; }
-            .lounge-icon i { font-size: 1.8rem; }
-            .welcome-text h2 { font-size: 1rem; }
+            .floating-emoji { width: 60px; height: 60px; font-size: 2rem; bottom: 80px; right: 20px; }
         }
     </style>
 </head>
@@ -495,24 +447,22 @@
 <div class="container" id="appContainer" style="display: none;">
     <div class="survey-wrapper">
         <div class="survey-header">
+            <div class="header-bg-slider" id="headerBgSlider">
+                <div class="header-bg-slide" style="background-image: url('https://images.unsplash.com/photo-1551884170-09fb70a3a2ed?w=1200&h=400&fit=crop');"></div>
+                <div class="header-bg-slide" style="background-image: url('https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?w=1200&h=400&fit=crop');"></div>
+                <div class="header-bg-slide" style="background-image: url('https://images.unsplash.com/photo-1590073242678-70ee3fc28f8e?w=1200&h=400&fit=crop');"></div>
+                <div class="header-bg-slide" style="background-image: url('https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=400&fit=crop');"></div>
+            </div>
             <div class="lounge-badge">
-                <div class="lounge-icon">
-                    <i class="fas fa-plane-departure"></i>
-                    <h1>Koveli Lounge</h1>
-                </div>
-                <div class="airport-name">
-                    <p><i class="fas fa-plane-departure"></i> Velana International Airport · Maldives</p>
-                </div>
+                <div class="lounge-icon"><i class="fas fa-plane-departure"></i><h1>Koveli Lounge</h1></div>
+                <div class="airport-name"><p><i class="fas fa-map-marker-alt"></i> Velana International Airport · Maldives</p></div>
             </div>
             <div class="welcome-text">
                 <h2><i class="fas fa-star-of-life"></i> Welcome, Valued Guest</h2>
                 <p>Your feedback helps us deliver an exceptional lounge experience</p>
             </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         </div>
-        
         <div style="padding: 30px 35px;">
             <form id="surveyForm">
                 <div id="surveyQuestionsContainer"></div>
@@ -526,117 +476,109 @@
     <footer>✨ Koveli Lounge · Elevating Your Journey ✨</footer>
 </div>
 
+<!-- Floating Emoji -->
+<div class="floating-emoji" id="floatingEmoji">😊</div>
+
 <button class="admin-fab" id="adminFabBtn"><i class="fas fa-cog"></i></button>
 
-<div id="adminOverlay" class="admin-overlay">
-    <div class="admin-container">
-        <div class="admin-header">
-            <h2><i class="fas fa-chalkboard-user"></i> Admin Dashboard</h2>
-            <button class="close-admin" id="closeAdminBtn"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="admin-tabs">
-            <div class="admin-tab active" data-admin-tab="manage">📋 Manage Questions</div>
-            <div class="admin-tab" data-admin-tab="results">📊 Survey Results</div>
-        </div>
-        <div class="admin-content" id="adminContent">
-            <div id="manageTab">
-                <div class="add-category">
-                    <input type="text" id="newCategoryName" placeholder="New category (e.g., Service, Cleanliness, Comfort)">
-                    <button id="addCategoryBtn" style="background:#d4a017; color:white; border:none; padding:0 20px; border-radius:30px;">Add</button>
-                </div>
-                <div id="categoryList" class="category-list"></div>
-                <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <select id="selectedCategory" style="padding:10px 16px; border-radius:30px; border:1.5px solid #e8ddc8;">
-                        <option value="">-- Select Category --</option>
-                    </select>
-                    <select id="questionTypeSelect" style="padding:10px 16px; border-radius:30px; border:1.5px solid #e8ddc8;">
-                        <option value="rating">⭐ Star Rating (1-5)</option>
-                        <option value="smiley">😊 Smiley Rating</option>
-                        <option value="text">📝 Text Response</option>
-                    </select>
-                    <input type="text" id="newQuestionText" placeholder="Question text" style="flex:1; padding:10px 16px; border-radius:30px;">
-                    <button id="addQuestionBtn" style="background:#4caf50; color:white; border:none; padding:0 25px; border-radius:30px;">Add</button>
-                </div>
-                <div id="questionsAdminList"></div>
-            </div>
-            <div id="resultsTab" style="display: none;">
-                <div id="adminResultsContainer"></div>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Admin Panel -->
+<div id="adminOverlay" class="admin-overlay"><div class="admin-container"><div class="admin-header"><h2><i class="fas fa-chalkboard-user"></i> Admin Dashboard</h2><button class="close-admin" id="closeAdminBtn"><i class="fas fa-times"></i></button></div><div class="admin-tabs"><div class="admin-tab active" data-admin-tab="manage">📋 Manage Questions</div><div class="admin-tab" data-admin-tab="results">📊 Survey Results</div></div><div class="admin-content" id="adminContent"><div id="manageTab"><div class="add-category"><input type="text" id="newCategoryName" placeholder="New category"><button id="addCategoryBtn" style="background:#d4a017; color:white; border:none; padding:0 20px; border-radius:30px;">Add</button></div><div id="categoryList" class="category-list"></div><div style="margin:20px 0; display:flex; gap:10px; flex-wrap:wrap;"><select id="selectedCategory" style="padding:10px 16px; border-radius:30px;"><option value="">-- Select Category --</option></select><select id="questionTypeSelect" style="padding:10px 16px; border-radius:30px;"><option value="rating">⭐ Rating (1-5)</option><option value="smiley">😊 Smiley</option><option value="text">📝 Text</option></select><input type="text" id="newQuestionText" placeholder="Question text" style="flex:1; padding:10px 16px; border-radius:30px;"><button id="addQuestionBtn" style="background:#4caf50; color:white; border:none; padding:0 25px; border-radius:30px;">Add</button></div><div id="questionsAdminList"></div></div><div id="resultsTab" style="display:none;"><div id="adminResultsContainer"></div></div></div></div></div>
 
-<div id="adminPasswordModal" class="password-modal hidden">
-    <div style="background:white; padding:32px; border-radius:32px; width:350px; text-align:center;">
-        <i class="fas fa-lock" style="font-size:2rem; color:#d4a017;"></i>
-        <h3 style="margin:16px 0;">Admin Access</h3>
-        <input type="password" id="adminPassInput" placeholder="Enter admin password">
-        <button id="verifyAdminPassBtn" style="margin-top:16px; background:#d4a017; color:white; border:none; padding:10px; border-radius:28px; width:100%;">Verify</button>
-        <button id="cancelAdminPassBtn" style="margin-top:10px; background:#eef3fc; border:none; padding:10px; border-radius:28px; width:100%;">Cancel</button>
-        <p id="adminPassError" style="color:#c62828; margin-top:10px;"></p>
-    </div>
-</div>
-
-<div id="thankyouOverlay" class="thankyou-overlay">
-    <div class="thankyou-card">
-        <div class="confetti">🎉✨🌟</div>
-        <h2>Thank You!</h2>
-        <p>Your feedback helps us enhance the Koveli Lounge experience.</p>
-        <button id="closeThankyouBtn" style="background:#d4a017; color:white; border:none; padding:12px 28px; border-radius:40px; cursor:pointer; margin-top:15px;">Close</button>
-    </div>
-</div>
-
-<!-- Device Authorization Modal -->
-<div id="deviceAuthModal" class="device-auth-overlay">
-    <div class="device-auth-card">
-        <i class="fas fa-microchip"></i>
-        <h2>Device Authorization Required</h2>
-        <p>This device needs to be authorized.<br>Enter the master password to continue.</p>
-        <input type="password" id="devicePasswordInput" placeholder="Enter Master Password" autocomplete="off">
-        <button id="authorizeDeviceBtn">Authorize Device</button>
-        <div id="deviceAuthError" class="device-error"></div>
-    </div>
-</div>
+<div id="adminPasswordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Admin Access</h3><input type="password" id="adminPassInput" placeholder="Enter admin password"><button id="verifyAdminPassBtn">Verify</button><button id="cancelAdminPassBtn" style="margin-top:10px; background:#eef3fc; color:#333;">Cancel</button><p id="adminPassError" style="color:#c62828; margin-top:10px;"></p></div></div>
+<div id="thankyouOverlay" class="thankyou-overlay"><div class="thankyou-card"><div class="confetti">🎉✨🌟</div><h2 id="thankyouMessage">Thank You!</h2><p id="thankyouSubMessage">Your feedback helps us enhance the Koveli Lounge experience.</p><button id="closeThankyouBtn" style="background:#d4a017; color:white; border:none; padding:12px 28px; border-radius:40px; cursor:pointer; margin-top:15px;">Close</button></div></div>
+<div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device Authorization</h2><p>Enter master password to register this device.</p><input type="password" id="devicePasswordInput" placeholder="Master Password"><button id="authorizeDeviceBtn">Authorize</button><div id="deviceAuthError" class="device-error"></div></div></div>
 
 <script>
-    // ========== DEVICE AUTHORIZATION ==========
-    const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
-    
-    let DEVICE_MASTER_PASSWORD = null;
-    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
-        DEVICE_MASTER_PASSWORD = MASTER_PASSWORD_GLOBAL;
-    } else if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
-        DEVICE_MASTER_PASSWORD = SUPERVISOR_PASSWORD;
-    } else {
-        DEVICE_MASTER_PASSWORD = "Admin123";
-    }
-    
-    function isDeviceAuthorized() {
-        return localStorage.getItem(DEVICE_STORAGE_KEY) === "true";
-    }
-    
-    function authorizeDevice(password) {
-        if (password === DEVICE_MASTER_PASSWORD) {
-            localStorage.setItem(DEVICE_STORAGE_KEY, "true");
-            return true;
-        }
-        return false;
-    }
-    
-    window.resetDeviceAuth = function() {
-        localStorage.removeItem(DEVICE_STORAGE_KEY);
-        location.reload();
-    };
+    // Background Slider
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.header-bg-slide');
+    if (slides.length) { slides[0].classList.add('active'); setInterval(() => { slides[currentSlide].classList.remove('active'); currentSlide = (currentSlide + 1) % slides.length; slides[currentSlide].classList.add('active'); }, 5000); }
 
-    // ========== FIREBASE INITIALIZATION ==========
+    // Device Authorization
+    const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
+    let DEVICE_MASTER_PASSWORD = null;
+    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined') DEVICE_MASTER_PASSWORD = MASTER_PASSWORD_GLOBAL;
+    else if (typeof SUPERVISOR_PASSWORD !== 'undefined') DEVICE_MASTER_PASSWORD = SUPERVISOR_PASSWORD;
+    else DEVICE_MASTER_PASSWORD = "Admin123";
+    function isDeviceAuthorized() { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
+    function authorizeDevice(pwd) { if (pwd === DEVICE_MASTER_PASSWORD) { localStorage.setItem(DEVICE_STORAGE_KEY, "true"); return true; } return false; }
+
+    // Firebase
     let db, firestoreReady = false;
     let adminAuthenticated = false;
     let allQuestions = [];
     let categories = [];
     let charts = {};
+    if (typeof firebase !== 'undefined' && firebase.apps.length) { try { db = firebase.firestore(); firestoreReady = true; } catch(e) {} }
     
-    if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-        try { db = firebase.firestore(); firestoreReady = true; } catch(e) { console.error(e); }
+    // Floating Emoji State
+    const floatingEmoji = document.getElementById('floatingEmoji');
+    let currentMood = 3; // 1-5 scale, 3 neutral
+    
+    function updateFloatingEmoji(moodValue) {
+        currentMood = moodValue;
+        const emojis = { 1: '😞', 2: '😐', 3: '🙂', 4: '😊', 5: '😍' };
+        const colors = { 1: '#ef5350', 2: '#ff9800', 3: '#ffc107', 4: '#8bc34a', 5: '#4caf50' };
+        floatingEmoji.innerHTML = emojis[moodValue] || '😊';
+        floatingEmoji.style.borderColor = colors[moodValue] || '#ffd700';
+        gsap.fromTo(floatingEmoji, { scale: 1 }, { scale: 1.2, duration: 0.2, yoyo: true, repeat: 1 });
+    }
+    
+    // Calculate overall mood based on all answered questions
+    function calculateOverallMood() {
+        let totalScore = 0;
+        let answeredCount = 0;
+        allQuestions.forEach(q => {
+            if (q.type === 'rating') {
+                const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+                if (selected) { totalScore += parseInt(selected.value); answeredCount++; }
+            } else if (q.type === 'smiley') {
+                const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+                if (selected) {
+                    const val = selected.value;
+                    const score = { 'very-poor': 1, 'poor': 2, 'average': 3, 'good': 4, 'excellent': 5 }[val];
+                    if (score) { totalScore += score; answeredCount++; }
+                }
+            }
+        });
+        if (answeredCount === 0) return 3;
+        const avg = totalScore / answeredCount;
+        return Math.round(avg);
+    }
+    
+    function refreshFloatingEmoji() { updateFloatingEmoji(calculateOverallMood()); }
+    
+    // Double-click to cancel selection
+    function setupDoubleClickCancel() {
+        document.querySelectorAll('.rating-option, .smiley-option').forEach(opt => {
+            opt.removeEventListener('dblclick', cancelHandler);
+            opt.addEventListener('dblclick', cancelHandler);
+        });
+    }
+    
+    function cancelHandler(e) {
+        e.stopPropagation();
+        const parent = this.closest('.rating-options, .smiley-rating');
+        const radio = this.querySelector('input');
+        if (radio) {
+            radio.checked = false;
+            this.classList.remove('selected');
+            if (parent) {
+                parent.querySelectorAll('.rating-option, .smiley-option').forEach(o => o.classList.remove('selected'));
+            }
+            refreshFloatingEmoji();
+            updateProgress();
+            // Show cancel animation
+            const rect = this.getBoundingClientRect();
+            const cancelEl = document.createElement('div');
+            cancelEl.className = 'floating-element';
+            cancelEl.innerHTML = '❌';
+            cancelEl.style.left = (rect.left + rect.width/2) + 'px';
+            cancelEl.style.top = (rect.top) + 'px';
+            cancelEl.style.fontSize = '1.5rem';
+            document.body.appendChild(cancelEl);
+            setTimeout(() => cancelEl.remove(), 800);
+        }
     }
     
     function getCategoryClass(name) {
@@ -646,7 +588,6 @@
         if (n.includes('comfort')) return 'comfort';
         if (n.includes('staff')) return 'staff';
         if (n.includes('food')) return 'food';
-        if (n.includes('entertain')) return 'entertainment';
         return 'General';
     }
     
@@ -666,37 +607,31 @@
         }
     }
     
-    function createFlyingEmojis(emoji, count, x, y, type) {
-        const color = (type === 'very-poor' || type === 'poor') ? '#ef5350' : (type === 'average' ? '#ffc107' : '#4caf50');
-        for (let i = 0; i < count; i++) {
-            setTimeout(() => {
-                const el = document.createElement('div');
-                el.className = 'floating-element';
-                el.innerHTML = emoji;
-                el.style.left = (x + (Math.random() - 0.5) * 70) + 'px';
-                el.style.top = (y - 20) + 'px';
-                el.style.fontSize = (1 + Math.random() * 1.2) + 'rem';
-                el.style.color = color;
-                document.body.appendChild(el);
-                setTimeout(() => el.remove(), 1000);
-            }, i * 60);
-        }
-    }
-    
-    function showThankYouAnimation() {
+    function showThankYouWithMood() {
+        const mood = calculateOverallMood();
+        const messages = {
+            1: { title: "We'll Do Better! 🙏", sub: "Your honest feedback helps us improve. Thank you for being truthful!" },
+            2: { title: "Noted with Thanks 📝", sub: "We appreciate your feedback and will work on improvements." },
+            3: { title: "Thank You! 🌟", sub: "Your feedback helps us maintain our standards." },
+            4: { title: "We're Grateful! 🎉", sub: "Thank you for your positive feedback! We'll keep it up." },
+            5: { title: "Absolutely Amazing! 🏆", sub: "Thank you for your wonderful feedback! You made our day!" }
+        };
+        const msg = messages[mood] || messages[3];
+        document.getElementById('thankyouMessage').innerHTML = msg.title;
+        document.getElementById('thankyouSubMessage').innerHTML = msg.sub;
         const overlay = document.getElementById('thankyouOverlay');
         overlay.classList.add('active');
-        for (let i = 0; i < 30; i++) {
+        for (let i = 0; i < 40; i++) {
             setTimeout(() => {
                 const confetti = document.createElement('div');
                 confetti.className = 'floating-element';
-                confetti.innerHTML = ['🎉', '✨', '🌟', '⭐', '🍾', '✈️'][Math.floor(Math.random() * 6)];
+                confetti.innerHTML = mood >= 4 ? ['🎉','✨','🌟','⭐','🎊','🏆'][Math.floor(Math.random()*6)] : ['📝','💭','🙏','✨'][Math.floor(Math.random()*4)];
                 confetti.style.left = Math.random() * window.innerWidth + 'px';
                 confetti.style.top = window.innerHeight - 50 + 'px';
                 confetti.style.fontSize = (1 + Math.random()) + 'rem';
                 document.body.appendChild(confetti);
                 setTimeout(() => confetti.remove(), 1500);
-            }, i * 100);
+            }, i * 80);
         }
     }
     
@@ -711,6 +646,7 @@
             opt.removeEventListener('click', smileyHandler);
             opt.addEventListener('click', smileyHandler);
         });
+        setupDoubleClickCancel();
     }
     
     function ratingHandler(e) {
@@ -723,6 +659,7 @@
         const rect = this.getBoundingClientRect();
         createFlyingStars(value, rect.left + rect.width/2, rect.top + rect.height/2);
         gsap.fromTo(this, { scale: 1 }, { scale: 1.15, duration: 0.2, yoyo: true, repeat: 1 });
+        refreshFloatingEmoji();
         updateProgress();
     }
     
@@ -733,15 +670,16 @@
         const radio = this.querySelector('input');
         if (radio) radio.checked = true;
         const value = this.getAttribute('data-value');
-        const emojiMap = { 'very-poor': '😟', 'poor': '🙁', 'average': '😐', 'good': '🙂', 'excellent': '😊' };
+        const scoreMap = { 'very-poor':1, 'poor':2, 'average':3, 'good':4, 'excellent':5 };
+        const score = scoreMap[value] || 3;
         const rect = this.getBoundingClientRect();
-        createFlyingEmojis(emojiMap[value] || '😊', 3, rect.left + rect.width/2, rect.top + rect.height/2, value);
+        createFlyingStars(score, rect.left + rect.width/2, rect.top + rect.height/2);
         gsap.fromTo(this, { scale: 1 }, { scale: 1.1, duration: 0.2, yoyo: true, repeat: 1 });
+        refreshFloatingEmoji();
         updateProgress();
     }
     
     function updateProgress() {
-        const total = allQuestions.length;
         let answered = 0;
         allQuestions.forEach(q => {
             const radio = document.querySelector(`input[name="q_${q.id}"]:checked`);
@@ -751,9 +689,8 @@
                 if (textarea && textarea.value.trim()) answered++;
             }
         });
-        const percent = total > 0 ? (answered / total) * 100 : 0;
-        const progressFill = document.getElementById('progressFill');
-        if (progressFill) progressFill.style.width = percent + '%';
+        const percent = allQuestions.length > 0 ? (answered / allQuestions.length) * 100 : 0;
+        document.getElementById('progressFill').style.width = percent + '%';
     }
     
     async function loadCategories() {
@@ -764,7 +701,6 @@
         else { categories = ['General']; await docRef.set({ list: categories }); }
         renderCategoryUI();
     }
-    
     async function saveCategories() { if (firestoreReady) await db.collection('surveyConfig').doc('categories').set({ list: categories }); }
     
     function renderCategoryUI() {
@@ -775,7 +711,7 @@
         if (sel) sel.innerHTML = '<option value="">-- Select Category --</option>' + categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
         document.querySelectorAll('.delete-cat').forEach(btn => btn.addEventListener('click', async () => {
             const cat = btn.getAttribute('data-cat');
-            if (confirm(`Delete "${cat}"? Questions move to General.`)) {
+            if (confirm(`Delete "${cat}"?`)) {
                 for (let q of allQuestions) if (q.category === cat) await db.collection('surveyQuestions').doc(q.id).update({ category: 'General' });
                 categories = categories.filter(c => c !== cat);
                 await saveCategories();
@@ -805,19 +741,19 @@
             html += `<div class="category-section ${catClass}"><div class="category-title"><span class="category-icon">${icon}</span> ${escapeHtml(category)}</div><div class="category-questions">`;
             questions.forEach(q => {
                 if (q.type === 'rating') {
-                    html += `<div class="question-item"><div class="question-text"><span class="question-emoji">📌</span> ${escapeHtml(q.text)}</div><div class="rating-options">`;
+                    html += `<div class="question-item"><div class="question-text">📌 ${escapeHtml(q.text)}</div><div class="rating-options">`;
                     for (let s=1; s<=5; s++) {
                         const emoji = s===1?'😟':s===2?'🙁':s===3?'😐':s===4?'🙂':'😊';
                         html += `<label class="rating-option" data-value="${s}"><input type="radio" name="q_${q.id}" value="${s}" required><span class="rating-emoji-icon">${emoji}</span><span class="rating-label">${s}</span></label>`;
                     }
                     html += `</div></div>`;
                 } else if (q.type === 'smiley') {
-                    html += `<div class="question-item"><div class="question-text"><span class="question-emoji">😊</span> ${escapeHtml(q.text)}</div><div class="smiley-rating">`;
+                    html += `<div class="question-item"><div class="question-text">😊 ${escapeHtml(q.text)}</div><div class="smiley-rating">`;
                     const opts = [{val:'very-poor',emoji:'😟',label:'Very Poor'},{val:'poor',emoji:'🙁',label:'Poor'},{val:'average',emoji:'😐',label:'Average'},{val:'good',emoji:'🙂',label:'Good'},{val:'excellent',emoji:'😊',label:'Excellent'}];
                     opts.forEach(opt => { html += `<label class="smiley-option" data-value="${opt.val}"><input type="radio" name="q_${q.id}" value="${opt.val}" required style="display:none;"><div class="smiley-icon">${opt.emoji}</div><div style="font-size:0.65rem;">${opt.label}</div></label>`; });
                     html += `</div></div>`;
                 } else {
-                    html += `<div class="question-item"><div class="question-text"><span class="question-emoji">✍️</span> ${escapeHtml(q.text)}</div><textarea name="q_${q.id}" class="text-response" rows="3" placeholder="Share your thoughts..." required></textarea></div>`;
+                    html += `<div class="question-item"><div class="question-text">✍️ ${escapeHtml(q.text)}</div><textarea name="q_${q.id}" class="text-response" rows="3" placeholder="Share your thoughts..." required></textarea></div>`;
                 }
             });
             html += `</div></div>`;
@@ -825,11 +761,80 @@
         container.innerHTML = html || '<div style="padding:40px; text-align:center;">Loading survey...</div>';
         attachHandlers();
         updateProgress();
+        refreshFloatingEmoji();
         document.querySelectorAll('.rating-option, .smiley-option, textarea').forEach(el => {
             el.addEventListener('click', () => setTimeout(updateProgress, 50));
             if (el.tagName === 'TEXTAREA') el.addEventListener('input', updateProgress);
         });
     }
+    
+    async function loadAdminResults() {
+        const container = document.getElementById('adminResultsContainer');
+        container.innerHTML = '<div style="padding:20px;">Loading...</div>';
+        const responsesSnap = await db.collection('surveyResponses').get();
+        const allResponses = []; responsesSnap.forEach(doc => allResponses.push(doc.data()));
+        let html = `<div style="margin-bottom:20px; background:#fef5e6; padding:15px; border-radius:20px;"><h3>📊 Summary</h3><p>Total Responses: <strong>${allResponses.length}</strong></p></div>`;
+        for (let q of allQuestions) {
+            const qResponses = [];
+            for (let r of allResponses) { const found = r.responses?.find(rr => rr.questionId === q.id); if (found) qResponses.push(found); }
+            html += `<div class="result-card"><div class="result-question">📋 ${escapeHtml(q.text)}</div>`;
+            if (q.type === 'rating') {
+                const counts = [0,0,0,0,0];
+                qResponses.forEach(r => { if (r.value >=1 && r.value <=5) counts[r.value-1]++; });
+                const avg = qResponses.length ? (qResponses.reduce((s,r)=>s+parseInt(r.value),0)/qResponses.length).toFixed(1) : 0;
+                html += `<div>Average: ${avg} / 5 ★ | Responses: ${qResponses.length}</div><canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`;
+            } else if (q.type === 'smiley') {
+                const counts = { 'very-poor':0, 'poor':0, 'average':0, 'good':0, 'excellent':0 };
+                qResponses.forEach(r => { if (counts[r.value] !== undefined) counts[r.value]++; });
+                html += `<div>Responses: ${qResponses.length}</div><canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`;
+            } else {
+                html += `<div class="response-list">${qResponses.map(r => `<div class="response-item">✍️ ${escapeHtml(r.value)}</div>`).join('')}</div>`;
+            }
+            html += `</div>`;
+        }
+        container.innerHTML = html;
+        for (let q of allQuestions) {
+            const qResponses = [];
+            for (let r of allResponses) { const found = r.responses?.find(rr => rr.questionId === q.id); if (found) qResponses.push(found); }
+            if (q.type === 'rating') {
+                const counts = [0,0,0,0,0];
+                qResponses.forEach(r => { if (r.value >=1 && r.value <=5) counts[r.value-1]++; });
+                const canvas = document.getElementById(`adminChart_${q.id}`);
+                if (canvas) {
+                    if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
+                    charts[`admin_${q.id}`] = new Chart(canvas, { type: 'bar', data: { labels: ['1★','2★','3★','4★','5★'], datasets: [{ label: 'Responses', data: counts, backgroundColor: ['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50'] }] }, options: { responsive: true } });
+                }
+            } else if (q.type === 'smiley') {
+                const counts = { 'very-poor':0, 'poor':0, 'average':0, 'good':0, 'excellent':0 };
+                qResponses.forEach(r => { if (counts[r.value] !== undefined) counts[r.value]++; });
+                const canvas = document.getElementById(`adminChart_${q.id}`);
+                if (canvas) {
+                    if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
+                    charts[`admin_${q.id}`] = new Chart(canvas, { type: 'bar', data: { labels: ['Very Poor','Poor','Average','Good','Excellent'], datasets: [{ label: 'Responses', data: Object.values(counts), backgroundColor: ['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50'] }] }, options: { responsive: true } });
+                }
+            }
+        }
+    }
+    
+    document.getElementById('surveyForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!firestoreReady) { document.getElementById('surveyMessage').innerHTML = '<span style="color:#c62828;">System error</span>'; return; }
+        const formData = new FormData(e.target);
+        const responses = [];
+        for (let q of allQuestions) {
+            const val = formData.get(`q_${q.id}`);
+            if (val) responses.push({ questionId: q.id, questionText: q.text, questionType: q.type, value: val, submittedAt: new Date().toISOString() });
+        }
+        if (responses.length === 0) { document.getElementById('surveyMessage').innerHTML = '<span style="color:#e65100;">Please answer at least one question</span>'; return; }
+        try {
+            await db.collection('surveyResponses').add({ responses, submittedAt: new Date().toISOString() });
+            e.target.reset();
+            document.querySelectorAll('.rating-option.selected, .smiley-option.selected').forEach(el => el.classList.remove('selected'));
+            showThankYouWithMood();
+            updateProgress();
+            refreshFloatingEmoji();
+        } catch(err) { document.getElementById('surveyMessage').innerHTML = '<span style="color:#c62828;">Error submitting</span>'; }
+    });
     
     function renderAdminQuestions() {
         const div = document.getElementById('questionsAdminList');
@@ -838,14 +843,14 @@
         allQuestions.forEach(q => { const cat = q.category || 'General'; if (!grouped[cat]) grouped[cat] = []; grouped[cat].push(q); });
         let html = '';
         for (let [cat, questions] of Object.entries(grouped)) {
-            html += `<div style="margin-bottom:20px;"><h4 style="margin-bottom:10px; color:#8b6914;">📁 ${escapeHtml(cat)}</h4>`;
+            html += `<div style="margin-bottom:20px;"><h4>📁 ${escapeHtml(cat)}</h4>`;
             questions.forEach(q => {
                 const typeName = q.type === 'rating' ? '⭐ Rating' : (q.type === 'smiley' ? '😊 Smiley' : '📝 Text');
-                html += `<div class="admin-question-item"><div><span class="admin-question-text">${escapeHtml(q.text)}</span><div style="margin-top:8px;"><button class="edit-question" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}" data-cat="${escapeHtml(q.category)}">Edit</button><button class="delete-question" data-id="${q.id}">Delete</button></div></div><div class="question-meta" style="font-size:0.7rem; color:#a0782c; margin-top:5px;">Type: ${typeName} | Category: ${escapeHtml(q.category)}</div></div>`;
+                html += `<div class="admin-question-item"><div><span>${escapeHtml(q.text)}</span><div style="margin-top:8px;"><button class="edit-question" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}" data-cat="${escapeHtml(q.category)}">Edit</button><button class="delete-question" data-id="${q.id}">Delete</button></div></div><div style="font-size:0.7rem; color:#a0782c;">Type: ${typeName} | Category: ${escapeHtml(q.category)}</div></div>`;
             });
             html += `</div>`;
         }
-        div.innerHTML = html || '<p>No questions. Add one above.</p>';
+        div.innerHTML = html;
         document.querySelectorAll('.edit-question').forEach(btn => btn.addEventListener('click', async () => {
             const id = btn.getAttribute('data-id'), oldText = btn.getAttribute('data-text'), oldType = btn.getAttribute('data-type'), oldCat = btn.getAttribute('data-cat');
             const newText = prompt("Edit question:", oldText); if (!newText) return;
@@ -869,7 +874,6 @@
         document.getElementById('newCategoryName').value = '';
         await loadCategories();
     }
-    
     async function addNewQuestion() {
         const category = document.getElementById('selectedCategory').value;
         if (!category) { alert("Select category"); return; }
@@ -879,75 +883,6 @@
         await db.collection('surveyQuestions').add({ text, type, category, order: allQuestions.length });
         document.getElementById('newQuestionText').value = '';
         await loadQuestions();
-    }
-    
-    document.getElementById('surveyForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!firestoreReady) { document.getElementById('surveyMessage').innerHTML = '<span style="color:#c62828;">System error</span>'; return; }
-        const formData = new FormData(e.target);
-        const responses = [];
-        for (let q of allQuestions) {
-            const val = formData.get(`q_${q.id}`);
-            if (val) responses.push({ questionId: q.id, questionText: q.text, questionType: q.type, value: val, submittedAt: new Date().toISOString() });
-        }
-        if (responses.length === 0) { document.getElementById('surveyMessage').innerHTML = '<span style="color:#e65100;">Please answer at least one question</span>'; return; }
-        try {
-            await db.collection('surveyResponses').add({ responses, submittedAt: new Date().toISOString() });
-            e.target.reset();
-            document.querySelectorAll('.rating-option.selected, .smiley-option.selected').forEach(el => el.classList.remove('selected'));
-            showThankYouAnimation();
-            updateProgress();
-        } catch(err) { document.getElementById('surveyMessage').innerHTML = '<span style="color:#c62828;">Error submitting</span>'; }
-    });
-    
-    async function loadAdminResults() {
-        const container = document.getElementById('adminResultsContainer');
-        container.innerHTML = '<div style="padding:20px; text-align:center;">Loading...</div>';
-        const responsesSnap = await db.collection('surveyResponses').get();
-        const allResponses = []; responsesSnap.forEach(doc => allResponses.push(doc.data()));
-        let html = `<div style="margin-bottom:20px; background:#fef5e6; padding:15px; border-radius:20px;"><h3>📊 Summary</h3><p>Total Responses: <strong>${allResponses.length}</strong></p></div>`;
-        for (let q of allQuestions) {
-            const qResponses = [];
-            for (let r of allResponses) { const found = r.responses.find(rr => rr.questionId === q.id); if (found) qResponses.push(found); }
-            html += `<div class="result-card"><div class="result-question">📋 ${escapeHtml(q.text)}</div>`;
-            if (q.type === 'rating') {
-                const counts = [0,0,0,0,0];
-                qResponses.forEach(r => { if (r.value >=1 && r.value <=5) counts[r.value-1]++; });
-                const avg = qResponses.length ? (qResponses.reduce((s,r)=>s+parseInt(r.value),0)/qResponses.length).toFixed(1) : 0;
-                html += `<div class="result-stats">Average: ${avg} / 5 ★ | Responses: ${qResponses.length}</div><canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`;
-            } else if (q.type === 'smiley') {
-                const counts = { 'very-poor':0, 'poor':0, 'average':0, 'good':0, 'excellent':0 };
-                qResponses.forEach(r => { if (counts[r.value] !== undefined) counts[r.value]++; });
-                html += `<div class="result-stats">Responses: ${qResponses.length}</div><canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`;
-            } else {
-                html += `<div class="result-stats">Responses (${qResponses.length}):</div><div class="response-list">${qResponses.map(r => `<div class="response-item">✍️ ${escapeHtml(r.value)}</div>`).join('')}</div>`;
-            }
-            html += `</div>`;
-        }
-        container.innerHTML = html;
-        for (let q of allQuestions) {
-            if (q.type === 'rating') {
-                const qResponses = [];
-                for (let r of allResponses) { const found = r.responses.find(rr => rr.questionId === q.id); if (found) qResponses.push(found); }
-                const counts = [0,0,0,0,0];
-                qResponses.forEach(r => { if (r.value >=1 && r.value <=5) counts[r.value-1]++; });
-                const canvas = document.getElementById(`adminChart_${q.id}`);
-                if (canvas) {
-                    if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
-                    charts[`admin_${q.id}`] = new Chart(canvas, { type: 'bar', data: { labels: ['1★','2★','3★','4★','5★'], datasets: [{ label: 'Responses', data: counts, backgroundColor: ['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50'] }] }, options: { responsive: true, maintainAspectRatio: true } });
-                }
-            } else if (q.type === 'smiley') {
-                const qResponses = [];
-                for (let r of allResponses) { const found = r.responses.find(rr => rr.questionId === q.id); if (found) qResponses.push(found); }
-                const counts = { 'very-poor':0, 'poor':0, 'average':0, 'good':0, 'excellent':0 };
-                qResponses.forEach(r => { if (counts[r.value] !== undefined) counts[r.value]++; });
-                const canvas = document.getElementById(`adminChart_${q.id}`);
-                if (canvas) {
-                    if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
-                    charts[`admin_${q.id}`] = new Chart(canvas, { type: 'bar', data: { labels: ['Very Poor','Poor','Average','Good','Excellent'], datasets: [{ label: 'Responses', data: Object.values(counts), backgroundColor: ['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50'] }] }, options: { responsive: true, maintainAspectRatio: true } });
-                }
-            }
-        }
     }
     
     const tabs = document.querySelectorAll('.admin-tab');
@@ -985,46 +920,16 @@
     
     function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[m])); }
     
-    async function initApp() { 
-        if (firestoreReady) { 
-            await loadCategories(); 
-            await loadQuestions(); 
-        } 
-    }
+    async function initApp() { if (firestoreReady) { await loadCategories(); await loadQuestions(); } }
     
-    // ========== DEVICE AUTHORIZATION FLOW ==========
+    // Device Auth Flow
     const deviceModal = document.getElementById('deviceAuthModal');
     const devicePasswordInput = document.getElementById('devicePasswordInput');
     const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
     const deviceAuthError = document.getElementById('deviceAuthError');
     const appContainer = document.getElementById('appContainer');
-
-    function handleDeviceAuthorization() {
-        const enteredPassword = devicePasswordInput.value;
-        if (authorizeDevice(enteredPassword)) {
-            deviceModal.style.display = 'none';
-            appContainer.style.display = 'block';
-            initApp();
-        } else {
-            deviceAuthError.textContent = 'Invalid master password. Access denied.';
-            devicePasswordInput.value = '';
-            devicePasswordInput.focus();
-        }
-    }
-
-    if (isDeviceAuthorized()) {
-        deviceModal.style.display = 'none';
-        appContainer.style.display = 'block';
-        initApp();
-    } else {
-        deviceModal.style.display = 'flex';
-        appContainer.style.display = 'none';
-        authorizeDeviceBtn.addEventListener('click', handleDeviceAuthorization);
-        devicePasswordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleDeviceAuthorization();
-        });
-        devicePasswordInput.focus();
-    }
+    function handleDeviceAuth() { if (authorizeDevice(devicePasswordInput.value)) { deviceModal.style.display = 'none'; appContainer.style.display = 'block'; initApp(); } else { deviceAuthError.textContent = 'Invalid password'; devicePasswordInput.value = ''; } }
+    if (isDeviceAuthorized()) { deviceModal.style.display = 'none'; appContainer.style.display = 'block'; initApp(); } else { deviceModal.style.display = 'flex'; appContainer.style.display = 'none'; authorizeDeviceBtn.addEventListener('click', handleDeviceAuth); devicePasswordInput.addEventListener('keypress', e => { if (e.key === 'Enter') handleDeviceAuth(); }); }
 </script>
 </body>
 </html>
