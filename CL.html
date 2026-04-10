@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge Daily Check List | Supervisor Dashboard</title>
+    <title>Koveli Lounge Daily Check List | SOD & Shift Allocation</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -50,7 +50,6 @@
         .edit-category-btn, .delete-category-btn { background: none; border: none; cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 15px; }
         .edit-category-btn { color: #ff9800; }
         .delete-category-btn { color: #c62828; }
-        .edit-category-btn:hover, .delete-category-btn:hover { background: rgba(0,0,0,0.05); }
         .category-tasks { padding: 8px; }
         .task-item { background: #fafdff; border-radius: 14px; padding: 12px; margin-bottom: 8px; border: 1px solid #eef2f8; }
         .task-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
@@ -63,7 +62,7 @@
         .action-dropdown { width: 130px; }
         .action-input { padding: 5px 10px; border-radius: 25px; border: 1.5px solid #e2eaf2; font-size: 0.7rem; width: 80px; }
         .action-btn { background: linear-gradient(135deg, #4caf50, #43a047); color: white; border: none; padding: 5px 14px; border-radius: 25px; cursor: pointer; font-weight: 600; font-size: 0.7rem; }
-        .admin-panel { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); width: 360px; max-height: 85vh; overflow-y: auto; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.15); transition: all 0.3s ease; }
+        .admin-panel { position: fixed; right: 20px; top: 50%; transform: translateY(-50%); width: 360px; max-height: 85vh; overflow-y: auto; z-index: 100; box-shadow: 0 8px 24px rgba(0,0,0,0.15); transition: all 0.3s ease; background: white; border-radius: 20px; }
         .admin-panel.collapsed { width: auto; background: transparent; box-shadow: none; right: 10px; }
         .admin-panel.collapsed .card { display: none; }
         .admin-panel .toggle-admin-btn { position: absolute; top: -10px; right: -10px; background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; z-index: 101; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
@@ -112,10 +111,10 @@
 </head>
 <body>
 <div class="container" id="appContainer" style="display: none;">
-    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Staff on Duty | Shift Allocation | Task Management</p></div>
+    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Staff on Duty | 3-Hour Shift Allocation</p></div>
     <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
     <div class="date-bar">
-        <div class="date-selector"><input type="date" id="mainDate" value="" disabled><select id="mainShift" disabled><option value="">Select Shift</option><option value="Morning">🌅 Morning</option><option value="Evening">🌙 Evening</option></select></div>
+        <div class="date-selector"><input type="date" id="mainDate" value="" disabled><select id="mainShift" disabled><option value="">Select Shift</option><option value="Morning">🌅 Morning (07:30 - 15:30)</option><option value="Evening">🌙 Evening (15:30 - 23:30)</option></select></div>
         <div class="action-buttons"><button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Report</button><button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Allocation</button></div>
         <div class="shift-controls"><div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div><button id="closeShiftBtn" class="close-shift-btn hidden"><i class="fas fa-lock"></i> Close Shift</button><button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen</button></div>
     </div>
@@ -128,7 +127,7 @@
             <div class="info-text" id="sodHint"></div>
         </div>
         <div class="allocation-panel">
-            <div class="panel-title"><i class="fas fa-clock"></i> Detailed Staff Allocation by Time Slot (SOD only)</div>
+            <div class="panel-title"><i class="fas fa-clock"></i> Detailed Staff Allocation by Time Slot (3-hour periods - SOD only)</div>
             <div id="allocationContainer" class="allocation-horizontal"><div class="empty-msg">Select date and shift</div></div>
         </div>
     </div>
@@ -149,8 +148,17 @@
     let db, firestoreReady = false;
     try { if(typeof firebase !== 'undefined' && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; } } catch(err) { console.error(err); }
     
-    const MORNING_SLOTS = [{ id:"slot1", name:"07:30-10:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot2", name:"10:30-13:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot3", name:"13:30-15:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] }];
-    const EVENING_SLOTS = [{ id:"slot1", name:"15:30-18:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot2", name:"18:30-21:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot3", name:"21:30-23:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] }];
+    // 3-hour time slots for each shift
+    const MORNING_SLOTS = [
+        { id: "slot1", name: "07:30 - 10:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] },
+        { id: "slot2", name: "10:30 - 13:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] },
+        { id: "slot3", name: "13:30 - 15:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] }
+    ];
+    const EVENING_SLOTS = [
+        { id: "slot1", name: "15:30 - 18:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] },
+        { id: "slot2", name: "18:30 - 21:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] },
+        { id: "slot3", name: "21:30 - 23:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] }
+    ];
     
     let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [];
     
@@ -201,10 +209,10 @@
     function renderAllocation() {
         if(!currentSODRecord||!allocationContainer) return;
         const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed";
-        let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>';
+        let html='<table class="allocation-table"><thead><th class="area-col">Area / Time Slot</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>';
         const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"];
         areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; let staffHtml=''; if(canEdit){ let sodOptions = '<option value="">-- Add SOD staff --</option>'; if(sodStaffNames.length === 0) sodOptions = '<option value="">-- No SOD staff selected --</option>'; else sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join(''); staffHtml = `<div style="margin-top:4px;"><select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g,'_')}" style="width:100%; padding:4px; border-radius:15px; font-size:10px;">${sodOptions}</select><button class="assign-btn" data-slot="${slot.id}" data-area="${area}" style="background:#4caf50; color:white; border:none; padding:2px 6px; border-radius:15px; margin-top:4px; width:100%; cursor:pointer; font-size:9px;">Assign</button></div>`;
-        } html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit?`<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:9px;">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length>0 && assigned.length===0 && canEdit ? '<div class="info-text" style="margin-top:4px;"><i class="fas fa-info-circle"></i> Select from SOD</div>' : ''}</td>`; }); html+='</table>'; }); html+='</tbody></table>'; allocationContainer.innerHTML=html;
+        } html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit?`<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:9px;">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length>0 && assigned.length===0 && canEdit ? '<div class="info-text" style="margin-top:4px;"><i class="fas fa-info-circle"></i> Select from SOD</div>' : ''}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; allocationContainer.innerHTML=html;
         if(canEdit){ document.querySelectorAll('.assign-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`staffSel_${slotId}_${area.replace(/\s/g,'_')}`),staff=select.value; if(staff && sodStaffNames.includes(staff)) await assignStaff(slotId,area,staff); else if(staff && !sodStaffNames.includes(staff)) alert(`⚠️ ${staff} is not on duty for this shift. Only SOD staff can be allocated.`); })); document.querySelectorAll('.remove-staff').forEach(btn=>btn.addEventListener('click',async()=>{ await removeStaff(btn.getAttribute('data-slot'),btn.getAttribute('data-area'),btn.getAttribute('data-staff')); })); }
     }
     async function assignStaff(slotId,area,staffName){ if(!currentSODRecord) return; const allocations={...currentSODRecord.allocations}; if(!allocations[slotId]) allocations[slotId]={}; if(!allocations[slotId][area]) allocations[slotId][area]=[]; if(!allocations[slotId][area].includes(staffName)){ allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); } }
@@ -249,7 +257,7 @@
                     if(task.type==='done') statusHtml=isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:'<div class="completed-info">⏳ Pending</div>';
                     else if(task.type==='acknowledge') statusHtml=`<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n=>`👤 ${escapeHtml(n)}`).join(', ')}</div>`;
                     else statusHtml=taskSelections.length?`<div class="completed-info">📋 ${taskSelections.length} submissions</div>`:'<div class="completed-info">⏳ Pending</div>';
-                    const editBtns = (currentRole==="supervisor"&&!isClosed) ? `<div><button class="edit-task" data-id="${task.id}" data-name="${escapeHtml(task.name)}" data-shift="${task.shift||'Both'}" data-type="${task.type}" data-options="${task.options?task.options.join(','):''}" style="background:#ff9800; border:none; padding:3px 10px; border-radius:20px; margin-left:5px; cursor:pointer; font-size:0.65rem;"><i class="fas fa-edit"></i> Edit</button><button class="delete-task" data-id="${task.id}" style="background:#dc3545; border:none; padding:3px 10px; border-radius:20px; margin-left:5px; cursor:pointer; font-size:0.65rem;"><i class="fas fa-trash"></i> Del</button></div>` : '';
+                    const editBtns = (currentRole==="supervisor"&&!isClosed) ? `<div><button class="edit-task" data-id="${task.id}" data-name="${escapeHtml(task.name)}" data-shift="${task.shift||'Both'}" style="background:#ff9800; border:none; padding:3px 10px; border-radius:20px; margin-left:5px; cursor:pointer; font-size:0.65rem;"><i class="fas fa-edit"></i> Edit</button><button class="delete-task" data-id="${task.id}" style="background:#dc3545; border:none; padding:3px 10px; border-radius:20px; margin-left:5px; cursor:pointer; font-size:0.65rem;"><i class="fas fa-trash"></i> Del</button></div>` : '';
                     taskDivItem.innerHTML=`<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge}</div>${editBtns}</div>${statusHtml}`;
                 }
                 tasksDiv.appendChild(taskDivItem);
@@ -260,7 +268,7 @@
         document.querySelectorAll('.do-ack').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), sel=document.getElementById(`staffSel_${id}`); if(sel) await acknowledgeTask(id,sel.value); if(sel) sel.value=""; }));
         document.querySelectorAll('.do-drop').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), staffSel=document.getElementById(`staffSel_${id}`), dropSel=document.getElementById(`dropSel_${id}`), addText=document.getElementById(`addText_${id}`); if(staffSel&&dropSel) await submitDropdown(id,dropSel.value,addText?.value,staffSel.value); if(staffSel) staffSel.value=""; if(dropSel) dropSel.value=""; if(addText) addText.value=""; }));
         if(currentRole==="supervisor"){ 
-            document.querySelectorAll('.edit-task').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), currName=btn.getAttribute('data-name'), currShift=btn.getAttribute('data-shift')||'Both', currType=btn.getAttribute('data-type'), currOptions=btn.getAttribute('data-options'); const newName=prompt("Edit task name:",currName); if(newName){ const newShift=prompt("Edit shift (Morning/Evening/Both):",currShift); if(newShift && ["Morning","Evening","Both"].includes(newShift)){ let updatedTask = { ...globalTasks.find(t=>t.id===id), name:newName.trim(), shift:newShift }; await saveGlobalTasks(globalTasks.map(t=>t.id===id?updatedTask:t)); } else { await saveGlobalTasks(globalTasks.map(t=>t.id===id?{...t,name:newName.trim()}:t)); } } }));
+            document.querySelectorAll('.edit-task').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), currName=btn.getAttribute('data-name'), currShift=btn.getAttribute('data-shift')||'Both'; const newName=prompt("Edit task name:",currName); if(newName){ const newShift=prompt("Edit shift (Morning/Evening/Both):",currShift); if(newShift && ["Morning","Evening","Both"].includes(newShift)){ await saveGlobalTasks(globalTasks.map(t=>t.id===id?{...t,name:newName.trim(),shift:newShift}:t)); } else { await saveGlobalTasks(globalTasks.map(t=>t.id===id?{...t,name:newName.trim()}:t)); } } }));
             document.querySelectorAll('.delete-task').forEach(btn=>btn.addEventListener('click',async()=>{ if(confirm("Delete task?")) await saveGlobalTasks(globalTasks.filter(t=>t.id!==btn.getAttribute('data-id'))); }));
             document.querySelectorAll('.edit-category-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const oldCat=btn.getAttribute('data-category'), newCat=prompt("Rename category:",oldCat); if(newCat&&newCat!==oldCat) await renameCategory(oldCat,newCat.trim()); }));
             document.querySelectorAll('.delete-category-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const cat=btn.getAttribute('data-category'); if(cat==="General"){alert("Cannot delete General");return;} if(confirm(`Delete "${cat}"? Tasks move to General.`)) await deleteCategory(cat); }));
