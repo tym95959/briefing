@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge Daily Check List | SOD Allocation</title>
+    <title>Koveli Lounge Daily Check List | Supervisor Dashboard</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -36,12 +36,17 @@
         .print-btn { background: linear-gradient(135deg, #28a745, #218838); }
         .shift-controls { display: flex; gap: 8px; align-items: center; }
         .close-shift-btn { background: linear-gradient(135deg, #c62828, #b71c1c); color: white; border: none; padding: 5px 14px; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 0.7rem; display: flex; align-items: center; gap: 5px; }
-        .sod-panel { background: white; border-radius: 20px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid #e2eaf2; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
-        .sod-title { font-weight: 700; font-size: 0.85rem; color: #1d6f8f; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .supervisor-top-panel { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+        .sod-panel, .allocation-summary-panel { background: white; border-radius: 20px; padding: 12px 16px; border: 1px solid #e2eaf2; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+        .sod-title, .allocation-title { font-weight: 700; font-size: 0.85rem; color: #1d6f8f; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
         .sod-staff-list { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
         .sod-staff-badge { background: #eef3fc; padding: 5px 12px; border-radius: 30px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s; border: 1px solid #cde0ec; }
         .sod-staff-badge.selected { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; border-color: #1d6f8f; }
         .sod-staff-badge i { font-size: 0.7rem; }
+        .allocation-mini-grid { overflow-x: auto; }
+        .allocation-mini-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+        .allocation-mini-table th, .allocation-mini-table td { border: 1px solid #e2eaf2; padding: 6px 8px; text-align: center; }
+        .allocation-mini-table th { background: #eef3fc; font-weight: 600; }
         .checklist-full { width: 100%; margin-bottom: 16px; }
         .allocation-bottom { width: 100%; }
         .task-category { margin-bottom: 20px; border: 1px solid #e2eaf2; border-radius: 16px; overflow: hidden; }
@@ -50,7 +55,6 @@
         .edit-category-btn, .delete-category-btn { background: none; border: none; cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 15px; }
         .edit-category-btn { color: #ff9800; }
         .delete-category-btn { color: #c62828; }
-        .edit-category-btn:hover, .delete-category-btn:hover { background: rgba(0,0,0,0.05); }
         .category-tasks { padding: 8px; }
         .task-item { background: #fafdff; border-radius: 14px; padding: 12px; margin-bottom: 8px; border: 1px solid #eef2f8; }
         .task-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
@@ -106,23 +110,37 @@
         .shift-badge { display: inline-block; font-size: 0.6rem; padding: 2px 6px; border-radius: 12px; margin-left: 8px; font-weight: 500; }
         .shift-morning { background: #fff3e0; color: #e65100; }
         .shift-evening { background: #e3f2fd; color: #1565c0; }
-        .allocation-warning { font-size: 0.65rem; color: #ff9800; margin-top: 4px; }
         footer { text-align: center; margin-top: 20px; font-size: 0.6rem; color: #7e9bb5; }
         @media (max-width: 1200px) { .admin-panel { position: static; transform: none; width: 100%; margin-top: 16px; } .admin-panel.collapsed .card { display: block; } .admin-panel .toggle-admin-btn { display: none; } }
     </style>
 </head>
 <body>
 <div class="container" id="appContainer" style="display: none;">
-    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>SOD Staff on Duty | Allocation Restricted to SOD</p></div>
+    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Supervisor Dashboard | SOD & Allocation Management</p></div>
     <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
     <div class="date-bar">
         <div class="date-selector"><input type="date" id="mainDate" value="" disabled><select id="mainShift" disabled><option value="">Select Shift</option><option value="Morning">🌅 Morning</option><option value="Evening">🌙 Evening</option></select></div>
         <div class="action-buttons"><button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Report</button><button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Allocation</button></div>
         <div class="shift-controls"><div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div><button id="closeShiftBtn" class="close-shift-btn hidden"><i class="fas fa-lock"></i> Close Shift</button><button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen</button></div>
     </div>
-    <div id="sodPanel" class="sod-panel hidden"><div class="sod-title"><i class="fas fa-users"></i> Staff on Duty (SOD) - Only these staff can be allocated & acknowledge tasks</div><div id="sodStaffList" class="sod-staff-list"><span class="empty-msg">Loading...</span></div><div class="info-text" id="sodHint"></div></div>
+    
+    <!-- Supervisor Top Panel: SOD + Allocation Summary -->
+    <div id="supervisorTopPanel" class="supervisor-top-panel hidden">
+        <div class="sod-panel">
+            <div class="sod-title"><i class="fas fa-users"></i> Staff on Duty (SOD) - Only these staff can be allocated & acknowledge tasks</div>
+            <div id="sodStaffList" class="sod-staff-list"><span class="empty-msg">Loading...</span></div>
+            <div class="info-text" id="sodHint"></div>
+        </div>
+        <div class="allocation-summary-panel">
+            <div class="allocation-title"><i class="fas fa-clock"></i> Quick Allocation View (SOD only)</div>
+            <div id="allocationMiniContainer" class="allocation-mini-grid">
+                <div class="empty-msg">Select date and shift</div>
+            </div>
+        </div>
+    </div>
+
     <div class="checklist-full"><div class="card"><div class="card-title"><i class="fas fa-tasks"></i><span>Daily Tasks by Category</span><span id="shiftFilterIndicator" style="font-size:0.65rem; background:#eef3fc; padding:3px 10px; border-radius:20px;"></span></div><div id="tasksContainer" class="tasks-list"><div class="empty-msg">Select date and shift</div></div><div id="tasksInfo" class="info-text"></div></div></div>
-    <div class="allocation-bottom"><div class="card"><div class="card-title"><i class="fas fa-user-clock"></i><span>Staff Allocation by Time Slot (SOD only)</span></div><div id="allocationContainer" class="allocation-horizontal"><div class="empty-msg">Select date and shift</div></div></div></div>
+    <div class="allocation-bottom"><div class="card"><div class="card-title"><i class="fas fa-user-clock"></i><span>Detailed Staff Allocation by Time Slot</span></div><div id="allocationContainer" class="allocation-horizontal"><div class="empty-msg">Select date and shift</div></div></div></div>
     <div class="admin-panel hidden" id="adminPanel"><button class="toggle-admin-btn" id="toggleAdminBtn"><i class="fas fa-eye-slash"></i></button><div class="card"><div class="card-title"><i class="fas fa-cog"></i><span>Supervisor Controls</span></div><div class="admin-form"><h4 style="margin-bottom: 8px; font-size: 0.8rem;">Manage Categories</h4><div style="display: flex; gap: 8px; margin-bottom: 16px;"><input type="text" id="newCategoryName" placeholder="New category name" style="flex:1;"><button id="addCategoryBtn" style="width: auto; padding: 8px 16px;">Add</button></div><div id="categoryList" style="margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 6px;"></div><h4 style="margin-bottom: 8px; font-size: 0.8rem;">Add Task to Category</h4><select id="taskCategorySelect"></select><input type="text" id="newTaskName" placeholder="Task name"><select id="taskTypeSelect"><option value="done">✅ Single Staff Done</option><option value="acknowledge">👥 Multi-Acknowledge (SOD only)</option><option value="dropdown">📋 Custom Dropdown</option></select><select id="taskShiftSelect" style="margin-top:5px;"><option value="Both">🌓 Both Shifts</option><option value="Morning">🌅 Morning Only</option><option value="Evening">🌙 Evening Only</option></select><div id="dropdownOptionsDiv" style="display: none;"><input type="text" id="dropdownOptions" placeholder="Options (comma separated)"></div><button id="addTaskBtn"><i class="fas fa-plus"></i> Add Task</button></div><div style="margin: 12px 0;"><label style="font-size: 0.7rem;">Staff Members</label><div id="staffListContainer" class="staff-list"></div><div class="flex-row" style="margin-top: 6px;"><input type="text" id="newStaffName" placeholder="New staff name" style="flex:1; padding: 6px 10px; border-radius: 25px; border:1.5px solid #e2eaf2; font-size:0.7rem;"><button id="addStaffBtn" style="background: #eef3fc; padding: 6px 12px; border-radius: 25px; border: none; cursor: pointer; font-size:0.7rem;">Add</button></div></div><div id="adminFeedback" class="info-text"></div></div></div>
 </div>
 <div id="passwordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor Access</h3><input type="password" id="supervisorPassword" placeholder="Enter password"><button id="verifyPasswordBtn">Verify</button><button id="cancelPasswordBtn">Cancel</button><p id="passwordError" style="color: #c62828; margin-top: 8px; font-size: 0.7rem;"></p></div></div>
@@ -141,7 +159,7 @@
     
     let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [];
     
-    const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn'), adminPanel = document.getElementById('adminPanel'), mainDate = document.getElementById('mainDate'), mainShift = document.getElementById('mainShift'), shiftStatusBadge = document.getElementById('shiftStatusBadge'), reopenShiftBtn = document.getElementById('reopenShiftBtn'), closeShiftBtn = document.getElementById('closeShiftBtn'), allocationContainer = document.getElementById('allocationContainer'), tasksContainer = document.getElementById('tasksContainer'), tasksInfo = document.getElementById('tasksInfo'), sodPanel = document.getElementById('sodPanel'), sodStaffListDiv = document.getElementById('sodStaffList'), sodHint = document.getElementById('sodHint'), shiftFilterIndicator = document.getElementById('shiftFilterIndicator');
+    const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn'), adminPanel = document.getElementById('adminPanel'), mainDate = document.getElementById('mainDate'), mainShift = document.getElementById('mainShift'), shiftStatusBadge = document.getElementById('shiftStatusBadge'), reopenShiftBtn = document.getElementById('reopenShiftBtn'), closeShiftBtn = document.getElementById('closeShiftBtn'), allocationContainer = document.getElementById('allocationContainer'), tasksContainer = document.getElementById('tasksContainer'), tasksInfo = document.getElementById('tasksInfo'), supervisorTopPanel = document.getElementById('supervisorTopPanel'), sodStaffListDiv = document.getElementById('sodStaffList'), sodHint = document.getElementById('sodHint'), allocationMiniContainer = document.getElementById('allocationMiniContainer'), shiftFilterIndicator = document.getElementById('shiftFilterIndicator');
     const newCategoryName = document.getElementById('newCategoryName'), addCategoryBtn = document.getElementById('addCategoryBtn'), categoryList = document.getElementById('categoryList'), newTaskName = document.getElementById('newTaskName'), taskCategorySelect = document.getElementById('taskCategorySelect'), taskTypeSelect = document.getElementById('taskTypeSelect'), taskShiftSelect = document.getElementById('taskShiftSelect'), dropdownOptionsDiv = document.getElementById('dropdownOptionsDiv'), dropdownOptions = document.getElementById('dropdownOptions'), addTaskBtn = document.getElementById('addTaskBtn'), staffListContainer = document.getElementById('staffListContainer'), newStaffName = document.getElementById('newStaffName'), addStaffBtn = document.getElementById('addStaffBtn'), adminFeedback = document.getElementById('adminFeedback'), passwordModal = document.getElementById('passwordModal'), supervisorPassword = document.getElementById('supervisorPassword'), verifyPasswordBtn = document.getElementById('verifyPasswordBtn'), cancelPasswordBtn = document.getElementById('cancelPasswordBtn'), passwordError = document.getElementById('passwordError'), exportFullPdfBtn = document.getElementById('exportFullPdfBtn'), printAllocationBtn = document.getElementById('printAllocationBtn'), toggleAdminBtn = document.getElementById('toggleAdminBtn');
     
     if(taskTypeSelect) taskTypeSelect.addEventListener('change', () => { if(dropdownOptionsDiv) dropdownOptionsDiv.style.display = taskTypeSelect.value === 'dropdown' ? 'block' : 'none'; });
@@ -156,21 +174,31 @@
         if(!firestoreReady || !currentDate || !currentShift) return;
         const id = getSODStaffRecordId(currentDate, currentShift);
         try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; }
-        renderSODPanel(); renderTasks();
+        renderSODPanel(); renderTasks(); renderAllocationMini();
     }
     async function saveSODStaff(staffNames) {
         const id = getSODStaffRecordId(currentDate, currentShift);
         await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true });
-        sodStaffNames = staffNames; renderSODPanel(); renderTasks(); renderAllocation();
+        sodStaffNames = staffNames; renderSODPanel(); renderTasks(); renderAllocation(); renderAllocationMini();
     }
     function renderSODPanel() {
         if(!sodStaffListDiv) return;
-        if(currentRole !== "supervisor") { sodPanel.classList.add('hidden'); return; }
-        sodPanel.classList.remove('hidden');
+        if(currentRole !== "supervisor") { if(supervisorTopPanel) supervisorTopPanel.classList.add('hidden'); return; }
+        supervisorTopPanel.classList.remove('hidden');
         if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; }
         sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join('');
         document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); });
         sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty. Only these can be allocated & acknowledge tasks.` : '⚠️ No staff selected. Select staff on duty for allocation and acknowledgments.';
+    }
+    
+    function renderAllocationMini() {
+        if(!allocationMiniContainer || currentRole !== "supervisor") return;
+        if(!currentSODRecord || !currentShift){ allocationMiniContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>'; return; }
+        const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{};
+        let html='<table class="allocation-mini-table"><thead><tr><th>Time Slot</th><th>Assigned SOD Staff</th></tr></thead><tbody>';
+        slots.forEach(slot=>{ const slotAlloc=allocations[slot.id]||{}; const allStaff=[]; Object.values(slotAlloc).forEach(areaStaff=>{ areaStaff.forEach(s=>{ if(!allStaff.includes(s)) allStaff.push(s); }); }); html+=`<tr><td><strong>${slot.name}</strong></td><td>${allStaff.length?allStaff.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join(' '):'—'}</td></tr>`; });
+        html+='</tbody></table><div class="info-text">📌 Only SOD staff shown in allocation</div>';
+        allocationMiniContainer.innerHTML=html;
     }
     
     async function loadSODAllocation() {
@@ -182,7 +210,7 @@
                 slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); });
                 currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()};
                 await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id;
-            } renderAllocation();
+            } renderAllocation(); renderAllocationMini();
         } catch(e){console.error(e);}
     }
     function renderAllocation() {
@@ -190,17 +218,12 @@
         const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed";
         let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>';
         const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"];
-        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; let staffHtml=''; if(canEdit){ 
-            // Only show SOD staff in allocation dropdown
-            let sodOptions = '<option value="">-- Add SOD staff --</option>';
-            if(sodStaffNames.length === 0) sodOptions = '<option value="">-- No SOD staff selected --</option>';
-            else sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-            staffHtml = `<div style="margin-top:4px;"><select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g,'_')}" style="width:100%; padding:4px; border-radius:15px; font-size:10px;">${sodOptions}</select><button class="assign-btn" data-slot="${slot.id}" data-area="${area}" style="background:#4caf50; color:white; border:none; padding:2px 6px; border-radius:15px; margin-top:4px; width:100%; cursor:pointer; font-size:9px;">Assign</button></div>`;
-        } html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit?`<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:9px;">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length>0 && assigned.length===0 && canEdit ? '<div class="allocation-warning"><i class="fas fa-info-circle"></i> Select from SOD</div>' : ''}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; allocationContainer.innerHTML=html;
+        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; let staffHtml=''; if(canEdit){ let sodOptions = '<option value="">-- Add SOD staff --</option>'; if(sodStaffNames.length === 0) sodOptions = '<option value="">-- No SOD staff selected --</option>'; else sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join(''); staffHtml = `<div style="margin-top:4px;"><select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g,'_')}" style="width:100%; padding:4px; border-radius:15px; font-size:10px;">${sodOptions}</select><button class="assign-btn" data-slot="${slot.id}" data-area="${area}" style="background:#4caf50; color:white; border:none; padding:2px 6px; border-radius:15px; margin-top:4px; width:100%; cursor:pointer; font-size:9px;">Assign</button></div>`;
+        } html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit?`<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:9px;">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length>0 && assigned.length===0 && canEdit ? '<div class="info-text" style="margin-top:4px;"><i class="fas fa-info-circle"></i> Select from SOD</div>' : ''}</td>`; }); html+='</tr>'; }); html+='</tbody><table>'; allocationContainer.innerHTML=html;
         if(canEdit){ document.querySelectorAll('.assign-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`staffSel_${slotId}_${area.replace(/\s/g,'_')}`),staff=select.value; if(staff && sodStaffNames.includes(staff)) await assignStaff(slotId,area,staff); else if(staff && !sodStaffNames.includes(staff)) alert(`⚠️ ${staff} is not on duty for this shift. Only SOD staff can be allocated.`); })); document.querySelectorAll('.remove-staff').forEach(btn=>btn.addEventListener('click',async()=>{ await removeStaff(btn.getAttribute('data-slot'),btn.getAttribute('data-area'),btn.getAttribute('data-staff')); })); }
     }
-    async function assignStaff(slotId,area,staffName){ if(!currentSODRecord) return; const allocations={...currentSODRecord.allocations}; if(!allocations[slotId]) allocations[slotId]={}; if(!allocations[slotId][area]) allocations[slotId][area]=[]; if(!allocations[slotId][area].includes(staffName)){ allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); } }
-    async function removeStaff(slotId,area,staffName){ const allocations={...currentSODRecord.allocations}; if(allocations[slotId]&&allocations[slotId][area]){ allocations[slotId][area]=allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); } }
+    async function assignStaff(slotId,area,staffName){ if(!currentSODRecord) return; const allocations={...currentSODRecord.allocations}; if(!allocations[slotId]) allocations[slotId]={}; if(!allocations[slotId][area]) allocations[slotId][area]=[]; if(!allocations[slotId][area].includes(staffName)){ allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderAllocationMini(); } }
+    async function removeStaff(slotId,area,staffName){ const allocations={...currentSODRecord.allocations}; if(allocations[slotId]&&allocations[slotId][area]){ allocations[slotId][area]=allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderAllocationMini(); } }
     
     async function loadGlobalTasks(){ const doc=await db.collection("globalConfig").doc("tasks").get(); globalTasks=doc.exists?doc.data().tasks||[]:[]; updateCategoryUI(); renderTasks(); }
     async function saveGlobalTasks(tasks){ await db.collection("globalConfig").doc("tasks").set({tasks}); globalTasks=tasks; updateCategoryUI(); renderTasks(); }
@@ -271,7 +294,7 @@
     async function onDateShiftChange(){ if(currentRole!=="supervisor") return; currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); }
     function printAllocationSheet(){ if(!currentDate||!currentShift){alert("Select date & shift");return;} const win=window.open('','_blank'); win.document.write('<html><head><title>Allocation</title></head><body><h2>Staff Allocation</h2><p>Loading...</p></body></html>'); win.document.close(); alert("Print preview ready"); }
     function exportFullReport(){ alert("Generating full report..."); }
-    function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ adminPanel.classList.remove("hidden"); staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; sodPanel.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); } else { adminPanel.classList.add("hidden"); supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; sodPanel.classList.add('hidden'); renderTasks(); } renderAllocation(); updateShiftStatusUI(); }
+    function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ adminPanel.classList.remove("hidden"); staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; if(currentDate&&currentShift) refreshAll(); else { supervisorTopPanel.classList.remove('hidden'); renderSODPanel(); } } else { adminPanel.classList.add("hidden"); supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTopPanel.classList.add('hidden'); renderTasks(); } renderAllocation(); updateShiftStatusUI(); }
     function verifyPassword(){ const pwd = supervisorPassword.value; const valid = (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD) || (pwd === "Admin123"); if(valid){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); adminFeedback.innerText="Access granted"; } else passwordError.innerText="Wrong password"; }
     function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
     async function init(){ const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); currentDate=savedDate||new Date().toISOString().slice(0,10); currentShift=savedShift||""; if(mainDate) mainDate.value=currentDate; if(mainShift) mainShift.value=currentShift; if(firestoreReady){ await loadGlobalTasks(); await loadStaff(); await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); } mainDate.addEventListener('change',onDateShiftChange); mainShift.addEventListener('change',onDateShiftChange); staffRoleBtn.addEventListener('click',()=>setRole("staff")); supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); addTaskBtn.addEventListener('click',addTask); addStaffBtn.addEventListener('click',()=>addStaffMember(newStaffName.value)); addCategoryBtn.addEventListener('click',addCategory); closeShiftBtn.addEventListener('click',closeShift); reopenShiftBtn.addEventListener('click',reopenShiftFn); verifyPasswordBtn.addEventListener('click',verifyPassword); cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); exportFullPdfBtn.addEventListener('click',exportFullReport); printAllocationBtn.addEventListener('click',printAllocationSheet); toggleAdminBtn.addEventListener('click',toggleAdminPanel); setRole("staff"); }
