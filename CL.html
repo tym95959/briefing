@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge Daily Check List | Break System with Timer</title>
+    <title>Koveli Lounge Daily Check List | Break System</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -37,7 +37,6 @@
         .shift-controls { display: flex; gap: 8px; align-items: center; }
         .close-shift-btn { background: linear-gradient(135deg, #c62828, #b71c1c); color: white; border: none; padding: 5px 14px; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 0.7rem; display: flex; align-items: center; gap: 5px; }
         
-        /* Staff View Tabs */
         .staff-tabs { margin-bottom: 20px; }
         .staff-tabs .tabs-header { display: flex; gap: 8px; border-bottom: 2px solid #e2eaf2; margin-bottom: 16px; flex-wrap: wrap; }
         .staff-tabs .tab-btn { background: none; border: none; padding: 10px 24px; font-size: 0.85rem; font-weight: 600; color: #7c9ab8; cursor: pointer; border-radius: 30px 30px 0 0; transition: all 0.3s; }
@@ -53,6 +52,7 @@
         .time-slot-btn { background: linear-gradient(135deg, #ff9800, #f57c00); color: white; border: none; padding: 8px 16px; border-radius: 25px; font-size: 0.7rem; cursor: pointer; font-weight: 600; transition: all 0.2s; }
         .time-slot-btn:hover { transform: translateY(-1px); }
         .time-slot-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .cancel-request-btn { background: #f44336; margin-left: 10px; }
         .break-status { padding: 8px; border-radius: 12px; margin-top: 10px; font-size: 0.7rem; }
         .status-pending { background: #fff3e0; color: #e65100; }
         .status-approved { background: #e8f5e9; color: #2e7d32; }
@@ -62,7 +62,6 @@
         .break-schedule-item { background: #f0f4f8; border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         .break-time-approved { color: #2e7d32; font-weight: 600; }
         .break-time-pending { color: #e65100; }
-        .break-timer { background: #1d6f8f; color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.65rem; font-family: monospace; }
         
         .supervisor-tabs { margin-bottom: 20px; }
         .tabs-header { display: flex; gap: 8px; border-bottom: 2px solid #e2eaf2; margin-bottom: 16px; }
@@ -116,7 +115,6 @@
         .remove-staff { background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.7rem; margin-left: 4px; }
         
         .break-request-item { background: #f8fbfe; border-radius: 12px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-        .conflict-warning { color: #c62828; font-size: 0.65rem; margin-top: 5px; }
         
         .password-modal, .device-auth-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .password-box, .device-auth-card { background: white; padding: 24px; border-radius: 28px; width: 300px; text-align: center; }
@@ -135,7 +133,7 @@
 </head>
 <body>
 <div class="container" id="appContainer" style="display: none;">
-    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Break System with Timer | Supervisor Approval</p></div>
+    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Break System | 1-Hour Break | Change Request</p></div>
     <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
     <div class="date-bar">
         <div class="date-selector"><input type="date" id="mainDate" value=""><select id="mainShift"><option value="">Select Shift</option><option value="Morning">🌅 Morning (07:30-15:30)</option><option value="Evening">🌙 Evening (15:30-23:30)</option></select></div>
@@ -143,7 +141,6 @@
         <div class="shift-controls"><div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div><button id="closeShiftBtn" class="close-shift-btn hidden"><i class="fas fa-lock"></i> Close Shift</button><button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen</button></div>
     </div>
     
-    <!-- Staff View Tabs -->
     <div id="staffViewSection">
         <div class="staff-tabs">
             <div class="tabs-header">
@@ -155,7 +152,7 @@
                 <div class="task-card"><div class="card-title"><i class="fas fa-tasks"></i> Daily Tasks by Category <span id="shiftFilterIndicator" style="font-size:0.65rem; background:#eef3fc; padding:3px 10px; border-radius:20px;"></span></div><div id="tasksContainer" class="tasks-list"><div class="empty-msg">Select date and shift</div></div><div id="tasksInfo" class="info-text"></div></div>
             </div>
             <div id="allocation-staff-tab" class="staff-tab-content">
-                <div class="allocation-card"><div class="card-title"><i class="fas fa-map-marker-alt"></i> Staff Allocation - View Only</div><div id="fullAllocationContainer" class="allocation-horizontal"><div class="empty-msg">Select date and shift to view allocation</div></div></div>
+                <div class="allocation-card"><div class="card-title"><i class="fas fa-map-marker-alt"></i> Staff Allocation - View Only (3-hour slots)</div><div id="fullAllocationContainer" class="allocation-horizontal"><div class="empty-msg">Select date and shift to view allocation</div></div></div>
             </div>
             <div id="break-staff-tab" class="staff-tab-content">
                 <div class="break-card"><div class="card-title"><i class="fas fa-coffee"></i> Break Time Request (1 hour per staff)</div><div id="breakRequestContainer"><div class="empty-msg">Select shift and choose your name from SOD list</div></div><div id="breakStatus" class="info-text"></div></div>
@@ -163,7 +160,6 @@
         </div>
     </div>
     
-    <!-- Supervisor Tabs -->
     <div id="supervisorTabs" class="supervisor-tabs hidden">
         <div class="tabs-header">
             <button class="tab-btn active" data-tab="allocation-tab"><i class="fas fa-users"></i> Allocation & SOD</button>
@@ -171,8 +167,8 @@
             <button class="tab-btn" data-tab="break-approve-tab"><i class="fas fa-check-double"></i> Break Approvals</button>
         </div>
         <div id="allocation-tab" class="tab-content active">
-            <div class="sod-panel"><div class="panel-title"><i class="fas fa-users"></i> Staff on Duty (SOD) - Select staff for this shift</div><div id="sodStaffList" class="sod-staff-list"><span class="empty-msg">Loading...</span></div><div class="info-text" id="sodHint"></div></div>
-            <div class="allocation-panel"><div class="panel-title"><i class="fas fa-clock"></i> Staff Allocation - Assign SOD staff to all areas & time slots</div><div id="allocationContainer" class="allocation-horizontal"><div class="empty-msg">Select date and shift</div></div></div>
+            <div class="sod-panel"><div class="panel-title"><i class="fas fa-users"></i> Staff on Duty (SOD)</div><div id="sodStaffList" class="sod-staff-list"><span class="empty-msg">Loading...</span></div><div class="info-text" id="sodHint"></div></div>
+            <div class="allocation-panel"><div class="panel-title"><i class="fas fa-clock"></i> Staff Allocation (3-hour slots)</div><div id="allocationContainer" class="allocation-horizontal"><div class="empty-msg">Select date and shift</div></div></div>
         </div>
         <div id="management-tab" class="tab-content">
             <div class="management-panel">
@@ -183,7 +179,7 @@
                 <div class="form-group"><label>Shift Assignment</label><select id="taskShiftSelectMgr"><option value="Both">🌓 Both Shifts</option><option value="Morning">🌅 Morning Only</option><option value="Evening">🌙 Evening Only</option></select></div>
                 <div id="dropdownOptionsDivMgr" style="display: none;" class="form-group"><label>Dropdown Options</label><input type="text" id="dropdownOptionsMgr" placeholder="Option1, Option2"></div>
                 <button id="addTaskBtnMgr" class="btn-primary"><i class="fas fa-plus"></i> Add Task</button>
-                <div class="section-title"><i class="fas fa-list"></i> Existing Tasks (Click Edit to change shift)</div>
+                <div class="section-title"><i class="fas fa-list"></i> Existing Tasks</div>
                 <div id="taskListManager" class="task-list-manager"></div>
                 <div class="section-title"><i class="fas fa-users"></i> Manage Staff Members</div>
                 <div class="form-group" style="display: flex; gap: 8px;"><input type="text" id="newStaffNameMgr" placeholder="Enter staff name" style="flex:1;"><button id="addStaffBtnMgr" class="btn-primary" style="width: auto;">Add Staff</button></div>
@@ -208,20 +204,14 @@
     let db, firestoreReady = false;
     try { if(typeof firebase !== 'undefined' && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; } } catch(err) { console.error(err); }
     
-    // 1-Hour time slots
-    const MORNING_SLOTS = [
-        { id:"slot1", name:"07:30-08:30" },{ id:"slot2", name:"08:30-09:30" },{ id:"slot3", name:"09:30-10:30" },
-        { id:"slot4", name:"10:30-11:30" },{ id:"slot5", name:"11:30-12:30" },{ id:"slot6", name:"12:30-13:30" },
-        { id:"slot7", name:"13:30-14:30" },{ id:"slot8", name:"14:30-15:30" }
-    ];
-    const EVENING_SLOTS = [
-        { id:"slot1", name:"15:30-16:30" },{ id:"slot2", name:"16:30-17:30" },{ id:"slot3", name:"17:30-18:30" },
-        { id:"slot4", name:"18:30-19:30" },{ id:"slot5", name:"19:30-20:30" },{ id:"slot6", name:"20:30-21:30" },
-        { id:"slot7", name:"21:30-22:30" },{ id:"slot8", name:"22:30-23:30" }
-    ];
+    // 3-hour allocation slots (original)
+    const MORNING_SLOTS = [{ id:"slot1", name:"07:30-10:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot2", name:"10:30-13:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot3", name:"13:30-15:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] }];
+    const EVENING_SLOTS = [{ id:"slot1", name:"15:30-18:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot2", name:"18:30-21:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot3", name:"21:30-23:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] }];
+    // 1-hour break slots
+    const BREAK_MORNING_SLOTS = ["07:30-08:30","08:30-09:30","09:30-10:30","10:30-11:30","11:30-12:30","12:30-13:30","13:30-14:30","14:30-15:30"];
+    const BREAK_EVENING_SLOTS = ["15:30-16:30","16:30-17:30","17:30-18:30","18:30-19:30","19:30-20:30","20:30-21:30","21:30-22:30","22:30-23:30"];
     
     let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [], selectedStaffName = "";
-    let timerInterval = null;
     
     const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn'), mainDate = document.getElementById('mainDate'), mainShift = document.getElementById('mainShift'), shiftStatusBadge = document.getElementById('shiftStatusBadge'), reopenShiftBtn = document.getElementById('reopenShiftBtn'), closeShiftBtn = document.getElementById('closeShiftBtn'), allocationContainer = document.getElementById('allocationContainer'), tasksContainer = document.getElementById('tasksContainer'), tasksInfo = document.getElementById('tasksInfo'), supervisorTabs = document.getElementById('supervisorTabs'), sodStaffListDiv = document.getElementById('sodStaffList'), sodHint = document.getElementById('sodHint'), shiftFilterIndicator = document.getElementById('shiftFilterIndicator'), staffViewSection = document.getElementById('staffViewSection'), fullAllocationContainer = document.getElementById('fullAllocationContainer'), breakRequestContainer = document.getElementById('breakRequestContainer'), breakStatus = document.getElementById('breakStatus'), breakRequestsList = document.getElementById('breakRequestsList');
     const taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr'), newTaskNameMgr = document.getElementById('newTaskNameMgr'), taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr'), taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr'), dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr'), dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr'), addTaskBtnMgr = document.getElementById('addTaskBtnMgr'), taskListManager = document.getElementById('taskListManager'), newStaffNameMgr = document.getElementById('newStaffNameMgr'), addStaffBtnMgr = document.getElementById('addStaffBtnMgr'), staffListManager = document.getElementById('staffListManager'), adminFeedback = document.getElementById('adminFeedback'), passwordModal = document.getElementById('passwordModal'), supervisorPassword = document.getElementById('supervisorPassword'), verifyPasswordBtn = document.getElementById('verifyPasswordBtn'), cancelPasswordBtn = document.getElementById('cancelPasswordBtn'), passwordError = document.getElementById('passwordError'), exportFullPdfBtn = document.getElementById('exportFullPdfBtn'), printAllocationBtn = document.getElementById('printAllocationBtn');
@@ -241,13 +231,14 @@
     async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); }
     function renderSODPanel() { if(!sodStaffListDiv) return; if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } supervisorTabs.classList.remove('hidden'); if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; }
     
-    async function loadSODAllocation() { if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"].forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocation(); renderFullAllocation(); } catch(e){console.error(e);} }
+    async function loadSODAllocation() { if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocation(); renderFullAllocation(); } catch(e){console.error(e);} }
     function renderAllocation() { if(!currentSODRecord||!allocationContainer) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed"; let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; let staffHtml=''; if(canEdit){ let sodOptions = '<option value="">-- Select SOD Staff --</option>'; if(sodStaffNames.length > 0) sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join(''); else sodOptions = '<option value="">-- No SOD staff available --</option>'; staffHtml = `<div class="assign-wrapper"><select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g,'_')}">${sodOptions}</select><button class="assign-small-btn assign-btn" data-slot="${slot.id}" data-area="${area}">Assign</button></div>`; } html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit?`<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`; }); html+='<tr>'; }); html+='</tbody></table>'; allocationContainer.innerHTML=html; if(canEdit){ document.querySelectorAll('.assign-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`staffSel_${slotId}_${area.replace(/\s/g,'_')}`),staff=select.value; if(staff && sodStaffNames.includes(staff)) await assignStaff(slotId,area,staff); else if(staff && !sodStaffNames.includes(staff)) alert(`⚠️ ${staff} is not on duty.`); })); document.querySelectorAll('.remove-staff').forEach(btn=>btn.addEventListener('click',async()=>{ await removeStaff(btn.getAttribute('data-slot'),btn.getAttribute('data-area'),btn.getAttribute('data-staff')); })); } }
     async function assignStaff(slotId,area,staffName){ if(!currentSODRecord) return; const allocations={...currentSODRecord.allocations}; if(!allocations[slotId]) allocations[slotId]={}; if(!allocations[slotId][area]) allocations[slotId][area]=[]; if(!allocations[slotId][area].includes(staffName)){ allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderFullAllocation(); } }
     async function removeStaff(slotId,area,staffName){ const allocations={...currentSODRecord.allocations}; if(allocations[slotId]&&allocations[slotId][area]){ allocations[slotId][area]=allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderFullAllocation(); } }
-    function renderFullAllocation() { if(!fullAllocationContainer) return; if(!currentSODRecord){ fullAllocationContainer.innerHTML='<div class="empty-msg">No allocation data. Select shift first.</div>'; return; } const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='</td>'; }); html+='</tbody></table>'; fullAllocationContainer.innerHTML=html; }
     
-    // Break Request Functions
+    function renderFullAllocation() { if(!fullAllocationContainer) return; if(!currentSODRecord){ fullAllocationContainer.innerHTML='<div class="empty-msg">No allocation data. Select shift first.</div>'; return; } const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; fullAllocationContainer.innerHTML=html; }
+    
+    // Break Request Functions - Can change if pending
     async function requestBreak(timeSlot) { 
         if(!selectedStaffName){ alert("Please select your name from SOD list"); return; } 
         if(!currentDate||!currentShift){ alert("Please select date and shift first"); return; } 
@@ -255,17 +246,28 @@
         const doc=await db.collection("breakRecords").doc(id).get(); 
         let breaks=doc.exists?doc.data().breaks||[]:[]; 
         const existingApproved=breaks.find(b=>b.staffName===selectedStaffName && b.status==='approved'); 
-        if(existingApproved){ alert("You already have an approved break for today (1 hour only)"); return; } 
-        const pendingExists=breaks.find(b=>b.staffName===selectedStaffName && b.status==='pending'); 
-        if(pendingExists){ alert("You already have a pending break request"); return; } 
+        if(existingApproved){ alert("You already have an approved break for today. Cannot change."); return; } 
+        // Remove existing pending request and replace with new one
+        breaks = breaks.filter(b=>!(b.staffName===selectedStaffName && b.status==='pending'));
         breaks.push({staffName:selectedStaffName, timeSlot:timeSlot, requestedAt:new Date().toISOString(), status:'pending'}); 
         await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); 
         renderBreakUI(); 
         if(currentRole==="supervisor") loadBreakRequests(); 
-        alert("Break request sent to supervisor for approval"); 
+        alert("Break request updated and sent to supervisor for approval"); 
     }
     
-    function startCountdownTimer(endTimeStr, elementId) { if(timerInterval) clearInterval(timerInterval); const endTime = new Date(endTimeStr).getTime(); timerInterval = setInterval(() => { const now = new Date().getTime(); const distance = endTime - now; if(distance < 0){ if(document.getElementById(elementId)) document.getElementById(elementId).innerHTML = "Break Ended"; clearInterval(timerInterval); } else { const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)); const seconds = Math.floor((distance % (1000 * 60)) / 1000); if(document.getElementById(elementId)) document.getElementById(elementId).innerHTML = `${minutes}m ${seconds}s remaining`; } }, 1000); }
+    async function cancelBreakRequest() {
+        if(!selectedStaffName){ alert("Please select your name first"); return; }
+        const id=getBreakRecordId(currentDate,currentShift); 
+        const doc=await db.collection("breakRecords").doc(id).get(); 
+        let breaks=doc.exists?doc.data().breaks||[]:[]; 
+        const pendingRequest = breaks.find(b=>b.staffName===selectedStaffName && b.status==='pending');
+        if(!pendingRequest){ alert("No pending request to cancel"); return; }
+        breaks = breaks.filter(b=>!(b.staffName===selectedStaffName && b.status==='pending'));
+        await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); 
+        renderBreakUI(); 
+        alert("Break request cancelled. You can submit a new request.");
+    }
     
     async function renderBreakUI() { 
         if(!breakRequestContainer) return; 
@@ -275,18 +277,22 @@
         let breaks=doc.exists?doc.data().breaks||[]:[]; 
         const myBreak=breaks.find(b=>b.staffName===selectedStaffName); 
         const allBreaks = breaks;
-        const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS; 
-        let breakHtml=`<div class="break-request-box"><div class="info-text">Select your name from SOD below, then choose a 1-hour time slot</div><select id="staffSelectBreak" class="sod-select"><option value="">-- Select Your Name --</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}" ${selectedStaffName===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select><div class="time-slots">`; 
-        slots.forEach(slot=>{ const disabled = myBreak && myBreak.status!=='rejected' ? true : false; breakHtml+=`<button class="time-slot-btn" onclick="requestBreak('${slot.name}')" ${disabled?'disabled':''}>${slot.name}</button>`; }); 
-        breakHtml+=`</div>`; 
-        if(myBreak){ let statusClass = myBreak.status==='pending'?'status-pending':myBreak.status==='approved'?'status-approved':'status-rejected'; let statusText=myBreak.status==='pending'?'⏳ Pending Approval (1 hour break)':myBreak.status==='approved'?`✅ Approved for ${myBreak.timeSlot} (1 hour)`:myBreak.status==='ongoing'?`🕐 Break in progress`:myBreak.status==='completed'?`✅ Break completed`:`❌ Rejected`; breakHtml+=`<div class="break-status ${statusClass}"><i class="fas fa-info-circle"></i> ${statusText}</div>`; if(myBreak.status==='approved' && myBreak.endTime){ breakHtml+=`<div class="break-timer" id="breakTimerDisplay">Loading...</div>`; setTimeout(()=>startCountdownTimer(myBreak.endTime, 'breakTimerDisplay'), 100); } }
+        const breakSlots = currentShift==="Morning"?BREAK_MORNING_SLOTS:BREAK_EVENING_SLOTS;
+        let breakHtml=`<div class="break-request-box"><div class="info-text">Select your name from SOD below, then choose a 1-hour time slot for your break. You can change your request if not yet approved.</div>
+            <select id="staffSelectBreak" class="sod-select"><option value="">-- Select Your Name --</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}" ${selectedStaffName===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
+            <div class="time-slots">`; 
+        breakSlots.forEach(slot=>{ const disabled = myBreak && myBreak.status==='approved' ? true : false; breakHtml+=`<button class="time-slot-btn" onclick="requestBreak('${slot}')" ${disabled?'disabled':''}>${slot}</button>`; }); 
+        breakHtml+=`</div>`;
+        if(myBreak && myBreak.status==='pending'){
+            breakHtml+=`<div style="margin-top:10px;"><button class="time-slot-btn cancel-request-btn" onclick="cancelBreakRequest()" style="background:#f44336;">Cancel Request</button></div>`;
+        }
+        if(myBreak){ let statusClass = myBreak.status==='pending'?'status-pending':myBreak.status==='approved'?'status-approved':'status-rejected'; let statusText=myBreak.status==='pending'?'⏳ Pending Approval (1 hour break) - You can change your request':myBreak.status==='approved'?`✅ Approved for ${myBreak.timeSlot} (1 hour)`:myBreak.status==='rejected'?`❌ Rejected - You can submit a new request`:`❌ Rejected`; breakHtml+=`<div class="break-status ${statusClass}"><i class="fas fa-info-circle"></i> ${statusText}</div>`; }
         breakHtml+=`<div class="break-schedule"><strong><i class="fas fa-calendar-alt"></i> All Break Schedule:</strong><div style="margin-top:8px;">`;
-        allBreaks.forEach(b=>{ let statusIcon = b.status==='approved'?'✅':b.status==='pending'?'⏳':b.status==='ongoing'?'🕐':b.status==='completed'?'✔️':'❌'; breakHtml+=`<div class="break-schedule-item"><span>👤 ${escapeHtml(b.staffName)}</span><span class="${b.status==='approved'?'break-time-approved':b.status==='pending'?'break-time-pending':''}">${statusIcon} ${b.timeSlot} ${b.status==='approved' && b.endTime ? `<span class="break-timer" data-end="${b.endTime}" data-name="${b.staffName}"></span>` : ''}</span></div>`; });
+        allBreaks.forEach(b=>{ let statusIcon = b.status==='approved'?'✅':b.status==='pending'?'⏳':'❌'; breakHtml+=`<div class="break-schedule-item"><span>👤 ${escapeHtml(b.staffName)}</span><span class="${b.status==='approved'?'break-time-approved':b.status==='pending'?'break-time-pending':''}">${statusIcon} ${b.timeSlot}</span></div>`; });
         breakHtml+=`</div></div></div>`;
         breakRequestContainer.innerHTML=breakHtml;
         document.getElementById('staffSelectBreak')?.addEventListener('change',(e)=>{ selectedStaffName=e.target.value; renderBreakUI(); });
-        allBreaks.forEach(b=>{ if(b.status==='approved' && b.endTime && b.staffName===selectedStaffName){ const timerSpan = document.querySelector(`.break-timer[data-name="${b.staffName}"]`); if(timerSpan) startCountdownTimer(b.endTime, timerSpan.id || (timerSpan.id = 'timer_'+Date.now())); } });
-    } window.requestBreak=requestBreak;
+    } window.requestBreak=requestBreak; window.cancelBreakRequest=cancelBreakRequest;
     
     async function loadBreakRequests() { 
         if(!breakRequestsList) return; 
@@ -304,17 +310,7 @@
         const id=getBreakRecordId(currentDate,currentShift); 
         const doc=await db.collection("breakRecords").doc(id).get(); 
         let breaks=doc.exists?doc.data().breaks||[]:[]; 
-        const now = new Date();
-        let endTime = null;
-        if(status === 'approved'){
-            const [startH, startM] = timeSlot.split('-')[0].split(':');
-            let endH = parseInt(startH), endM = parseInt(startM) + 60;
-            if(endM >= 60){ endH++; endM -= 60; }
-            const breakDate = new Date(currentDate);
-            breakDate.setHours(parseInt(startH), parseInt(startM), 0, 0);
-            endTime = new Date(breakDate.getTime() + 60 * 60 * 1000).toISOString();
-        }
-        breaks=breaks.map(b=>{ if(b.staffName===staffName && b.timeSlot===timeSlot && b.status==='pending'){ b.status=status; if(endTime) b.endTime = endTime; } return b; }); 
+        breaks=breaks.map(b=>{ if(b.staffName===staffName && b.timeSlot===timeSlot && b.status==='pending') b.status=status; return b; }); 
         await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); 
         loadBreakRequests(); 
         renderBreakUI(); 
