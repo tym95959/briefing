@@ -4,26 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Koveli Lounge | Staff Allocation Matrix</title>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External config stubs (fire.js / config.js) - safe fallback -->
-    <script>
-        // Mock configuration to avoid missing file errors; real values can override.
-        window.SUPERVISOR_PASSWORD = "Admin123";
-        window.MASTER_PASSWORD_GLOBAL = "Admin123";
-        // Firebase config placeholder (will be replaced by actual fire.js if exists)
-        if (typeof firebaseConfig === 'undefined') {
-            var firebaseConfig = {
-                apiKey: "AIzaSyDummyKeyForDemoOnly",
-                authDomain: "koveli-lounge-demo.firebaseapp.com",
-                projectId: "koveli-lounge-demo"
-            };
-            if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
-        }
-    </script>
-    <script src="fire.js"></script>
-    <script src="config.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -38,7 +18,8 @@
         .role-btn.active { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; box-shadow: 0 6px 14px rgba(29,111,143,0.25); }
         .date-bar { background: white; border-radius: 60px; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #eef2f8; }
         .date-selector { display: flex; gap: 12px; align-items: center; }
-        .date-selector input, .date-selector select { padding: 8px 14px; border-radius: 40px; border: 1.5px solid #e0eaf2; font-size: 0.8rem; background: white; font-weight: 500; }
+        .date-selector input, .date-selector select { padding: 8px 14px; border-radius: 40px; border: 1.5px solid #e0eaf2; font-size: 0.8rem; background: white; font-weight: 500; cursor: pointer; }
+        .date-selector input:disabled, .date-selector select:disabled { background: #f5f7fa; cursor: not-allowed; }
         .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 16px; border-radius: 40px; font-size: 0.7rem; font-weight: 700; }
         .status-open { background: #e0f2e9; color: #1e6f3f; }
         .status-closed { background: #ffe6e5; color: #b91c1c; }
@@ -63,7 +44,7 @@
         .allocation-table th, .allocation-table td { border: 1px solid #e7edf4; padding: 12px 8px; text-align: center; vertical-align: top; background: white; }
         .allocation-table th { background: #f1f6fc; font-weight: 800; font-size: 0.7rem; color: #1f5e7a; }
         .area-col { background: #fafdff; font-weight: 700; text-align: left; width: 130px; font-size: 0.75rem; }
-        .staff-name-badge { display: inline-block; background: #eef3fc; padding: 4px 10px; border-radius: 40px; font-size: 0.7rem; font-weight: 500; margin: 3px 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .staff-name-badge { display: inline-block; background: #eef3fc; padding: 4px 10px; border-radius: 40px; font-size: 0.7rem; font-weight: 500; margin: 3px 4px; }
         .assign-wrapper { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
         .staff-select-small { padding: 6px 10px; border-radius: 40px; border: 1.5px solid #cfdfed; font-size: 0.7rem; background: white; font-weight: 500; width: 110px; }
         .assign-small-btn { background: linear-gradient(135deg, #2e7d64, #1f6e56); color: white; border: none; padding: 5px 12px; border-radius: 40px; cursor: pointer; font-weight: 600; font-size: 0.65rem; transition: 0.1s; }
@@ -71,21 +52,43 @@
         .remove-staff { background: rgba(198,40,40,0.1); border: none; color: #b91c1c; cursor: pointer; font-size: 0.65rem; margin-left: 6px; border-radius: 30px; padding: 2px 6px; font-weight: bold; }
         .info-text { font-size: 0.7rem; color: #5f8bb3; margin-top: 12px; text-align: center; }
         .btn-primary { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }
-        .staff-card { background: #f8fbfe; border-radius: 60px; padding: 5px 14px; display: inline-flex; align-items: center; gap: 10px; margin: 4px; font-size: 0.75rem; border: 1px solid #e2eaf2; }
+        .btn-warning { background: #ff9800; color: white; border: none; padding: 4px 12px; border-radius: 30px; cursor: pointer; font-size: 0.7rem; }
+        .staff-card, .task-card { background: #f8fbfe; border-radius: 60px; padding: 8px 16px; display: inline-flex; align-items: center; gap: 12px; margin: 6px; font-size: 0.75rem; border: 1px solid #e2eaf2; }
+        .task-card { background: #fef9e6; border-radius: 20px; display: flex; justify-content: space-between; width: 100%; margin: 8px 0; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 0.7rem; font-weight: 600; margin-bottom: 5px; color: #5a7a97; }
+        .form-group input, .form-group select { width: 100%; padding: 10px 14px; border-radius: 30px; border: 1.5px solid #e2eaf2; font-size: 0.8rem; }
         .password-modal, .device-auth-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
         .password-box, .device-auth-card { background: white; padding: 28px; border-radius: 32px; width: 320px; text-align: center; box-shadow: 0 25px 40px rgba(0,0,0,0.2); }
         .hidden { display: none; }
         .empty-msg { padding: 32px; text-align: center; color: #9ab3cc; }
+        .task-item { border-bottom: 1px solid #edf2f7; padding: 12px; }
+        .section-title { font-size: 1rem; font-weight: 700; margin: 20px 0 12px 0; color: #1d6f8f; }
+        .delete-btn { background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.7rem; margin-left: 8px; }
+        .staff-list-manager, .task-list-manager { max-height: 300px; overflow-y: auto; margin-top: 12px; }
     </style>
 </head>
 <body>
-<div class="container" id="appContainer" style="display: none;">
-    <div class="header"><h1><i class="fas fa-chalkboard-user"></i> Koveli Lounge · Duty Matrix</h1><p>Smart allocation & real-time shift oversight</p></div>
-    <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
+<div class="container" id="appContainer">
+    <div class="header"><h1><i class="fas fa-chalkboard-user"></i> Koveli Lounge · Duty Matrix</h1><p>Staff allocation & shift management (Offline mode)</p></div>
+    <div class="role-bar">
+        <button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button>
+        <button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button>
+    </div>
     <div class="date-bar">
-        <div class="date-selector"><input type="date" id="mainDate" disabled><select id="mainShift" disabled><option value="">-- Select Shift --</option><option value="Morning">🌅 Morning (07:30-15:30)</option><option value="Evening">🌙 Evening (15:30-23:30)</option></select></div>
+        <div class="date-selector">
+            <input type="date" id="mainDate" value="2026-04-11" disabled>
+            <select id="mainShift" disabled>
+                <option value="">-- Select Shift --</option>
+                <option value="Morning">🌅 Morning (07:30-15:30)</option>
+                <option value="Evening">🌙 Evening (15:30-23:30)</option>
+            </select>
+        </div>
         <div><div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-door-open"></i> Open</div></div>
-        <div class="shift-controls"><button id="closeShiftBtn" class="close-shift-btn hidden"><i class="fas fa-ban"></i> Close Shift</button><button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen</button></div>
+        <div class="shift-controls">
+            <button id="closeShiftBtn" class="close-shift-btn hidden"><i class="fas fa-ban"></i> Close Shift</button>
+            <button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen</button>
+        </div>
     </div>
     
     <div id="supervisorTabs" class="supervisor-tabs hidden">
@@ -106,149 +109,558 @@
         </div>
         <div id="management-tab" class="tab-content">
             <div class="allocation-panel" style="background: white;">
-                <div class="panel-title"><i class="fas fa-tasks"></i> Manage tasks & team</div>
-                <div class="form-group" style="margin-bottom: 12px;"><label>Category</label><select id="taskCategorySelectMgr" style="width:100%; padding:8px;"></select></div>
-                <div class="form-group"><label>Task Name</label><input type="text" id="newTaskNameMgr" placeholder="e.g., VIP Welcome" style="width:100%;"></div>
-                <div class="form-group"><label>Shift assignment</label><select id="taskShiftSelectMgr"><option value="Both">Both Shifts</option><option value="Morning">Morning Only</option><option value="Evening">Evening Only</option></select></div>
+                <div class="panel-title"><i class="fas fa-tasks"></i> Manage Tasks</div>
+                <div class="form-group">
+                    <label>Task Name</label>
+                    <input type="text" id="newTaskNameMgr" placeholder="e.g., VIP Welcome, Section Setup">
+                </div>
+                <div class="form-group">
+                    <label>Shift Assignment</label>
+                    <select id="taskShiftSelectMgr">
+                        <option value="Both">Both Shifts</option>
+                        <option value="Morning">Morning Only</option>
+                        <option value="Evening">Evening Only</option>
+                    </select>
+                </div>
                 <button id="addTaskBtnMgr" class="btn-primary"><i class="fas fa-plus"></i> Add Task</button>
-                <div class="section-title" style="margin-top: 24px;">📌 Staff members</div>
-                <div style="display: flex; gap: 10px; margin-bottom: 12px;"><input type="text" id="newStaffNameMgr" placeholder="New staff name"><button id="addStaffBtnMgr" class="btn-primary" style="padding:6px 14px;">Add</button></div>
+                
+                <div class="section-title">📌 Staff Members</div>
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <input type="text" id="newStaffNameMgr" placeholder="New staff name" style="flex:1;">
+                    <button id="addStaffBtnMgr" class="btn-primary" style="padding:6px 14px;">Add</button>
+                </div>
                 <div id="staffListManager" class="staff-list-manager"></div>
-                <div id="taskListManager" style="margin-top: 20px;"></div>
+                
+                <div class="section-title">📋 Existing Tasks</div>
+                <div id="taskListManager" class="task-list-manager"></div>
             </div>
         </div>
     </div>
 
-    <div id="staffTasksSection" class="checklist-full">
+    <div id="staffTasksSection">
         <div style="background: white; border-radius: 28px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-            <h3 style="font-size: 1.1rem;"><i class="fas fa-clipboard-list"></i> Daily tasks · <span id="shiftFilterIndicator"></span></h3>
+            <h3 style="font-size: 1.1rem; margin-bottom: 16px;"><i class="fas fa-clipboard-list"></i> Daily Tasks · <span id="shiftFilterIndicator"></span></h3>
             <div id="tasksContainer"></div>
         </div>
     </div>
 </div>
 
-<div id="passwordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor Auth</h3><input type="password" id="supervisorPassword" placeholder="Password"><button id="verifyPasswordBtn" style="margin-top:12px;">Verify</button><button id="cancelPasswordBtn" style="background:#ccc; margin-top:6px;">Cancel</button><p id="passwordError" style="color:#c62828;"></p></div></div>
-<div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-shield-alt"></i><h2>Device Authorization</h2><p>Enter master password</p><input type="password" id="devicePasswordInput" placeholder="Master Password"><button id="authorizeDeviceBtn">Authorize</button><div id="deviceAuthError" style="color:red; margin-top:8px;"></div></div></div>
+<div id="passwordModal" class="password-modal hidden">
+    <div class="password-box">
+        <i class="fas fa-lock" style="font-size: 2rem;"></i>
+        <h3>Supervisor Access</h3>
+        <input type="password" id="supervisorPassword" placeholder="Enter password">
+        <button id="verifyPasswordBtn" style="margin-top:12px; width:100%;">Verify</button>
+        <button id="cancelPasswordBtn" style="background:#ccc; margin-top:6px; width:100%;">Cancel</button>
+        <p id="passwordError" style="color:#c62828; margin-top:8px;"></p>
+    </div>
+</div>
 
 <script>
-    // Firebase & global setup
-    const DEVICE_KEY = "koveli_lounge_authorized";
-    let MASTER_PWD = (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) ? MASTER_PASSWORD_GLOBAL : "Admin123";
-    function isAuthorized() { return localStorage.getItem(DEVICE_KEY) === "true"; }
-    function authorizeDevice(pwd) { if(pwd === MASTER_PWD) { localStorage.setItem(DEVICE_KEY, "true"); return true; } return false; }
+    // ==================== STORAGE KEYS ====================
+    const STORAGE = {
+        staff: 'koveli_staff',
+        tasks: 'koveli_tasks',
+        sodRecords: 'koveli_sod_records',
+        taskRecords: 'koveli_task_records',
+        sodStaff: 'koveli_sod_staff'
+    };
     
-    let db = null, firestoreReady = false;
-    try { if(firebase.apps.length) { db = firebase.firestore(); firestoreReady = true; } } catch(e) { console.warn(e); }
+    // Time slots configuration
+    const MORNING_SLOTS = [
+        { id: "slot1", name: "07:30-10:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] },
+        { id: "slot2", name: "10:30-13:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] },
+        { id: "slot3", name: "13:30-15:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] }
+    ];
+    const EVENING_SLOTS = [
+        { id: "slot1", name: "15:30-18:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] },
+        { id: "slot2", name: "18:30-21:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] },
+        { id: "slot3", name: "21:30-23:30", areas: ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"] }
+    ];
     
-    // TIME SLOTS & AREAS (full matrix)
-    const MORNING_SLOTS = [{ id:"slot1", name:"07:30-10:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },
-                           { id:"slot2", name:"10:30-13:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },
-                           { id:"slot3", name:"13:30-15:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] }];
-    const EVENING_SLOTS = [{ id:"slot1", name:"15:30-18:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },
-                           { id:"slot2", name:"18:30-21:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },
-                           { id:"slot3", name:"21:30-23:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] }];
-    
-    let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "";
-    let globalTasks = [], staffList = [], sodStaffNames = [];
-    let currentSODRecord = null, currentTaskRecord = null;
+    // Global state
+    let currentRole = "staff";
+    let currentDate = new Date().toISOString().slice(0, 10);
+    let currentShift = "";
+    let staffList = [];
+    let globalTasks = [];
+    let sodStaffNames = [];
+    let currentSODRecord = null;
+    let currentTaskRecord = null;
     let isSupervisor = false;
     
-    // DOM elements
-    const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
-    const mainDate = document.getElementById('mainDate'), mainShift = document.getElementById('mainShift');
-    const allocationContainer = document.getElementById('allocationContainer'), tasksContainer = document.getElementById('tasksContainer');
-    const supervisorTabs = document.getElementById('supervisorTabs'), sodStaffListDiv = document.getElementById('sodStaffList');
-    const closeShiftBtn = document.getElementById('closeShiftBtn'), reopenShiftBtn = document.getElementById('reopenShiftBtn'), shiftStatusBadge = document.getElementById('shiftStatusBadge');
-    const addTaskBtnMgr = document.getElementById('addTaskBtnMgr'), addStaffBtnMgr = document.getElementById('addStaffBtnMgr'), newStaffNameMgr = document.getElementById('newStaffNameMgr');
-    const staffListManager = document.getElementById('staffListManager'), taskListManager = document.getElementById('taskListManager'), taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr'), newTaskNameMgr = document.getElementById('newTaskNameMgr'), taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr');
-    const passwordModal = document.getElementById('passwordModal'), supervisorPassword = document.getElementById('supervisorPassword'), verifyPasswordBtn = document.getElementById('verifyPasswordBtn'), cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
+    // Helper functions
+    function getSODRecordKey() { return `${STORAGE.sodRecords}_${currentDate}_${currentShift}`; }
+    function getTaskRecordKey() { return `${STORAGE.taskRecords}_${currentDate}_${currentShift}`; }
+    function getSODStaffKey() { return `${STORAGE.sodStaff}_${currentDate}_${currentShift}`; }
     
-    function getSODRecordId(date, shift) { return `sod_allocation_${date}_${shift}`.replace(/\s/g, '_'); }
-    function getTaskRecordId(date, shift) { return `tasks_shift_${date}_${shift}`.replace(/\s/g, '_'); }
-    function getSODStaffRecordId(date, shift) { return `sod_staff_list_${date}_${shift}`.replace(/\s/g, '_'); }
+    function saveToLocalStorage(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+    function loadFromLocalStorage(key, defaultValue = null) {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : defaultValue;
+    }
     
-    async function loadStaff() { if(!firestoreReady) return; const snap = await db.collection("staff").orderBy("name").get(); staffList = snap.docs.map(d=> ({ id:d.id, name:d.data().name })); renderStaffManager(); renderSODPanel(); }
-    async function loadGlobalTasks(){ const doc = await db.collection("globalConfig").doc("tasks").get(); globalTasks = doc.exists ? doc.data().tasks || [] : []; renderTaskManager(); renderTasks(); }
-    async function saveGlobalTasks(tasks){ await db.collection("globalConfig").doc("tasks").set({tasks}); globalTasks = tasks; renderTaskManager(); renderTasks(); }
-    async function loadSODStaff(){ if(!currentDate||!currentShift) return; const id = getSODStaffRecordId(currentDate, currentShift); const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; renderSODPanel(); renderAllocation(); }
-    async function saveSODStaff(names){ const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames: names, date: currentDate, shift: currentShift }, {merge:true}); sodStaffNames = names; renderSODPanel(); renderAllocation(); renderTasks(); }
-    async function loadSODAllocation(){ if(!firestoreReady||!currentDate||!currentShift) return; const id = getSODRecordId(currentDate, currentShift); const doc = await db.collection("sodRecords").doc(id).get(); if(doc.exists){ currentSODRecord = { id: doc.id, ...doc.data() }; } else { const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS; let allocations = {}; slots.forEach(slot=>{ allocations[slot.id] = {}; slot.areas.forEach(area=> allocations[slot.id][area] = []); }); currentSODRecord = { date: currentDate, shift: currentShift, allocations, createdAt: new Date().toISOString() }; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id = id; } renderAllocation(); }
-    async function assignStaff(slotId, area, staffName){ if(!currentSODRecord || !sodStaffNames.includes(staffName)) return; const allocations = JSON.parse(JSON.stringify(currentSODRecord.allocations)); if(!allocations[slotId]) allocations[slotId] = {}; if(!allocations[slotId][area]) allocations[slotId][area] = []; if(!allocations[slotId][area].includes(staffName)) allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({ allocations }, {merge:true}); currentSODRecord.allocations = allocations; renderAllocation(); }
-    async function removeStaff(slotId, area, staffName){ if(!currentSODRecord) return; const allocations = JSON.parse(JSON.stringify(currentSODRecord.allocations)); if(allocations[slotId] && allocations[slotId][area]){ allocations[slotId][area] = allocations[slotId][area].filter(s => s !== staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({ allocations }, {merge:true}); currentSODRecord.allocations = allocations; renderAllocation(); } }
-    async function loadTaskRecord(){ if(!currentDate||!currentShift) return; const id = getTaskRecordId(currentDate, currentShift); const doc = await db.collection("taskRecords").doc(id).get(); if(doc.exists) currentTaskRecord = { id, ...doc.data() }; else currentTaskRecord = { date: currentDate, shift: currentShift, status:"open", doneTasks:{}, acknowledgedTasks:{}, dropdownSelections:[], createdAt: new Date().toISOString() }; await db.collection("taskRecords").doc(id).set(currentTaskRecord, {merge:true}); updateShiftUI(); renderTasks(); }
-    function updateShiftUI(){ if(!currentTaskRecord) return; const closed = currentTaskRecord.status === "closed"; shiftStatusBadge.innerHTML = closed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-door-open"></i> Open'; shiftStatusBadge.className = `status-badge ${closed ? 'status-closed' : 'status-open'}`; if(currentRole === "supervisor"){ closeShiftBtn.classList.toggle('hidden', closed); reopenShiftBtn.classList.toggle('hidden', !closed); } }
-    async function closeShiftFn(){ if(currentTaskRecord.status === "closed") return; await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status:"closed", closedAt: new Date().toISOString() }, {merge:true}); currentTaskRecord.status = "closed"; updateShiftUI(); renderTasks(); }
-    async function reopenShiftFn(){ await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status:"open" }, {merge:true}); currentTaskRecord.status = "open"; updateShiftUI(); renderTasks(); }
+    // Staff Management
+    function loadStaff() {
+        staffList = loadFromLocalStorage(STORAGE.staff, []);
+        if (staffList.length === 0) {
+            staffList = [
+                { id: "1", name: "John Smith" },
+                { id: "2", name: "Maria Garcia" },
+                { id: "3", name: "David Chen" },
+                { id: "4", name: "Sarah Lee" },
+                { id: "5", name: "Ahmed Hassan" }
+            ];
+            saveToLocalStorage(STORAGE.staff, staffList);
+        }
+        renderStaffManager();
+        renderSODPanel();
+    }
     
-    function renderAllocation(){
-        if(!currentSODRecord || !allocationContainer || currentRole !== "supervisor") return;
+    function addStaffMember(name) {
+        if (!name.trim()) return;
+        const newStaff = { id: Date.now().toString(), name: name.trim() };
+        staffList.push(newStaff);
+        saveToLocalStorage(STORAGE.staff, staffList);
+        loadStaff();
+        document.getElementById('newStaffNameMgr').value = "";
+    }
+    
+    function deleteStaff(id) {
+        staffList = staffList.filter(s => s.id !== id);
+        saveToLocalStorage(STORAGE.staff, staffList);
+        loadStaff();
+        // Also remove from SOD if needed
+        loadSODStaff();
+    }
+    
+    // Tasks Management
+    function loadGlobalTasks() {
+        globalTasks = loadFromLocalStorage(STORAGE.tasks, []);
+        if (globalTasks.length === 0) {
+            globalTasks = [
+                { id: "t1", name: "Complete opening checklist", category: "Opening", type: "done", shift: "Both" },
+                { id: "t2", name: "Check all equipment", category: "Safety", type: "done", shift: "Morning" },
+                { id: "t3", name: "VIP guest preparation", category: "Service", type: "done", shift: "Both" },
+                { id: "t4", name: "Closing duties verification", category: "Closing", type: "done", shift: "Evening" }
+            ];
+            saveToLocalStorage(STORAGE.tasks, globalTasks);
+        }
+        renderTaskManager();
+        renderTasks();
+    }
+    
+    function saveGlobalTasks(tasks) {
+        globalTasks = tasks;
+        saveToLocalStorage(STORAGE.tasks, globalTasks);
+        renderTaskManager();
+        renderTasks();
+    }
+    
+    function addTask(name, shift) {
+        if (!name.trim()) return;
+        const newTask = {
+            id: Date.now().toString(),
+            name: name.trim(),
+            category: "General",
+            type: "done",
+            shift: shift
+        };
+        globalTasks.push(newTask);
+        saveGlobalTasks(globalTasks);
+        document.getElementById('newTaskNameMgr').value = "";
+    }
+    
+    function deleteTask(id) {
+        globalTasks = globalTasks.filter(t => t.id !== id);
+        saveGlobalTasks(globalTasks);
+    }
+    
+    // SOD Staff Management
+    function loadSODStaff() {
+        if (!currentDate || !currentShift) return;
+        const key = getSODStaffKey();
+        sodStaffNames = loadFromLocalStorage(key, []);
+        renderSODPanel();
+        renderAllocation();
+    }
+    
+    function saveSODStaff(names) {
+        const key = getSODStaffKey();
+        saveToLocalStorage(key, names);
+        sodStaffNames = names;
+        renderSODPanel();
+        renderAllocation();
+        renderTasks();
+    }
+    
+    // Allocation Management
+    function loadSODAllocation() {
+        if (!currentDate || !currentShift) return;
+        const key = getSODRecordKey();
+        const saved = loadFromLocalStorage(key);
+        if (saved) {
+            currentSODRecord = saved;
+        } else {
+            const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
+            const allocations = {};
+            slots.forEach(slot => {
+                allocations[slot.id] = {};
+                slot.areas.forEach(area => {
+                    allocations[slot.id][area] = [];
+                });
+            });
+            currentSODRecord = { date: currentDate, shift: currentShift, allocations };
+            saveToLocalStorage(key, currentSODRecord);
+        }
+        renderAllocation();
+    }
+    
+    function assignStaff(slotId, area, staffName) {
+        if (!currentSODRecord || !sodStaffNames.includes(staffName)) return;
+        if (!currentSODRecord.allocations[slotId]) currentSODRecord.allocations[slotId] = {};
+        if (!currentSODRecord.allocations[slotId][area]) currentSODRecord.allocations[slotId][area] = [];
+        if (!currentSODRecord.allocations[slotId][area].includes(staffName)) {
+            currentSODRecord.allocations[slotId][area].push(staffName);
+            const key = getSODRecordKey();
+            saveToLocalStorage(key, currentSODRecord);
+            renderAllocation();
+        }
+    }
+    
+    function removeStaffFromSlot(slotId, area, staffName) {
+        if (!currentSODRecord) return;
+        if (currentSODRecord.allocations[slotId] && currentSODRecord.allocations[slotId][area]) {
+            currentSODRecord.allocations[slotId][area] = currentSODRecord.allocations[slotId][area].filter(s => s !== staffName);
+            const key = getSODRecordKey();
+            saveToLocalStorage(key, currentSODRecord);
+            renderAllocation();
+        }
+    }
+    
+    // Task Records (shift status)
+    function loadTaskRecord() {
+        if (!currentDate || !currentShift) return;
+        const key = getTaskRecordKey();
+        const saved = loadFromLocalStorage(key);
+        if (saved) {
+            currentTaskRecord = saved;
+        } else {
+            currentTaskRecord = { date: currentDate, shift: currentShift, status: "open", doneTasks: {} };
+            saveToLocalStorage(key, currentTaskRecord);
+        }
+        updateShiftUI();
+        renderTasks();
+    }
+    
+    function updateShiftUI() {
+        if (!currentTaskRecord) return;
+        const closed = currentTaskRecord.status === "closed";
+        const badge = document.getElementById('shiftStatusBadge');
+        badge.innerHTML = closed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-door-open"></i> Open';
+        badge.className = `status-badge ${closed ? 'status-closed' : 'status-open'}`;
+        if (currentRole === "supervisor") {
+            document.getElementById('closeShiftBtn').classList.toggle('hidden', closed);
+            document.getElementById('reopenShiftBtn').classList.toggle('hidden', !closed);
+        }
+    }
+    
+    function closeShift() {
+        if (currentTaskRecord.status === "closed") return;
+        currentTaskRecord.status = "closed";
+        const key = getTaskRecordKey();
+        saveToLocalStorage(key, currentTaskRecord);
+        updateShiftUI();
+        renderTasks();
+    }
+    
+    function reopenShift() {
+        currentTaskRecord.status = "open";
+        const key = getTaskRecordKey();
+        saveToLocalStorage(key, currentTaskRecord);
+        updateShiftUI();
+        renderTasks();
+    }
+    
+    function completeTask(taskId, staffName) {
+        if (!currentTaskRecord || currentTaskRecord.status === "closed") {
+            alert("Shift is closed!");
+            return;
+        }
+        if (!staffName) {
+            alert("Please select a staff member");
+            return;
+        }
+        if (!currentTaskRecord.doneTasks) currentTaskRecord.doneTasks = {};
+        if (currentTaskRecord.doneTasks[taskId]) {
+            alert("Task already completed");
+            return;
+        }
+        currentTaskRecord.doneTasks[taskId] = { doneBy: staffName, doneAt: new Date().toISOString() };
+        const key = getTaskRecordKey();
+        saveToLocalStorage(key, currentTaskRecord);
+        renderTasks();
+    }
+    
+    // Render Functions
+    function renderSODPanel() {
+        const container = document.getElementById('sodStaffList');
+        if (!container || currentRole !== "supervisor") return;
+        if (staffList.length === 0) {
+            container.innerHTML = '<span class="empty-msg">➕ Add staff in management tab</span>';
+            return;
+        }
+        container.innerHTML = staffList.map(s => `
+            <span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}">
+                <i class="fas fa-user-check"></i> ${escapeHtml(s.name)}
+            </span>
+        `).join('');
+        
+        document.querySelectorAll('.sod-staff-badge').forEach(el => {
+            el.addEventListener('click', async () => {
+                const name = el.getAttribute('data-name');
+                let newList = sodStaffNames.includes(name) ? sodStaffNames.filter(n => n !== name) : [...sodStaffNames, name];
+                saveSODStaff(newList);
+            });
+        });
+        
+        const hint = document.getElementById('sodHint');
+        hint.innerHTML = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty. Assign them to time slots & areas below.` : '⚠️ Select staff on duty first.';
+    }
+    
+    function renderAllocation() {
+        const container = document.getElementById('allocationContainer');
+        if (!container || currentRole !== "supervisor" || !currentShift || !currentSODRecord) {
+            if (container && (!currentShift)) container.innerHTML = '<div class="empty-msg">👉 Select a shift first</div>';
+            return;
+        }
         const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
         const allocations = currentSODRecord.allocations || {};
-        const canEdit = currentRole === "supervisor" && currentTaskRecord?.status !== "closed";
+        const canEdit = currentTaskRecord?.status !== "closed";
+        const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
+        
         let html = `<table class="allocation-table"><thead><tr><th class="area-col">Service Area</th>${slots.map(s => `<th>${s.name}</th>`).join('')}</tr></thead><tbody>`;
-        const areas = ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"];
+        
         areas.forEach(area => {
             html += `<tr><td class="area-col"><strong>${area}</strong></td>`;
             slots.forEach(slot => {
                 const assigned = (allocations[slot.id] && allocations[slot.id][area]) || [];
-                let cellContent = `<div style="min-height:70px;">${assigned.map(s => `<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit ? `<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button>` : ''}</span>`).join('')}`;
-                if(canEdit && sodStaffNames.length){
-                    const selectId = `sel_${slot.id}_${area.replace(/\s/g,'')}`;
+                let cellContent = `<div style="min-height:70px;">`;
+                assigned.forEach(s => {
+                    cellContent += `<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit ? `<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button>` : ''}</span>`;
+                });
+                if (canEdit && sodStaffNames.length) {
+                    const selectId = `sel_${slot.id}_${area.replace(/\s/g, '')}`;
                     let options = '<option value="">-- Assign SOD --</option>' + sodStaffNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
                     cellContent += `<div class="assign-wrapper"><select id="${selectId}" class="staff-select-small">${options}</select><button class="assign-small-btn assign-action" data-slot="${slot.id}" data-area="${area}">Assign</button></div>`;
-                } else if(canEdit && sodStaffNames.length === 0) cellContent += `<div class="info-text">⚠️ No SOD selected</div>`;
+                } else if (canEdit && sodStaffNames.length === 0) {
+                    cellContent += `<div class="info-text">⚠️ No SOD selected</div>`;
+                }
                 cellContent += `</div>`;
                 html += `<td>${cellContent}</td>`;
             });
             html += `</tr>`;
         });
         html += `</tbody></table>`;
-        allocationContainer.innerHTML = html;
-        if(canEdit){
+        container.innerHTML = html;
+        
+        if (canEdit) {
             document.querySelectorAll('.assign-action').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const slot = btn.getAttribute('data-slot'), area = btn.getAttribute('data-area');
-                    const select = document.getElementById(`sel_${slot}_${area.replace(/\s/g,'')}`);
-                    if(select && select.value) await assignStaff(slot, area, select.value);
-                    if(select) select.value = "";
+                btn.addEventListener('click', () => {
+                    const slot = btn.getAttribute('data-slot');
+                    const area = btn.getAttribute('data-area');
+                    const select = document.getElementById(`sel_${slot}_${area.replace(/\s/g, '')}`);
+                    if (select && select.value) assignStaff(slot, area, select.value);
+                    if (select) select.value = "";
                 });
             });
             document.querySelectorAll('.remove-staff').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const slot = btn.getAttribute('data-slot'), area = btn.getAttribute('data-area'), staff = btn.getAttribute('data-staff');
-                    await removeStaff(slot, area, staff);
+                btn.addEventListener('click', () => {
+                    const slot = btn.getAttribute('data-slot');
+                    const area = btn.getAttribute('data-area');
+                    const staff = btn.getAttribute('data-staff');
+                    removeStaffFromSlot(slot, area, staff);
                 });
             });
         }
     }
     
-    function renderSODPanel(){
-        if(!sodStaffListDiv || currentRole !== "supervisor") return;
-        if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">➕ Add staff in management tab</span>'; return; }
-        sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join('');
-        document.querySelectorAll('.sod-staff-badge').forEach(el => {
-            el.addEventListener('click', async () => {
-                const name = el.getAttribute('data-name');
-                let newList = sodStaffNames.includes(name) ? sodStaffNames.filter(n => n !== name) : [...sodStaffNames, name];
-                await saveSODStaff(newList);
-            });
+    function renderTasks() {
+        const container = document.getElementById('tasksContainer');
+        const indicator = document.getElementById('shiftFilterIndicator');
+        if (!container) return;
+        if (!currentShift) {
+            container.innerHTML = '<div class="empty-msg">Select a shift to view tasks</div>';
+            return;
+        }
+        indicator.innerHTML = currentShift === "Morning" ? "🌅 Morning Shift" : "🌙 Evening Shift";
+        const filteredTasks = globalTasks.filter(t => {
+            const taskShift = t.shift || "Both";
+            return taskShift === "Both" || taskShift === currentShift;
         });
-        document.getElementById('sodHint').innerHTML = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty. Assign them to time slots & areas below.` : '⚠️ Select staff on duty first.';
+        if (filteredTasks.length === 0) {
+            container.innerHTML = '<div class="empty-msg">No tasks for this shift</div>';
+            return;
+        }
+        const isClosed = currentTaskRecord?.status === "closed";
+        const doneTasks = currentTaskRecord?.doneTasks || {};
+        
+        container.innerHTML = filteredTasks.map(task => {
+            const isDone = !!doneTasks[task.id];
+            const doneBy = isDone ? doneTasks[task.id].doneBy : null;
+            return `
+                <div class="task-item">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div><strong>📋 ${escapeHtml(task.name)}</strong> ${task.shift !== "Both" ? `<span style="background:#fff3e0; padding:2px 8px; border-radius:20px; font-size:0.65rem;">${task.shift} only</span>` : ''}</div>
+                        ${!isClosed && currentRole === "staff" && !isDone ? `
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <select id="staffSelect_${task.id}" class="staff-select-small" style="width:120px;">
+                                    <option value="">Select staff</option>
+                                    ${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}
+                                </select>
+                                <button class="btn-primary complete-task" data-id="${task.id}" style="padding:4px 16px;">Complete</button>
+                            </div>
+                        ` : isDone ? `<span style="color:#2e7d64;">✅ Completed by ${escapeHtml(doneBy)}</span>` : `<span style="color:#ff9800;">⏳ Pending</span>`}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        if (!isClosed && currentRole === "staff") {
+            document.querySelectorAll('.complete-task').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const taskId = btn.getAttribute('data-id');
+                    const select = document.getElementById(`staffSelect_${taskId}`);
+                    if (select && select.value) completeTask(taskId, select.value);
+                    else alert("Please select a staff member");
+                });
+            });
+        }
     }
     
-    function renderTasks(){ if(!currentTaskRecord) return; const filtered = globalTasks.filter(t => { const ts = t.shift || "Both"; return ts === "Both" || ts === currentShift; }); tasksContainer.innerHTML = filtered.length ? filtered.map(t => `<div style="border-bottom:1px solid #edf2f7; padding:12px;"><strong>${escapeHtml(t.name)}</strong> <span style="background:#eef3fc; font-size:0.65rem; padding:2px 10px; border-radius:20px;">${t.type||'done'}</span></div>`).join('') : '<div class="empty-msg">No tasks for this shift</div>'; }
-    function renderTaskManager(){ taskListManager.innerHTML = globalTasks.map(t => `<div class="staff-card" style="display:flex; justify-content:space-between;"><span>📋 ${escapeHtml(t.name)} (${t.shift||'Both'})</span><button class="delete-task-mgr" data-id="${t.id}" style="background:none; border:none; color:#c62828;">🗑️</button></div>`).join(''); document.querySelectorAll('.delete-task-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ await saveGlobalTasks(globalTasks.filter(ts=>ts.id !== btn.getAttribute('data-id'))); })); }
-    function renderStaffManager(){ staffListManager.innerHTML = staffList.map(s => `<div class="staff-card">👤 ${escapeHtml(s.name)} <button class="del-staff" data-id="${s.id}" style="background:none; border:none; color:#c62828;">✖</button></div>`).join(''); document.querySelectorAll('.del-staff').forEach(btn=>btn.addEventListener('click',async()=>{ await db.collection("staff").doc(btn.getAttribute('data-id')).delete(); await loadStaff(); })); }
-    async function addStaffMember(name){ if(!name.trim()) return; await db.collection("staff").add({ name: name.trim() }); await loadStaff(); newStaffNameMgr.value = ""; }
-    async function addTaskMgr(){ if(!newTaskNameMgr.value.trim()) return; const cat = "General"; const shift = taskShiftSelectMgr.value; const newTask = { id: Date.now().toString(), name: newTaskNameMgr.value.trim(), category: cat, type: "done", shift: shift }; await saveGlobalTasks([...globalTasks, newTask]); newTaskNameMgr.value = ""; }
-    async function refreshAll(){ if(currentRole !== "supervisor") return; await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); renderAllocation(); }
-    function setRole(role){ if(role === "supervisor" && !isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole = role; if(role === "supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled = false; mainShift.disabled = false; supervisorTabs.classList.remove('hidden'); document.getElementById('staffTasksSection').style.display = 'none'; refreshAll(); } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled = true; mainShift.disabled = true; supervisorTabs.classList.add('hidden'); document.getElementById('staffTasksSection').style.display = 'block'; renderTasks(); } renderAllocation(); }
-    function verifyPassword(){ const pwd = supervisorPassword.value; if(pwd === "Admin123" || (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD)){ isSupervisor = true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else document.getElementById('passwordError').innerText = "Invalid"; }
-    async function init(){ mainDate.value = currentDate; if(firestoreReady){ await loadGlobalTasks(); await loadStaff(); await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); } mainDate.addEventListener('change', async ()=>{ currentDate = mainDate.value; if(currentRole === "supervisor") await refreshAll(); }); mainShift.addEventListener('change', async ()=>{ currentShift = mainShift.value; if(currentRole === "supervisor") await refreshAll(); }); staffRoleBtn.addEventListener('click',()=>setRole("staff")); supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); addTaskBtnMgr.addEventListener('click',addTaskMgr); addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); closeShiftBtn.addEventListener('click',closeShiftFn); reopenShiftBtn.addEventListener('click',reopenShiftFn); verifyPasswordBtn.addEventListener('click',verifyPassword); cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); setRole("staff"); }
-    const deviceModal = document.getElementById('deviceAuthModal'), devicePass = document.getElementById('devicePasswordInput'), authBtn = document.getElementById('authorizeDeviceBtn');
-    function handleDevice(){ if(authorizeDevice(devicePass.value)){ deviceModal.style.display='none'; document.getElementById('appContainer').style.display='block'; init(); } else { document.getElementById('deviceAuthError').innerText = "Wrong password"; devicePass.value=""; } }
-    if(isAuthorized()){ deviceModal.style.display='none'; document.getElementById('appContainer').style.display='block'; init(); } else { deviceModal.style.display='flex'; document.getElementById('appContainer').style.display='none'; authBtn.addEventListener('click',handleDevice); devicePass.addEventListener('keypress',e=>{if(e.key==='Enter')handleDevice();}); }
-    function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+    function renderStaffManager() {
+        const container = document.getElementById('staffListManager');
+        if (!container) return;
+        container.innerHTML = staffList.map(s => `
+            <div class="staff-card">
+                👤 ${escapeHtml(s.name)}
+                <button class="delete-btn delete-staff" data-id="${s.id}"><i class="fas fa-trash"></i></button>
+            </div>
+        `).join('');
+        document.querySelectorAll('.delete-staff').forEach(btn => {
+            btn.addEventListener('click', () => deleteStaff(btn.getAttribute('data-id')));
+        });
+    }
+    
+    function renderTaskManager() {
+        const container = document.getElementById('taskListManager');
+        if (!container) return;
+        container.innerHTML = globalTasks.map(t => `
+            <div class="task-card">
+                <span>📋 ${escapeHtml(t.name)} <span style="font-size:0.6rem; background:#eef3fc; padding:2px 8px; border-radius:20px;">${t.shift || 'Both'}</span></span>
+                <button class="delete-btn delete-task" data-id="${t.id}"><i class="fas fa-trash"></i></button>
+            </div>
+        `).join('');
+        document.querySelectorAll('.delete-task').forEach(btn => {
+            btn.addEventListener('click', () => deleteTask(btn.getAttribute('data-id')));
+        });
+    }
+    
+    function refreshAll() {
+        if (currentRole === "supervisor" && currentDate && currentShift) {
+            loadSODStaff();
+            loadSODAllocation();
+            loadTaskRecord();
+        }
+    }
+    
+    function setRole(role) {
+        if (role === "supervisor" && !isSupervisor) {
+            document.getElementById('passwordModal').classList.remove('hidden');
+            return;
+        }
+        currentRole = role;
+        const staffBtn = document.getElementById('staffRoleBtn');
+        const superBtn = document.getElementById('supervisorRoleBtn');
+        const dateInput = document.getElementById('mainDate');
+        const shiftSelect = document.getElementById('mainShift');
+        const supervisorTabsDiv = document.getElementById('supervisorTabs');
+        const staffSection = document.getElementById('staffTasksSection');
+        
+        if (role === "supervisor") {
+            staffBtn.classList.remove('active');
+            superBtn.classList.add('active');
+            dateInput.disabled = false;
+            shiftSelect.disabled = false;
+            supervisorTabsDiv.classList.remove('hidden');
+            staffSection.style.display = 'none';
+            refreshAll();
+        } else {
+            superBtn.classList.remove('active');
+            staffBtn.classList.add('active');
+            dateInput.disabled = true;
+            shiftSelect.disabled = true;
+            supervisorTabsDiv.classList.add('hidden');
+            staffSection.style.display = 'block';
+            renderTasks();
+        }
+        renderAllocation();
+    }
+    
+    function verifyPassword() {
+        const pwd = document.getElementById('supervisorPassword').value;
+        if (pwd === "Admin123") {
+            isSupervisor = true;
+            document.getElementById('passwordModal').classList.add('hidden');
+            setRole("supervisor");
+        } else {
+            document.getElementById('passwordError').innerText = "Wrong password";
+        }
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+    }
+    
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        loadStaff();
+        loadGlobalTasks();
+        
+        const dateInput = document.getElementById('mainDate');
+        const shiftSelect = document.getElementById('mainShift');
+        dateInput.value = currentDate;
+        
+        dateInput.addEventListener('change', () => {
+            currentDate = dateInput.value;
+            if (currentRole === "supervisor") refreshAll();
+        });
+        shiftSelect.addEventListener('change', () => {
+            currentShift = shiftSelect.value;
+            if (currentRole === "supervisor") refreshAll();
+        });
+        
+        document.getElementById('staffRoleBtn').addEventListener('click', () => setRole("staff"));
+        document.getElementById('supervisorRoleBtn').addEventListener('click', () => setRole("supervisor"));
+        document.getElementById('addTaskBtnMgr').addEventListener('click', () => {
+            const name = document.getElementById('newTaskNameMgr').value;
+            const shift = document.getElementById('taskShiftSelectMgr').value;
+            addTask(name, shift);
+        });
+        document.getElementById('addStaffBtnMgr').addEventListener('click', () => {
+            const name = document.getElementById('newStaffNameMgr').value;
+            addStaffMember(name);
+        });
+        document.getElementById('closeShiftBtn').addEventListener('click', closeShift);
+        document.getElementById('reopenShiftBtn').addEventListener('click', reopenShift);
+        document.getElementById('verifyPasswordBtn').addEventListener('click', verifyPassword);
+        document.getElementById('cancelPasswordBtn').addEventListener('click', () => {
+            document.getElementById('passwordModal').classList.add('hidden');
+        });
+        
+        setRole("staff");
+    });
 </script>
 </body>
 </html>
