@@ -3,607 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge | Complete Staff Management Suite</title>
+    <title>Koveli Lounge Daily Check List | Complete Management</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External config (fire.js + config.js expected) -->
+    <!-- External Configuration Files (must define firebase config + passwords) -->
     <script src="fire.js"></script>
     <script src="config.js"></script>
+    <!-- Google Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
-
-        body {
-            background: linear-gradient(145deg, #eef2f9 0%, #e0e8f0 100%);
-            padding: 20px 24px;
-            color: #0a2b3e;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        /* header */
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .header h1 {
-            font-weight: 800;
-            font-size: 1.8rem;
-            background: linear-gradient(135deg, #145c7a, #2c8eb0);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            letter-spacing: -0.3px;
-        }
-
-        .header p {
-            color: #5c7f9c;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        /* role bar */
-        .role-bar {
-            display: flex;
-            justify-content: center;
-            gap: 14px;
-            margin-bottom: 20px;
-        }
-
-        .role-btn {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(4px);
-            border: none;
-            padding: 8px 24px;
-            border-radius: 60px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            color: #2c5a74;
-        }
-
-        .role-btn.active {
-            background: linear-gradient(115deg, #1b6f8f, #2589ae);
-            color: white;
-            box-shadow: 0 8px 18px rgba(27, 111, 143, 0.25);
-            transform: scale(1.02);
-        }
-
-        /* date bar */
-        .date-bar {
-            background: white;
-            border-radius: 60px;
-            padding: 10px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 28px;
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.03);
-            border: 1px solid #eaf0f6;
-        }
-
-        .date-selector {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .date-selector input,
-        .date-selector select {
-            padding: 8px 16px;
-            border-radius: 40px;
-            border: 1.5px solid #e2edf5;
-            background: #ffffff;
-            font-size: 0.8rem;
-            font-weight: 500;
-            outline: none;
-            transition: 0.2s;
-        }
-
-        .date-selector input:focus,
-        .date-selector select:focus {
-            border-color: #2589ae;
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 18px;
-            border-radius: 40px;
-            font-size: 0.7rem;
-            font-weight: 700;
-        }
-
-        .status-open {
-            background: #e3f7e8;
-            color: #1f6e3c;
-        }
-
-        .status-closed {
-            background: #ffe8e8;
-            color: #bc2f2f;
-        }
-
-        .close-shift-btn,
-        .reopen-btn {
-            background: #c0392b;
-            color: white;
-            border: none;
-            padding: 6px 18px;
-            border-radius: 40px;
-            font-weight: 600;
-            font-size: 0.7rem;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-
-        .reopen-btn {
-            background: #e67e22;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .pdf-btn {
-            background: #2c3e50;
-            color: white;
-            border: none;
-            padding: 6px 18px;
-            border-radius: 40px;
-            font-weight: 600;
-            font-size: 0.7rem;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: 0.2s;
-        }
-
-        .print-btn {
-            background: #27ae60;
-        }
-
-        /* tabs modern */
-        .tabs-header {
-            display: flex;
-            gap: 6px;
-            background: white;
-            border-radius: 60px;
-            padding: 4px 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-            margin-bottom: 24px;
-        }
-
-        .tab-btn {
-            background: transparent;
-            border: none;
-            padding: 10px 28px;
-            font-weight: 700;
-            font-size: 0.8rem;
-            color: #6f8eaa;
-            cursor: pointer;
-            border-radius: 50px;
-            transition: all 0.2s;
-        }
-
-        .tab-btn.active {
-            background: #1b6f8f;
-            color: white;
-            box-shadow: 0 4px 12px rgba(27, 111, 143, 0.3);
-        }
-
-        /* cards */
-        .sod-panel,
-        .allocation-panel,
-        .management-panel,
-        .break-panel,
-        .allocation-readonly {
-            background: white;
-            border-radius: 28px;
-            padding: 20px 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.04);
-            border: 1px solid #eef3fa;
-        }
-
-        .panel-title {
-            font-weight: 800;
-            font-size: 0.9rem;
-            color: #145c7a;
-            margin-bottom: 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-left: 4px solid #2c8eb0;
-            padding-left: 12px;
-        }
-
-        .sod-staff-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .sod-staff-badge {
-            background: #f0f6fe;
-            padding: 8px 18px;
-            border-radius: 40px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid #dce7f0;
-        }
-
-        .sod-staff-badge.selected {
-            background: linear-gradient(115deg, #1b6f8f, #2589ae);
-            color: white;
-            border: none;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        /* allocation tables */
-        .allocation-horizontal {
-            overflow-x: auto;
-        }
-
-        .alloc-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.7rem;
-            min-width: 680px;
-        }
-
-        .alloc-table th,
-        .alloc-table td {
-            border: 1px solid #e2edf5;
-            padding: 12px 8px;
-            text-align: center;
-            vertical-align: top;
-            background: white;
-        }
-
-        .alloc-table th {
-            background: #f4fafd;
-            font-weight: 800;
-            color: #145c7a;
-        }
-
-        .area-col-readonly,
-        .area-col {
-            background: #fafdff;
-            font-weight: 700;
-            text-align: left;
-            width: 120px;
-        }
-
-        .staff-badge-readonly,
-        .staff-name-badge {
-            display: inline-block;
-            background: #eef2fa;
-            padding: 4px 10px;
-            border-radius: 30px;
-            font-size: 0.65rem;
-            margin: 2px;
-            font-weight: 500;
-        }
-
-        /* break form */
-        .break-form {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            align-items: flex-end;
-            background: #f9fcff;
-            padding: 20px;
-            border-radius: 28px;
-            margin-bottom: 28px;
-        }
-
-        .break-form-group {
-            flex: 1;
-            min-width: 160px;
-        }
-
-        .break-form-group label {
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: #3c6e8f;
-            margin-bottom: 6px;
-            display: block;
-        }
-
-        .break-form-group input,
-        .break-form-group select {
-            width: 100%;
-            padding: 10px 14px;
-            border-radius: 40px;
-            border: 1.5px solid #e2edf5;
-            font-size: 0.8rem;
-        }
-
-        .btn-break {
-            background: linear-gradient(135deg, #f39c12, #e67e22);
-            border: none;
-            padding: 10px 28px;
-            border-radius: 40px;
-            font-weight: 700;
-            color: white;
-            cursor: pointer;
-        }
-
-        .break-item {
-            background: #fef9ef;
-            border-radius: 20px;
-            padding: 12px 18px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 6px solid #f39c12;
-        }
-
-        .remove-break-btn {
-            background: #ffe0e0;
-            border: none;
-            padding: 5px 14px;
-            border-radius: 30px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            color: #bc2f2f;
-            cursor: pointer;
-        }
-
-        /* task cards */
-        .task-category {
-            margin-bottom: 24px;
-            border-radius: 24px;
-            overflow: hidden;
-            background: white;
-            border: 1px solid #eef3fc;
-        }
-
-        .category-header {
-            background: linear-gradient(95deg, #f1f8fe, #ffffff);
-            padding: 12px 20px;
-            font-weight: 800;
-            font-size: 0.85rem;
-            color: #1d6f8f;
-            border-bottom: 1px solid #e2edf5;
-        }
-
-        .task-item {
-            background: white;
-            padding: 14px 18px;
-            border-bottom: 1px solid #f0f5fa;
-        }
-
-        .flex-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-top: 10px;
-        }
-
-        .action-select,
-        .action-dropdown,
-        .action-input {
-            padding: 7px 12px;
-            border-radius: 30px;
-            border: 1.5px solid #e0eaf2;
-            font-size: 0.7rem;
-            background: white;
-        }
-
-        .action-btn {
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 6px 18px;
-            border-radius: 30px;
-            font-weight: 600;
-            font-size: 0.7rem;
-            cursor: pointer;
-        }
-
-        .info-text {
-            font-size: 0.7rem;
-            color: #5e8eaa;
-            margin-top: 12px;
-            text-align: center;
-        }
-
-        .empty-msg {
-            text-align: center;
-            padding: 32px;
-            color: #8fbbdf;
-            font-weight: 500;
-        }
-
-        /* staff tabs (staff view) */
-        .staff-tabs {
-            margin-top: 8px;
-        }
-
-        .staff-tab-content {
-            display: none;
-        }
-
-        .staff-tab-content.active {
-            display: block;
-            animation: fade 0.2s ease;
-        }
-
-        @keyframes fade {
-            from {
-                opacity: 0;
-                transform: translateY(4px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .password-modal,
-        .device-auth-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(6px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        .password-box,
-        .device-auth-card {
-            background: white;
-            padding: 32px;
-            border-radius: 48px;
-            width: 320px;
-            text-align: center;
-            box-shadow: 0 25px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn-primary {
-            background: #1b6f8f;
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-weight: 600;
-            cursor: pointer;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 100%); padding: 16px 20px; color: #1a2c3e; min-height: 100vh; }
+        .container { max-width: 1600px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 12px; }
+        .header h1 { font-weight: 700; font-size: 1.3rem; background: linear-gradient(145deg, #1a4c6e, #2c6e8f); background-clip: text; -webkit-background-clip: text; color: transparent; }
+        .header p { color: #5a7a97; font-size: 0.7rem; }
+        .role-bar { display: flex; justify-content: center; gap: 10px; margin-bottom: 12px; }
+        .role-btn { background: white; border: none; padding: 6px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .role-btn.active { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; box-shadow: 0 2px 8px rgba(29,111,143,0.3); }
+        .date-bar { background: white; border-radius: 40px; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+        .date-selector { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .date-selector input, .date-selector select { padding: 6px 12px; border-radius: 30px; border: 1.5px solid #e2eaf2; font-size: 0.8rem; background: white; outline: none; }
+        .date-selector input:disabled, .date-selector select:disabled { background: #f5f7fa; color: #666; cursor: not-allowed; }
+        .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 14px; border-radius: 30px; font-size: 0.7rem; font-weight: 600; }
+        .status-open { background: #e8f5e9; color: #2e7d32; }
+        .status-closed { background: #ffebee; color: #c62828; }
+        .reopen-btn { background: linear-gradient(135deg, #ff9800, #f57c00); color: white; border: none; padding: 5px 14px; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 0.7rem; display: flex; align-items: center; gap: 5px; }
+        .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+        .pdf-btn { background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; padding: 6px 14px; border-radius: 30px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.7rem; }
+        .print-btn { background: linear-gradient(135deg, #28a745, #218838); }
+        .shift-controls { display: flex; gap: 8px; align-items: center; }
+        .close-shift-btn { background: linear-gradient(135deg, #c62828, #b71c1c); color: white; border: none; padding: 5px 14px; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 0.7rem; display: flex; align-items: center; gap: 5px; }
+        
+        .supervisor-tabs { margin-bottom: 20px; }
+        .tabs-header { display: flex; gap: 8px; border-bottom: 2px solid #e2eaf2; margin-bottom: 16px; }
+        .tab-btn { background: none; border: none; padding: 10px 24px; font-size: 0.85rem; font-weight: 600; color: #7c9ab8; cursor: pointer; border-radius: 30px 30px 0 0; }
+        .tab-btn.active { color: #1d6f8f; background: white; border-bottom: 3px solid #1d6f8f; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .sod-panel, .allocation-panel { background: white; border-radius: 20px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid #e2eaf2; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+        .panel-title { font-weight: 700; font-size: 0.85rem; color: #1d6f8f; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .sod-staff-list { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .sod-staff-badge { background: #eef3fc; padding: 5px 12px; border-radius: 30px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: 1px solid #cde0ec; }
+        .sod-staff-badge.selected { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; }
+        
+        .checklist-full { width: 100%; margin-bottom: 16px; }
+        .task-category { margin-bottom: 20px; border: 1px solid #e2eaf2; border-radius: 16px; overflow: hidden; }
+        .category-header { background: linear-gradient(135deg, #eef3fc, #e8eef5); padding: 10px 16px; font-weight: 700; font-size: 0.85rem; color: #1d6f8f; border-bottom: 1px solid #e2eaf2; }
+        .category-tasks { padding: 8px; }
+        .task-item { background: #fafdff; border-radius: 14px; padding: 12px; margin-bottom: 8px; border: 1px solid #eef2f8; }
+        .task-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+        .task-name { font-weight: 700; font-size: 0.85rem; color: #1a4c6e; }
+        .pending-indicator { background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 20px; font-size: 0.6rem; font-weight: 600; margin-left: 6px; }
+        .completed-info { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); padding: 6px 10px; border-radius: 14px; margin-top: 6px; font-size: 0.7rem; }
+        .flex-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+        .action-select, .action-dropdown { padding: 5px 10px; border-radius: 25px; border: 1.5px solid #e2eaf2; font-size: 0.7rem; background: white; }
+        .action-select { width: 140px; }
+        .action-dropdown { width: 130px; }
+        .action-input { padding: 5px 10px; border-radius: 25px; border: 1.5px solid #e2eaf2; font-size: 0.7rem; width: 80px; }
+        .action-btn { background: linear-gradient(135deg, #4caf50, #43a047); color: white; border: none; padding: 5px 14px; border-radius: 25px; cursor: pointer; font-weight: 600; font-size: 0.7rem; }
+        
+        .management-panel { background: white; border-radius: 20px; padding: 20px; border: 1px solid #e2eaf2; }
+        .section-title { font-size: 1rem; font-weight: 700; color: #1d6f8f; margin: 20px 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #e2eaf2; display: flex; align-items: center; gap: 8px; }
+        .section-title:first-of-type { margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.7rem; font-weight: 600; margin-bottom: 5px; color: #5a7a97; }
+        .form-group input, .form-group select { width: 100%; padding: 8px 12px; border-radius: 25px; border: 1.5px solid #e2eaf2; font-size: 0.75rem; }
+        .btn-primary { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; border: none; padding: 8px 16px; border-radius: 30px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }
+        .btn-warning { background: linear-gradient(135deg, #ff9800, #f57c00); color: white; border: none; padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 0.65rem; font-weight: 600; }
+        .btn-danger { background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 0.65rem; font-weight: 600; }
+        .staff-card { background: #f8fbfe; border: 1px solid #e2eaf2; border-radius: 30px; padding: 5px 12px; display: inline-flex; align-items: center; gap: 8px; font-size: 0.75rem; margin: 4px; }
+        .task-manager-item { background: #f8fbfe; border: 1px solid #e2eaf2; border-radius: 12px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .task-cat-badge { background: #1d6f8f20; color: #1d6f8f; padding: 2px 8px; border-radius: 15px; font-size: 0.6rem; font-weight: 600; margin-left: 6px; }
+        .task-shift-badge { background: #ff980020; color: #e65100; padding: 2px 8px; border-radius: 15px; font-size: 0.6rem; font-weight: 600; margin-left: 6px; }
+        
+        .allocation-horizontal { overflow-x: auto; }
+        .allocation-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; min-width: 600px; }
+        .allocation-table th, .allocation-table td { border: 1px solid #e2eaf2; padding: 6px 8px; text-align: center; vertical-align: top; }
+        .allocation-table th { background: #eef3fc; font-weight: 700; font-size: 0.65rem; }
+        .area-col { background: #f8fbfe; font-weight: 600; text-align: left; width: 100px; }
+        .staff-name-badge { display: inline-block; background: #eef2fa; padding: 2px 6px; border-radius: 15px; font-size: 0.65rem; margin: 2px; }
+        .assign-wrapper { display: flex; gap: 4px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+        .staff-select-small { padding: 3px 6px; border-radius: 15px; border: 1.5px solid #e2eaf2; font-size: 0.6rem; width: 85px; }
+        .assign-small-btn { background: #4caf50; color: white; border: none; padding: 3px 8px; border-radius: 15px; cursor: pointer; font-size: 0.6rem; font-weight: 600; }
+        .remove-staff { background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.65rem; }
+        
+        .password-modal, .device-auth-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .password-box, .device-auth-card { background: white; padding: 24px; border-radius: 28px; width: 300px; text-align: center; }
+        .device-auth-card { width: 380px; }
+        .password-box input, .device-auth-card input { width: 100%; padding: 10px; border-radius: 25px; border: 1.5px solid #e2eaf2; margin: 16px 0; }
+        .password-box button, .device-auth-card button { background: #1d6f8f; color: white; border: none; padding: 10px; border-radius: 25px; width: 100%; cursor: pointer; font-weight: 600; }
+        .hidden { display: none; }
+        .shift-badge { display: inline-block; font-size: 0.6rem; padding: 2px 6px; border-radius: 12px; margin-left: 8px; }
+        .shift-morning { background: #fff3e0; color: #e65100; }
+        .shift-evening { background: #e3f2fd; color: #1565c0; }
+        .info-text { font-size: 0.65rem; color: #7c9ab8; margin-top: 8px; text-align: center; }
+        .empty-msg { text-align: center; padding: 30px 20px; color: #8aa9c4; font-size: 0.8rem; }
+        .staff-list-manager, .task-list-manager { max-height: 300px; overflow-y: auto; }
+        
+        /* Staff Allocation Tab (read-only) */
+        .staff-allocation-panel { background: white; border-radius: 20px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid #e2eaf2; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+        .staff-tab-header { display: flex; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid #e2eaf2; }
+        .staff-tab-btn { background: none; border: none; padding: 8px 16px; font-size: 0.8rem; font-weight: 600; color: #5a7a97; cursor: pointer; border-radius: 30px; }
+        .staff-tab-btn.active { background: #eef3fc; color: #1d6f8f; }
+        .staff-tab-pane { display: none; }
+        .staff-tab-pane.active { display: block; }
+        @media (max-width: 1200px) { }
     </style>
 </head>
 <body>
 <div class="container" id="appContainer" style="display: none;">
-    <div class="header">
-        <h1><i class="fas fa-clipboard-list"></i> Koveli Lounge · Daily Ops</h1>
-        <p>Staff Tasks | Allocation overview | Break management</p>
-    </div>
-    <div class="role-bar">
-        <button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button>
-        <button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button>
-    </div>
+    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Staff on Duty | Full Shift Allocation</p></div>
+    <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
     <div class="date-bar">
-        <div class="date-selector">
-            <input type="date" id="mainDate" value="" disabled>
-            <select id="mainShift" disabled>
-                <option value="">Select Shift</option>
-                <option value="Morning">🌅 Morning (07:30-15:30)</option>
-                <option value="Evening">🌙 Evening (15:30-23:30)</option>
-            </select>
-        </div>
-        <div class="action-buttons">
-            <button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Report</button>
-            <button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Allocation</button>
-        </div>
-        <div class="shift-controls">
-            <div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div>
-            <button id="closeShiftBtn" class="close-shift-btn hidden"><i class="fas fa-lock"></i> Close Shift</button>
-            <button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen</button>
-        </div>
+        <div class="date-selector"><input type="date" id="mainDate" value="" disabled><select id="mainShift" disabled><option value="">Select Shift</option><option value="Morning">🌅 Morning (07:30 - 15:30)</option><option value="Evening">🌙 Evening (15:30 - 23:30)</option></select></div>
+        <div class="action-buttons"><button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Report</button><button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Allocation</button></div>
+        <div class="shift-controls"><div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div><button id="closeShiftBtn" class="close-shift-btn hidden"><i class="fas fa-lock"></i> Close Shift</button><button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen</button></div>
     </div>
-
-    <!-- SUPERVISOR ZONE (full control) -->
+    
     <div id="supervisorTabs" class="supervisor-tabs hidden">
         <div class="tabs-header">
-            <button class="tab-btn active" data-tab="allocation-tab"><i class="fas fa-users"></i> SOD & Allocation</button>
-            <button class="tab-btn" data-tab="management-tab"><i class="fas fa-sliders-h"></i> Tasks / Staff</button>
+            <button class="tab-btn active" data-tab="allocation-tab"><i class="fas fa-users"></i> Allocation & SOD</button>
+            <button class="tab-btn" data-tab="management-tab"><i class="fas fa-cog"></i> Tasks & Staff Management</button>
         </div>
         <div id="allocation-tab" class="tab-content active">
-            <div class="sod-panel"><div class="panel-title"><i class="fas fa-user-check"></i> Staff on Duty (SOD)</div><div id="sodStaffList" class="sod-staff-list"></div></div>
-            <div class="allocation-panel"><div class="panel-title"><i class="fas fa-clock"></i> Assign staff to areas & slots</div><div id="allocationContainer" class="allocation-horizontal"></div></div>
+            <div class="sod-panel"><div class="panel-title"><i class="fas fa-users"></i> Staff on Duty (SOD) - Select staff for this shift</div><div id="sodStaffList" class="sod-staff-list"><span class="empty-msg">Loading...</span></div><div class="info-text" id="sodHint"></div></div>
+            <div class="allocation-panel"><div class="panel-title"><i class="fas fa-clock"></i> Staff Allocation - Assign SOD staff to all areas & time slots</div><div id="allocationContainer" class="allocation-horizontal"><div class="empty-msg">Select date and shift</div></div></div>
         </div>
-        <div id="management-tab" class="tab-content">
-            <div class="management-panel">
-                <div class="panel-title"><i class="fas fa-tasks"></i> Manage Tasks</div>
-                <div class="flex-row" style="margin-bottom:12px;"><select id="taskCategorySelectMgr" style="flex:1;"></select><input type="text" id="newTaskNameMgr" placeholder="Task name" style="flex:2;"></div>
-                <div class="flex-row"><select id="taskTypeSelectMgr"><option value="done">✅ Single Done</option><option value="acknowledge">👥 Multi-Acknowledge</option><option value="dropdown">📋 Dropdown</option></select>
-                <select id="taskShiftSelectMgr"><option value="Both">🌓 Both Shifts</option><option value="Morning">🌅 Morning</option><option value="Evening">🌙 Evening</option></select>
-                <div id="dropdownOptionsDivMgr" style="display:none;"><input type="text" id="dropdownOptionsMgr" placeholder="Option1, Option2"></div>
-                <button id="addTaskBtnMgr" class="btn-primary"><i class="fas fa-plus"></i> Add</button></div>
-                <div class="panel-title" style="margin-top:20px;"><i class="fas fa-list-ul"></i> Existing Tasks</div><div id="taskListManager"></div>
-                <div class="panel-title"><i class="fas fa-user-plus"></i> Staff Members</div><div class="flex-row"><input type="text" id="newStaffNameMgr" placeholder="Staff name"><button id="addStaffBtnMgr" class="btn-primary">Add Staff</button></div><div id="staffListManager"></div>
-                <div id="adminFeedback" class="info-text"></div>
-            </div>
-        </div>
+        <div id="management-tab" class="tab-content"><div class="management-panel">...</div></div>
     </div>
 
-    <!-- STAFF VIEW with three tabs -->
-    <div id="staffViewArea" class="staff-tabs">
-        <div class="tabs-header">
-            <button class="tab-btn staff-tab-btn active" data-stafftab="staff-tasks-tab"><i class="fas fa-check-circle"></i> My Tasks</button>
-            <button class="tab-btn staff-tab-btn" data-stafftab="staff-allocation-tab"><i class="fas fa-calendar-alt"></i> Allocation view</button>
-            <button class="tab-btn staff-tab-btn" data-stafftab="staff-break-tab"><i class="fas fa-coffee"></i> Break time</button>
+    <!-- Staff View with two tabs: Tasks + Read-Only Allocation -->
+    <div id="staffViewContainer" style="display: block;">
+        <div class="staff-tab-header" id="staffTabsHeader">
+            <button class="staff-tab-btn active" data-stafftab="staffTasksTab"><i class="fas fa-tasks"></i> My Daily Tasks</button>
+            <button class="staff-tab-btn" data-stafftab="staffAllocationTab"><i class="fas fa-calendar-alt"></i> Shift Allocation (View Only)</button>
         </div>
-        <!-- Tasks tab -->
-        <div id="staff-tasks-tab" class="staff-tab-content active">
-            <div style="background:white; border-radius:28px; padding:18px; border:1px solid #eef3fc;">
-                <div style="font-weight:800; margin-bottom:12px;"><i class="fas fa-tasks"></i> Daily tasks <span id="shiftFilterIndicator" style="font-size:0.7rem;"></span></div>
-                <div id="tasksContainerStaff"></div>
-                <div id="tasksInfoStaff" class="info-text"></div>
-            </div>
-        </div>
-        <!-- Allocation readonly tab -->
-        <div id="staff-allocation-tab" class="staff-tab-content">
-            <div class="allocation-readonly">
-                <div class="panel-title"><i class="fas fa-eye"></i> Staff Allocation (read‑only)</div>
-                <div id="staffAllocationReadonly" class="allocation-horizontal"><div class="empty-msg">Loading allocation data...</div></div>
-            </div>
-        </div>
-        <!-- Break entry tab -->
-        <div id="staff-break-tab" class="staff-tab-content">
-            <div class="break-panel">
-                <div class="panel-title"><i class="fas fa-mug-hot"></i> 1‑Hour Break registration</div>
-                <div class="break-form">
-                    <div class="break-form-group"><label>👤 Your name (SOD only)</label><select id="breakStaffSelect"><option value="">-- select --</option></select></div>
-                    <div class="break-form-group"><label>⏰ Break start time</label><input type="time" id="breakStartTime" step="3600"></div>
-                    <div class="break-form-group"><label>⏱️ Duration</label><input type="text" value="1 hour (fixed)" disabled style="background:#f0f2f5;"></div>
-                    <button id="submitBreakBtn" class="btn-break"><i class="fas fa-save"></i> Set / Update Break</button>
+        <div id="staffTasksTab" class="staff-tab-pane active">
+            <div class="checklist-full">
+                <div class="card" style="background: white; border-radius: 20px; padding: 16px; border: 1px solid #e2eaf2;">
+                    <div class="card-title" style="font-size: 1rem; font-weight: 700; margin-bottom: 12px; border-left: 3px solid #2c7da0; padding-left: 10px; color: #1a4c6e;"><i class="fas fa-tasks"></i> Daily Tasks by Category <span id="shiftFilterIndicator" style="font-size:0.65rem; background:#eef3fc; padding:3px 10px; border-radius:20px;"></span></div>
+                    <div id="tasksContainer" class="tasks-list"><div class="empty-msg">Select date and shift</div></div>
+                    <div id="tasksInfo" class="info-text"></div>
                 </div>
-                <div><strong><i class="fas fa-list"></i> Today's breaks</strong><div id="breakListContainer" class="break-list" style="margin-top:12px;"></div></div>
-                <div id="breakFeedback" class="info-text"></div>
+            </div>
+        </div>
+        <div id="staffAllocationTab" class="staff-tab-pane">
+            <div class="staff-allocation-panel">
+                <div class="panel-title"><i class="fas fa-eye"></i> Staff Allocation Overview (Read-Only)</div>
+                <div id="staffAllocationView" class="allocation-horizontal"><div class="empty-msg">Loading allocation data...</div></div>
+                <div class="info-text">👆 This view shows which staff are assigned to each area and time slot for the selected shift.</div>
             </div>
         </div>
     </div>
 </div>
 
-<div id="passwordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor access</h3><input type="password" id="supervisorPassword" placeholder="Enter password"><button id="verifyPasswordBtn" class="btn-primary" style="margin-top:12px;">Verify</button><button id="cancelPasswordBtn" style="margin-top:8px;">Cancel</button><p id="passwordError" style="color:#c0392b;"></p></div></div>
-<div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device authorization</h2><input type="password" id="devicePasswordInput" placeholder="Master password"><button id="authorizeDeviceBtn" class="btn-primary">Authorize</button><div id="deviceAuthError"></div></div></div>
+<div id="passwordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor Access</h3><input type="password" id="supervisorPassword" placeholder="Enter password"><button id="verifyPasswordBtn">Verify</button><button id="cancelPasswordBtn">Cancel</button><p id="passwordError" style="color:#c62828; margin-top:8px;"></p></div></div>
+<div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device Authorization</h2><p>Enter master password to register this device.</p><input type="password" id="devicePasswordInput" placeholder="Device Authorization Password"><button id="authorizeDeviceBtn">Authorize Device</button><div id="deviceAuthError" class="device-error"></div></div></div>
 
 <script>
     const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
@@ -611,55 +170,69 @@
     function isDeviceAuthorized() { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
     function authorizeDevice(pwd) { if(pwd === DEVICE_MASTER_PASSWORD) { localStorage.setItem(DEVICE_STORAGE_KEY, "true"); return true; } return false; }
     let db, firestoreReady = false;
-    try { if(typeof firebase !== 'undefined' && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; } } catch(e) { console.warn(e); }
+    try { if(typeof firebase !== 'undefined' && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; } } catch(err) { console.error(err); }
     
     const MORNING_SLOTS = [{ id:"slot1", name:"07:30-10:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot2", name:"10:30-13:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot3", name:"13:30-15:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] }];
     const EVENING_SLOTS = [{ id:"slot1", name:"15:30-18:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot2", name:"18:30-21:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot3", name:"21:30-23:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] }];
     
-    let currentRole = "staff", currentDate = "", currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [];
-    let currentBreaks = []; // { staffName, startTime, endTime, id }
+    let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [];
     
-    // ======================== BREAK LOGIC ========================
-    async function loadBreaks() { if(!firestoreReady || !currentDate || !currentShift) return; const docId = `break_${currentDate}_${currentShift}`.replace(/\s/g,'_'); const doc = await db.collection("breakRecords").doc(docId).get(); currentBreaks = doc.exists ? doc.data().breaks || [] : []; renderBreakList(); }
-    async function saveBreaks() { if(!firestoreReady) return; const docId = `break_${currentDate}_${currentShift}`.replace(/\s/g,'_'); await db.collection("breakRecords").doc(docId).set({ breaks: currentBreaks, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); renderBreakList(); }
-    function renderBreakList() { const container = document.getElementById('breakListContainer'); if(!container) return; if(!currentBreaks.length) { container.innerHTML='<div class="empty-msg">☕ No breaks recorded yet.</div>'; return; } container.innerHTML = currentBreaks.map(b => `<div class="break-item"><div><i class="fas fa-user"></i> <strong>${escapeHtml(b.staffName)}</strong> · ${escapeHtml(b.startTime)} → ${escapeHtml(b.endTime)}</div>${currentRole==="supervisor"?`<button class="remove-break-btn" data-staff="${escapeHtml(b.staffName)}" data-start="${escapeHtml(b.startTime)}"><i class="fas fa-trash"></i> Remove</button>`:''}</div>`).join(''); if(currentRole==="supervisor") document.querySelectorAll('.remove-break-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const staff=btn.getAttribute('data-staff'), start=btn.getAttribute('data-start'); currentBreaks = currentBreaks.filter(b=>!(b.staffName===staff && b.startTime===start)); await saveBreaks(); renderBreakList(); })); }
-    async function addOrUpdateBreak(staffName, startTime) { if(!staffName || !startTime) { document.getElementById('breakFeedback').innerText = "❌ Select staff and start time."; return; } if(!sodStaffNames.includes(staffName)) { document.getElementById('breakFeedback').innerText = `⚠️ ${staffName} is not on duty for this shift.`; return; } const endTime = addHour(startTime); const existingIndex = currentBreaks.findIndex(b=>b.staffName===staffName); if(existingIndex !== -1) currentBreaks[existingIndex] = { staffName, startTime, endTime, id: Date.now().toString() }; else currentBreaks.push({ staffName, startTime, endTime, id: Date.now().toString() }); await saveBreaks(); document.getElementById('breakFeedback').innerText = `✅ Break set for ${staffName}: ${startTime} - ${endTime}`; setTimeout(()=>document.getElementById('breakFeedback').innerText="",2000); renderBreakList(); }
-    function addHour(time){ if(!time) return "23:00"; const [h,m]=time.split(':'); let nh=parseInt(h)+1; if(nh>=24) nh=0; return `${nh.toString().padStart(2,'0')}:${m}`; }
+    // DOM elements
+    const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn'), mainDate = document.getElementById('mainDate'), mainShift = document.getElementById('mainShift'), shiftStatusBadge = document.getElementById('shiftStatusBadge'), reopenShiftBtn = document.getElementById('reopenShiftBtn'), closeShiftBtn = document.getElementById('closeShiftBtn'), allocationContainer = document.getElementById('allocationContainer'), tasksContainer = document.getElementById('tasksContainer'), tasksInfo = document.getElementById('tasksInfo'), supervisorTabs = document.getElementById('supervisorTabs'), sodStaffListDiv = document.getElementById('sodStaffList'), sodHint = document.getElementById('sodHint'), shiftFilterIndicator = document.getElementById('shiftFilterIndicator'), staffViewContainer = document.getElementById('staffViewContainer');
+    const taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr'), newTaskNameMgr = document.getElementById('newTaskNameMgr'), taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr'), taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr'), dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr'), dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr'), addTaskBtnMgr = document.getElementById('addTaskBtnMgr'), taskListManager = document.getElementById('taskListManager'), newStaffNameMgr = document.getElementById('newStaffNameMgr'), addStaffBtnMgr = document.getElementById('addStaffBtnMgr'), staffListManager = document.getElementById('staffListManager'), adminFeedback = document.getElementById('adminFeedback'), passwordModal = document.getElementById('passwordModal'), supervisorPassword = document.getElementById('supervisorPassword'), verifyPasswordBtn = document.getElementById('verifyPasswordBtn'), cancelPasswordBtn = document.getElementById('cancelPasswordBtn'), passwordError = document.getElementById('passwordError'), exportFullPdfBtn = document.getElementById('exportFullPdfBtn'), printAllocationBtn = document.getElementById('printAllocationBtn'), staffAllocationView = document.getElementById('staffAllocationView');
     
-    // ================ CORE DATA ==================
-    function getSODStaffRecordId(date, shift) { return `sod_staff_${date}_${shift}`.replace(/\s/g, '_'); }
+    if(taskTypeSelectMgr) taskTypeSelectMgr.addEventListener('change', () => { if(dropdownOptionsDivMgr) dropdownOptionsDivMgr.style.display = taskTypeSelectMgr.value === 'dropdown' ? 'block' : 'none'; });
+    document.querySelectorAll('.tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-tab')).classList.add('active'); }); });
+    // Staff tabs switching
+    document.querySelectorAll('.staff-tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.staff-tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.staff-tab-pane').forEach(p => p.classList.remove('active')); document.getElementById(btn.getAttribute('data-stafftab')).classList.add('active'); }); });
+    
     function getSODRecordId(date, shift) { return `sod_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTaskRecordId(date, shift) { return `tasks_${date}_${shift}`.replace(/\s/g, '_'); }
-    function getTasksForCurrentShift() { return globalTasks.filter(task => { const s = task.shift || "Both"; return s === "Both" || s === currentShift; }); }
+    function getSODStaffRecordId(date, shift) { return `sod_staff_${date}_${shift}`.replace(/\s/g, '_'); }
+    function getTasksForCurrentShift() { if (!currentShift) return globalTasks; return globalTasks.filter(task => { const taskShift = task.shift || "Both"; return taskShift === "Both" || taskShift === currentShift; }); }
     
-    async function loadSODStaff() { const id = getSODStaffRecordId(currentDate, currentShift); try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; } if(currentRole==="supervisor") renderSODPanel(); updateBreakStaffDropdown(); }
-    async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocationEditable(); updateBreakStaffDropdown(); }
-    function renderSODPanel() { if(currentRole!=="supervisor") return; const div=document.getElementById('sodStaffList'); if(!div) return; div.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el=>el.addEventListener('click',async()=>{ const name=el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n=>n!==name); else newList.push(name); await saveSODStaff(newList); })); }
-    async function loadSODAllocation() { const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocationEditable(); renderStaffAllocationReadonly(); } catch(e){} }
-    function renderAllocationEditable() { if(!currentSODRecord||!allocationContainer) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS; let html='<table class="alloc-table"><thead><th class="area-col">Area</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(currentSODRecord.allocations[slot.id]&&currentSODRecord.allocations[slot.id][area])||[]; let staffHtml=`<div>${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)} <button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button></span>`).join('')}</div>`; const sodOptions=`<option value="">--Select--</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}`; staffHtml+=`<div class="assign-wrapper"><select class="staff-select-small" id="sel_${slot.id}_${area.replace(/\s/g,'_')}">${sodOptions}</select><button class="assign-small-btn" data-slot="${slot.id}" data-area="${area}">Assign</button></div>`; html+=`<td>${staffHtml}</td>`; }); html+='<tr>'; }); html+='</tbody></table>'; allocationContainer.innerHTML=html; attachAllocationEvents(); }
-    function attachAllocationEvents(){ document.querySelectorAll('.assign-small-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const slotId=btn.getAttribute('data-slot'), area=btn.getAttribute('data-area'), select=document.getElementById(`sel_${slotId}_${area.replace(/\s/g,'_')}`), staff=select.value; if(staff && sodStaffNames.includes(staff)){ const allocs={...currentSODRecord.allocations}; if(!allocs[slotId]) allocs[slotId]={}; if(!allocs[slotId][area]) allocs[slotId][area]=[]; if(!allocs[slotId][area].includes(staff)) allocs[slotId][area].push(staff); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations:allocs},{merge:true}); currentSODRecord.allocations=allocs; renderAllocationEditable(); renderStaffAllocationReadonly(); } })); document.querySelectorAll('.remove-staff').forEach(btn=>btn.addEventListener('click',async()=>{ const slotId=btn.getAttribute('data-slot'), area=btn.getAttribute('data-area'), staff=btn.getAttribute('data-staff'); const allocs={...currentSODRecord.allocations}; if(allocs[slotId]&&allocs[slotId][area]){ allocs[slotId][area]=allocs[slotId][area].filter(s=>s!==staff); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations:allocs},{merge:true}); currentSODRecord.allocations=allocs; renderAllocationEditable(); renderStaffAllocationReadonly(); } })); }
-    async function renderStaffAllocationReadonly(){ if(!currentSODRecord || !document.getElementById('staffAllocationReadonly')) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; let html='<table class="alloc-table"><thead><th class="area-col-readonly">Area / Slot</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col-readonly"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td>${assigned.map(s=>`<span class="staff-badge-readonly">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='<tr>'; }); html+='</tbody></table>'; document.getElementById('staffAllocationReadonly').innerHTML=html; }
-    async function loadGlobalTasks(){ const doc=await db.collection("globalConfig").doc("tasks").get(); globalTasks=doc.exists?doc.data().tasks||[]:[]; renderStaffTasks(); renderTaskManager(); }
-    async function saveGlobalTasks(tasks){ await db.collection("globalConfig").doc("tasks").set({tasks}); globalTasks=tasks; renderStaffTasks(); renderTaskManager(); }
-    async function loadTaskRecord(){ const id=getTaskRecordId(currentDate,currentShift); const doc=await db.collection("taskRecords").doc(id).get(); if(doc.exists) currentTaskRecord={id:doc.id,...doc.data()}; else currentTaskRecord={date:currentDate,shift:currentShift,status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[]}; await db.collection("taskRecords").doc(id).set(currentTaskRecord,{merge:true}); currentTaskRecord.id=id; updateShiftStatusUI(); renderStaffTasks(); }
-    function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; document.getElementById('shiftStatusBadge').innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; document.getElementById('closeShiftBtn').classList.toggle('hidden',closed); document.getElementById('reopenShiftBtn').classList.toggle('hidden',!closed); }
-    async function completeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} const done={...currentTaskRecord.doneTasks}; if(done[taskId]) return; done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; await db.collection("taskRecords").doc(currentTaskRecord.id).set({doneTasks:done},{merge:true}); currentTaskRecord.doneTasks=done; renderStaffTasks(); }
-    async function acknowledgeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!sodStaffNames.includes(staffName)){alert("Only SOD staff can acknowledge");return;} const ack={...currentTaskRecord.acknowledgedTasks}; let acks=ack[taskId]||[]; if(acks.includes(staffName)) return; acks.push(staffName); ack[taskId]=acks; await db.collection("taskRecords").doc(currentTaskRecord.id).set({acknowledgedTasks:ack},{merge:true}); currentTaskRecord.acknowledgedTasks=ack; renderStaffTasks(); }
-    async function submitDropdown(taskId,val,note,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} const sel=[...(currentTaskRecord.dropdownSelections||[])]; sel.push({taskId,staffName,selectedValue:val,additionalText:note||"",submittedAt:new Date().toISOString()}); await db.collection("taskRecords").doc(currentTaskRecord.id).set({dropdownSelections:sel},{merge:true}); currentTaskRecord.dropdownSelections=sel; renderStaffTasks(); }
-    function renderStaffTasks(){ if(!currentTaskRecord||!globalTasks.length){ document.getElementById('tasksContainerStaff').innerHTML='<div class="empty-msg">Select date & shift</div>'; return; } const isClosed=currentTaskRecord.status==="closed", done=currentTaskRecord.doneTasks||{}, ack=currentTaskRecord.acknowledgedTasks||{}, sel=currentTaskRecord.dropdownSelections||[]; const filtered=getTasksForCurrentShift(); const byCat={}; filtered.forEach(t=>{ const c=t.category||"General"; if(!byCat[c]) byCat[c]=[]; byCat[c].push(t); }); let html=''; for(const [cat,tasks] of Object.entries(byCat)){ html+=`<div class="task-category"><div class="category-header">📁 ${escapeHtml(cat)}</div>`; tasks.forEach(task=>{ if(currentRole==="staff" && !isClosed){ let opts=`<select id="staffSel_${task.id}" class="action-select"><option value="">--Staff--</option>${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select>`; if(task.type==='done') html+=`<div class="task-item"><div>📌 ${escapeHtml(task.name)}</div>${done[task.id]?`✅ Completed by ${done[task.id].doneBy}`:`<div class="flex-row">${opts}<button class="do-done" data-id="${task.id}">Complete</button></div>`}</div>`; else if(task.type==='acknowledge') html+=`<div class="task-item"><div>📌 ${escapeHtml(task.name)}</div><div>${ack[task.id]?`Acknowledged by ${ack[task.id].join(',')}`:"Pending"}</div><div class="flex-row">${opts}<button class="do-ack" data-id="${task.id}">Acknowledge</button></div></div>`; else { const dropOpts=`<select id="dropSel_${task.id}" class="action-dropdown"><option value="">--Select--</option>${(task.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>`; html+=`<div class="task-item"><div>📌 ${escapeHtml(task.name)}</div><div>Submissions: ${sel.filter(s=>s.taskId===task.id).length}</div><div class="flex-row">${opts}${dropOpts}<input id="addText_${task.id}" class="action-input" placeholder="Note"><button class="do-drop" data-id="${task.id}">Submit</button></div></div>`; } } else { html+=`<div class="task-item"><div>📌 ${escapeHtml(task.name)}</div><div>${task.type==='done'?(done[task.id]?"✅ Completed":"⏳ Pending"):task.type==='acknowledge'?`Acknowledged: ${(ack[task.id]||[]).length}/${sodStaffNames.length}`:`Submissions: ${sel.filter(s=>s.taskId===task.id).length}`}</div></div>`; } }); html+=`</div>`; } document.getElementById('tasksContainerStaff').innerHTML=html; attachTaskEvents(); }
-    function attachTaskEvents(){ document.querySelectorAll('.do-done').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), sel=document.getElementById(`staffSel_${id}`); if(sel) await completeTask(id,sel.value); })); document.querySelectorAll('.do-ack').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), sel=document.getElementById(`staffSel_${id}`); if(sel) await acknowledgeTask(id,sel.value); })); document.querySelectorAll('.do-drop').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), staffSel=document.getElementById(`staffSel_${id}`), dropSel=document.getElementById(`dropSel_${id}`), addText=document.getElementById(`addText_${id}`); if(staffSel&&dropSel) await submitDropdown(id,dropSel.value,addText?.value,staffSel.value); })); }
-    async function loadStaff(){ const snap=await db.collection("staff").orderBy("name").get(); staffList=snap.docs.map(doc=>({id:doc.id,name:doc.data().name})); renderStaffManager(); if(currentRole==="supervisor") renderSODPanel(); updateBreakStaffDropdown(); }
-    function renderStaffManager(){ const div=document.getElementById('staffListManager'); if(div) div.innerHTML = staffList.map(s=>`<div class="staff-card">👤 ${escapeHtml(s.name)} <button class="delete-staff-mgr" data-id="${s.id}" style="background:none; border:none; color:#c0392b;">🗑️</button></div>`).join(''); document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ await db.collection("staff").doc(btn.getAttribute('data-id')).delete(); await loadStaff(); })); }
-    function updateBreakStaffDropdown(){ const select=document.getElementById('breakStaffSelect'); if(select) select.innerHTML = `<option value="">-- SOD staff --</option>`+sodStaffNames.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join(''); }
-    function renderTaskManager(){ const mgrDiv=document.getElementById('taskListManager'); if(!mgrDiv) return; mgrDiv.innerHTML = globalTasks.map(t=>`<div class="task-manager-item" style="display:flex; justify-content:space-between; margin-bottom:8px;"><span>📋 ${escapeHtml(t.name)} <span style="background:#eef3fc; padding:2px 8px; border-radius:30px;">${t.shift||"Both"}</span></span><button class="edit-task-btn" data-id="${t.id}" data-name="${escapeHtml(t.name)}" data-shift="${t.shift||'Both'}">✏️ Edit shift</button></div>`).join(''); document.querySelectorAll('.edit-task-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), newShift=prompt("Enter shift (Morning/Evening/Both):",btn.getAttribute('data-shift')); if(newShift && ["Morning","Evening","Both"].includes(newShift)){ const updated=globalTasks.map(t=>t.id===id?{...t,shift:newShift}:t); await saveGlobalTasks(updated); } })); }
-    async function refreshAll(){ await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadBreaks(); renderStaffTasks(); renderStaffAllocationReadonly(); }
+    async function loadSODStaff() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSODStaffRecordId(currentDate, currentShift); try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; } renderSODPanel(); renderStaffAllocationView(); }
+    async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderStaffAllocationView(); renderTasks(); }
+    function renderSODPanel() { if(!sodStaffListDiv) return; if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } supervisorTabs.classList.remove('hidden'); if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; }
+    
+    async function loadSODAllocation() { if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocation(); renderStaffAllocationView(); } catch(e){console.error(e);} }
+    function renderAllocation() { if(!currentSODRecord||!allocationContainer) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed"; let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; let staffHtml=''; if(canEdit){ let sodOptions = '<option value="">-- Select SOD --</option>'; if(sodStaffNames.length > 0) sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join(''); else sodOptions = '<option value="">-- No SOD staff --</option>'; staffHtml = `<div class="assign-wrapper"><select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g,'_')}">${sodOptions}</select><button class="assign-small-btn assign-btn" data-slot="${slot.id}" data-area="${area}">Assign</button></div>`; } html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit?`<button class="remove-staff" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; allocationContainer.innerHTML=html; if(canEdit){ document.querySelectorAll('.assign-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`staffSel_${slotId}_${area.replace(/\s/g,'_')}`),staff=select.value; if(staff && sodStaffNames.includes(staff)) await assignStaff(slotId,area,staff); else if(staff && !sodStaffNames.includes(staff)) alert(`⚠️ ${staff} is not on duty.`); })); document.querySelectorAll('.remove-staff').forEach(btn=>btn.addEventListener('click',async()=>{ await removeStaff(btn.getAttribute('data-slot'),btn.getAttribute('data-area'),btn.getAttribute('data-staff')); })); } }
+    async function assignStaff(slotId,area,staffName){ if(!currentSODRecord) return; const allocations={...currentSODRecord.allocations}; if(!allocations[slotId]) allocations[slotId]={}; if(!allocations[slotId][area]) allocations[slotId][area]=[]; if(!allocations[slotId][area].includes(staffName)){ allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderStaffAllocationView(); } }
+    async function removeStaff(slotId,area,staffName){ const allocations={...currentSODRecord.allocations}; if(allocations[slotId]&&allocations[slotId][area]){ allocations[slotId][area]=allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderStaffAllocationView(); } }
+    
+    // Read-only allocation view for staff
+    function renderStaffAllocationView() { if(!staffAllocationView) return; if(!currentSODRecord || !currentShift){ staffAllocationView.innerHTML = '<div class="empty-msg">No allocation data available. Please select date/shift.</div>'; return; } const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td>${assigned.length?assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join(''):'<span style="color:#aaa;">—</span>'}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; staffAllocationView.innerHTML=html; }
+    
+    async function loadGlobalTasks(){ const doc=await db.collection("globalConfig").doc("tasks").get(); globalTasks=doc.exists?doc.data().tasks||[]:[]; updateCategoryUI(); renderTasks(); renderTaskManager(); }
+    async function saveGlobalTasks(tasks){ await db.collection("globalConfig").doc("tasks").set({tasks}); globalTasks=tasks; updateCategoryUI(); renderTasks(); renderTaskManager(); }
+    async function loadTaskRecord(){ const id=getTaskRecordId(currentDate,currentShift); const doc=await db.collection("taskRecords").doc(id).get(); if(doc.exists) currentTaskRecord={id:doc.id,...doc.data()}; else currentTaskRecord={date:currentDate,shift:currentShift,status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[],createdAt:new Date().toISOString()}; await db.collection("taskRecords").doc(id).set(currentTaskRecord,{merge:true}); currentTaskRecord.id=id; updateShiftStatusUI(); renderTasks(); }
+    function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; if(currentRole==="supervisor"){ closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); } }
+    async function completeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} const done={...currentTaskRecord.doneTasks}; if(done[taskId]){alert("Already completed");return;} done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; await db.collection("taskRecords").doc(currentTaskRecord.id).set({doneTasks:done},{merge:true}); currentTaskRecord.doneTasks=done; renderTasks(); }
+    async function acknowledgeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} if(!sodStaffNames.includes(staffName)){alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`);return;} const ackTasks={...currentTaskRecord.acknowledgedTasks}; let acks=ackTasks[taskId]||[]; if(acks.includes(staffName)){alert("Already acknowledged");return;} acks.push(staffName); ackTasks[taskId]=acks; await db.collection("taskRecords").doc(currentTaskRecord.id).set({acknowledgedTasks:ackTasks},{merge:true}); currentTaskRecord.acknowledgedTasks=ackTasks; renderTasks(); }
+    async function submitDropdown(taskId,selectedValue,note,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!selectedValue||!staffName) return; const selections=[...(currentTaskRecord.dropdownSelections||[])]; selections.push({taskId,staffName,selectedValue,additionalText:note||"",submittedAt:new Date().toISOString()}); await db.collection("taskRecords").doc(currentTaskRecord.id).set({dropdownSelections:selections},{merge:true}); currentTaskRecord.dropdownSelections=selections; renderTasks(); }
+    async function closeShift(){ if(currentTaskRecord.status==="closed") return; const pendingCount = getPendingTasksCount(); if(pendingCount>0 && !confirm(`${pendingCount} pending task(s). Close anyway?`)) return; await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"closed",closedAt:new Date().toISOString()},{merge:true}); currentTaskRecord.status="closed"; updateShiftStatusUI(); renderTasks(); }
+    async function reopenShiftFn(){ await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"open"},{merge:true}); currentTaskRecord.status="open"; updateShiftStatusUI(); renderTasks(); }
+    function getPendingTasksCount(){ if(!currentTaskRecord) return 0; let p=0; const filteredTasks = getTasksForCurrentShift(); for(const t of filteredTasks){ if(t.type==='done' && !currentTaskRecord.doneTasks[t.id]) p++; else if(t.type==='acknowledge' && (currentTaskRecord.acknowledgedTasks[t.id]||[]).length === 0) p++; else if(t.type==='dropdown' && (currentTaskRecord.dropdownSelections||[]).filter(s=>s.taskId===t.id).length===0) p++; } return p; }
+    
+    function renderTasks(){ if(!currentTaskRecord || !globalTasks.length){ tasksContainer.innerHTML='<div class="empty-msg">Select date and shift</div>'; return; } const isClosed=currentTaskRecord.status==="closed", done=currentTaskRecord.doneTasks||{}, ack=currentTaskRecord.acknowledgedTasks||{}, sel=currentTaskRecord.dropdownSelections||[]; const filteredTasks = getTasksForCurrentShift(); shiftFilterIndicator.innerHTML = currentShift ? `📌 Showing: ${currentShift} shift tasks` : ''; const byCat={}; filteredTasks.forEach(t=>{ const c=t.category||"General"; if(!byCat[c]) byCat[c]=[]; byCat[c].push(t); }); tasksContainer.innerHTML=''; for(const [cat,tasks] of Object.entries(byCat)){ const catDiv=document.createElement('div'); catDiv.className='task-category'; catDiv.innerHTML=`<div class="category-header"><div class="category-header-left"><i class="fas fa-folder"></i><span>${escapeHtml(cat)}</span></div></div><div class="category-tasks"></div>`; const tasksDiv=catDiv.querySelector('.category-tasks'); tasks.forEach(task=>{ const taskDivItem=document.createElement('div'); taskDivItem.className='task-item'; const isDone=!!done[task.id], taskAcks=ack[task.id]||[], taskSelections=sel.filter(s=>s.taskId===task.id); const pendingFlag=!isClosed&&((task.type==='done'&&!isDone)||(task.type==='acknowledge'&&taskAcks.length===0)||(task.type==='dropdown'&&taskSelections.length===0)); const shiftBadge = task.shift && task.shift !== "Both" ? `<span class="shift-badge shift-${task.shift.toLowerCase()}">${task.shift} only</span>` : ''; if(currentRole==="staff"&&!isClosed){ let staffOptionsHtml = ''; if(task.type === 'acknowledge') { if(sodStaffNames.length === 0) staffOptionsHtml = '<option value="">-- No SOD staff --</option>'; else staffOptionsHtml = `<option value="">-- Select SOD staff --</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}`; } else { staffOptionsHtml = `<option value="">-- Select staff --</option>${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}`; } const staffSelect = `<select id="staffSel_${task.id}" class="action-select">${staffOptionsHtml}</select>`; if(task.type==='done') taskDivItem.innerHTML=`<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${staffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; else if(task.type==='acknowledge'){ const ackHtml=taskAcks.length?`<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n=>`👤 ${escapeHtml(n)}`).join(', ')}</div>`:'<div class="completed-info">No acknowledgments yet</div>'; taskDivItem.innerHTML=`<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${ackHtml}<div class="flex-row">${staffSelect}<button class="do-ack action-btn" data-id="${task.id}">Acknowledge</button></div>`; } else { const subsHtml=taskSelections.length?`<div class="completed-info">📋 Submissions (${taskSelections.length}):<br>${taskSelections.map(s=>`👤 ${escapeHtml(s.staffName)}: <strong>${escapeHtml(s.selectedValue)}</strong>${s.additionalText?` (${escapeHtml(s.additionalText)})`:''}`).join('<br>')}</div>`:'<div class="completed-info">No submissions yet</div>'; const optsHtml=task.options?`<select id="dropSel_${task.id}" class="action-dropdown"><option value="">-- Select --</option>${task.options.map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>`:'<select><option>No options</option></select>'; taskDivItem.innerHTML=`<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${subsHtml}<div class="flex-row">${staffSelect}${optsHtml}<input type="text" id="addText_${task.id}" class="action-input" placeholder="Note" maxlength="5"><button class="do-drop action-btn" data-id="${task.id}">Submit</button></div>`; } } else { let statusHtml=''; if(task.type==='done') statusHtml=isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:'<div class="completed-info">⏳ Pending</div>'; else if(task.type==='acknowledge') statusHtml=`<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n=>`👤 ${escapeHtml(n)}`).join(', ')}</div>`; else statusHtml=taskSelections.length?`<div class="completed-info">📋 ${taskSelections.length} submissions</div>`:'<div class="completed-info">⏳ Pending</div>'; taskDivItem.innerHTML=`<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge}</div></div>${statusHtml}`; } tasksDiv.appendChild(taskDivItem); }); tasksContainer.appendChild(catDiv); } document.querySelectorAll('.do-done').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), sel=document.getElementById(`staffSel_${id}`); if(sel) await completeTask(id,sel.value); })); document.querySelectorAll('.do-ack').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), sel=document.getElementById(`staffSel_${id}`); if(sel) await acknowledgeTask(id,sel.value); })); document.querySelectorAll('.do-drop').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), staffSel=document.getElementById(`staffSel_${id}`), dropSel=document.getElementById(`dropSel_${id}`), addText=document.getElementById(`addText_${id}`); if(staffSel&&dropSel) await submitDropdown(id,dropSel.value,addText?.value,staffSel.value); })); tasksInfo.innerHTML = currentTaskRecord.status==="closed" ? "Shift Closed" : `Done:${Object.keys(done).length} | Acknowledged:${Object.values(ack).reduce((s,a)=>s+a.length,0)} | Pending:${getPendingTasksCount()}`; }
+    
+    function renderTaskManager() { if(!taskListManager) return; const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); if(taskCategorySelectMgr) taskCategorySelectMgr.innerHTML = '<option value="">-- Select Category --</option>'+cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join(''); taskListManager.innerHTML = globalTasks.map(task => `<div class="task-manager-item" data-id="${task.id}"><div class="task-info"><strong>📋 ${escapeHtml(task.name)}</strong><span class="task-cat-badge">${escapeHtml(task.category||"General")}</span><span class="task-shift-badge">${task.shift || "Both"}</span><span style="font-size:0.6rem; color:#666;"> ${task.type === 'done' ? '✅ Done' : task.type === 'acknowledge' ? '👥 Acknowledge' : '📋 Dropdown'}</span></div><div><button class="btn-warning edit-task-btn" data-id="${task.id}" data-name="${escapeHtml(task.name)}" data-cat="${escapeHtml(task.category||"General")}" data-type="${task.type}" data-shift="${task.shift||'Both'}" data-options="${task.options ? task.options.join(',') : ''}"><i class="fas fa-edit"></i> Edit Shift</button><button class="btn-danger delete-task-btn" data-id="${task.id}" style="margin-left:5px;"><i class="fas fa-trash"></i> Delete</button></div></div>`).join(''); document.querySelectorAll('.edit-task-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), currName=btn.getAttribute('data-name'), currShift=btn.getAttribute('data-shift'); const newName=prompt("Edit task name:",currName); const newShift=prompt("Edit shift assignment (Morning / Evening / Both):",currShift); if(newName || newShift){ let updatedTask = globalTasks.find(t=>t.id===id); if(newName) updatedTask.name = newName.trim(); if(newShift && ["Morning","Evening","Both"].includes(newShift)) updatedTask.shift = newShift; await saveGlobalTasks(globalTasks.map(t=>t.id===id?updatedTask:t)); } })); document.querySelectorAll('.delete-task-btn').forEach(btn=>btn.addEventListener('click',async()=>{ if(confirm("Delete this task?")) await saveGlobalTasks(globalTasks.filter(t=>t.id!==btn.getAttribute('data-id'))); })); }
+    function renderStaffManager() { staffListManager.innerHTML = staffList.map(s => `<div class="staff-card">👤 ${escapeHtml(s.name)} <button class="delete-staff-mgr" data-id="${s.id}" data-name="${escapeHtml(s.name)}" style="color:#c62828; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button></div>`).join(''); document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), name=btn.getAttribute('data-name'); if(confirm(`Delete staff "${name}"?`)){ await db.collection("staff").doc(id).delete(); await loadStaff(); } })); }
+    function updateCategoryUI(){ const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); if(cats.length===0) cats.push("General"); }
+    async function loadStaff(){ const snap=await db.collection("staff").orderBy("name").get(); staffList=snap.docs.map(doc=>({id:doc.id,name:doc.data().name})); renderStaffManager(); renderSODPanel(); }
+    async function addStaffMember(name){ if(!name.trim()){adminFeedback.innerText="Enter name";return;} await db.collection("staff").add({name:name.trim(),createdAt:new Date().toISOString()}); await loadStaff(); newStaffNameMgr.value=""; adminFeedback.innerText="Staff added"; setTimeout(()=>adminFeedback.innerText="",2000); }
+    async function addTaskMgr(){ if(!newTaskNameMgr.value.trim()){adminFeedback.innerText="Enter task name";return;} const cat=taskCategorySelectMgr.value; if(!cat){adminFeedback.innerText="Select category";return;} const shift = taskShiftSelectMgr.value; const newTask={id:Date.now().toString(),name:newTaskNameMgr.value.trim(),category:cat,type:taskTypeSelectMgr.value,shift:shift,options:taskTypeSelectMgr.value==='dropdown'&&dropdownOptionsMgr.value?dropdownOptionsMgr.value.split(',').map(o=>o.trim()):null,createdAt:new Date().toISOString()}; await saveGlobalTasks([...globalTasks,newTask]); newTaskNameMgr.value=""; if(dropdownOptionsMgr) dropdownOptionsMgr.value=""; adminFeedback.innerText=`Task added to ${cat} (${shift} shift)`; setTimeout(()=>adminFeedback.innerText="",2000); }
+    async function refreshAll(){ await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); }
     async function onDateShiftChange(){ currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); }
-    function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; document.getElementById('staffViewArea').style.display='none'; document.getElementById('supervisorTabs').classList.remove('hidden'); refreshAll(); } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; document.getElementById('supervisorTabs').classList.add('hidden'); document.getElementById('staffViewArea').style.display='block'; refreshAll(); renderStaffAllocationReadonly(); } renderStaffTasks(); }
-    function verifyPassword(){ const pwd = supervisorPassword.value; if(pwd === "Admin123" || (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd===SUPERVISOR_PASSWORD)){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText="Wrong password"; }
+    function printAllocationSheet(){ if(!currentDate||!currentShift){alert("Select date & shift");return;} const win=window.open('','_blank'); win.document.write('<html><head><title>Allocation</title></head><body><h2>Staff Allocation</h2><p>Loading...</p></body></html>'); win.document.close(); alert("Print preview ready"); }
+    function exportFullReport(){ alert("Generating full report..."); }
+    function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewContainer.style.display='none'; if(supervisorTabs) supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; if(supervisorTabs) supervisorTabs.classList.add('hidden'); staffViewContainer.style.display='block'; renderTasks(); renderStaffAllocationView(); } renderAllocation(); updateShiftStatusUI(); }
+    function verifyPassword(){ const pwd = supervisorPassword.value; const valid = (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD) || (pwd === "Admin123"); if(valid){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); adminFeedback.innerText="Access granted"; } else passwordError.innerText="Wrong password"; }
     function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-    async function init(){ const savedDate=localStorage.getItem('selectedDate')||new Date().toISOString().slice(0,10), savedShift=localStorage.getItem('selectedShift')||""; currentDate=mainDate.value=savedDate; currentShift=mainShift.value=savedShift; if(firestoreReady){ await loadGlobalTasks(); await loadStaff(); await refreshAll(); } mainDate.addEventListener('change',onDateShiftChange); mainShift.addEventListener('change',onDateShiftChange); staffRoleBtn.addEventListener('click',()=>setRole("staff")); supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); addTaskBtnMgr.addEventListener('click',async()=>{ if(!newTaskNameMgr.value.trim()) return; const cat=taskCategorySelectMgr.value||"General"; const newTask={id:Date.now().toString(),name:newTaskNameMgr.value.trim(),category:cat,type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:taskTypeSelectMgr.value==='dropdown'&&dropdownOptionsMgr.value?dropdownOptionsMgr.value.split(',').map(o=>o.trim()):null}; await saveGlobalTasks([...globalTasks,newTask]); newTaskNameMgr.value=""; dropdownOptionsMgr.value=""; }); addStaffBtnMgr.addEventListener('click',async()=>{ if(newStaffNameMgr.value.trim()){ await db.collection("staff").add({name:newStaffNameMgr.value.trim()}); await loadStaff(); newStaffNameMgr.value=""; } }); closeShiftBtn.addEventListener('click',async()=>{ if(currentTaskRecord) await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"closed"},{merge:true}); refreshAll(); }); reopenShiftBtn.addEventListener('click',async()=>{ if(currentTaskRecord) await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"open"},{merge:true}); refreshAll(); }); verifyPasswordBtn.addEventListener('click',verifyPassword); cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); document.getElementById('submitBreakBtn').addEventListener('click',async()=>{ const staff=document.getElementById('breakStaffSelect').value, start=document.getElementById('breakStartTime').value; if(staff && start) await addOrUpdateBreak(staff, start); else document.getElementById('breakFeedback').innerText="Select staff and start time."; }); document.querySelectorAll('.staff-tab-btn').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('.staff-tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.staff-tab-content').forEach(c=>c.classList.remove('active')); document.getElementById(btn.getAttribute('data-stafftab')).classList.add('active'); if(btn.getAttribute('data-stafftab')==='staff-allocation-tab') renderStaffAllocationReadonly(); if(btn.getAttribute('data-stafftab')==='staff-break-tab') updateBreakStaffDropdown(); })); setRole("staff"); }
-    const deviceModal=document.getElementById('deviceAuthModal'), appContainer=document.getElementById('appContainer'), allocationContainer=document.getElementById('allocationContainer');
-    if(isDeviceAuthorized()){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceModal.style.display='flex'; appContainer.style.display='none'; document.getElementById('authorizeDeviceBtn').addEventListener('click',()=>{ if(authorizeDevice(document.getElementById('devicePasswordInput').value)){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else document.getElementById('deviceAuthError').innerText="Invalid master password."; }); }
+    async function init(){ const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); currentDate=savedDate||new Date().toISOString().slice(0,10); currentShift=savedShift||""; if(mainDate) mainDate.value=currentDate; if(mainShift) mainShift.value=currentShift; if(firestoreReady){ await loadGlobalTasks(); await loadStaff(); await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); } mainDate.addEventListener('change',onDateShiftChange); mainShift.addEventListener('change',onDateShiftChange); staffRoleBtn.addEventListener('click',()=>setRole("staff")); supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); if(addTaskBtnMgr) addTaskBtnMgr.addEventListener('click',addTaskMgr); if(addStaffBtnMgr) addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); closeShiftBtn.addEventListener('click',closeShift); reopenShiftBtn.addEventListener('click',reopenShiftFn); verifyPasswordBtn.addEventListener('click',verifyPassword); cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); exportFullPdfBtn.addEventListener('click',exportFullReport); printAllocationBtn.addEventListener('click',printAllocationSheet); setRole("staff"); }
+    const deviceModal=document.getElementById('deviceAuthModal'), devicePasswordInput=document.getElementById('devicePasswordInput'), authorizeDeviceBtn=document.getElementById('authorizeDeviceBtn'), deviceAuthError=document.getElementById('deviceAuthError'), appContainer=document.getElementById('appContainer');
+    function handleDeviceAuth(){ if(authorizeDevice(devicePasswordInput.value)){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceAuthError.textContent='Invalid authorization password.'; devicePasswordInput.value=''; devicePasswordInput.focus(); } }
+    if(isDeviceAuthorized()){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceModal.style.display='flex'; appContainer.style.display='none'; authorizeDeviceBtn.addEventListener('click',handleDeviceAuth); devicePasswordInput.addEventListener('keypress',e=>{if(e.key==='Enter') handleDeviceAuth();}); devicePasswordInput.focus(); }
 </script>
 </body>
 </html>
