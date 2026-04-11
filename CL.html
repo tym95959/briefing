@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge Daily Check List | Staff Dashboard</title>
+    <title>Koveli Lounge Daily Check List | Staff Break System</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -110,6 +110,8 @@
         .assign-small-btn { background: #4caf50; color: white; border: none; padding: 4px 10px; border-radius: 20px; cursor: pointer; font-size: 0.65rem; font-weight: 600; }
         .remove-staff { background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.7rem; margin-left: 4px; }
         
+        .break-request-item { background: #f8fbfe; border-radius: 12px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        
         .password-modal, .device-auth-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .password-box, .device-auth-card { background: white; padding: 24px; border-radius: 28px; width: 300px; text-align: center; }
         .device-auth-card { width: 380px; }
@@ -127,7 +129,7 @@
 </head>
 <body>
 <div class="container" id="appContainer" style="display: none;">
-    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Staff Dashboard | Shift Allocation | Break Request</p></div>
+    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Staff Dashboard | 1-Hour Break Request System</p></div>
     <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
     <div class="date-bar">
         <div class="date-selector"><input type="date" id="mainDate" value=""><select id="mainShift"><option value="">Select Shift</option><option value="Morning">🌅 Morning (07:30-15:30)</option><option value="Evening">🌙 Evening (15:30-23:30)</option></select></div>
@@ -141,7 +143,7 @@
             <div class="tabs-header">
                 <button class="tab-btn active" data-staff-tab="tasks-staff-tab"><i class="fas fa-tasks"></i> Daily Tasks</button>
                 <button class="tab-btn" data-staff-tab="allocation-staff-tab"><i class="fas fa-map-marker-alt"></i> Staff Allocation</button>
-                <button class="tab-btn" data-staff-tab="break-staff-tab"><i class="fas fa-coffee"></i> Break Request</button>
+                <button class="tab-btn" data-staff-tab="break-staff-tab"><i class="fas fa-coffee"></i> Break Request (1 Hour)</button>
             </div>
             <div id="tasks-staff-tab" class="staff-tab-content active">
                 <div class="task-card">
@@ -208,7 +210,7 @@
         
         <div id="break-approve-tab" class="tab-content">
             <div class="allocation-panel">
-                <div class="panel-title"><i class="fas fa-coffee"></i> Break Requests - Approve or Reject</div>
+                <div class="panel-title"><i class="fas fa-coffee"></i> Break Requests - Approve or Reject (1 hour each)</div>
                 <div id="breakRequestsList" class="break-requests-list"><div class="empty-msg">Loading...</div></div>
             </div>
         </div>
@@ -259,12 +261,90 @@
     
     function renderFullAllocation() { if(!fullAllocationContainer) return; if(!currentSODRecord){ fullAllocationContainer.innerHTML='<div class="empty-msg">No allocation data. Select shift first.</div>'; return; } const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; fullAllocationContainer.innerHTML=html; }
     
-    // Break Request Functions
-    async function requestBreak(timeSlot) { if(!selectedStaffName){ alert("Please select your name from SOD list"); return; } if(!currentDate||!currentShift){ alert("Please select date and shift first"); return; } const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; const existingApproved=breaks.find(b=>b.staffName===selectedStaffName && b.status==='approved'); if(existingApproved){ alert("You already have an approved break for today"); return; } const pendingExists=breaks.find(b=>b.staffName===selectedStaffName && b.status==='pending'); if(pendingExists){ alert("You already have a pending break request"); return; } breaks.push({staffName:selectedStaffName, timeSlot:timeSlot, requestedAt:new Date().toISOString(), status:'pending'}); await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); renderBreakUI(); if(currentRole==="supervisor") loadBreakRequests(); alert("Break request sent to supervisor"); }
-    async function renderBreakUI() { if(!breakRequestContainer) return; if(!currentDate||!currentShift){ breakRequestContainer.innerHTML='<div class="empty-msg">Select date and shift first</div>'; return; } const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; const myBreak=breaks.find(b=>b.staffName===selectedStaffName); const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS; let breakHtml=`<div class="break-request-box"><div class="info-text">Select your name from SOD below, then choose a 1-hour time slot</div><select id="staffSelectBreak" class="sod-select"><option value="">-- Select Your Name --</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}" ${selectedStaffName===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select><div class="time-slots">`; slots.forEach(slot=>{ const disabled = myBreak && myBreak.status!=='rejected' ? true : false; breakHtml+=`<button class="time-slot-btn" onclick="requestBreak('${slot.name}')" ${disabled?'disabled':''}>${slot.name}</button>`; }); breakHtml+=`</div>`; if(myBreak){ let statusClass = myBreak.status==='pending'?'status-pending':myBreak.status==='approved'?'status-approved':'status-rejected'; let statusText=myBreak.status==='pending'?'⏳ Pending Approval':myBreak.status==='approved'?`✅ Approved for ${myBreak.timeSlot}`:`❌ Rejected`; breakHtml+=`<div class="break-status ${statusClass}"><i class="fas fa-info-circle"></i> ${statusText}</div>`; } breakHtml+=`</div>`; breakRequestContainer.innerHTML=breakHtml; document.getElementById('staffSelectBreak')?.addEventListener('change',(e)=>{ selectedStaffName=e.target.value; renderBreakUI(); }); } window.requestBreak=requestBreak;
+    // Break Request Functions - Each staff gets ONE 1-hour break
+    async function requestBreak(timeSlot) { 
+        if(!selectedStaffName){ alert("Please select your name from SOD list"); return; } 
+        if(!currentDate||!currentShift){ alert("Please select date and shift first"); return; } 
+        const id=getBreakRecordId(currentDate,currentShift); 
+        const doc=await db.collection("breakRecords").doc(id).get(); 
+        let breaks=doc.exists?doc.data().breaks||[]:[]; 
+        
+        // Check if staff already has an approved break
+        const existingApproved=breaks.find(b=>b.staffName===selectedStaffName && b.status==='approved'); 
+        if(existingApproved){ alert("You already have an approved break for today (1 hour only)"); return; } 
+        
+        // Check if staff has pending request
+        const pendingExists=breaks.find(b=>b.staffName===selectedStaffName && b.status==='pending'); 
+        if(pendingExists){ alert("You already have a pending break request"); return; } 
+        
+        breaks.push({staffName:selectedStaffName, timeSlot:timeSlot, requestedAt:new Date().toISOString(), status:'pending'}); 
+        await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); 
+        renderBreakUI(); 
+        if(currentRole==="supervisor") loadBreakRequests(); 
+        alert("Break request sent to supervisor for approval"); 
+    }
     
-    async function loadBreakRequests() { if(!breakRequestsList) return; const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; const pendingBreaks=breaks.filter(b=>b.status==='pending'); if(pendingBreaks.length===0){ breakRequestsList.innerHTML='<div class="empty-msg">No pending break requests</div>'; return; } breakRequestsList.innerHTML=pendingBreaks.map(b=>`<div class="break-request-item" style="background:#f8fbfe; border-radius:12px; padding:10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;"><span><strong>${escapeHtml(b.staffName)}</strong> requests break at ${b.timeSlot}</span><div><button class="btn-approve action-btn" style="background:#4caf50;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Approve</button><button class="btn-reject action-btn" style="background:#f44336; margin-left:5px;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Reject</button></div></div>`).join(''); document.querySelectorAll('.btn-approve').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'approved'); })); document.querySelectorAll('.btn-reject').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'rejected'); })); }
-    async function updateBreakStatus(staffName,timeSlot,status){ const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; breaks=breaks.map(b=>{ if(b.staffName===staffName && b.timeSlot===timeSlot && b.status==='pending') b.status=status; return b; }); await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); loadBreakRequests(); renderBreakUI(); }
+    async function renderBreakUI() { 
+        if(!breakRequestContainer) return; 
+        if(!currentDate||!currentShift){ 
+            breakRequestContainer.innerHTML='<div class="empty-msg">Select date and shift first</div>'; 
+            return; 
+        } 
+        const id=getBreakRecordId(currentDate,currentShift); 
+        const doc=await db.collection("breakRecords").doc(id).get(); 
+        let breaks=doc.exists?doc.data().breaks||[]:[]; 
+        const myBreak=breaks.find(b=>b.staffName===selectedStaffName); 
+        const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS; 
+        let breakHtml=`<div class="break-request-box"><div class="info-text">Select your name from SOD below, then choose a 1-hour time slot for your break</div>
+            <select id="staffSelectBreak" class="sod-select"><option value="">-- Select Your Name --</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}" ${selectedStaffName===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select>
+            <div class="time-slots">`; 
+        slots.forEach(slot=>{ 
+            const disabled = myBreak && myBreak.status!=='rejected' ? true : false; 
+            breakHtml+=`<button class="time-slot-btn" onclick="requestBreak('${slot.name}')" ${disabled?'disabled':''}>${slot.name}</button>`; 
+        }); 
+        breakHtml+=`</div>`; 
+        if(myBreak){ 
+            let statusClass = myBreak.status==='pending'?'status-pending':myBreak.status==='approved'?'status-approved':'status-rejected'; 
+            let statusText=myBreak.status==='pending'?'⏳ Pending Approval (1 hour break)':myBreak.status==='approved'?`✅ Approved for ${myBreak.timeSlot} (1 hour)`:`❌ Rejected`; 
+            breakHtml+=`<div class="break-status ${statusClass}"><i class="fas fa-info-circle"></i> ${statusText}</div>`; 
+        } 
+        breakHtml+=`</div>`; 
+        breakRequestContainer.innerHTML=breakHtml; 
+        document.getElementById('staffSelectBreak')?.addEventListener('change',(e)=>{ 
+            selectedStaffName=e.target.value; 
+            renderBreakUI(); 
+        }); 
+    } 
+    window.requestBreak=requestBreak;
+    
+    async function loadBreakRequests() { 
+        if(!breakRequestsList) return; 
+        const id=getBreakRecordId(currentDate,currentShift); 
+        const doc=await db.collection("breakRecords").doc(id).get(); 
+        let breaks=doc.exists?doc.data().breaks||[]:[]; 
+        const pendingBreaks=breaks.filter(b=>b.status==='pending'); 
+        if(pendingBreaks.length===0){ 
+            breakRequestsList.innerHTML='<div class="empty-msg">No pending break requests</div>'; 
+            return; 
+        } 
+        breakRequestsList.innerHTML=pendingBreaks.map(b=>`<div class="break-request-item"><span><strong>${escapeHtml(b.staffName)}</strong> requests 1-hour break at ${b.timeSlot}</span><div><button class="btn-approve action-btn" style="background:#4caf50;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Approve</button><button class="btn-reject action-btn" style="background:#f44336; margin-left:5px;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Reject</button></div></div>`).join(''); 
+        document.querySelectorAll('.btn-approve').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'approved'); })); 
+        document.querySelectorAll('.btn-reject').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'rejected'); })); 
+    }
+    
+    async function updateBreakStatus(staffName,timeSlot,status){ 
+        const id=getBreakRecordId(currentDate,currentShift); 
+        const doc=await db.collection("breakRecords").doc(id).get(); 
+        let breaks=doc.exists?doc.data().breaks||[]:[]; 
+        breaks=breaks.map(b=>{ 
+            if(b.staffName===staffName && b.timeSlot===timeSlot && b.status==='pending') b.status=status; 
+            return b; 
+        }); 
+        await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); 
+        loadBreakRequests(); 
+        renderBreakUI(); 
+        alert(`${status === 'approved' ? 'Approved' : 'Rejected'} break for ${staffName}`);
+    }
     
     async function loadGlobalTasks(){ const doc=await db.collection("globalConfig").doc("tasks").get(); globalTasks=doc.exists?doc.data().tasks||[]:[]; updateCategoryUI(); renderTasks(); renderTaskManager(); }
     async function saveGlobalTasks(tasks){ await db.collection("globalConfig").doc("tasks").set({tasks}); globalTasks=tasks; updateCategoryUI(); renderTasks(); renderTaskManager(); }
