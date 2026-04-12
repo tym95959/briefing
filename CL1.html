@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge Daily Check List | Complete System</title>
+    <title>Koveli Lounge Daily Check List | Supervisor Selection</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -165,7 +165,7 @@
 </head>
 <body>
 <div class="container" id="appContainer" style="display: none;">
-    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Attendance | Break System | Allocation</p></div>
+    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Supervisor Selection | Break System | Allocation</p></div>
     <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
     <div class="date-bar">
         <div class="date-selector"><input type="date" id="mainDate" value=""><select id="mainShift"><option value="">Select Shift</option><option value="Morning">🌅 Morning (07:30-15:30)</option><option value="Evening">🌙 Evening (15:30-23:30)</option></select></div>
@@ -251,7 +251,7 @@
             else { supervisorsDisplay.innerHTML = `<span style="font-weight:600; margin-right:8px;"><i class="fas fa-user-tie"></i> Today's Supervisors:</span> ${supervisorList.map(s => `<span class="supervisor-badge">${escapeHtml(s)}</span>`).join('')}`; } 
             return; 
         } 
-        let html = `<span style="font-weight:600; margin-right:8px;"><i class="fas fa-user-tie"></i> Today's Supervisors:</span><select id="supervisorSelect" class="supervisor-select"><option value="">-- Select Supervisor --</option>${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select><button id="addSupervisorBtn" class="add-supervisor-btn">Add</button><div style="display:inline-flex; flex-wrap:wrap; gap:8px; margin-left:10px;">${supervisorList.map(s => `<span class="supervisor-badge">${escapeHtml(s)} <button class="remove-supervisor" data-name="${escapeHtml(s)}" style="background:none; border:none; color:white; cursor:pointer; margin-left:5px;">✖</button></span>`).join('')}</div>`; 
+        let html = `<span style="font-weight:600; margin-right:8px;"><i class="fas fa-user-tie"></i> Today's Supervisors (from SOD):</span><select id="supervisorSelect" class="supervisor-select"><option value="">-- Select Supervisor --</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}</select><button id="addSupervisorBtn" class="add-supervisor-btn">Add</button><div style="display:inline-flex; flex-wrap:wrap; gap:8px; margin-left:10px;">${supervisorList.map(s => `<span class="supervisor-badge">${escapeHtml(s)} <button class="remove-supervisor" data-name="${escapeHtml(s)}" style="background:none; border:none; color:white; cursor:pointer; margin-left:5px;">✖</button></span>`).join('')}</div>`; 
         supervisorsDisplay.innerHTML = html; 
         document.getElementById('addSupervisorBtn')?.addEventListener('click', async()=>{ const select = document.getElementById('supervisorSelect'); const name = select.value; if(name && !supervisorList.includes(name)){ const newList = [...supervisorList, name]; await saveSupervisors(newList); } }); 
         document.querySelectorAll('.remove-supervisor').forEach(btn=>{ btn.addEventListener('click', async()=>{ const name = btn.getAttribute('data-name'); const newList = supervisorList.filter(s=>s!==name); await saveSupervisors(newList); }); }); 
@@ -330,7 +330,7 @@
     }
     
     async function loadSODStaff() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSODStaffRecordId(currentDate, currentShift); try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; } renderSODPanel(); renderBreakUI(); }
-    async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); }
+    async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); renderSupervisorsDisplay(); }
     function renderSODPanel() { if(!sodStaffListDiv) return; if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } supervisorTabs.classList.remove('hidden'); if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; }
     
     async function loadSODAllocation() { if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocation(); renderFullAllocation(); } catch(e){console.error(e);} }
@@ -344,7 +344,7 @@
         const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; 
         let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; 
         const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
-        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='<tr>'; }); html+='</tbody><table>'; 
+        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='<tr>'; }); html+='</tbody></table>'; 
         fullAllocationContainer.innerHTML=html; 
         loadSupervisors();
     }
@@ -397,12 +397,57 @@
     async function refreshAll(){ await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); renderBreakUI(); if(currentRole==="supervisor") loadBreakRequests(); renderFullAllocation(); }
     async function onDateShiftChange(){ if(currentRole!=="supervisor"){ renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } else { currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); } }
     
-    function generatePDFReport() { if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } const reportWindow = window.open('', '_blank'); const reportDate = new Date().toLocaleString(); const refNo = "REF D15D-CKL/2025/29"; let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Daily Checklist Report</title><style>body{font-family:Arial,sans-serif;padding:20px;margin:0;}h1{color:#1d6f8f;text-align:center;margin-bottom:5px;}hr{border:1px solid #1d6f8f;margin:15px 0;}.ref-no{text-align:center;font-size:12px;color:#666;margin-bottom:15px;}.info-line{font-size:12px;margin:5px 0;}.section-title{font-size:14px;font-weight:bold;margin:15px 0 10px 0;padding-bottom:5px;border-bottom:1px solid #ccc;}table{border-collapse:collapse;width:100%;margin-bottom:15px;}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:11px;}th{background-color:#eef3fc;}.status-present{color:#2e7d32;}.status-absent{color:#c62828;}.status-sl{color:#ff9800;}.status-frl{color:#1565c0;}</style></head><body><h1>Koveli Lounge Daily Checklist</h1><div class="ref-no">${refNo}</div><hr><div class="info-line"><strong>Date:</strong> ${currentDate}</div><div class="info-line"><strong>Shift:</strong> ${currentShift}</div><div class="info-line"><strong>Generated on:</strong> ${reportDate}</div><div class="info-line"><strong>Shift Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'}</div><div class="info-line"><strong>Supervisors on Duty:</strong> ${supervisorList.length > 0 ? supervisorList.join(', ') : 'None'}</div><hr>`; 
-    if(currentSODRecord){ htmlContent+=`<div class="section-title">Staff Allocation</div><tr><thead><th>Area / Time</th>${(currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS).map(s=>`<th>${s.name}</th>`).join('')}</thead><tbody>`; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; const allocations=currentSODRecord.allocations||{}; areas.forEach(area=>{ htmlContent+=`<tr><td><strong>${area}</strong></td>`; (currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS).forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; htmlContent+=`<td>${assigned.join(', ') || '—'}</td>`; }); htmlContent+=`</tr>`; }); htmlContent+=`</tbody></table>`; }
-    htmlContent+=`<div class="section-title">Tasks Summary</div><table><thead><th>Task</th><th>Status</th></thead><tbody>`; const doneTasks=currentTaskRecord?.doneTasks||{}; const ackTasks=currentTaskRecord?.acknowledgedTasks||{}; const sel=currentTaskRecord?.dropdownSelections||[]; for(const task of globalTasks){ let status=''; if(task.type==='done') status=doneTasks[task.id]?`✅ Completed by ${doneTasks[task.id].doneBy}`:'⏳ Pending'; else if(task.type==='acknowledge'){ const acks=ackTasks[task.id]||[]; status=acks.length?`✅ Acknowledged (${acks.length}): ${acks.join(', ')}`:'⏳ Pending'; } else{ const subs=sel.filter(s=>s.taskId===task.id); status=subs.length?`📋 ${subs.length} submissions`:'⏳ Pending'; } htmlContent+=`<tr><td>${escapeHtml(task.name)}</td><td>${status}</td>`; } htmlContent+=`</tbody></table>`;
-    if(attendanceRecords.length>0){ htmlContent+=`<div class="section-title">Attendance Records (${currentShift} Shift)</div><table><thead><th>Staff Name</th><th>Status</th><th>Reason</th><th>Reported Time</th></thead><tbody>`; attendanceRecords.filter(r=>r.shift===currentShift).forEach(r=>{ let statusClass = r.status==='Present'?'status-present':r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; htmlContent+=`<tr><td>${escapeHtml(r.staffName)}</td><td class="${statusClass}">${r.status}</td><td>${r.reason?escapeHtml(r.reason):'—'}</td><td>${r.reportDateTime?new Date(r.reportDateTime).toLocaleString():'—'}</td>`; }); htmlContent+=`</tbody></table>`; }
-    htmlContent+=`<hr><div style="text-align:center; font-size:10px; color:#999; margin-top:20px;">This is a system-generated report. For any discrepancies, please contact the supervisor.</div></body></html>`;
-    reportWindow.document.write(htmlContent); reportWindow.document.close(); setTimeout(()=>reportWindow.print(), 500); }
+    function generatePDFReport() { 
+        if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } 
+        const reportWindow = window.open('', '_blank'); 
+        const reportDate = new Date().toLocaleString(); 
+        const refNo = "REF D15D-CKL/2025/29"; 
+        let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Daily Checklist Report</title><style>body{font-family:Arial,sans-serif;padding:20px;margin:0;}h1{color:#1d6f8f;text-align:center;margin-bottom:5px;}hr{border:1px solid #1d6f8f;margin:15px 0;}.ref-no{text-align:center;font-size:12px;color:#666;margin-bottom:15px;}.info-line{font-size:12px;margin:5px 0;}.section-title{font-size:14px;font-weight:bold;margin:15px 0 10px 0;padding-bottom:5px;border-bottom:1px solid #ccc;}.allocation-table{border-collapse:collapse;width:100%;margin-bottom:15px;}.allocation-table th,.allocation-table td{border:1px solid #ddd;padding:8px;text-align:center;font-size:11px;}.allocation-table th{background-color:#eef3fc;}.area-col{text-align:left;background:#f8fbfe;}.staff-list-cell{text-align:left;}.staff-name-badge-report{display:inline-block;background:#eef2fa;padding:2px 6px;border-radius:12px;margin:2px;font-size:10px;}table{border-collapse:collapse;width:100%;margin-bottom:15px;}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:11px;}th{background-color:#eef3fc;}.status-present{color:#2e7d32;}.status-absent{color:#c62828;}.status-sl{color:#ff9800;}.status-frl{color:#1565c0;}</style></head><body><h1>Koveli Lounge Daily Checklist</h1><div class="ref-no">${refNo}</div><hr><div class="info-line"><strong>Date:</strong> ${currentDate}</div><div class="info-line"><strong>Shift:</strong> ${currentShift}</div><div class="info-line"><strong>Generated on:</strong> ${reportDate}</div><div class="info-line"><strong>Shift Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'}</div><div class="info-line"><strong>Supervisors on Duty:</strong> ${supervisorList.length > 0 ? supervisorList.join(', ') : 'None'}</div><hr>`; 
+        if(currentSODRecord){ 
+            const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS;
+            const allocations=currentSODRecord.allocations||{}; 
+            const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
+            htmlContent+=`<div class="section-title">Staff Allocation</div><table class="allocation-table"><thead><th class="area-col">Area / Time</th>${slots.map(s=>`<th>${s.name}</th>`).join('')}</thead><tbody>`; 
+            areas.forEach(area=>{ 
+                htmlContent+=`<tr><td class="area-col"><strong>${area}</strong></td>`; 
+                slots.forEach(slot=>{ 
+                    const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
+                    htmlContent+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge-report">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; 
+                }); 
+                htmlContent+=`</tr>`; 
+            }); 
+            htmlContent+=`</tbody></table>`; 
+        }
+        htmlContent+=`<div class="section-title">Tasks Summary</div><table><thead><th>Task</th><th>Status</th></thead><tbody>`; 
+        const doneTasks=currentTaskRecord?.doneTasks||{}; 
+        const ackTasks=currentTaskRecord?.acknowledgedTasks||{}; 
+        const sel=currentTaskRecord?.dropdownSelections||[]; 
+        for(const task of globalTasks){ 
+            let status=''; 
+            if(task.type==='done') status=doneTasks[task.id]?`✅ Completed by ${doneTasks[task.id].doneBy}`:'⏳ Pending'; 
+            else if(task.type==='acknowledge'){ 
+                const acks=ackTasks[task.id]||[]; 
+                status=acks.length?`✅ Acknowledged (${acks.length}): ${acks.join(', ')}`:'⏳ Pending'; 
+            } else{ 
+                const subs=sel.filter(s=>s.taskId===task.id); 
+                status=subs.length?`📋 ${subs.length} submissions`:'⏳ Pending'; 
+            } 
+            htmlContent+=`<tr><td>${escapeHtml(task.name)}</td><td>${status}</td></tr>`; 
+        } 
+        htmlContent+=`</tbody></table>`;
+        if(attendanceRecords.length>0){ 
+            htmlContent+=`<div class="section-title">Attendance Records (${currentShift} Shift)</div><table><thead><th>Staff Name</th><th>Status</th><th>Reason</th><th>Reported Time</th></thead><tbody>`; 
+            attendanceRecords.filter(r=>r.shift===currentShift).forEach(r=>{ 
+                let statusClass = r.status==='Present'?'status-present':r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; 
+                htmlContent+=`<tr><td>${escapeHtml(r.staffName)}</td><td class="${statusClass}">${r.status}</td><td>${r.reason?escapeHtml(r.reason):'—'}</td><td>${r.reportDateTime?new Date(r.reportDateTime).toLocaleString():'—'}</td></tr>`; 
+            }); 
+            htmlContent+=`</tbody></table>`; 
+        }
+        htmlContent+=`<hr><div style="text-align:center; font-size:10px; color:#999; margin-top:20px;">This is a system-generated report. For any discrepancies, please contact the supervisor.</div></body></html>`;
+        reportWindow.document.write(htmlContent); 
+        reportWindow.document.close(); 
+        setTimeout(()=>reportWindow.print(), 500); 
+    }
     
     function printAllocationSheet(){ generatePDFReport(); }
     function exportFullReport(){ generatePDFReport(); }
