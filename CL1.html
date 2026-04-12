@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge Daily Check List | Supervisor Selection</title>
+    <title>Koveli Lounge Daily Check List | Complete System</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -58,6 +58,7 @@
         .add-row-btn { background: linear-gradient(135deg, #4caf50, #43a047); color: white; border: none; padding: 4px 12px; border-radius: 25px; font-size: 0.65rem; cursor: pointer; margin: 5px 0; }
         .delete-row-btn { background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.9rem; margin-left: 5px; }
         .handover-msg-area { width: 100%; padding: 10px; border-radius: 16px; border: 1.5px solid #e2eaf2; font-size: 0.75rem; margin-top: 8px; }
+        .handover-save-btn { background: #1d6f8f; color: white; border: none; padding: 8px 16px; border-radius: 30px; font-weight: 600; font-size: 0.7rem; cursor: pointer; margin-top: 12px; }
         
         .break-request-box { background: #fff8e1; border-radius: 12px; padding: 12px; margin-top: 8px; }
         .time-slots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -170,12 +171,11 @@
         .info-text { font-size: 0.65rem; color: #7c9ab8; margin-top: 8px; text-align: center; }
         .empty-msg { text-align: center; padding: 30px 20px; color: #8aa9c4; font-size: 0.8rem; }
         .staff-list-manager, .task-list-manager { max-height: 300px; overflow-y: auto; }
-        @media (max-width: 1200px) { }
     </style>
 </head>
 <body>
 <div class="container" id="appContainer" style="display: none;">
-    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Supervisor Selection | Break System | Allocation | Handover Log</p></div>
+    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Supervisor | Break System | Allocation | Handover Log</p></div>
     <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
     <div class="date-bar">
         <div class="date-selector"><input type="date" id="mainDate" value=""><select id="mainShift"><option value="">Select Shift</option><option value="Morning">🌅 Morning (07:30-15:30)</option><option value="Evening">🌙 Evening (15:30-23:30)</option></select></div>
@@ -202,7 +202,7 @@
             </div>
             <div id="break-staff-tab" class="staff-tab-content"><div class="break-card"><div class="card-title"><i class="fas fa-coffee"></i> Break Time Request (1 hour per staff)</div><div id="breakRequestContainer"><div class="empty-msg">Select shift and choose your name from SOD list</div></div><div id="breakStatus" class="info-text"></div></div></div>
             <div id="absentees-tab" class="staff-tab-content"><div class="attendance-view-card"><div class="card-title"><i class="fas fa-calendar-times"></i> Today's Absentees & Leave Records</div><div id="staffAttendanceView"><div class="empty-msg">Select date and shift to view absentees</div></div></div></div>
-            <div id="handover-tab" class="staff-tab-content"><div class="handover-card"><div class="card-title"><i class="fas fa-exchange-alt"></i> Shift Handover Log (Updates in real-time, not included in reports)</div><div id="handoverContainer"></div><div class="info-text"><i class="fas fa-info-circle"></i> All changes saved automatically. This log is for internal shift handover only.</div></div></div>
+            <div id="handover-tab" class="staff-tab-content"><div class="handover-card"><div class="card-title"><i class="fas fa-exchange-alt"></i> Shift Handover Log (Real-time updates - NOT included in reports)</div><div id="handoverContainer"><div class="empty-msg">Select date and shift to load handover log</div></div><div class="info-text"><i class="fas fa-save"></i> All changes saved automatically. This log is for internal shift handover only and excluded from PDF reports.</div></div></div>
         </div>
     </div>
     
@@ -219,7 +219,7 @@
             <div class="attendance-panel" style="margin-top:16px;"><div class="panel-title"><i class="fas fa-user-tie"></i> Today's Supervisors (Select from SOD)</div><div id="supervisorSelectPanel" class="supervisors-list"><span class="empty-msg">Loading...</span></div></div>
         </div>
         <div id="attendance-tab" class="tab-content"><div class="attendance-panel"><div class="panel-title"><i class="fas fa-calendar-check"></i> Staff Attendance - Select Staff & Mark Attendance (With Shift)</div><div id="attendanceContainer"><div class="empty-msg">Select date to manage attendance</div></div></div></div>
-        <div id="management-tab" class="tab-content"><div class="management-panel"><div class="section-title"><i class="fas fa-tasks"></i> Manage Tasks</div><div class="form-group"><label>Category</label><select id="taskCategorySelectMgr"></select></div><div class="form-group"><label>Task Name</label><input type="text" id="newTaskNameMgr" placeholder="Enter task name"></div><div class="form-group"><label>Task Type</label><select id="taskTypeSelectMgr"><option value="done">✅ Single Staff Done</option><option value="acknowledge">👥 Multi-Acknowledge (SOD only)</option><option value="dropdown">📋 Custom Dropdown</option></select></div><div class="form-group"><label>Shift Assignment</label><select id="taskShiftSelectMgr"><option value="Both">🌓 Both Shifts</option><option value="Morning">🌅 Morning Only</option><option value="Evening">🌙 Evening Only</option></select></div><div id="dropdownOptionsDivMgr" style="display: none;" class="form-group"><label>Dropdown Options</label><input type="text" id="dropdownOptionsMgr" placeholder="Option1, Option2"></div><button id="addTaskBtnMgr" class="btn-primary"><i class="fas fa-plus"></i> Add Task</button><div class="section-title"><i class="fas fa-list"></i> Existing Tasks (Click Edit to change shift)</div><div id="taskListManager" class="task-list-manager"></div><div class="section-title"><i class="fas fa-users"></i> Manage Staff Members</div><div class="form-group" style="display: flex; gap: 8px;"><input type="text" id="newStaffNameMgr" placeholder="Enter staff name" style="flex:1;"><button id="addStaffBtnMgr" class="btn-primary" style="width: auto;">Add Staff</button></div><div id="staffListManager" class="staff-list-manager"></div><div id="adminFeedback" class="info-text"></div></div></div>
+        <div id="management-tab" class="tab-content"><div class="management-panel"><div class="section-title"><i class="fas fa-tasks"></i> Manage Tasks (Categories: General, Handover, etc.)</div><div class="form-group"><label>Category</label><select id="taskCategorySelectMgr"></select></div><div class="form-group"><label>Task Name</label><input type="text" id="newTaskNameMgr" placeholder="Enter task name"></div><div class="form-group"><label>Task Type</label><select id="taskTypeSelectMgr"><option value="done">✅ Single Staff Done</option><option value="acknowledge">👥 Multi-Acknowledge (SOD only)</option><option value="dropdown">📋 Custom Dropdown</option></select></div><div class="form-group"><label>Shift Assignment</label><select id="taskShiftSelectMgr"><option value="Both">🌓 Both Shifts</option><option value="Morning">🌅 Morning Only</option><option value="Evening">🌙 Evening Only</option></select></div><div id="dropdownOptionsDivMgr" style="display: none;" class="form-group"><label>Dropdown Options</label><input type="text" id="dropdownOptionsMgr" placeholder="Option1, Option2"></div><button id="addTaskBtnMgr" class="btn-primary"><i class="fas fa-plus"></i> Add Task</button><div class="section-title"><i class="fas fa-list"></i> Existing Tasks (Click Edit to change shift)</div><div id="taskListManager" class="task-list-manager"></div><div class="section-title"><i class="fas fa-users"></i> Manage Staff Members</div><div class="form-group" style="display: flex; gap: 8px;"><input type="text" id="newStaffNameMgr" placeholder="Enter staff name" style="flex:1;"><button id="addStaffBtnMgr" class="btn-primary" style="width: auto;">Add Staff</button></div><div id="staffListManager" class="staff-list-manager"></div><div id="adminFeedback" class="info-text"></div></div></div>
         <div id="break-approve-tab" class="tab-content"><div class="allocation-panel"><div class="panel-title"><i class="fas fa-coffee"></i> Break Requests - Approve or Reject</div><div id="breakRequestsList" class="break-requests-list"><div class="empty-msg">Loading...</div></div></div></div>
     </div>
 </div>
@@ -241,7 +241,8 @@
     const BREAK_EVENING_SLOTS = ["15:30-16:30","16:30-17:30","17:30-18:30","18:30-19:30","19:30-20:30","20:30-21:30","21:30-22:30","22:30-23:30"];
     
     let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [], selectedStaffName = "", attendanceRecords = [], supervisorList = [];
-    // Handover Log Data
+    
+    // Handover Log Data - Initialize with empty arrays
     let handoverData = { cards: [], compWheel: [], delayFlights: [], followup: [], importantMsg: "" };
     
     // DOM Elements
@@ -250,7 +251,7 @@
     
     if(taskTypeSelectMgr) taskTypeSelectMgr.addEventListener('change', () => { if(dropdownOptionsDivMgr) dropdownOptionsDivMgr.style.display = taskTypeSelectMgr.value === 'dropdown' ? 'block' : 'none'; });
     
-    document.querySelectorAll('.staff-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.staff-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.staff-tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-staff-tab')).classList.add('active'); if(btn.getAttribute('data-staff-tab') === 'handover-tab') loadHandoverLog(); }); });
+    document.querySelectorAll('.staff-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.staff-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.staff-tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-staff-tab')).classList.add('active'); if(btn.getAttribute('data-staff-tab') === 'handover-tab') { loadHandoverLog(); } }); });
     document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-tab')).classList.add('active'); if(btn.getAttribute('data-tab') === 'break-approve-tab') loadBreakRequests(); if(btn.getAttribute('data-tab') === 'attendance-tab') renderAttendanceForm(); }); });
     
     // Helper Functions
@@ -263,65 +264,130 @@
     function getHandoverId(date, shift) { return `handover_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTasksForCurrentShift() { if (!currentShift) return globalTasks; return globalTasks.filter(task => { const taskShift = task.shift || "Both"; return taskShift === "Both" || taskShift === currentShift; }); }
     
-    // Handover Log Functions
-    async function loadHandoverLog() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getHandoverId(currentDate, currentShift); try { const doc = await db.collection("handoverLogs").doc(id).get(); if(doc.exists) handoverData = doc.data(); else handoverData = { cards: [], compWheel: [], delayFlights: [], followup: [], importantMsg: "" }; renderHandoverUI(); } catch(e) { console.error(e); } }
-    async function saveHandoverLog() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getHandoverId(currentDate, currentShift); await db.collection("handoverLogs").doc(id).set({ ...handoverData, updatedAt: new Date().toISOString() }, { merge: true }); }
-    function addRow(section, defaultObj) { handoverData[section].push({ ...defaultObj, id: Date.now()+Math.random() }); renderHandoverUI(); saveHandoverLog(); }
-    function updateRowField(section, idx, field, value) { if(handoverData[section][idx]) { handoverData[section][idx][field] = value; saveHandoverLog(); } }
-    function deleteRow(section, idx) { handoverData[section].splice(idx,1); renderHandoverUI(); saveHandoverLog(); }
-    function updateImportantMsg(val) { handoverData.importantMsg = val; saveHandoverLog(); renderHandoverUI(); }
+    // ============ HANDOVER LOG FUNCTIONS ============
+    async function loadHandoverLog() { 
+        if(!firestoreReady || !currentDate || !currentShift) {
+            if(handoverContainer) handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift first</div>';
+            return; 
+        }
+        const id = getHandoverId(currentDate, currentShift); 
+        try { 
+            const doc = await db.collection("handoverLogs").doc(id).get(); 
+            if(doc.exists) { 
+                handoverData = doc.data(); 
+            } else { 
+                handoverData = { cards: [], compWheel: [], delayFlights: [], followup: [], importantMsg: "" }; 
+                await db.collection("handoverLogs").doc(id).set(handoverData);
+            } 
+            renderHandoverUI(); 
+        } catch(e) { console.error(e); handoverContainer.innerHTML = '<div class="empty-msg">Error loading handover log</div>'; } 
+    }
+    
+    async function saveHandoverLog() { 
+        if(!firestoreReady || !currentDate || !currentShift) return; 
+        const id = getHandoverId(currentDate, currentShift); 
+        await db.collection("handoverLogs").doc(id).set({ ...handoverData, updatedAt: new Date().toISOString() }, { merge: true }); 
+    }
+    
+    function addRow(section, defaultObj) { 
+        handoverData[section].push({ ...defaultObj, id: Date.now() + Math.random() }); 
+        renderHandoverUI(); 
+        saveHandoverLog(); 
+    }
+    
+    function updateRowField(section, idx, field, value) { 
+        if(handoverData[section][idx]) { 
+            handoverData[section][idx][field] = value; 
+            saveHandoverLog(); 
+        } 
+    }
+    
+    function deleteRow(section, idx) { 
+        handoverData[section].splice(idx, 1); 
+        renderHandoverUI(); 
+        saveHandoverLog(); 
+    }
+    
+    function updateImportantMsg(val) { 
+        handoverData.importantMsg = val; 
+        saveHandoverLog(); 
+        renderHandoverUI(); 
+    }
     
     function renderHandoverUI() {
         if(!handoverContainer) return;
+        if(!currentDate || !currentShift) {
+            handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift to view handover log</div>';
+            return;
+        }
+        
         let html = `
             <div class="handover-section"><h4><i class="fas fa-ticket-alt"></i> 1. Cards / FQTV No</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>Seat</th><th>Need Cards/FQTV No</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th style="width:40px"></th></tr></thead><tbody>
-            ${handoverData.cards.map((item,idx) => `<tr><td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('cards',${idx},'flight',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.seat||'')}" onchange="updateRowField('cards',${idx},'seat',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.needCards||'')}" onchange="updateRowField('cards',${idx},'needCards',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('cards',${idx},'contact',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('cards',${idx},'remarks',this.value)"></td>
-            <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('cards',${idx},'done',this.checked)"></td>
-            <td><button class="delete-row-btn" onclick="deleteRow('cards',${idx})"><i class="fas fa-trash"></i></button></td></tr>`).join('')}
-            </tbody></table><button class="add-row-btn" onclick="addRow('cards',{flight:'',seat:'',needCards:'',contact:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Card Entry</button></div>
+            ${handoverData.cards && handoverData.cards.length > 0 ? handoverData.cards.map((item,idx) => `<tr>
+                <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('cards',${idx},'flight',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.seat||'')}" onchange="updateRowField('cards',${idx},'seat',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.needCards||'')}" onchange="updateRowField('cards',${idx},'needCards',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('cards',${idx},'contact',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('cards',${idx},'remarks',this.value)"></td>
+                <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('cards',${idx},'done',this.checked)"></td>
+                <td><button class="delete-row-btn" onclick="deleteRow('cards',${idx})"><i class="fas fa-trash"></i></button></td>
+            </tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+            </tbody></table>
+            <button class="add-row-btn" onclick="addRow(\'cards\',{flight:\'\',seat:\'\',needCards:\'\',contact:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Card Entry</button></div>
             
             <div class="handover-section"><h4><i class="fas fa-wheelchair"></i> 2. Complimentary & Wheel Chair</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>W/C No</th><th>Contact</th><th>Complimentary Done ✓</th><th></th></tr></thead><tbody>
-            ${handoverData.compWheel.map((item,idx) => `<tr><td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('compWheel',${idx},'flight',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('compWheel',${idx},'pax',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('compWheel',${idx},'desc',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.wcNo||'')}" onchange="updateRowField('compWheel',${idx},'wcNo',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('compWheel',${idx},'contact',this.value)"></td>
-            <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.complimentaryDone?'checked':''} onchange="updateRowField('compWheel',${idx},'complimentaryDone',this.checked)"></td>
-            <td><button class="delete-row-btn" onclick="deleteRow('compWheel',${idx})"><i class="fas fa-trash"></i></button></td></tr>`).join('')}
-            </tbody></table><button class="add-row-btn" onclick="addRow('compWheel',{flight:'',pax:'',desc:'',wcNo:'',contact:'',complimentaryDone:false})"><i class="fas fa-plus"></i> Add Wheelchair/Complimentary</button></div>
+            ${handoverData.compWheel && handoverData.compWheel.length > 0 ? handoverData.compWheel.map((item,idx) => `<tr>
+                <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('compWheel',${idx},'flight',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('compWheel',${idx},'pax',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('compWheel',${idx},'desc',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.wcNo||'')}" onchange="updateRowField('compWheel',${idx},'wcNo',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('compWheel',${idx},'contact',this.value)"></td>
+                <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.complimentaryDone?'checked':''} onchange="updateRowField('compWheel',${idx},'complimentaryDone',this.checked)"></td>
+                <td><button class="delete-row-btn" onclick="deleteRow('compWheel',${idx})"><i class="fas fa-trash"></i></button></td>
+            </tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+            </tbody></table>
+            <button class="add-row-btn" onclick="addRow(\'compWheel\',{flight:\'\',pax:\'\',desc:\'\',wcNo:\'\',contact:\'\',complimentaryDone:false})"><i class="fas fa-plus"></i> Add Wheelchair/Complimentary</button></div>
             
             <div class="handover-section"><h4><i class="fas fa-clock"></i> 3. DELAY FLIGHTS</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>ETA</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead><tbody>
-            ${handoverData.delayFlights.map((item,idx) => `<tr><td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('delayFlights',${idx},'flight',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.eta||'')}" onchange="updateRowField('delayFlights',${idx},'eta',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('delayFlights',${idx},'remarks',this.value)"></td>
-            <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('delayFlights',${idx},'done',this.checked)"></td>
-            <td><button class="delete-row-btn" onclick="deleteRow('delayFlights',${idx})"><i class="fas fa-trash"></i></button></td></tr>`).join('')}
-            </tbody></table><button class="add-row-btn" onclick="addRow('delayFlights',{flight:'',eta:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Delay Flight</button></div>
+            ${handoverData.delayFlights && handoverData.delayFlights.length > 0 ? handoverData.delayFlights.map((item,idx) => `<tr>
+                <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('delayFlights',${idx},'flight',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.eta||'')}" onchange="updateRowField('delayFlights',${idx},'eta',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('delayFlights',${idx},'remarks',this.value)"></td>
+                <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('delayFlights',${idx},'done',this.checked)"></td>
+                <td><button class="delete-row-btn" onclick="deleteRow('delayFlights',${idx})"><i class="fas fa-trash"></i></button></td>
+            </tr>`).join('') : '<tr><td colspan="5" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+            </tbody></table>
+            <button class="add-row-btn" onclick="addRow(\'delayFlights\',{flight:\'\',eta:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Delay Flight</button></div>
             
             <div class="handover-section"><h4><i class="fas fa-user-follow"></i> 4. PASSENGERS TO FOLLOWUP (Walk-in / Non-Contracted / VIP / IO / Special Assistance)</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead><tbody>
-            ${handoverData.followup.map((item,idx) => `<tr><td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('followup',${idx},'flight',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('followup',${idx},'pax',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('followup',${idx},'desc',this.value)"></td>
-            <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('followup',${idx},'remarks',this.value)"></td>
-            <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('followup',${idx},'done',this.checked)"></td>
-            <td><button class="delete-row-btn" onclick="deleteRow('followup',${idx})"><i class="fas fa-trash"></i></button></td></tr>`).join('')}
-            </tbody></table><button class="add-row-btn" onclick="addRow('followup',{flight:'',pax:'',desc:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Follow-up Passenger</button></div>
+            ${handoverData.followup && handoverData.followup.length > 0 ? handoverData.followup.map((item,idx) => `<tr>
+                <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('followup',${idx},'flight',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('followup',${idx},'pax',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('followup',${idx},'desc',this.value)"></td>
+                <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('followup',${idx},'remarks',this.value)"></td>
+                <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('followup',${idx},'done',this.checked)"></td>
+                <td><button class="delete-row-btn" onclick="deleteRow('followup',${idx})"><i class="fas fa-trash"></i></button></td>
+            </tr>`).join('') : '<tr><td colspan="6" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+            </tbody></table>
+            <button class="add-row-btn" onclick="addRow(\'followup\',{flight:\'\',pax:\'\',desc:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Follow-up Passenger</button></div>
             
             <div class="handover-section"><h4><i class="fas fa-envelope"></i> 5. IMPORTANT MESSAGES / OTHERS</h4>
             <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes or messages for next shift..." onchange="updateImportantMsg(this.value)">${escapeHtml(handoverData.importantMsg||'')}</textarea></div>
         `;
         handoverContainer.innerHTML = html;
     }
-    window.addRow = addRow; window.updateRowField = updateRowField; window.deleteRow = deleteRow; window.updateImportantMsg = updateImportantMsg;
     
+    // Make functions globally accessible for onclick handlers
+    window.addRow = addRow;
+    window.updateRowField = updateRowField;
+    window.deleteRow = deleteRow;
+    window.updateImportantMsg = updateImportantMsg;
+    
+    // ============ SUPERVISOR FUNCTIONS ============
     async function loadSupervisors() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSupervisorRecordId(currentDate, currentShift); try { const doc = await db.collection("supervisorRecords").doc(id).get(); supervisorList = doc.exists ? doc.data().supervisors || [] : []; } catch(e) { supervisorList = []; } renderSupervisorsDisplay(); renderSupervisorSelectPanel(); }
     async function saveSupervisors(supervisors) { const id = getSupervisorRecordId(currentDate, currentShift); await db.collection("supervisorRecords").doc(id).set({ supervisors, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); supervisorList = supervisors; renderSupervisorsDisplay(); renderSupervisorSelectPanel(); }
     
@@ -431,7 +497,7 @@
         const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; 
         let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; 
         const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
-        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; 
+        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='<tr>'; }); html+='</tbody></table>'; 
         fullAllocationContainer.innerHTML=html; 
     }
     
@@ -488,7 +554,7 @@
         const reportWindow = window.open('', '_blank'); 
         const reportDate = new Date().toLocaleString(); 
         const refNo = "REF D15D-CKL/2025/29"; 
-        let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Daily Checklist Report</title><style>body{font-family:Arial,sans-serif;padding:20px;margin:0;}h1{color:#1d6f8f;text-align:center;margin-bottom:5px;}hr{border:1px solid #1d6f8f;margin:15px 0;}.ref-no{text-align:center;font-size:12px;color:#666;margin-bottom:15px;}.info-line{font-size:12px;margin:5px 0;}.section-title{font-size:14px;font-weight:bold;margin:15px 0 10px 0;padding-bottom:5px;border-bottom:1px solid #ccc;}.allocation-table{border-collapse:collapse;width:100%;margin-bottom:15px;}.allocation-table th,.allocation-table td{border:1px solid #ddd;padding:8px;text-align:center;font-size:11px;}.allocation-table th{background-color:#eef3fc;}.area-col{text-align:left;background:#f8fbfe;}.staff-list-cell{text-align:left;}.staff-name-badge-report{display:inline-block;background:#eef2fa;padding:2px 6px;border-radius:12px;margin:2px;font-size:10px;}table{border-collapse:collapse;width:100%;margin-bottom:15px;}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:11px;}th{background-color:#eef3fc;}.status-present{color:#2e7d32;}.status-absent{color:#c62828;}.status-sl{color:#ff9800;}.status-frl{color:#1565c0;}</style></head><body><h1>Koveli Lounge Daily Checklist</h1><div class="ref-no">${refNo}</div><hr><div class="info-line"><strong>Date:</strong> ${currentDate}</div><div class="info-line"><strong>Shift:</strong> ${currentShift}</div><div class="info-line"><strong>Generated on:</strong> ${reportDate}</div><div class="info-line"><strong>Shift Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'}</div><div class="info-line"><strong>Supervisors on Duty:</strong> ${supervisorList.length > 0 ? supervisorList.join(', ') : 'None'}</div><hr>`; 
+        let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Daily Checklist Report</title><style>body{font-family:Arial,sans-serif;padding:20px;margin:0;}h1{color:#1d6f8f;text-align:center;margin-bottom:5px;}hr{border:1px solid #1d6f8f;margin:15px 0;}.ref-no{text-align:center;font-size:12px;color:#666;margin-bottom:15px;}.info-line{font-size:12px;margin:5px 0;}.section-title{font-size:14px;font-weight:bold;margin:15px 0 10px 0;padding-bottom:5px;border-bottom:1px solid #ccc;}.allocation-table{border-collapse:collapse;width:100%;margin-bottom:15px;}.allocation-table th,.allocation-table td{border:1px solid #ddd;padding:8px;text-align:center;font-size:11px;}.allocation-table th{background-color:#eef3fc;}.area-col{text-align:left;background:#f8fbfe;}.staff-list-cell{text-align:left;}.staff-name-badge-report{display:inline-block;background:#eef2fa;padding:2px 6px;border-radius:12px;margin:2px;font-size:10px;}table{border-collapse:collapse;width:100%;margin-bottom:15px;}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:11px;}th{background-color:#eef3fc;}.status-present{color:#2e7d32;}.status-absent{color:#c62828;}.status-sl{color:#ff9800;}.status-frl{color:#1565c0;}</style></head><body><h1>Koveli Lounge Daily Checklist</h1><div class="ref-no">${refNo}</div><hr><div class="info-line"><strong>Date:</strong> ${currentDate}</div><div class="info-line"><strong>Shift:</strong> ${currentShift}</div><div class="info-line"><strong>Generated on:</strong> ${reportDate}</div><div class="info-line"><strong>Shift Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'}</div><div class="info-line"><strong>Supervisors on Duty:</strong> ${supervisorList.length > 0 ? supervisorList.join(', ') : 'None'}</div><div class="info-line"><strong>Note:</strong> Handover Log is excluded from this report as requested.</div><hr>`; 
         if(currentSODRecord){ 
             const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS;
             const allocations=currentSODRecord.allocations||{}; 
