@@ -264,6 +264,8 @@
     function getHandoverId(date, shift) { return `handover_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTasksForCurrentShift() { if (!currentShift) return globalTasks; return globalTasks.filter(task => { const taskShift = task.shift || "Both"; return taskShift === "Both" || taskShift === currentShift; }); }
     
+    
+    
     // ============ HANDOVER LOG FUNCTIONS ============
     async function loadHandoverLog() { 
         if(!firestoreReady || !currentDate || !currentShift) {
@@ -284,31 +286,41 @@
     }
     
     async function saveHandoverLog() { 
-        if(!firestoreReady || !currentDate || !currentShift) return; 
+        if(!firestoreReady || !currentDate || !currentShift || !handoverData) return; 
         const id = getHandoverId(currentDate, currentShift); 
         await db.collection("handoverLogs").doc(id).set({ ...handoverData, updatedAt: new Date().toISOString() }, { merge: true }); 
     }
     
     function addRow(section, defaultObj) { 
+        // Ensure handoverData exists and the section exists
+        if (!handoverData) {
+            console.error("Handover data not loaded yet");
+            alert("Please wait for handover log to load before adding entries.");
+            return;
+        }
+        if (!handoverData[section]) {
+            handoverData[section] = [];
+        }
         handoverData[section].push({ ...defaultObj, id: Date.now() + Math.random() }); 
         renderHandoverUI(); 
         saveHandoverLog(); 
     }
     
     function updateRowField(section, idx, field, value) { 
-        if(handoverData[section][idx]) { 
-            handoverData[section][idx][field] = value; 
-            saveHandoverLog(); 
-        } 
+        if(!handoverData || !handoverData[section] || !handoverData[section][idx]) return;
+        handoverData[section][idx][field] = value; 
+        saveHandoverLog(); 
     }
     
     function deleteRow(section, idx) { 
+        if(!handoverData || !handoverData[section]) return;
         handoverData[section].splice(idx, 1); 
         renderHandoverUI(); 
         saveHandoverLog(); 
     }
     
     function updateImportantMsg(val) { 
+        if(!handoverData) return;
         handoverData.importantMsg = val; 
         saveHandoverLog(); 
         renderHandoverUI(); 
@@ -321,10 +333,23 @@
             return;
         }
         
+        // Ensure handoverData is initialized
+        if (!handoverData) {
+            handoverContainer.innerHTML = '<div class="empty-msg">Loading handover data...</div>';
+            return;
+        }
+        
+        // Ensure all arrays exist
+        handoverData.cards = handoverData.cards || [];
+        handoverData.compWheel = handoverData.compWheel || [];
+        handoverData.delayFlights = handoverData.delayFlights || [];
+        handoverData.followup = handoverData.followup || [];
+        handoverData.importantMsg = handoverData.importantMsg || "";
+        
         let html = `
             <div class="handover-section"><h4><i class="fas fa-ticket-alt"></i> 1. Cards / FQTV No</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>Seat</th><th>Need Cards/FQTV No</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th style="width:40px"></th></tr></thead><tbody>
-            ${handoverData.cards && handoverData.cards.length > 0 ? handoverData.cards.map((item,idx) => `<tr>
+            ${handoverData.cards.length > 0 ? handoverData.cards.map((item,idx) => `<tr>
                 <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('cards',${idx},'flight',this.value)"></td>
                 <td><input class="handover-input" value="${escapeHtml(item.seat||'')}" onchange="updateRowField('cards',${idx},'seat',this.value)"></td>
                 <td><input class="handover-input" value="${escapeHtml(item.needCards||'')}" onchange="updateRowField('cards',${idx},'needCards',this.value)"></td>
@@ -338,7 +363,7 @@
             
             <div class="handover-section"><h4><i class="fas fa-wheelchair"></i> 2. Complimentary & Wheel Chair</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>W/C No</th><th>Contact</th><th>Complimentary Done ✓</th><th></th></tr></thead><tbody>
-            ${handoverData.compWheel && handoverData.compWheel.length > 0 ? handoverData.compWheel.map((item,idx) => `<tr>
+            ${handoverData.compWheel.length > 0 ? handoverData.compWheel.map((item,idx) => `<tr>
                 <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('compWheel',${idx},'flight',this.value)"></td>
                 <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('compWheel',${idx},'pax',this.value)"></td>
                 <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('compWheel',${idx},'desc',this.value)"></td>
@@ -352,7 +377,7 @@
             
             <div class="handover-section"><h4><i class="fas fa-clock"></i> 3. DELAY FLIGHTS</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>ETA</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead><tbody>
-            ${handoverData.delayFlights && handoverData.delayFlights.length > 0 ? handoverData.delayFlights.map((item,idx) => `<tr>
+            ${handoverData.delayFlights.length > 0 ? handoverData.delayFlights.map((item,idx) => `<tr>
                 <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('delayFlights',${idx},'flight',this.value)"></td>
                 <td><input class="handover-input" value="${escapeHtml(item.eta||'')}" onchange="updateRowField('delayFlights',${idx},'eta',this.value)"></td>
                 <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('delayFlights',${idx},'remarks',this.value)"></td>
@@ -364,7 +389,7 @@
             
             <div class="handover-section"><h4><i class="fas fa-user-follow"></i> 4. PASSENGERS TO FOLLOWUP (Walk-in / Non-Contracted / VIP / IO / Special Assistance)</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead><tbody>
-            ${handoverData.followup && handoverData.followup.length > 0 ? handoverData.followup.map((item,idx) => `<tr>
+            ${handoverData.followup.length > 0 ? handoverData.followup.map((item,idx) => `<tr>
                 <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('followup',${idx},'flight',this.value)"></td>
                 <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('followup',${idx},'pax',this.value)"></td>
                 <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('followup',${idx},'desc',this.value)"></td>
@@ -376,7 +401,7 @@
             <button class="add-row-btn" onclick="addRow(\'followup\',{flight:\'\',pax:\'\',desc:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Follow-up Passenger</button></div>
             
             <div class="handover-section"><h4><i class="fas fa-envelope"></i> 5. IMPORTANT MESSAGES / OTHERS</h4>
-            <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes or messages for next shift..." onchange="updateImportantMsg(this.value)">${escapeHtml(handoverData.importantMsg||'')}</textarea></div>
+            <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes or messages for next shift..." onchange="updateImportantMsg(this.value)">${escapeHtml(handoverData.importantMsg)}</textarea></div>
         `;
         handoverContainer.innerHTML = html;
     }
