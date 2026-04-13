@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge Daily Check List | Complete System</title>
+    <title>Koveli Lounge Daily Check List | Complete System + Flight Schedule</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -44,7 +44,7 @@
         .staff-tab-content { display: none; }
         .staff-tab-content.active { display: block; }
         
-        .task-card, .allocation-card, .break-card, .attendance-view-card, .handover-card { background: white; border-radius: 20px; padding: 16px; margin-bottom: 16px; border: 1px solid #e2eaf2; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+        .task-card, .allocation-card, .break-card, .attendance-view-card, .handover-card, .flight-card { background: white; border-radius: 20px; padding: 16px; margin-bottom: 16px; border: 1px solid #e2eaf2; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
         .card-title { font-size: 0.9rem; font-weight: 700; color: #1d6f8f; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-left: 3px solid #2c7da0; padding-left: 10px; }
         
         /* Handover Log Styles */
@@ -144,6 +144,19 @@
         
         .break-request-item { background: #f8fbfe; border-radius: 12px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         
+        /* Flight Schedule Table Styles */
+        .flight-table-container { overflow-x: auto; margin-top: 12px; }
+        .flight-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 800px; }
+        .flight-table th, .flight-table td { border: 1px solid #e2eaf2; padding: 10px 8px; text-align: center; vertical-align: middle; }
+        .flight-table th { background: #eef3fc; font-weight: 700; color: #1a4c6e; }
+        .flight-table input, .flight-table select { padding: 6px 8px; border-radius: 20px; border: 1.5px solid #e2eaf2; font-size: 0.7rem; width: 100%; background: white; }
+        .flight-action-buttons { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+        .btn-sm { padding: 4px 10px; border-radius: 20px; font-size: 0.65rem; font-weight: 600; cursor: pointer; border: none; }
+        .btn-edit-flight { background: #ff9800; color: white; }
+        .btn-delete-flight { background: #dc3545; color: white; }
+        .btn-add-flight { background: linear-gradient(135deg, #4caf50, #43a047); color: white; border: none; padding: 6px 16px; border-radius: 25px; font-weight: 600; cursor: pointer; font-size: 0.7rem; margin-top: 8px; }
+        .flight-info-text { font-size: 0.7rem; color: #5a7a97; margin-top: 12px; text-align: center; background: #f0f7fc; padding: 8px; border-radius: 20px; }
+        
         .password-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .password-box { background: white; padding: 24px; border-radius: 28px; width: 300px; text-align: center; }
         .password-box i { font-size: 1.5rem; color: #1d6f8f; margin-bottom: 8px; }
@@ -175,7 +188,7 @@
 </head>
 <body>
 <div class="container" id="appContainer" style="display: none;">
-    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Supervisor | Break System | Allocation | Handover Log</p></div>
+    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Supervisor | Break System | Allocation | Handover Log | Flight Schedule</p></div>
     <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
     <div class="date-bar">
         <div class="date-selector"><input type="date" id="mainDate" value=""><select id="mainShift"><option value="">Select Shift</option><option value="Morning">🌅 Morning (07:30-15:30)</option><option value="Evening">🌙 Evening (15:30-23:30)</option></select></div>
@@ -191,6 +204,7 @@
                 <button class="tab-btn" data-staff-tab="break-staff-tab"><i class="fas fa-coffee"></i> Break Request</button>
                 <button class="tab-btn" data-staff-tab="absentees-tab"><i class="fas fa-calendar-times"></i> Today's Absentees</button>
                 <button class="tab-btn" data-staff-tab="handover-tab"><i class="fas fa-exchange-alt"></i> Handover Log</button>
+                <button class="tab-btn" data-staff-tab="flight-tab"><i class="fas fa-plane"></i> Flight Schedule</button>
             </div>
             <div id="tasks-staff-tab" class="staff-tab-content active"><div class="task-card"><div class="card-title"><i class="fas fa-tasks"></i> Daily Tasks by Category <span id="shiftFilterIndicator" style="font-size:0.65rem; background:#eef3fc; padding:3px 10px; border-radius:20px;"></span></div><div id="tasksContainer" class="tasks-list"><div class="empty-msg">Select date and shift</div></div><div id="tasksInfo" class="info-text"></div></div></div>
             <div id="allocation-staff-tab" class="staff-tab-content">
@@ -203,6 +217,7 @@
             <div id="break-staff-tab" class="staff-tab-content"><div class="break-card"><div class="card-title"><i class="fas fa-coffee"></i> Break Time Request (1 hour per staff)</div><div id="breakRequestContainer"><div class="empty-msg">Select shift and choose your name from SOD list</div></div><div id="breakStatus" class="info-text"></div></div></div>
             <div id="absentees-tab" class="staff-tab-content"><div class="attendance-view-card"><div class="card-title"><i class="fas fa-calendar-times"></i> Today's Absentees & Leave Records</div><div id="staffAttendanceView"><div class="empty-msg">Select date and shift to view absentees</div></div></div></div>
             <div id="handover-tab" class="staff-tab-content"><div class="handover-card"><div class="card-title"><i class="fas fa-exchange-alt"></i> Shift Handover Log (Real-time updates - NOT included in reports)</div><div id="handoverContainer"><div class="empty-msg">Select date and shift to load handover log</div></div><div class="info-text"><i class="fas fa-save"></i> All changes saved automatically. This log is for internal shift handover only and excluded from PDF reports.</div></div></div>
+            <div id="flight-tab" class="staff-tab-content"><div class="flight-card"><div class="card-title"><i class="fas fa-plane-departure"></i> Weekly Flight Schedule (Load / Edit / Delete / Add)</div><div id="flightScheduleContainer"><div class="empty-msg">Select date to load flight schedule</div></div><div class="flight-info-text"><i class="fas fa-info-circle"></i> Flight schedule persists weekly: same schedule for the entire week until edited. Changes apply to all days in the same week.</div></div></div>
         </div>
     </div>
     
@@ -242,16 +257,16 @@
     
     let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [], selectedStaffName = "", attendanceRecords = [], supervisorList = [];
     
-    // Handover Log Data - Initialize with empty arrays
+    // Handover Log Data
     let handoverData = { cards: [], compWheel: [], delayFlights: [], followup: [], importantMsg: "" };
     
     // DOM Elements
-    const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn'), mainDate = document.getElementById('mainDate'), mainShift = document.getElementById('mainShift'), shiftStatusBadge = document.getElementById('shiftStatusBadge'), reopenShiftBtn = document.getElementById('reopenShiftBtn'), closeShiftBtn = document.getElementById('closeShiftBtn'), allocationContainer = document.getElementById('allocationContainer'), tasksContainer = document.getElementById('tasksContainer'), tasksInfo = document.getElementById('tasksInfo'), supervisorTabs = document.getElementById('supervisorTabs'), sodStaffListDiv = document.getElementById('sodStaffList'), sodHint = document.getElementById('sodHint'), shiftFilterIndicator = document.getElementById('shiftFilterIndicator'), staffViewSection = document.getElementById('staffViewSection'), fullAllocationContainer = document.getElementById('fullAllocationContainer'), breakRequestContainer = document.getElementById('breakRequestContainer'), breakStatus = document.getElementById('breakStatus'), breakRequestsList = document.getElementById('breakRequestsList'), attendanceContainer = document.getElementById('attendanceContainer'), staffAttendanceView = document.getElementById('staffAttendanceView'), supervisorsDisplay = document.getElementById('supervisorsDisplay'), supervisorSelectPanel = document.getElementById('supervisorSelectPanel'), handoverContainer = document.getElementById('handoverContainer');
+    const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn'), mainDate = document.getElementById('mainDate'), mainShift = document.getElementById('mainShift'), shiftStatusBadge = document.getElementById('shiftStatusBadge'), reopenShiftBtn = document.getElementById('reopenShiftBtn'), closeShiftBtn = document.getElementById('closeShiftBtn'), allocationContainer = document.getElementById('allocationContainer'), tasksContainer = document.getElementById('tasksContainer'), tasksInfo = document.getElementById('tasksInfo'), supervisorTabs = document.getElementById('supervisorTabs'), sodStaffListDiv = document.getElementById('sodStaffList'), sodHint = document.getElementById('sodHint'), shiftFilterIndicator = document.getElementById('shiftFilterIndicator'), staffViewSection = document.getElementById('staffViewSection'), fullAllocationContainer = document.getElementById('fullAllocationContainer'), breakRequestContainer = document.getElementById('breakRequestContainer'), breakStatus = document.getElementById('breakStatus'), breakRequestsList = document.getElementById('breakRequestsList'), attendanceContainer = document.getElementById('attendanceContainer'), staffAttendanceView = document.getElementById('staffAttendanceView'), supervisorsDisplay = document.getElementById('supervisorsDisplay'), supervisorSelectPanel = document.getElementById('supervisorSelectPanel'), handoverContainer = document.getElementById('handoverContainer'), flightScheduleContainer = document.getElementById('flightScheduleContainer');
     const taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr'), newTaskNameMgr = document.getElementById('newTaskNameMgr'), taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr'), taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr'), dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr'), dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr'), addTaskBtnMgr = document.getElementById('addTaskBtnMgr'), taskListManager = document.getElementById('taskListManager'), newStaffNameMgr = document.getElementById('newStaffNameMgr'), addStaffBtnMgr = document.getElementById('addStaffBtnMgr'), staffListManager = document.getElementById('staffListManager'), adminFeedback = document.getElementById('adminFeedback'), passwordModal = document.getElementById('passwordModal'), supervisorPassword = document.getElementById('supervisorPassword'), verifyPasswordBtn = document.getElementById('verifyPasswordBtn'), cancelPasswordBtn = document.getElementById('cancelPasswordBtn'), passwordError = document.getElementById('passwordError'), exportFullPdfBtn = document.getElementById('exportFullPdfBtn'), printAllocationBtn = document.getElementById('printAllocationBtn');
     
     if(taskTypeSelectMgr) taskTypeSelectMgr.addEventListener('change', () => { if(dropdownOptionsDivMgr) dropdownOptionsDivMgr.style.display = taskTypeSelectMgr.value === 'dropdown' ? 'block' : 'none'; });
     
-    document.querySelectorAll('.staff-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.staff-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.staff-tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-staff-tab')).classList.add('active'); if(btn.getAttribute('data-staff-tab') === 'handover-tab') { loadHandoverLog(); } }); });
+    document.querySelectorAll('.staff-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.staff-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.staff-tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-staff-tab')).classList.add('active'); if(btn.getAttribute('data-staff-tab') === 'handover-tab') { loadHandoverLog(); } if(btn.getAttribute('data-staff-tab') === 'flight-tab') { loadFlightSchedule(); } }); });
     document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-tab')).classList.add('active'); if(btn.getAttribute('data-tab') === 'break-approve-tab') loadBreakRequests(); if(btn.getAttribute('data-tab') === 'attendance-tab') renderAttendanceForm(); }); });
     
     // Helper Functions
@@ -264,6 +279,122 @@
     function getHandoverId(date, shift) { return `handover_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTasksForCurrentShift() { if (!currentShift) return globalTasks; return globalTasks.filter(task => { const taskShift = task.shift || "Both"; return taskShift === "Both" || taskShift === currentShift; }); }
     
+    // ============ FLIGHT SCHEDULE FUNCTIONS (NEW) ============
+    async function getFlightWeekKey(dateStr) {
+        let d = new Date(dateStr);
+        let year = d.getFullYear();
+        let firstJan = new Date(year, 0, 1);
+        let days = Math.floor((d - firstJan) / (24 * 60 * 60 * 1000));
+        let weekNum = Math.ceil((days + firstJan.getDay() + 1) / 7);
+        return `week_${year}_W${weekNum}`;
+    }
+    
+    async function loadFlightSchedule() {
+        if(!firestoreReady || !currentDate) {
+            if(flightScheduleContainer) flightScheduleContainer.innerHTML = '<div class="empty-msg">Please select a date first</div>';
+            return;
+        }
+        const weekKey = await getFlightWeekKey(currentDate);
+        try {
+            const docRef = db.collection("flightSchedules").doc(weekKey);
+            const docSnap = await docRef.get();
+            let flights = [];
+            if(docSnap.exists) {
+                flights = docSnap.data().flights || [];
+            } else {
+                flights = [];
+                await docRef.set({ weekKey, flights, updatedAt: new Date().toISOString() });
+            }
+            renderFlightScheduleUI(flights, weekKey);
+        } catch(e) {
+            console.error(e);
+            flightScheduleContainer.innerHTML = '<div class="empty-msg">Error loading flight schedule</div>';
+        }
+    }
+    
+    function renderFlightScheduleUI(flights, weekKey) {
+        if(!flightScheduleContainer) return;
+        let html = `<div class="flight-table-container">
+            <table class="flight-table">
+                <thead>
+                    <tr><th>Flight Code</th><th>Route</th><th>STA</th><th>STD</th><th>First Class (F)</th><th>Business (J)</th><th style="width:120px">Actions</th></tr>
+                </thead>
+                <tbody>`;
+        flights.forEach((flight, idx) => {
+            html += `<tr data-idx="${idx}">
+                <td><input type="text" class="flight-code-input" value="${escapeHtml(flight.code || '')}" data-field="code" data-idx="${idx}" style="width:100px"></td>
+                <td><input type="text" class="flight-route-input" value="${escapeHtml(flight.route || '')}" data-field="route" data-idx="${idx}" style="width:120px"></td>
+                <td><input type="text" class="flight-sta-input" value="${escapeHtml(flight.sta || '')}" data-field="sta" data-idx="${idx}" placeholder="HH:MM" style="width:80px"></td>
+                <td><input type="text" class="flight-std-input" value="${escapeHtml(flight.std || '')}" data-field="std" data-idx="${idx}" placeholder="HH:MM" style="width:80px"></td>
+                <td><input type="number" class="flight-f-input" value="${flight.fClass || 0}" data-field="fClass" data-idx="${idx}" style="width:70px"></td>
+                <td><input type="number" class="flight-j-input" value="${flight.jClass || 0}" data-field="jClass" data-idx="${idx}" style="width:70px"></td>
+                <td class="flight-action-buttons">
+                    <button class="btn-sm btn-edit-flight" data-idx="${idx}"><i class="fas fa-save"></i> Save</button>
+                    <button class="btn-sm btn-delete-flight" data-idx="${idx}"><i class="fas fa-trash"></i> Del</button>
+                </td>
+            </tr>`;
+        });
+        html += `<tr class="add-flight-row">
+            <td><input type="text" id="newFlightCode" placeholder="e.g., EK123" style="width:100px"></td>
+            <td><input type="text" id="newFlightRoute" placeholder="e.g., DXB-LHR" style="width:120px"></td>
+            <td><input type="text" id="newFlightSTA" placeholder="10:30" style="width:80px"></td>
+            <td><input type="text" id="newFlightSTD" placeholder="12:00" style="width:80px"></td>
+            <td><input type="number" id="newFlightF" placeholder="0" value="0" style="width:70px"></td>
+            <td><input type="number" id="newFlightJ" placeholder="0" value="0" style="width:70px"></td>
+            <td><button id="addFlightBtn" class="btn-add-flight"><i class="fas fa-plus"></i> Add Flight</button></td>
+        </tr>`;
+        html += `</tbody></table><div class="flight-info-text"><i class="fas fa-calendar-week"></i> Week Key: ${weekKey} | Schedule persists for this entire week. Edits apply to all days in the same week.</div></div>`;
+        flightScheduleContainer.innerHTML = html;
+        
+        document.querySelectorAll('.btn-edit-flight').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const idx = btn.getAttribute('data-idx');
+                const row = btn.closest('tr');
+                const code = row.querySelector('.flight-code-input').value;
+                const route = row.querySelector('.flight-route-input').value;
+                const sta = row.querySelector('.flight-sta-input').value;
+                const std = row.querySelector('.flight-std-input').value;
+                const fClass = parseInt(row.querySelector('.flight-f-input').value) || 0;
+                const jClass = parseInt(row.querySelector('.flight-j-input').value) || 0;
+                if(!code.trim()) { alert("Flight code required"); return; }
+                flights[idx] = { code, route, sta, std, fClass, jClass };
+                await saveFlightsToDB(weekKey, flights);
+                loadFlightSchedule();
+            });
+        });
+        
+        document.querySelectorAll('.btn-delete-flight').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const idx = btn.getAttribute('data-idx');
+                if(confirm("Delete this flight?")) {
+                    flights.splice(idx, 1);
+                    await saveFlightsToDB(weekKey, flights);
+                    loadFlightSchedule();
+                }
+            });
+        });
+        
+        const addBtn = document.getElementById('addFlightBtn');
+        if(addBtn) {
+            addBtn.addEventListener('click', async () => {
+                const code = document.getElementById('newFlightCode').value.trim();
+                const route = document.getElementById('newFlightRoute').value.trim();
+                const sta = document.getElementById('newFlightSTA').value.trim();
+                const std = document.getElementById('newFlightSTD').value.trim();
+                const fClass = parseInt(document.getElementById('newFlightF').value) || 0;
+                const jClass = parseInt(document.getElementById('newFlightJ').value) || 0;
+                if(!code) { alert("Flight code required"); return; }
+                flights.push({ code, route, sta, std, fClass, jClass });
+                await saveFlightsToDB(weekKey, flights);
+                loadFlightSchedule();
+            });
+        }
+    }
+    
+    async function saveFlightsToDB(weekKey, flights) {
+        await db.collection("flightSchedules").doc(weekKey).set({ weekKey, flights, updatedAt: new Date().toISOString() }, { merge: true });
+    }
+    
     // ============ HANDOVER LOG FUNCTIONS ============
     async function loadHandoverLog() { 
         if(!firestoreReady || !currentDate || !currentShift) {
@@ -273,56 +404,23 @@
         const id = getHandoverId(currentDate, currentShift); 
         try { 
             const doc = await db.collection("handoverLogs").doc(id).get(); 
-            if(doc.exists) { 
-                handoverData = doc.data(); 
-            } else { 
-                handoverData = { cards: [], compWheel: [], delayFlights: [], followup: [], importantMsg: "" }; 
-                await db.collection("handoverLogs").doc(id).set(handoverData);
-            } 
+            if(doc.exists) { handoverData = doc.data(); } 
+            else { handoverData = { cards: [], compWheel: [], delayFlights: [], followup: [], importantMsg: "" }; await db.collection("handoverLogs").doc(id).set(handoverData); } 
             renderHandoverUI(); 
         } catch(e) { console.error(e); handoverContainer.innerHTML = '<div class="empty-msg">Error loading handover log</div>'; } 
     }
     
-    async function saveHandoverLog() { 
-        if(!firestoreReady || !currentDate || !currentShift) return; 
-        const id = getHandoverId(currentDate, currentShift); 
-        await db.collection("handoverLogs").doc(id).set({ ...handoverData, updatedAt: new Date().toISOString() }, { merge: true }); 
-    }
+    async function saveHandoverLog() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getHandoverId(currentDate, currentShift); await db.collection("handoverLogs").doc(id).set({ ...handoverData, updatedAt: new Date().toISOString() }, { merge: true }); }
     
-    function addRow(section, defaultObj) { 
-        handoverData[section].push({ ...defaultObj, id: Date.now() + Math.random() }); 
-        renderHandoverUI(); 
-        saveHandoverLog(); 
-    }
-    
-    function updateRowField(section, idx, field, value) { 
-        if(handoverData[section][idx]) { 
-            handoverData[section][idx][field] = value; 
-            saveHandoverLog(); 
-        } 
-    }
-    
-    function deleteRow(section, idx) { 
-        handoverData[section].splice(idx, 1); 
-        renderHandoverUI(); 
-        saveHandoverLog(); 
-    }
-    
-    function updateImportantMsg(val) { 
-        handoverData.importantMsg = val; 
-        saveHandoverLog(); 
-        renderHandoverUI(); 
-    }
+    function addRow(section, defaultObj) { handoverData[section].push({ ...defaultObj, id: Date.now() + Math.random() }); renderHandoverUI(); saveHandoverLog(); }
+    function updateRowField(section, idx, field, value) { if(handoverData[section][idx]) { handoverData[section][idx][field] = value; saveHandoverLog(); } }
+    function deleteRow(section, idx) { handoverData[section].splice(idx, 1); renderHandoverUI(); saveHandoverLog(); }
+    function updateImportantMsg(val) { handoverData.importantMsg = val; saveHandoverLog(); renderHandoverUI(); }
     
     function renderHandoverUI() {
         if(!handoverContainer) return;
-        if(!currentDate || !currentShift) {
-            handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift to view handover log</div>';
-            return;
-        }
-        
-        let html = `
-            <div class="handover-section"><h4><i class="fas fa-ticket-alt"></i> 1. Cards / FQTV No</h4>
+        if(!currentDate || !currentShift) { handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift to view handover log</div>'; return; }
+        let html = `<div class="handover-section"><h4><i class="fas fa-ticket-alt"></i> 1. Cards / FQTV No</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>Seat</th><th>Need Cards/FQTV No</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th style="width:40px"></th></tr></thead><tbody>
             ${handoverData.cards && handoverData.cards.length > 0 ? handoverData.cards.map((item,idx) => `<tr>
                 <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('cards',${idx},'flight',this.value)"></td>
@@ -335,7 +433,6 @@
             </tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
             </tbody></table>
             <button class="add-row-btn" onclick="addRow(\'cards\',{flight:\'\',seat:\'\',needCards:\'\',contact:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Card Entry</button></div>
-            
             <div class="handover-section"><h4><i class="fas fa-wheelchair"></i> 2. Complimentary & Wheel Chair</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>W/C No</th><th>Contact</th><th>Complimentary Done ✓</th><th></th></tr></thead><tbody>
             ${handoverData.compWheel && handoverData.compWheel.length > 0 ? handoverData.compWheel.map((item,idx) => `<tr>
@@ -349,7 +446,6 @@
             </tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
             </tbody></table>
             <button class="add-row-btn" onclick="addRow(\'compWheel\',{flight:\'\',pax:\'\',desc:\'\',wcNo:\'\',contact:\'\',complimentaryDone:false})"><i class="fas fa-plus"></i> Add Wheelchair/Complimentary</button></div>
-            
             <div class="handover-section"><h4><i class="fas fa-clock"></i> 3. DELAY FLIGHTS</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>ETA</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead><tbody>
             ${handoverData.delayFlights && handoverData.delayFlights.length > 0 ? handoverData.delayFlights.map((item,idx) => `<tr>
@@ -361,8 +457,7 @@
             </tr>`).join('') : '<tr><td colspan="5" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
             </tbody></table>
             <button class="add-row-btn" onclick="addRow(\'delayFlights\',{flight:\'\',eta:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Delay Flight</button></div>
-            
-            <div class="handover-section"><h4><i class="fas fa-user-follow"></i> 4. PASSENGERS TO FOLLOWUP (Walk-in / Non-Contracted / VIP / IO / Special Assistance)</h4>
+            <div class="handover-section"><h4><i class="fas fa-user-follow"></i> 4. PASSENGERS TO FOLLOWUP</h4>
             <table class="handover-table"><thead><tr><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead><tbody>
             ${handoverData.followup && handoverData.followup.length > 0 ? handoverData.followup.map((item,idx) => `<tr>
                 <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('followup',${idx},'flight',this.value)"></td>
@@ -374,18 +469,12 @@
             </tr>`).join('') : '<tr><td colspan="6" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
             </tbody></table>
             <button class="add-row-btn" onclick="addRow(\'followup\',{flight:\'\',pax:\'\',desc:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Follow-up Passenger</button></div>
-            
             <div class="handover-section"><h4><i class="fas fa-envelope"></i> 5. IMPORTANT MESSAGES / OTHERS</h4>
-            <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes or messages for next shift..." onchange="updateImportantMsg(this.value)">${escapeHtml(handoverData.importantMsg||'')}</textarea></div>
-        `;
+            <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes..." onchange="updateImportantMsg(this.value)">${escapeHtml(handoverData.importantMsg||'')}</textarea></div>`;
         handoverContainer.innerHTML = html;
     }
     
-    // Make functions globally accessible for onclick handlers
-    window.addRow = addRow;
-    window.updateRowField = updateRowField;
-    window.deleteRow = deleteRow;
-    window.updateImportantMsg = updateImportantMsg;
+    window.addRow = addRow; window.updateRowField = updateRowField; window.deleteRow = deleteRow; window.updateImportantMsg = updateImportantMsg;
     
     // ============ SUPERVISOR FUNCTIONS ============
     async function loadSupervisors() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSupervisorRecordId(currentDate, currentShift); try { const doc = await db.collection("supervisorRecords").doc(id).get(); supervisorList = doc.exists ? doc.data().supervisors || [] : []; } catch(e) { supervisorList = []; } renderSupervisorsDisplay(); renderSupervisorSelectPanel(); }
@@ -464,30 +553,31 @@
     
     function renderStaffAttendanceView() { 
         if(!staffAttendanceView) return; 
-        if(!currentDate || !currentShift){ 
-            staffAttendanceView.innerHTML='<div class="empty-msg">Select date and shift to view absentees and leave records</div>'; 
-            return; 
-        }
+        if(!currentDate || !currentShift){ staffAttendanceView.innerHTML='<div class="empty-msg">Select date and shift to view absentees and leave records</div>'; return; }
         const absentRecords = attendanceRecords.filter(r => r.shift === currentShift && (r.status === 'Absent' || r.status === 'SL' || r.status === 'FRL'));
-        if(absentRecords.length === 0){ 
-            staffAttendanceView.innerHTML='<div class="empty-msg">No absent or leave records found for this shift. All staff present.</div>'; 
-            return; 
-        }
+        if(absentRecords.length === 0){ staffAttendanceView.innerHTML='<div class="empty-msg">No absent or leave records found for this shift. All staff present.</div>'; return; }
         let html = `<div style="margin-bottom:10px;"><strong>Shift: ${currentShift}</strong> - ${absentRecords.length} staff member(s) absent/on leave</div>`;
-        absentRecords.forEach(r => { 
-            let statusClass = r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; 
-            let statusText = r.status==='Absent'?'❌ Absent':r.status==='SL'?'🩺 Sick Leave':'📅 FRL'; 
-            html += `<div class="attendance-record"><strong>${escapeHtml(r.staffName)}</strong> - <span class="${statusClass}">${statusText}</span>${r.reason?`<br>📝 Reason: ${escapeHtml(r.reason)}`:''}${r.reportDateTime?`<br>🕐 Reported: ${new Date(r.reportDateTime).toLocaleString()}`:''}</div>`; 
-        });
+        absentRecords.forEach(r => { let statusClass = r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; let statusText = r.status==='Absent'?'❌ Absent':r.status==='SL'?'🩺 Sick Leave':'📅 FRL'; html += `<div class="attendance-record"><strong>${escapeHtml(r.staffName)}</strong> - <span class="${statusClass}">${statusText}</span>${r.reason?`<br>📝 Reason: ${escapeHtml(r.reason)}`:''}${r.reportDateTime?`<br>🕐 Reported: ${new Date(r.reportDateTime).toLocaleString()}`:''}</div>`; });
         staffAttendanceView.innerHTML = html;
     }
     
     async function loadSODStaff() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSODStaffRecordId(currentDate, currentShift); try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; } renderSODPanel(); renderBreakUI(); renderSupervisorSelectPanel(); }
     async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); renderSupervisorSelectPanel(); }
-    function renderSODPanel() { if(!sodStaffListDiv) return; if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } supervisorTabs.classList.remove('hidden'); if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; }
+    
+    function renderSODPanel() { 
+        if(!sodStaffListDiv) return; 
+        if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } 
+        supervisorTabs.classList.remove('hidden'); 
+        if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } 
+        sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); 
+        document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); 
+        sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; 
+    }
     
     async function loadSODAllocation() { if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocation(); renderFullAllocation(); } catch(e){console.error(e);} }
+    
     function renderAllocation() { if(!currentSODRecord||!allocationContainer) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed"; let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; let staffHtml=''; if(canEdit){ let sodOptions = '<option value="">-- Add Staff --</option>'; if(sodStaffNames.length > 0) sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join(''); else sodOptions = '<option value="">-- No SOD staff available --</option>'; staffHtml = `<div class="assign-wrapper"><select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g,'_')}">${sodOptions}</select><button class="assign-small-btn assign-btn" data-slot="${slot.id}" data-area="${area}">Add</button></div>`; } html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit?`<button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" onclick="removeStaff('${slot.id}','${area}','${escapeHtml(s)}')">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; allocationContainer.innerHTML=html; if(canEdit){ document.querySelectorAll('.assign-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`staffSel_${slotId}_${area.replace(/\s/g,'_')}`),staff=select.value; if(staff && sodStaffNames.includes(staff)) await assignStaff(slotId,area,staff); else if(staff && !sodStaffNames.includes(staff)) alert(`⚠️ ${staff} is not on duty.`); })); } }
+    
     async function assignStaff(slotId,area,staffName){ if(!currentSODRecord) return; const allocations={...currentSODRecord.allocations}; if(!allocations[slotId]) allocations[slotId]={}; if(!allocations[slotId][area]) allocations[slotId][area]=[]; if(!allocations[slotId][area].includes(staffName)){ allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderFullAllocation(); } else { alert(`${staffName} already assigned`); } }
     async function removeStaff(slotId,area,staffName){ const allocations={...currentSODRecord.allocations}; if(allocations[slotId]&&allocations[slotId][area]){ allocations[slotId][area]=allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderFullAllocation(); } } window.removeStaff=removeStaff;
     
@@ -497,7 +587,7 @@
         const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; 
         let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; 
         const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
-        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='<tr>'; }); html+='</tbody></table>'; 
+        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; 
         fullAllocationContainer.innerHTML=html; 
     }
     
@@ -547,67 +637,432 @@
     async function addStaffMember(name){ if(!name.trim()){adminFeedback.innerText="Enter name";return;} await db.collection("staff").add({name:name.trim()}); await loadStaff(); newStaffNameMgr.value=""; adminFeedback.innerText="Staff added"; setTimeout(()=>adminFeedback.innerText="",2000); }
     async function addTaskMgr(){ if(!newTaskNameMgr.value.trim()){adminFeedback.innerText="Enter task name";return;} const cat=taskCategorySelectMgr.value; if(!cat){adminFeedback.innerText="Select category";return;} const newTask={id:Date.now().toString(),name:newTaskNameMgr.value.trim(),category:cat,type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:taskTypeSelectMgr.value==='dropdown'&&dropdownOptionsMgr.value?dropdownOptionsMgr.value.split(',').map(o=>o.trim()):null}; await saveGlobalTasks([...globalTasks,newTask]); newTaskNameMgr.value=""; if(dropdownOptionsMgr) dropdownOptionsMgr.value=""; adminFeedback.innerText="Task added"; setTimeout(()=>adminFeedback.innerText="",2000); }
     async function refreshAll(){ await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); await loadHandoverLog(); renderBreakUI(); if(currentRole==="supervisor") loadBreakRequests(); renderFullAllocation(); }
-    async function onDateShiftChange(){ if(currentRole!=="supervisor"){ renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } else { currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); } }
+    async function onDateShiftChange(){ if(currentRole!=="supervisor"){ renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); if(currentDate) loadFlightSchedule(); } else { currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); } }
     
     function generatePDFReport() { 
-        if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } 
-        const reportWindow = window.open('', '_blank'); 
-        const reportDate = new Date().toLocaleString(); 
-        const refNo = "REF D15D-CKL/2025/29"; 
-        let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Daily Checklist Report</title><style>body{font-family:Arial,sans-serif;padding:20px;margin:0;}h1{color:#1d6f8f;text-align:center;margin-bottom:5px;}hr{border:1px solid #1d6f8f;margin:15px 0;}.ref-no{text-align:center;font-size:12px;color:#666;margin-bottom:15px;}.info-line{font-size:12px;margin:5px 0;}.section-title{font-size:14px;font-weight:bold;margin:15px 0 10px 0;padding-bottom:5px;border-bottom:1px solid #ccc;}.allocation-table{border-collapse:collapse;width:100%;margin-bottom:15px;}.allocation-table th,.allocation-table td{border:1px solid #ddd;padding:8px;text-align:center;font-size:11px;}.allocation-table th{background-color:#eef3fc;}.area-col{text-align:left;background:#f8fbfe;}.staff-list-cell{text-align:left;}.staff-name-badge-report{display:inline-block;background:#eef2fa;padding:2px 6px;border-radius:12px;margin:2px;font-size:10px;}table{border-collapse:collapse;width:100%;margin-bottom:15px;}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:11px;}th{background-color:#eef3fc;}.status-present{color:#2e7d32;}.status-absent{color:#c62828;}.status-sl{color:#ff9800;}.status-frl{color:#1565c0;}</style></head><body><h1>Koveli Lounge Daily Checklist</h1><div class="ref-no">${refNo}</div><hr><div class="info-line"><strong>Date:</strong> ${currentDate}</div><div class="info-line"><strong>Shift:</strong> ${currentShift}</div><div class="info-line"><strong>Generated on:</strong> ${reportDate}</div><div class="info-line"><strong>Shift Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'}</div><div class="info-line"><strong>Supervisors on Duty:</strong> ${supervisorList.length > 0 ? supervisorList.join(', ') : 'None'}</div><div class="info-line"><strong>Note:</strong> Handover Log is excluded from this report as requested.</div><hr>`; 
-        if(currentSODRecord){ 
-            const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS;
-            const allocations=currentSODRecord.allocations||{}; 
-            const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
-            htmlContent+=`<div class="section-title">Staff Allocation</div><table class="allocation-table"><thead><th class="area-col">Area / Time</th>${slots.map(s=>`<th>${s.name}</th>`).join('')}</thead><tbody>`; 
-            areas.forEach(area=>{ 
-                htmlContent+=`<tr><td class="area-col"><strong>${area}</strong></td>`; 
-                slots.forEach(slot=>{ 
-                    const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
-                    htmlContent+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge-report">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; 
-                }); 
-                htmlContent+=`</tr>`; 
-            }); 
-            htmlContent+=`</tbody></table>`; 
-        }
-        htmlContent+=`<div class="section-title">Tasks Summary</div><table><thead><th>Task</th><th>Status</th></thead><tbody>`; 
-        const doneTasks=currentTaskRecord?.doneTasks||{}; 
-        const ackTasks=currentTaskRecord?.acknowledgedTasks||{}; 
-        const sel=currentTaskRecord?.dropdownSelections||[]; 
-        for(const task of globalTasks){ 
-            let status=''; 
-            if(task.type==='done') status=doneTasks[task.id]?`✅ Completed by ${doneTasks[task.id].doneBy}`:'⏳ Pending'; 
-            else if(task.type==='acknowledge'){ 
-                const acks=ackTasks[task.id]||[]; 
-                status=acks.length?`✅ Acknowledged (${acks.length}): ${acks.join(', ')}`:'⏳ Pending'; 
-            } else{ 
-                const subs=sel.filter(s=>s.taskId===task.id); 
-                status=subs.length?`📋 ${subs.length} submissions`:'⏳ Pending'; 
-            } 
-            htmlContent+=`<tr><td>${escapeHtml(task.name)}</td><td>${status}</td>`; 
-        } 
-        htmlContent+=`</tbody></table>`;
-        if(attendanceRecords.length>0){ 
-            htmlContent+=`<div class="section-title">Attendance Records (${currentShift} Shift)</div><table><thead><th>Staff Name</th><th>Status</th><th>Reason</th><th>Reported Time</th></thead><tbody>`; 
-            attendanceRecords.filter(r=>r.shift===currentShift).forEach(r=>{ 
-                let statusClass = r.status==='Present'?'status-present':r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; 
-                htmlContent+=`<tr><td>${escapeHtml(r.staffName)}</td><td class="${statusClass}">${r.status}</td><td>${r.reason?escapeHtml(r.reason):'—'}</td><td>${r.reportDateTime?new Date(r.reportDateTime).toLocaleString():'—'}</td>`; 
-            }); 
-            htmlContent+=`</tbody></table>`; 
-        }
-        htmlContent+=`<hr><div style="text-align:center; font-size:10px; color:#999; margin-top:20px;">This is a system-generated report. Handover log is excluded as requested.</div></body></html>`;
-        reportWindow.document.write(htmlContent); 
-        reportWindow.document.close(); 
-        setTimeout(()=>reportWindow.print(), 500); 
+    if(!currentDate || !currentShift){ 
+        alert("Please select date and shift first"); 
+        return; 
     }
+    
+    const reportWindow = window.open('', '_blank'); 
+    const reportDate = new Date().toLocaleString(); 
+    const refNo = "REF D15D-CKL/2025/29"; 
+    
+    // Helper to get flight schedule for report
+    let flightScheduleHTML = '';
+    (async () => {
+        // This will be populated async but we need sync for print - we'll fetch inside but for simplicity, show message
+    })();
+    
+    // Build flight schedule table synchronously from current data if available
+    let flightRows = '';
+    if(window.currentFlightSchedule && window.currentFlightSchedule.length > 0) {
+        window.currentFlightSchedule.forEach(flight => {
+            flightRows += `<tr>
+                <td>${escapeHtml(flight.code || '')}</td>
+                <td>${escapeHtml(flight.route || '')}</td>
+                <td>${escapeHtml(flight.sta || '')}</td>
+                <td>${escapeHtml(flight.std || '')}</td>
+                <td style="text-align:center">${flight.fClass || 0}</td>
+                <td style="text-align:center">${flight.jClass || 0}</td>
+            </tr>`;
+        });
+    } else {
+        flightRows = '<tr><td colspan="6" style="text-align:center">No flight schedule data available</td></tr>';
+    }
+    
+    let htmlContent = `<!DOCTYPE html>
+    <html>
+    <head>
+        <title>Koveli Lounge Daily Checklist Report</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Inter', 'Segoe UI', Arial, sans-serif; 
+                padding: 30px 25px; 
+                background: white;
+                color: #1a2c3e;
+            }
+            .report-container { 
+                max-width: 1200px; 
+                margin: 0 auto; 
+                background: white;
+            }
+            .header { 
+                text-align: center; 
+                margin-bottom: 20px; 
+                padding-bottom: 15px;
+                border-bottom: 3px solid #1d6f8f;
+            }
+            .header h1 { 
+                color: #1d6f8f; 
+                font-size: 24px; 
+                margin-bottom: 5px;
+                letter-spacing: 1px;
+            }
+            .header p { 
+                color: #5a7a97; 
+                font-size: 12px; 
+            }
+            .ref-no { 
+                text-align: center; 
+                font-size: 11px; 
+                color: #7c9ab8; 
+                margin-bottom: 15px;
+                font-family: monospace;
+            }
+            .info-section { 
+                background: #f0f7fc; 
+                padding: 12px 18px; 
+                border-radius: 12px; 
+                margin-bottom: 20px;
+                border-left: 4px solid #1d6f8f;
+            }
+            .info-line { 
+                font-size: 13px; 
+                margin: 6px 0; 
+                display: flex;
+                flex-wrap: wrap;
+            }
+            .info-label { 
+                font-weight: 700; 
+                color: #1a4c6e; 
+                width: 130px;
+            }
+            .info-value { 
+                color: #2c3e50; 
+                flex: 1;
+            }
+            .section-title { 
+                font-size: 16px; 
+                font-weight: 700; 
+                color: #1d6f8f; 
+                margin: 25px 0 12px 0; 
+                padding-bottom: 6px; 
+                border-bottom: 2px solid #cde0ec;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .section-title i {
+                font-size: 18px;
+            }
+            .allocation-table, .task-table, .attendance-table, .flight-table {
+                border-collapse: collapse; 
+                width: 100%; 
+                margin-bottom: 20px; 
+                font-size: 11px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            .allocation-table th, .task-table th, .attendance-table th, .flight-table th {
+                background: linear-gradient(135deg, #eef3fc, #e2eaf2);
+                border: 1px solid #cde0ec;
+                padding: 10px 8px;
+                text-align: center;
+                font-weight: 700;
+                color: #1a4c6e;
+            }
+            .allocation-table td, .task-table td, .attendance-table td, .flight-table td {
+                border: 1px solid #e2eaf2;
+                padding: 8px 6px;
+                vertical-align: top;
+            }
+            .area-col { 
+                background: #f8fbfe; 
+                font-weight: 600; 
+                text-align: left; 
+                width: 130px;
+            }
+            .staff-list-cell { text-align: left; }
+            .staff-name-badge-report {
+                display: inline-block;
+                background: #eef2fa;
+                padding: 3px 8px;
+                border-radius: 20px;
+                margin: 2px;
+                font-size: 9px;
+                font-weight: 500;
+            }
+            .status-present { color: #2e7d32; font-weight: 600; }
+            .status-absent { color: #c62828; font-weight: 600; }
+            .status-sl { color: #ff9800; font-weight: 600; }
+            .status-frl { color: #1565c0; font-weight: 600; }
+            .completed-badge { color: #2e7d32; font-weight: 600; }
+            .pending-badge { color: #e65100; font-weight: 600; }
+            .footer {
+                margin-top: 30px;
+                padding-top: 15px;
+                text-align: center;
+                font-size: 9px;
+                color: #8aa9c4;
+                border-top: 1px solid #e2eaf2;
+            }
+            .two-column {
+                display: flex;
+                gap: 20px;
+                margin-bottom: 20px;
+            }
+            .col {
+                flex: 1;
+            }
+            .supervisor-list {
+                background: #e8f5e9;
+                padding: 8px 12px;
+                border-radius: 20px;
+                display: inline-block;
+                margin-top: 5px;
+            }
+            .flight-table th {
+                background: #1d6f8f20;
+            }
+            @media print {
+                body { padding: 15px; }
+                .section-title { break-inside: avoid; }
+                .allocation-table, .task-table, .attendance-table, .flight-table { break-inside: avoid; }
+            }
+        </style>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    </head>
+    <body>
+    <div class="report-container">
+        <div class="header">
+            <h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Checklist</h1>
+            <p>Complete Shift Report & Operations Summary</p>
+        </div>
+        <div class="ref-no">Reference: ${refNo} | Generated: ${reportDate}</div>
+        
+        <div class="info-section">
+            <div class="info-line"><span class="info-label"><i class="fas fa-calendar-alt"></i> Date:</span><span class="info-value">${currentDate}</span></div>
+            <div class="info-line"><span class="info-label"><i class="fas fa-clock"></i> Shift:</span><span class="info-value">${currentShift === 'Morning' ? '🌅 Morning (07:30-15:30)' : '🌙 Evening (15:30-23:30)'}</span></div>
+            <div class="info-line"><span class="info-label"><i class="fas fa-lock"></i> Shift Status:</span><span class="info-value">${currentTaskRecord?.status === 'closed' ? '<span style="color:#c62828">🔒 CLOSED</span>' : '<span style="color:#2e7d32">🔓 OPEN</span>'}</span></div>
+            <div class="info-line"><span class="info-label"><i class="fas fa-user-tie"></i> Supervisors:</span><span class="info-value">${supervisorList.length > 0 ? supervisorList.map(s => `<span class="supervisor-list" style="background:#eef3fc; padding:3px 10px; border-radius:20px; margin:0 3px;">👤 ${escapeHtml(s)}</span>`).join('') : '<span style="color:#999">No supervisors assigned</span>'}</span></div>
+            <div class="info-line"><span class="info-label"><i class="fas fa-users"></i> Staff on Duty:</span><span class="info-value">${sodStaffNames.length > 0 ? sodStaffNames.map(s => `<span style="background:#e8f5e9; padding:3px 10px; border-radius:20px; margin:0 2px;">✓ ${escapeHtml(s)}</span>`).join('') : '<span style="color:#999">No SOD selected</span>'}</span></div>
+        </div>`;
+    
+    // STAFF ALLOCATION TABLE
+    if(currentSODRecord){ 
+        const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
+        const allocations = currentSODRecord.allocations || {}; 
+        const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"]; 
+        htmlContent += `<div class="section-title"><i class="fas fa-map-marker-alt"></i> Staff Allocation by Area & Time Slot</div>
+        <table class="allocation-table">
+            <thead>
+                <tr><th class="area-col">Area / Time</th>${slots.map(s => `<th>${s.name}</th>`).join('')}</tr>
+            </thead>
+            <tbody>`;
+        areas.forEach(area => { 
+            htmlContent += `<tr>
+                <td class="area-col"><strong><i class="fas fa-chair"></i> ${area}</strong></td>`;
+            slots.forEach(slot => { 
+                const assigned = (allocations[slot.id] && allocations[slot.id][area]) || []; 
+                htmlContent += `<td class="staff-list-cell">${assigned.map(s => `<span class="staff-name-badge-report">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`;
+            }); 
+            htmlContent += `</tr>`;
+        }); 
+        htmlContent += `</tbody></table>`;
+    }
+    
+    // TASKS SUMMARY TABLE
+    const doneTasks = currentTaskRecord?.doneTasks || {}; 
+    const ackTasks = currentTaskRecord?.acknowledgedTasks || {}; 
+    const sel = currentTaskRecord?.dropdownSelections || [];
+    const filteredTasksReport = getTasksForCurrentShift();
+    
+    htmlContent += `<div class="section-title"><i class="fas fa-tasks"></i> Daily Tasks Summary</div>
+    <table class="task-table">
+        <thead>
+            <tr><th style="width:40%">Task Name</th><th style="width:20%">Category</th><th style="width:40%">Status / Completion</th></tr>
+        </thead>
+        <tbody>`;
+    
+    for(const task of filteredTasksReport){ 
+        let statusHtml = '';
+        if(task.type === 'done') {
+            if(doneTasks[task.id]) {
+                statusHtml = `<span class="completed-badge"><i class="fas fa-check-circle"></i> Completed by ${escapeHtml(doneTasks[task.id].doneBy)} at ${new Date(doneTasks[task.id].doneAt).toLocaleTimeString()}</span>`;
+            } else {
+                statusHtml = `<span class="pending-badge"><i class="fas fa-hourglass-half"></i> Pending</span>`;
+            }
+        } 
+        else if(task.type === 'acknowledge') { 
+            const acks = ackTasks[task.id] || [];
+            if(acks.length > 0) {
+                statusHtml = `<span class="completed-badge"><i class="fas fa-users"></i> Acknowledged (${acks.length}/${sodStaffNames.length || 1}): ${acks.map(n => `👤 ${escapeHtml(n)}`).join(', ')}</span>`;
+            } else {
+                statusHtml = `<span class="pending-badge"><i class="fas fa-hourglass-half"></i> Awaiting acknowledgment</span>`;
+            }
+        } 
+        else { 
+            const subs = sel.filter(s => s.taskId === task.id);
+            if(subs.length > 0) {
+                statusHtml = `<span class="completed-badge"><i class="fas fa-list"></i> ${subs.length} submission(s):<br>${subs.map(s => `📌 ${escapeHtml(s.staffName)}: <strong>${escapeHtml(s.selectedValue)}</strong>${s.additionalText ? ` (${escapeHtml(s.additionalText)})` : ''}`).join('<br>')}</span>`;
+            } else {
+                statusHtml = `<span class="pending-badge"><i class="fas fa-hourglass-half"></i> Pending submission</span>`;
+            }
+        }
+        htmlContent += `<tr>
+            <td><strong>${escapeHtml(task.name)}</strong> ${task.shift && task.shift !== "Both" ? `<span style="background:#fff3e0; padding:2px 6px; border-radius:12px; font-size:9px; margin-left:5px;">${task.shift}</span>` : ''}</td>
+            <td style="text-align:center"><span style="background:#eef3fc; padding:2px 8px; border-radius:15px;">${escapeHtml(task.category || "General")}</span></td>
+            <td>${statusHtml}</td>
+        </tr>`;
+    }
+    htmlContent += `</tbody></table>`;
+    
+    // ATTENDANCE TABLE
+    if(attendanceRecords.length > 0){ 
+        const shiftRecords = attendanceRecords.filter(r => r.shift === currentShift);
+        if(shiftRecords.length > 0) {
+            htmlContent += `<div class="section-title"><i class="fas fa-calendar-check"></i> Attendance Records (${currentShift} Shift)</div>
+            <table class="attendance-table">
+                <thead>
+                    <tr><th>Staff Name</th><th>Status</th><th>Reason</th><th>Reported Time</th></tr>
+                </thead>
+                <tbody>`;
+            shiftRecords.forEach(r => { 
+                let statusClass = r.status === 'Present' ? 'status-present' : (r.status === 'Absent' ? 'status-absent' : (r.status === 'SL' ? 'status-sl' : 'status-frl'));
+                let statusIcon = r.status === 'Present' ? '✅' : (r.status === 'Absent' ? '❌' : (r.status === 'SL' ? '🩺' : '📅'));
+                htmlContent += `<tr>
+                    <td><strong>${escapeHtml(r.staffName)}</strong></td>
+                    <td class="${statusClass}">${statusIcon} ${r.status}</td>
+                    <td>${r.reason ? escapeHtml(r.reason) : '—'}</td>
+                    <td>${r.reportDateTime ? new Date(r.reportDateTime).toLocaleString() : '—'}</td>
+                </tr>`;
+            });
+            htmlContent += `</tbody></table>`;
+        }
+    }
+    
+    // BREAK SUMMARY TABLE
+    (async () => {
+        // Break summary will be added dynamically, but for synchronous print we include static
+    })();
+    
+    // Add break summary if breaks exist
+    if(window.currentBreaksForReport && window.currentBreaksForReport.length > 0) {
+        htmlContent += `<div class="section-title"><i class="fas fa-coffee"></i> Break Schedule</div>
+        <table class="attendance-table">
+            <thead><tr><th>Staff Name</th><th>Break Time</th><th>Status</th></tr></thead>
+            <tbody>`;
+        window.currentBreaksForReport.forEach(b => {
+            let statusIcon = b.status === 'approved' ? '✅' : (b.status === 'pending' ? '⏳' : '❌');
+            htmlContent += `<tr><td>${escapeHtml(b.staffName)}</td><td>${escapeHtml(b.timeSlot)}</td><td>${statusIcon} ${b.status}</td></tr>`;
+        });
+        htmlContent += `</tbody></table>`;
+    }
+    
+    // FLIGHT SCHEDULE TABLE (NEW)
+    // Fetch flight schedule for the current week
+    const flightWeekKey = getFlightWeekKey ? await getFlightWeekKey(currentDate) : null;
+    let flightList = [];
+    if(firestoreReady && flightWeekKey) {
+        try {
+            const flightDoc = await db.collection("flightSchedules").doc(flightWeekKey).get();
+            if(flightDoc.exists) flightList = flightDoc.data().flights || [];
+        } catch(e) { console.error(e); }
+    }
+    
+    if(flightList.length > 0) {
+        htmlContent += `<div class="section-title"><i class="fas fa-plane"></i> Weekly Flight Schedule (Week of ${currentDate})</div>
+        <table class="flight-table">
+            <thead>
+                <tr>
+                    <th>Flight Code</th>
+                    <th>Route</th>
+                    <th>STA</th>
+                    <th>STD</th>
+                    <th>First Class (F)</th>
+                    <th>Business (J)</th>
+                </tr>
+            </thead>
+            <tbody>`;
+        flightList.forEach(flight => {
+            htmlContent += `<tr>
+                <td><strong>${escapeHtml(flight.code || '')}</strong></td>
+                <td>${escapeHtml(flight.route || '')}</td>
+                <td>${escapeHtml(flight.sta || '')}</td>
+                <td>${escapeHtml(flight.std || '')}</td>
+                <td style="text-align:center">${flight.fClass || 0}</td>
+                <td style="text-align:center">${flight.jClass || 0}</td>
+            </tr>`;
+        });
+        htmlContent += `</tbody></table>`;
+    } else {
+        htmlContent += `<div class="section-title"><i class="fas fa-plane"></i> Weekly Flight Schedule</div>
+        <div style="background:#f8fbfe; padding:15px; text-align:center; border-radius:12px; margin-bottom:20px; color:#7c9ab8;">
+            <i class="fas fa-info-circle"></i> No flight schedule data available for this week. Use Flight Schedule tab to add flights.
+        </div>`;
+    }
+    
+    // SUMMARY STATISTICS
+    const totalTasks = filteredTasksReport.length;
+    let completedTasks = 0;
+    for(const task of filteredTasksReport){
+        if(task.type === 'done' && doneTasks[task.id]) completedTasks++;
+        else if(task.type === 'acknowledge' && (ackTasks[task.id] || []).length > 0) completedTasks++;
+        else if(task.type === 'dropdown' && (sel.filter(s => s.taskId === task.id).length > 0)) completedTasks++;
+    }
+    const presentCount = attendanceRecords.filter(r => r.shift === currentShift && r.status === 'Present').length;
+    const absentCount = attendanceRecords.filter(r => r.shift === currentShift && r.status === 'Absent').length;
+    const leaveCount = attendanceRecords.filter(r => r.shift === currentShift && (r.status === 'SL' || r.status === 'FRL')).length;
+    
+    htmlContent += `<div class="info-section" style="margin-top: 15px; background: #eef3fc;">
+        <div class="info-line"><span class="info-label"><i class="fas fa-chart-line"></i> Task Completion:</span><span class="info-value">${completedTasks}/${totalTasks} tasks completed (${Math.round(completedTasks/totalTasks*100)}%)</span></div>
+        <div class="info-line"><span class="info-label"><i class="fas fa-user-check"></i> Attendance Summary:</span><span class="info-value">✅ Present: ${presentCount} | ❌ Absent: ${absentCount} | 🩺 Leave: ${leaveCount}</span></div>
+        <div class="info-line"><span class="info-label"><i class="fas fa-chart-simple"></i> Total Staff on Shift:</span><span class="info-value">${sodStaffNames.length} staff on duty</span></div>
+    </div>`;
+    
+    htmlContent += `<div class="footer">
+        <i class="fas fa-print"></i> This is an official system-generated report. 
+        Handover log is excluded as per configuration. 
+        Report generated on ${reportDate} | Koveli Lounge Management System
+    </div>
+    </div>
+    </body>
+    </html>`;
+    
+    reportWindow.document.write(htmlContent); 
+    reportWindow.document.close(); 
+    setTimeout(() => reportWindow.print(), 800);
+}
+
+// Helper to get flight schedule key (ensure it exists)
+async function getFlightWeekKey(dateStr) {
+    let d = new Date(dateStr);
+    let year = d.getFullYear();
+    let firstJan = new Date(year, 0, 1);
+    let days = Math.floor((d - firstJan) / (24 * 60 * 60 * 1000));
+    let weekNum = Math.ceil((days + firstJan.getDay() + 1) / 7);
+    return `week_${year}_W${weekNum}`;
+}
+
+// Store current breaks for report
+window.currentBreaksForReport = [];
+
+// Override renderBreakUI to capture breaks for report
+const originalRenderBreakUI = renderBreakUI;
+renderBreakUI = async function() {
+    await originalRenderBreakUI();
+    if(firestoreReady && currentDate && currentShift) {
+        const id = getBreakRecordId(currentDate, currentShift);
+        const doc = await db.collection("breakRecords").doc(id).get();
+        window.currentBreaksForReport = doc.exists ? (doc.data().breaks || []) : [];
+    }
+};
+
+// Export functions
+window.generatePDFReport = generatePDFReport;
+window.exportFullReport = generatePDFReport;
     
     function printAllocationSheet(){ generatePDFReport(); }
     function exportFullReport(){ generatePDFReport(); }
     
-    function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); loadAttendance(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } renderAllocation(); updateShiftStatusUI(); }
+    function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); loadAttendance(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); if(currentDate) loadFlightSchedule(); } renderAllocation(); updateShiftStatusUI(); }
     function verifyPassword(){ const pwd = supervisorPassword.value; const valid = (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD) || (pwd === "Admin123"); if(valid){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText="Wrong password"; }
     function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-    async function init(){ const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); currentDate=savedDate||new Date().toISOString().slice(0,10); currentShift=savedShift||""; if(mainDate) mainDate.value=currentDate; if(mainShift) mainShift.value=currentShift; if(firestoreReady){ await loadGlobalTasks(); await loadStaff(); await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); await loadHandoverLog(); } mainDate.addEventListener('change',onDateShiftChange); mainShift.addEventListener('change',onDateShiftChange); staffRoleBtn.addEventListener('click',()=>setRole("staff")); supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); addTaskBtnMgr.addEventListener('click',addTaskMgr); addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); closeShiftBtn.addEventListener('click',closeShift); reopenShiftBtn.addEventListener('click',reopenShiftFn); verifyPasswordBtn.addEventListener('click',verifyPassword); cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); exportFullPdfBtn.addEventListener('click',exportFullReport); printAllocationBtn.addEventListener('click',printAllocationSheet); setRole("staff"); }
+    
+    async function init(){ const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); currentDate=savedDate||new Date().toISOString().slice(0,10); currentShift=savedShift||""; if(mainDate) mainDate.value=currentDate; if(mainShift) mainShift.value=currentShift; if(firestoreReady){ await loadGlobalTasks(); await loadStaff(); await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); await loadHandoverLog(); await loadFlightSchedule(); } mainDate.addEventListener('change',onDateShiftChange); mainShift.addEventListener('change',onDateShiftChange); staffRoleBtn.addEventListener('click',()=>setRole("staff")); supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); addTaskBtnMgr.addEventListener('click',addTaskMgr); addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); closeShiftBtn.addEventListener('click',closeShift); reopenShiftBtn.addEventListener('click',reopenShiftFn); verifyPasswordBtn.addEventListener('click',verifyPassword); cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); exportFullPdfBtn.addEventListener('click',exportFullReport); printAllocationBtn.addEventListener('click',printAllocationSheet); setRole("staff"); }
+    
     const deviceModal=document.getElementById('deviceAuthModal'), devicePasswordInput=document.getElementById('devicePasswordInput'), authorizeDeviceBtn=document.getElementById('authorizeDeviceBtn'), deviceAuthError=document.getElementById('deviceAuthError'), appContainer=document.getElementById('appContainer');
     function handleDeviceAuth(){ if(authorizeDevice(devicePasswordInput.value)){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceAuthError.textContent='Invalid authorization password.'; devicePasswordInput.value=''; devicePasswordInput.focus(); } }
     if(isDeviceAuthorized()){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceModal.style.display='flex'; appContainer.style.display='none'; authorizeDeviceBtn.addEventListener('click',handleDeviceAuth); devicePasswordInput.addEventListener('keypress',e=>{if(e.key==='Enter') handleDeviceAuth();}); devicePasswordInput.focus(); }
