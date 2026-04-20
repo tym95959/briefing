@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge · Passenger Survey</title>
+    <title>Koveli Lounge · Supervisor Panel with Date Filter</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External Configuration Files -->
+    <!-- External Configuration Files (fire.js & config.js) -->
     <script src="fire.js"></script>
     <script src="config.js"></script>
     <!-- Chart.js for Results -->
@@ -19,7 +19,7 @@
     <!-- html2canvas for PDF Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- Google Fonts + Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300,400,500,600,700,800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
@@ -43,14 +43,6 @@
         .floating-emoji { position: fixed; bottom: 100px; right: 30px; width: 80px; height: 80px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; box-shadow: 0 8px 25px rgba(0,0,0,0.2); cursor: pointer; z-index: 1000; transition: all 0.3s; animation: floatBounce 2s ease-in-out infinite; border: 3px solid #ffd700; }
         .floating-emoji:hover { transform: scale(1.1); }
         @keyframes floatBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .tear-drop { position: fixed; pointer-events: none; z-index: 2000; font-size: 1.2rem; animation: fallTear 1.5s ease-in forwards; }
-        @keyframes fallTear { 0% { opacity: 1; transform: translateY(0) scale(0.5); } 30% { opacity: 1; transform: translateY(30px) scale(1); } 100% { opacity: 0; transform: translateY(120px) scale(0.8); } }
-        .happy-emoji { position: fixed; pointer-events: none; z-index: 2000; font-size: 1.5rem; animation: happyPop 1s ease-out forwards; }
-        @keyframes happyPop { 0% { opacity: 0; transform: scale(0) rotate(-20deg); } 50% { opacity: 1; transform: scale(1.2) rotate(0deg); } 100% { opacity: 0; transform: scale(0.8) rotate(20deg); } }
-        .firework { position: fixed; pointer-events: none; z-index: 2000; font-size: 1rem; animation: fireworkBurst 1s ease-out forwards; }
-        @keyframes fireworkBurst { 0% { opacity: 1; transform: scale(0); } 50% { opacity: 1; transform: scale(1.5); } 100% { opacity: 0; transform: scale(2); } }
-        .neutral-emoji { position: fixed; pointer-events: none; z-index: 2000; font-size: 1.3rem; animation: neutralPop 0.8s ease-out forwards; }
-        @keyframes neutralPop { 0% { opacity: 0; transform: scale(0); } 50% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(0.9); } }
         .category-section { margin-bottom: 25px; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 25px -8px rgba(0,0,0,0.08); transition: transform 0.3s ease; background: white; }
         .category-section:hover { transform: translateY(-2px); }
         .category-section.service { border-left: 6px solid #d4a017; }
@@ -98,8 +90,6 @@
         .long-text { min-height: 100px; resize: vertical; }
         .submit-btn { background: linear-gradient(135deg, #d4a017, #c8961e); color: white; border: none; padding: 14px 35px; border-radius: 50px; font-weight: 700; font-size: 1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: all 0.3s; margin: 20px 0 30px; box-shadow: 0 4px 12px rgba(212,160,23,0.3); }
         .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212,160,23,0.4); }
-        .floating-element { position: fixed; pointer-events: none; z-index: 1000; font-size: 1.3rem; animation: floatUp 1s ease-out forwards; }
-        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(0.5); } 50% { opacity: 1; transform: translateY(-80px) scale(1.1); } 100% { opacity: 0; transform: translateY(-160px) scale(1.3); } }
         .thankyou-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 2000; opacity: 0; visibility: hidden; transition: all 0.3s; }
         .thankyou-overlay.active { opacity: 1; visibility: visible; }
         .thankyou-card { background: linear-gradient(135deg, #fffaf0, #fef5e6); border-radius: 40px; padding: 40px 55px; text-align: center; transform: scale(0.8); transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
@@ -120,7 +110,11 @@
         .category-chip { background: #fef5e6; padding: 6px 16px; border-radius: 30px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 8px; color: #6b4c1a; }
         .add-category { display: flex; gap: 10px; margin-bottom: 25px; }
         .add-category input { flex: 1; padding: 10px 16px; border-radius: 30px; border: 1.5px solid #e8ddc8; }
-        .admin-question-item { background: #fefcf8; border-radius: 20px; padding: 15px; margin-bottom: 12px; border: 1px solid #e8ddc8; }
+        .admin-question-item { background: #fefcf8; border-radius: 20px; padding: 15px; margin-bottom: 12px; border: 1px solid #e8ddc8; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .question-controls { display: flex; gap: 8px; align-items: center; }
+        .move-btn { background: #e9ecef; border: none; padding: 6px 12px; border-radius: 30px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: 0.2s; }
+        .move-btn:hover:not(:disabled) { background: #d4a017; color: white; }
+        .move-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .edit-question, .delete-question { background: none; border: none; padding: 5px 12px; border-radius: 25px; cursor: pointer; font-size: 0.7rem; }
         .edit-question { background: #fff3e0; color: #e65100; }
         .delete-question { background: #ffebee; color: #c62828; }
@@ -140,6 +134,13 @@
         .status-msg.success { background: #e0f7e8; color: #2e7d32; }
         .status-msg.error { background: #ffebee; color: #c62828; }
         footer { text-align: center; margin-top: 30px; font-size: 0.7rem; color: rgba(255,250,240,0.8); }
+        .reorder-hint { background: #f0f4f8; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; font-size: 0.85rem; color: #2c3e50; display: flex; align-items: center; gap: 8px; }
+        .date-range-filter { background: #fef9e6; padding: 15px 20px; border-radius: 28px; margin-bottom: 25px; display: flex; flex-wrap: wrap; align-items: center; gap: 15px; }
+        .date-range-filter label { font-weight: 600; color: #6b4c1a; }
+        .date-range-filter input { padding: 8px 14px; border-radius: 40px; border: 1.5px solid #e8ddc8; background: white; }
+        .apply-filter-btn { background: #d4a017; border: none; padding: 8px 18px; border-radius: 40px; color: white; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .apply-filter-btn:hover { background: #b8860b; }
+        .clear-filter-btn { background: #e0e0e0; border: none; padding: 8px 18px; border-radius: 40px; color: #333; font-weight: 600; cursor: pointer; }
         @media (max-width: 700px) { .survey-header { padding: 20px 25px; min-height: 220px; } .lounge-icon h1 { font-size: 1.3rem; } .floating-emoji { width: 60px; height: 60px; font-size: 2rem; bottom: 80px; right: 20px; } }
     </style>
 </head>
@@ -148,7 +149,7 @@
     <div class="survey-wrapper">
         <div class="survey-header">
             <div class="lounge-badge"><div class="lounge-icon"><i class="fas fa-plane-departure"></i><h1>Koveli Lounge</h1></div><div class="airport-name"><p><i class="fas fa-map-marker-alt"></i> Velana International Airport · Maldives</p></div></div>
-            <div class="welcome-text"><h2><i class=""></i> Welcome, Valued Guest</h2><p>Your feedback helps us deliver an exceptional lounge experience</p></div>
+            <div class="welcome-text"><h2>Welcome, Valued Guest</h2><p>Your feedback helps us deliver an exceptional lounge experience</p></div>
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         </div>
         <div style="padding: 30px 35px;">
@@ -159,8 +160,8 @@
 </div>
 <div class="floating-emoji" id="floatingEmoji">😊</div>
 <button class="admin-fab" id="adminFabBtn"><i class="fas fa-cog"></i></button>
-<div id="adminOverlay" class="admin-overlay"><div class="admin-container"><div class="admin-header"><h2><i class="fas fa-chalkboard-user"></i> Admin Dashboard</h2><button class="close-admin" id="closeAdminBtn"><i class="fas fa-times"></i></button></div><div class="admin-tabs"><div class="admin-tab active" data-admin-tab="manage">📋 Manage Questions</div><div class="admin-tab" data-admin-tab="results">📊 Survey Results</div></div><div class="admin-content" id="adminContent"><div id="manageTab"><div class="add-category"><input type="text" id="newCategoryName" placeholder="New category"><button id="addCategoryBtn" style="background:#d4a017; color:white; border:none; padding:0 20px; border-radius:30px;">Add</button></div><div id="categoryList" class="category-list"></div><div style="margin:20px 0; display:flex; gap:10px; flex-wrap:wrap;"><select id="selectedCategory" style="padding:10px 16px; border-radius:30px;"><option value="">-- Select Category --</option></select><select id="questionTypeSelect" style="padding:10px 16px; border-radius:30px;"><option value="rating">⭐ Rating (1-5)</option><option value="smiley">😊 Smiley Rating</option><option value="short_text">📝 Short Text Answer</option><option value="long_text">📄 Long Text Answer</option><option value="dropdown">📋 Dropdown Select</option></select><input type="text" id="newQuestionText" placeholder="Question text" style="flex:1; padding:10px 16px; border-radius:30px;"><div id="dropdownOptionsDiv" style="display:none; width:200px;"><input type="text" id="dropdownOptions" placeholder="Options (comma separated)" style="width:100%; padding:10px; border-radius:30px;"></div><button id="addQuestionBtn" style="background:#4caf50; color:white; border:none; padding:0 25px; border-radius:30px;">Add</button></div><div id="questionsAdminList"></div></div><div id="resultsTab" style="display: none;"><div style="display: flex; justify-content: flex-end; margin-bottom: 15px;"><button id="exportResultsPdfBtn" class="pdf-export-btn"><i class="fas fa-file-pdf"></i> Export as PDF</button></div><div id="adminResultsContainer"></div></div></div></div></div>
-<div id="adminPasswordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Admin Access</h3><input type="password" id="adminPassInput" placeholder="Enter admin password"><button id="verifyAdminPassBtn">Verify</button><button id="cancelAdminPassBtn" style="margin-top:10px; background:#eef3fc; color:#333;">Cancel</button><p id="adminPassError" style="color:#c62828; margin-top:10px;"></p></div></div>
+<div id="adminOverlay" class="admin-overlay"><div class="admin-container"><div class="admin-header"><h2><i class="fas fa-chalkboard-user"></i> Supervisor Dashboard</h2><button class="close-admin" id="closeAdminBtn"><i class="fas fa-times"></i></button></div><div class="admin-tabs"><div class="admin-tab active" data-admin-tab="manage">📋 Manage Questions (Reorder)</div><div class="admin-tab" data-admin-tab="results">📊 Survey Results</div></div><div class="admin-content" id="adminContent"><div id="manageTab"><div class="add-category"><input type="text" id="newCategoryName" placeholder="New category"><button id="addCategoryBtn" style="background:#d4a017; color:white; border:none; padding:0 20px; border-radius:30px;">Add</button></div><div id="categoryList" class="category-list"></div><div style="margin:20px 0; display:flex; gap:10px; flex-wrap:wrap;"><select id="selectedCategory" style="padding:10px 16px; border-radius:30px;"><option value="">-- Select Category --</option></select><select id="questionTypeSelect" style="padding:10px 16px; border-radius:30px;"><option value="rating">⭐ Rating (1-5)</option><option value="smiley">😊 Smiley Rating</option><option value="short_text">📝 Short Text Answer</option><option value="long_text">📄 Long Text Answer</option><option value="dropdown">📋 Dropdown Select</option></select><input type="text" id="newQuestionText" placeholder="Question text" style="flex:1; padding:10px 16px; border-radius:30px;"><div id="dropdownOptionsDiv" style="display:none; width:200px;"><input type="text" id="dropdownOptions" placeholder="Options (comma separated)" style="width:100%; padding:10px; border-radius:30px;"></div><button id="addQuestionBtn" style="background:#4caf50; color:white; border:none; padding:0 25px; border-radius:30px;">Add</button></div><div class="reorder-hint"><i class="fas fa-arrows-alt"></i> <strong>Supervisor Mode:</strong> Use the ↑ Up / ↓ Down buttons to reorder questions. Changes save automatically.</div><div id="questionsAdminList"></div></div><div id="resultsTab" style="display: none;"><div style="display: flex; justify-content: flex-end; margin-bottom: 15px;"><button id="exportResultsPdfBtn" class="pdf-export-btn"><i class="fas fa-file-pdf"></i> Export as PDF</button></div><div id="adminResultsContainer"></div></div></div></div></div>
+<div id="adminPasswordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor Access</h3><input type="password" id="adminPassInput" placeholder="Enter supervisor password"><button id="verifyAdminPassBtn">Verify</button><button id="cancelAdminPassBtn" style="margin-top:10px; background:#eef3fc; color:#333;">Cancel</button><p id="adminPassError" style="color:#c62828; margin-top:10px;"></p></div></div>
 <div id="thankyouOverlay" class="thankyou-overlay"><div class="thankyou-card"><div class="confetti">🎉✨🌟</div><h2 id="thankyouMessage">Thank You!</h2><p id="thankyouSubMessage">Your feedback helps us enhance the Koveli Lounge experience.</p><button id="closeThankyouBtn" style="background:#d4a017; color:white; border:none; padding:12px 28px; border-radius:40px; cursor:pointer; margin-top:15px;">Close</button></div></div>
 <div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device Authorization</h2><p>Enter master password to register this device.</p><input type="password" id="devicePasswordInput" placeholder="Master Password"><button id="authorizeDeviceBtn">Authorize</button><div id="deviceAuthError" class="device-error"></div></div></div>
 
@@ -176,66 +177,156 @@
     let db, firestoreReady = false;
     let adminAuthenticated = false;
     let allQuestions = [], categories = [], charts = {};
-    if (typeof firebase !== 'undefined' && firebase.apps.length) { try { db = firebase.firestore(); firestoreReady = true; } catch(e) {} }
+    let currentDateFilter = { fromDate: null, toDate: null };
+    
+    if (typeof firebase !== 'undefined' && firebase.apps.length && firebase.apps[0]) { 
+        try { db = firebase.firestore(); firestoreReady = true; } catch(e) { console.warn(e); } 
+    }
     
     const floatingEmoji = document.getElementById('floatingEmoji');
     function updateFloatingEmoji(moodValue) { const emojis = { 1: '😔', 2: '😕', 3: '😐', 4: '🙂', 5: '😊' }; floatingEmoji.innerHTML = emojis[moodValue] || '😐'; gsap.fromTo(floatingEmoji, { scale: 1 }, { scale: 1.2, duration: 0.2, yoyo: true, repeat: 1 }); }
     function calculateOverallMood() { let total=0, count=0; allQuestions.forEach(q => { if(q.type==='rating'){ const s=document.querySelector(`input[name="q_${q.id}"]:checked`); if(s){ total+=parseInt(s.value); count++; } } else if(q.type==='smiley'){ const s=document.querySelector(`input[name="q_${q.id}"]:checked`); if(s){ const score={'very-poor':1,'poor':2,'average':3,'good':4,'excellent':5}[s.value]; if(score){ total+=score; count++; } } } }); return count===0?3:Math.round(total/count); }
     function refreshFloatingEmoji() { updateFloatingEmoji(calculateOverallMood()); }
     function getAnsweredCount() { let a=0; allQuestions.forEach(q=>{ if(q.type==='rating'||q.type==='smiley'){ if(document.querySelector(`input[name="q_${q.id}"]:checked`)) a++; } else if(q.type==='short_text'){ const t=document.querySelector(`input[name="q_${q.id}"]`); if(t&&t.value.trim()) a++; } else if(q.type==='long_text'){ const t=document.querySelector(`textarea[name="q_${q.id}"]`); if(t&&t.value.trim()) a++; } else if(q.type==='dropdown'){ const d=document.querySelector(`select[name="q_${q.id}"]`); if(d&&d.value) a++; } }); return a; }
-    
-    function createTears(x,y){ for(let i=0;i<12;i++){ setTimeout(()=>{ const t=document.createElement('div'); t.className='tear-drop'; t.innerHTML=['💧','💦','😢','💧','😭'][Math.floor(Math.random()*5)]; t.style.left=(x+(Math.random()-0.5)*100)+'px'; t.style.top=(y-10)+'px'; document.body.appendChild(t); setTimeout(()=>t.remove(),1500); },i*60); } }
-    function createHappyEmojis(x,y){ for(let i=0;i<8;i++){ setTimeout(()=>{ const h=document.createElement('div'); h.className='happy-emoji'; h.innerHTML=['😊','😍','🥰','😁','😄'][Math.floor(Math.random()*5)]; h.style.left=(x+(Math.random()-0.5)*80)+'px'; h.style.top=(y-15)+'px'; document.body.appendChild(h); setTimeout(()=>h.remove(),1000); },i*70); } }
-    function createFireworks(x,y){ for(let i=0;i<30;i++){ setTimeout(()=>{ const f=document.createElement('div'); f.className='firework'; const fireworks=['🥰','😍','✨','🌟','⭐','💥']; f.innerHTML=fireworks[Math.floor(Math.random()*fireworks.length)]; f.style.left=(x+(Math.random()-0.5)*150)+'px'; f.style.top=(y-30+(Math.random()-0.5)*100)+'px'; f.style.fontSize=(0.8+Math.random()*1)+'rem'; document.body.appendChild(f); setTimeout(()=>f.remove(),1000); },i*50); } }
-    function createNeutralEmojis(x,y){ for(let i=0;i<6;i++){ setTimeout(()=>{ const n=document.createElement('div'); n.className='neutral-emoji'; n.innerHTML=['😐','🤔','😶','🙂'][Math.floor(Math.random()*4)]; n.style.left=(x+(Math.random()-0.5)*70)+'px'; n.style.top=(y-10)+'px'; document.body.appendChild(n); setTimeout(()=>n.remove(),800); },i*60); } }
-    
-    function createEmotionalFeedback(value,x,y){
-        if(value===1||value==='very-poor'){ createTears(x,y); gsap.fromTo(document.body,{backgroundColor:'#d4a86a'},{backgroundColor:'#c9964e',duration:0.3,yoyo:true,repeat:1}); }
-        else if(value===2||value==='poor'){ createTears(x,y); }
-        else if(value===3||value==='average'){ createNeutralEmojis(x,y); }
-        else if(value===4||value==='good'){ createHappyEmojis(x,y); }
-        else if(value===5||value==='excellent'){ createHappyEmojis(x,y); createFireworks(x,y); gsap.fromTo(document.body,{backgroundColor:'#d4a86a'},{backgroundColor:'#e6c84e',duration:0.2,yoyo:true,repeat:2}); }
-    }
-    
     function getCategoryClass(n){ const l=n.toLowerCase(); if(l.includes('service')) return 'service'; if(l.includes('clean')) return 'cleanliness'; if(l.includes('comfort')) return 'comfort'; if(l.includes('staff')) return 'staff'; if(l.includes('food')) return 'food'; return 'General'; }
     function showThankYouWithMood(){ const mood=calculateOverallMood(); const msgs={1:{title:"We'll Do Better! 🙏",sub:"Your honest feedback helps us improve."},2:{title:"Noted with Thanks 📝",sub:"We appreciate your feedback."},3:{title:"Thank You! 🌟",sub:"Your feedback helps us maintain our standards."},4:{title:"We're Grateful! 🎉",sub:"Thank you for your positive feedback!"},5:{title:"Absolutely Amazing! 🏆",sub:"Thank you for your wonderful feedback!"}}; const m=msgs[mood]||msgs[3]; document.getElementById('thankyouMessage').innerHTML=m.title; document.getElementById('thankyouSubMessage').innerHTML=m.sub; const ov=document.getElementById('thankyouOverlay'); ov.classList.add('active'); for(let i=0;i<40;i++){ setTimeout(()=>{ const c=document.createElement('div'); c.className='floating-element'; c.innerHTML=mood>=4?['🎉','✨','🌟','⭐','🎊','🏆'][Math.floor(Math.random()*6)]:['📝','💭','🙏','✨'][Math.floor(Math.random()*4)]; c.style.left=Math.random()*window.innerWidth+'px'; c.style.top=window.innerHeight-50+'px'; document.body.appendChild(c); setTimeout(()=>c.remove(),1500); },i*80); } }
     function closeThankYou(){ document.getElementById('thankyouOverlay').classList.remove('active'); }
-    
     function attachHandlers(){ document.querySelectorAll('.rating-option').forEach(o=>{o.removeEventListener('click',ratingHandler);o.addEventListener('click',ratingHandler);}); document.querySelectorAll('.smiley-option').forEach(o=>{o.removeEventListener('click',smileyHandler);o.addEventListener('click',smileyHandler);}); setupDoubleClickCancel(); }
-    function ratingHandler(e){ const p=this.closest('.rating-options'); p.querySelectorAll('.rating-option').forEach(o=>o.classList.remove('selected')); this.classList.add('selected'); const r=this.querySelector('input'); if(r) r.checked=true; const val=parseInt(this.getAttribute('data-value')); const rect=this.getBoundingClientRect(); createEmotionalFeedback(val,rect.left+rect.width/2,rect.top+rect.height/2); gsap.fromTo(this,{scale:1},{scale:1.15,duration:0.2,yoyo:true,repeat:1}); refreshFloatingEmoji(); updateProgress(); }
-    function smileyHandler(e){ const p=this.closest('.smiley-rating'); p.querySelectorAll('.smiley-option').forEach(o=>o.classList.remove('selected')); this.classList.add('selected'); const r=this.querySelector('input'); if(r) r.checked=true; const val=this.getAttribute('data-value'); const scoreMap={'very-poor':1,'poor':2,'average':3,'good':4,'excellent':5}; const rect=this.getBoundingClientRect(); createEmotionalFeedback(scoreMap[val],rect.left+rect.width/2,rect.top+rect.height/2); gsap.fromTo(this,{scale:1},{scale:1.1,duration:0.2,yoyo:true,repeat:1}); refreshFloatingEmoji(); updateProgress(); }
+    function ratingHandler(e){ const p=this.closest('.rating-options'); p.querySelectorAll('.rating-option').forEach(o=>o.classList.remove('selected')); this.classList.add('selected'); const r=this.querySelector('input'); if(r) r.checked=true; refreshFloatingEmoji(); updateProgress(); }
+    function smileyHandler(e){ const p=this.closest('.smiley-rating'); p.querySelectorAll('.smiley-option').forEach(o=>o.classList.remove('selected')); this.classList.add('selected'); const r=this.querySelector('input'); if(r) r.checked=true; refreshFloatingEmoji(); updateProgress(); }
     function setupDoubleClickCancel(){ document.querySelectorAll('.rating-option, .smiley-option').forEach(opt=>{opt.removeEventListener('dblclick',cancelHandler);opt.addEventListener('dblclick',cancelHandler);}); }
-    function cancelHandler(e){ e.stopPropagation(); const r=this.querySelector('input'); if(r){ r.checked=false; this.classList.remove('selected'); const p=this.closest('.rating-options, .smiley-rating'); if(p) p.querySelectorAll('.rating-option, .smiley-option').forEach(o=>o.classList.remove('selected')); refreshFloatingEmoji(); updateProgress(); const rect=this.getBoundingClientRect(); const c=document.createElement('div'); c.className='floating-element'; c.innerHTML='❌'; c.style.left=(rect.left+rect.width/2)+'px'; c.style.top=(rect.top)+'px'; document.body.appendChild(c); setTimeout(()=>c.remove(),800); } }
+    function cancelHandler(e){ e.stopPropagation(); const r=this.querySelector('input'); if(r){ r.checked=false; this.classList.remove('selected'); const p=this.closest('.rating-options, .smiley-rating'); if(p) p.querySelectorAll('.rating-option, .smiley-option').forEach(o=>o.classList.remove('selected')); refreshFloatingEmoji(); updateProgress(); } }
     function updateProgress(){ const a=getAnsweredCount(); const p=allQuestions.length>0?(a/allQuestions.length)*100:0; document.getElementById('progressFill').style.width=p+'%'; }
-    
     async function loadCategories(){ if(!firestoreReady) return; const d=await db.collection('surveyConfig').doc('categories').get(); if(d.exists) categories=d.data().list||[]; else{categories=['General']; await db.collection('surveyConfig').doc('categories').set({list:categories});} renderCategoryUI(); }
     async function saveCategories(){ if(firestoreReady) await db.collection('surveyConfig').doc('categories').set({list:categories}); }
     function renderCategoryUI(){ const div=document.getElementById('categoryList'); if(!div) return; div.innerHTML=categories.map(c=>`<span class="category-chip">${escapeHtml(c)}<button class="delete-cat" data-cat="${escapeHtml(c)}" style="background:none; border:none; color:#c62828; cursor:pointer;">✖</button></span>`).join(''); const sel=document.getElementById('selectedCategory'); if(sel) sel.innerHTML='<option value="">-- Select Category --</option>'+categories.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join(''); document.querySelectorAll('.delete-cat').forEach(btn=>btn.addEventListener('click',async()=>{ const cat=btn.getAttribute('data-cat'); if(confirm(`Delete "${cat}"?`)){ for(let q of allQuestions) if(q.category===cat) await db.collection('surveyQuestions').doc(q.id).update({category:'General'}); categories=categories.filter(c=>c!==cat); await saveCategories(); await loadQuestions(); } })); }
-    
-    async function loadQuestions(){ if(!firestoreReady) return; const snap=await db.collection('surveyQuestions').orderBy('order','asc').get(); allQuestions=[]; snap.forEach(d=>allQuestions.push({id:d.id,...d.data(),category:d.data().category||'General'})); renderSurvey(); if(adminAuthenticated) renderAdminQuestions(); }
-    
+    async function loadQuestions(){ if(!firestoreReady) return; const snap=await db.collection('surveyQuestions').orderBy('order','asc').get(); allQuestions=[]; snap.forEach(d=>allQuestions.push({id:d.id,...d.data(),category:d.data().category||'General',order:d.data().order||0})); renderSurvey(); if(adminAuthenticated) renderAdminQuestions(); }
+    async function moveQuestionUp(index){ if(index === 0) return; const newList = [...allQuestions]; [newList[index-1], newList[index]] = [newList[index], newList[index-1]]; await updateAllOrders(newList); }
+    async function moveQuestionDown(index){ if(index === allQuestions.length - 1) return; const newList = [...allQuestions]; [newList[index+1], newList[index]] = [newList[index], newList[index+1]]; await updateAllOrders(newList); }
+    async function updateAllOrders(orderedQuestions){ const batch = db.batch(); for(let i = 0; i < orderedQuestions.length; i++){ const docRef = db.collection('surveyQuestions').doc(orderedQuestions[i].id); batch.update(docRef, { order: i }); } await batch.commit(); await loadQuestions(); if(adminAuthenticated) renderAdminQuestions(); }
     function renderSurvey(){ const container=document.getElementById('surveyQuestionsContainer'); if(!container) return; const grouped={}; allQuestions.forEach(q=>{const cat=q.category||'General'; if(!grouped[cat]) grouped[cat]=[]; grouped[cat].push(q);}); let html=''; for(let [cat,questions] of Object.entries(grouped)){ const catClass=getCategoryClass(cat); const icon=catClass==='service'?'🛎️':catClass==='cleanliness'?'🧹':catClass==='comfort'?'🛋️':catClass==='staff'?'👔':catClass==='food'?'🍽️':'✨'; html+=`<div class="category-section ${catClass}"><div class="category-title"><span class="category-icon">${icon}</span> ${escapeHtml(cat)}</div><div class="category-questions">`; questions.forEach(q=>{ if(q.type==='rating'){ html+=`<div class="question-item"><div class="question-text">📌 ${escapeHtml(q.text)}</div><div class="rating-options">`; for(let s=1;s<=5;s++){ const emoji=s===1?'😟':s===2?'🙁':s===3?'😐':s===4?'🙂':'😊'; html+=`<label class="rating-option" data-value="${s}"><input type="radio" name="q_${q.id}" value="${s}"><span class="rating-emoji-icon">${emoji}</span><span class="rating-label">${s}</span></label>`; } html+=`</div></div>`; } else if(q.type==='smiley'){ html+=`<div class="question-item"><div class="question-text">😊 ${escapeHtml(q.text)}</div><div class="smiley-rating">`; const opts=[{val:'very-poor',emoji:'😟',label:'Very Poor'},{val:'poor',emoji:'🙁',label:'Poor'},{val:'average',emoji:'😐',label:'Average'},{val:'good',emoji:'🙂',label:'Good'},{val:'excellent',emoji:'😊',label:'Excellent'}]; opts.forEach(opt=>{html+=`<label class="smiley-option" data-value="${opt.val}"><input type="radio" name="q_${q.id}" value="${opt.val}" style="display:none;"><div class="smiley-icon">${opt.emoji}</div><div style="font-size:0.65rem;">${opt.label}</div></label>`;}); html+=`</div></div>`; } else if(q.type==='dropdown'){ const options=q.options||[]; html+=`<div class="question-item"><div class="question-text">📋 ${escapeHtml(q.text)}</div><select name="q_${q.id}" class="dropdown-select"><option value="">-- Select an option --</option>${options.map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select></div>`; } else if(q.type==='short_text'){ html+=`<div class="question-item"><div class="question-text">✏️ ${escapeHtml(q.text)}</div><input type="text" name="q_${q.id}" class="short-text" placeholder="Your short answer..."></div>`; } else if(q.type==='long_text'){ html+=`<div class="question-item"><div class="question-text">📝 ${escapeHtml(q.text)}</div><textarea name="q_${q.id}" class="long-text" rows="3" placeholder="Your detailed answer..."></textarea></div>`; } }); html+=`</div></div>`; } container.innerHTML=html||'<div style="padding:40px; text-align:center;">Loading survey...</div>'; attachHandlers(); updateProgress(); refreshFloatingEmoji(); document.querySelectorAll('.rating-option, .smiley-option, select, input, textarea').forEach(el=>{el.addEventListener('click',()=>setTimeout(updateProgress,50)); el.addEventListener('change',()=>{updateProgress(); refreshFloatingEmoji();}); if(el.tagName==='TEXTAREA'||el.tagName==='INPUT') el.addEventListener('input',()=>{updateProgress(); refreshFloatingEmoji();}); }); }
     
-    async function loadAdminResults(){ const container=document.getElementById('adminResultsContainer'); container.innerHTML='<div style="padding:20px;">Loading...</div>'; const snap=await db.collection('surveyResponses').get(); const all=[]; snap.forEach(d=>all.push(d.data())); let html=`<div style="margin-bottom:20px; background:#fef5e6; padding:15px; border-radius:20px;"><h3>📊 Summary</h3><p>Total Responses: <strong>${all.length}</strong></p></div>`; for(let q of allQuestions){ const qr=[]; for(let r of all){ const f=r.responses?.find(rr=>rr.questionId===q.id); if(f) qr.push(f); } html+=`<div class="result-card"><div class="result-question">📋 ${escapeHtml(q.text)}</div>`; if(q.type==='rating'){ const c=[0,0,0,0,0]; qr.forEach(r=>{if(r.value>=1&&r.value<=5)c[r.value-1]++;}); const avg=qr.length?(qr.reduce((s,r)=>s+parseInt(r.value),0)/qr.length).toFixed(1):0; html+=`<div>Average: ${avg}/5 ★ | Responses: ${qr.length}</div><canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`; } else if(q.type==='smiley'){ const c={'very-poor':0,'poor':0,'average':0,'good':0,'excellent':0}; qr.forEach(r=>{if(c[r.value]!==undefined)c[r.value]++;}); html+=`<div>Responses: ${qr.length}</div><canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`; } else{ html+=`<div class="response-list">${qr.map(r=>`<div class="response-item">✍️ ${escapeHtml(r.value)}</div>`).join('')}</div>`; } html+=`</div>`; } container.innerHTML=html; for(let q of allQuestions){ if(q.type==='rating'){ const c=[0,0,0,0,0]; for(let r of all){ const f=r.responses?.find(rr=>rr.questionId===q.id); if(f&&f.value>=1&&f.value<=5)c[f.value-1]++; } const canvas=document.getElementById(`adminChart_${q.id}`); if(canvas){ if(charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy(); charts[`admin_${q.id}`]=new Chart(canvas,{type:'bar',data:{labels:['1★','2★','3★','4★','5★'],datasets:[{label:'Responses',data:c,backgroundColor:['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50']}]},options:{responsive:true}}); } } else if(q.type==='smiley'){ const c={'very-poor':0,'poor':0,'average':0,'good':0,'excellent':0}; for(let r of all){ const f=r.responses?.find(rr=>rr.questionId===q.id); if(f&&c[f.value]!==undefined)c[f.value]++; } const canvas=document.getElementById(`adminChart_${q.id}`); if(canvas){ if(charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy(); charts[`admin_${q.id}`]=new Chart(canvas,{type:'bar',data:{labels:['Very Poor','Poor','Average','Good','Excellent'],datasets:[{label:'Responses',data:Object.values(c),backgroundColor:['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50']}]},options:{responsive:true}}); } } } }
+    // Updated loadAdminResults with date range filter
+    async function loadAdminResults() {
+        const container = document.getElementById('adminResultsContainer');
+        if (!container) return;
+        
+        // Build date range filter UI
+        const filterHtml = `<div class="date-range-filter">
+            <i class="fas fa-calendar-alt"></i>
+            <label>From:</label><input type="date" id="filterFromDate" value="${currentDateFilter.fromDate || ''}">
+            <label>To:</label><input type="date" id="filterToDate" value="${currentDateFilter.toDate || ''}">
+            <button id="applyDateFilter" class="apply-filter-btn"><i class="fas fa-search"></i> Apply</button>
+            <button id="clearDateFilter" class="clear-filter-btn"><i class="fas fa-undo-alt"></i> Clear</button>
+        </div><div id="filterStats" style="margin: -10px 0 15px 0; font-size:0.85rem; color:#6b4c1a;"></div><div id="resultsContent"></div>`;
+        container.innerHTML = filterHtml;
+        
+        const resultsContent = document.getElementById('resultsContent');
+        resultsContent.innerHTML = '<div style="padding:20px;">Loading filtered responses...</div>';
+        
+        let query = db.collection('surveyResponses');
+        if (currentDateFilter.fromDate) {
+            const fromTimestamp = new Date(currentDateFilter.fromDate);
+            fromTimestamp.setHours(0,0,0,0);
+            query = query.where('submittedAt', '>=', fromTimestamp.toISOString());
+        }
+        if (currentDateFilter.toDate) {
+            const toTimestamp = new Date(currentDateFilter.toDate);
+            toTimestamp.setHours(23,59,59,999);
+            query = query.where('submittedAt', '<=', toTimestamp.toISOString());
+        }
+        
+        const snap = await query.get();
+        const all = [];
+        snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+        
+        const statsDiv = document.getElementById('filterStats');
+        if (currentDateFilter.fromDate || currentDateFilter.toDate) {
+            statsDiv.innerHTML = `📅 Filtered responses: <strong>${all.length}</strong> entries (${currentDateFilter.fromDate ? `from ${currentDateFilter.fromDate}` : ''} ${currentDateFilter.toDate ? `to ${currentDateFilter.toDate}` : ''})`;
+        } else {
+            statsDiv.innerHTML = `📊 Total responses: <strong>${all.length}</strong> (no date filter)`;
+        }
+        
+        let html = `<div style="margin-bottom:20px; background:#fef5e6; padding:15px; border-radius:20px;"><h3>📊 Summary</h3><p>Filtered Responses: <strong>${all.length}</strong></p></div>`;
+        for (let q of allQuestions) {
+            const qr = [];
+            for (let r of all) {
+                const f = r.responses?.find(rr => rr.questionId === q.id);
+                if (f) qr.push(f);
+            }
+            html += `<div class="result-card"><div class="result-question">📋 ${escapeHtml(q.text)}</div>`;
+            if (q.type === 'rating') {
+                const c = [0,0,0,0,0];
+                qr.forEach(r => { if(r.value>=1 && r.value<=5) c[r.value-1]++; });
+                const avg = qr.length ? (qr.reduce((s,r)=>s+parseInt(r.value),0)/qr.length).toFixed(1) : 0;
+                html += `<div>Average: ${avg}/5 ★ | Responses: ${qr.length}</div><canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`;
+            } else if (q.type === 'smiley') {
+                const c = {'very-poor':0,'poor':0,'average':0,'good':0,'excellent':0};
+                qr.forEach(r => { if(c[r.value]!==undefined) c[r.value]++; });
+                html += `<div>Responses: ${qr.length}</div><canvas id="adminChart_${q.id}" style="max-height:150px;"></canvas>`;
+            } else {
+                html += `<div class="response-list">${qr.map(r => `<div class="response-item">✍️ ${escapeHtml(r.value)}</div>`).join('')}</div>`;
+            }
+            html += `</div>`;
+        }
+        resultsContent.innerHTML = html;
+        
+        for (let q of allQuestions) {
+            if (q.type === 'rating') {
+                const c = [0,0,0,0,0];
+                for (let r of all) {
+                    const f = r.responses?.find(rr => rr.questionId === q.id);
+                    if (f && f.value >= 1 && f.value <= 5) c[f.value-1]++;
+                }
+                const canvas = document.getElementById(`adminChart_${q.id}`);
+                if (canvas) {
+                    if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
+                    charts[`admin_${q.id}`] = new Chart(canvas, { type: 'bar', data: { labels: ['1★','2★','3★','4★','5★'], datasets: [{ label: 'Responses', data: c, backgroundColor: ['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50'] }] }, options: { responsive: true } });
+                }
+            } else if (q.type === 'smiley') {
+                const c = {'very-poor':0,'poor':0,'average':0,'good':0,'excellent':0};
+                for (let r of all) {
+                    const f = r.responses?.find(rr => rr.questionId === q.id);
+                    if (f && c[f.value] !== undefined) c[f.value]++;
+                }
+                const canvas = document.getElementById(`adminChart_${q.id}`);
+                if (canvas) {
+                    if (charts[`admin_${q.id}`]) charts[`admin_${q.id}`].destroy();
+                    charts[`admin_${q.id}`] = new Chart(canvas, { type: 'bar', data: { labels: ['Very Poor','Poor','Average','Good','Excellent'], datasets: [{ label: 'Responses', data: Object.values(c), backgroundColor: ['#ef5350','#ff9800','#ffc107','#8bc34a','#4caf50'] }] }, options: { responsive: true } });
+                }
+            }
+        }
+        
+        document.getElementById('applyDateFilter')?.addEventListener('click', () => {
+            const fromVal = document.getElementById('filterFromDate').value;
+            const toVal = document.getElementById('filterToDate').value;
+            currentDateFilter.fromDate = fromVal || null;
+            currentDateFilter.toDate = toVal || null;
+            loadAdminResults();
+        });
+        document.getElementById('clearDateFilter')?.addEventListener('click', () => {
+            currentDateFilter.fromDate = null;
+            currentDateFilter.toDate = null;
+            if (document.getElementById('filterFromDate')) document.getElementById('filterFromDate').value = '';
+            if (document.getElementById('filterToDate')) document.getElementById('filterToDate').value = '';
+            loadAdminResults();
+        });
+    }
     
     document.getElementById('surveyForm').addEventListener('submit',async(e)=>{ e.preventDefault(); if(!firestoreReady){document.getElementById('surveyMessage').innerHTML='<span style="color:#c62828;">System error</span>';return;} const fd=new FormData(e.target); const responses=[]; const total=allQuestions.length; const answered=getAnsweredCount(); for(let q of allQuestions){ let val=fd.get(`q_${q.id}`); if(!val){ const sel=document.querySelector(`select[name="q_${q.id}"]`); if(sel&&sel.value) val=sel.value; const ta=document.querySelector(`textarea[name="q_${q.id}"]`); if(ta&&ta.value.trim()) val=ta.value.trim(); const inp=document.querySelector(`input[name="q_${q.id}"]`); if(inp&&inp.value.trim()) val=inp.value.trim(); } if(val&&val.toString().trim()) responses.push({questionId:q.id,questionText:q.text,questionType:q.type,value:val.toString().trim(),submittedAt:new Date().toISOString()}); } if(responses.length===0){document.getElementById('surveyMessage').innerHTML='<span style="color:#e65100;">Please answer at least one question</span>';return;} if(responses.length<total){ if(!confirm(`You have answered ${responses.length} out of ${total} questions.\n\nWould you like to submit with your current selections?`)){document.getElementById('surveyMessage').innerHTML='Submission cancelled';return;} } const btn=document.getElementById('submitSurveyBtn'); btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-pulse"></i> Submitting...'; try{ await db.collection('surveyResponses').add({responses,submittedAt:new Date().toISOString(),partial:responses.length<total}); e.target.reset(); document.querySelectorAll('.rating-option.selected, .smiley-option.selected').forEach(el=>el.classList.remove('selected')); document.querySelectorAll('.short-text, .long-text, .dropdown-select').forEach(el=>el.value=''); showThankYouWithMood(); updateProgress(); refreshFloatingEmoji(); document.getElementById('surveyMessage').innerHTML='<span style="color:#2e7d32;">✓ Thank you for your feedback!</span>'; }catch(err){ console.error(err); document.getElementById('surveyMessage').innerHTML='<span style="color:#c62828;">Error submitting. Please try again.</span>'; } finally{ btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> Submit Your Feedback'; setTimeout(()=>{const msg=document.getElementById('surveyMessage'); if(msg) msg.style.display='none';},4000); } });
-    
-    async function exportResultsToPDF(){ const container=document.getElementById('adminResultsContainer'); if(!container) return; const original=container.innerHTML; try{ const {jsPDF}=window.jspdf; const canvas=await html2canvas(container,{scale:2,backgroundColor:'#ffffff'}); const imgData=canvas.toDataURL('image/png'); const pdf=new jsPDF('p','mm','a4'); const imgWidth=190; const imgHeight=(canvas.height*imgWidth)/canvas.width; pdf.addImage(imgData,'PNG',10,10,imgWidth,imgHeight); pdf.save(`Koveli_Lounge_Survey_Results_${new Date().toISOString().slice(0,19)}.pdf`); }catch(err){ alert('Error generating PDF.'); } }
-    
-    function renderAdminQuestions(){ const div=document.getElementById('questionsAdminList'); if(!div) return; const grouped={}; allQuestions.forEach(q=>{const cat=q.category||'General'; if(!grouped[cat]) grouped[cat]=[]; grouped[cat].push(q);}); let html=''; for(let [cat,questions] of Object.entries(grouped)){ html+=`<div style="margin-bottom:20px;"><h4>📁 ${escapeHtml(cat)}</h4>`; questions.forEach(q=>{ let typeName=''; if(q.type==='rating') typeName='⭐ Rating'; else if(q.type==='smiley') typeName='😊 Smiley'; else if(q.type==='short_text') typeName='📝 Short Text'; else if(q.type==='long_text') typeName='📄 Long Text'; else if(q.type==='dropdown') typeName='📋 Dropdown'; html+=`<div class="admin-question-item"><div><span>${escapeHtml(q.text)}</span><div style="margin-top:8px;"><button class="edit-question" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}" data-cat="${escapeHtml(q.category)}" data-options="${escapeHtml(JSON.stringify(q.options||[]))}">Edit</button><button class="delete-question" data-id="${q.id}">Delete</button></div></div><div style="font-size:0.7rem; color:#a0782c;">Type: ${typeName} | Category: ${escapeHtml(q.category)}</div></div>`; }); html+=`</div>`; } div.innerHTML=html; document.querySelectorAll('.edit-question').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), oldText=btn.getAttribute('data-text'), oldType=btn.getAttribute('data-type'), oldCat=btn.getAttribute('data-cat'); const newText=prompt("Edit question:",oldText); if(!newText) return; const newType=prompt("Edit type (rating/smiley/short_text/long_text/dropdown):",oldType); if(!newType||!['rating','smiley','short_text','long_text','dropdown'].includes(newType)) return; let newOptions=null; if(newType==='dropdown'){ const opts=prompt("Enter options (comma separated):",""); if(opts) newOptions=opts.split(',').map(o=>o.trim()); } const newCat=prompt("Edit category:",oldCat); if(!newCat) return; const update={text:newText,type:newType,category:newCat}; if(newOptions) update.options=newOptions; await db.collection('surveyQuestions').doc(id).update(update); await loadQuestions(); })); document.querySelectorAll('.delete-question').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); if(confirm("Delete?")){ await db.collection('surveyQuestions').doc(id).delete(); await loadQuestions(); } })); }
-    
+    async function exportResultsToPDF(){ const container=document.getElementById('resultsContent'); if(!container) return; try{ const {jsPDF}=window.jspdf; const canvas=await html2canvas(container,{scale:2,backgroundColor:'#ffffff'}); const imgData=canvas.toDataURL('image/png'); const pdf=new jsPDF('p','mm','a4'); const imgWidth=190; const imgHeight=(canvas.height*imgWidth)/canvas.width; pdf.addImage(imgData,'PNG',10,10,imgWidth,imgHeight); pdf.save(`Koveli_Lounge_Survey_Results_${new Date().toISOString().slice(0,19)}.pdf`); }catch(err){ alert('Error generating PDF.'); } }
+    function renderAdminQuestions(){ const div=document.getElementById('questionsAdminList'); if(!div) return; let html=''; allQuestions.forEach((q,idx)=>{ let typeName=''; if(q.type==='rating') typeName='⭐ Rating'; else if(q.type==='smiley') typeName='😊 Smiley'; else if(q.type==='short_text') typeName='📝 Short Text'; else if(q.type==='long_text') typeName='📄 Long Text'; else if(q.type==='dropdown') typeName='📋 Dropdown'; html+=`<div class="admin-question-item" data-question-id="${q.id}"><div><strong>${idx+1}. ${escapeHtml(q.text)}</strong><div style="margin-top:6px;"><span style="font-size:0.7rem; background:#f0e6d2; padding:2px 8px; border-radius:20px;">${typeName} · ${escapeHtml(q.category)}</span></div></div><div class="question-controls"><button class="move-btn move-up" data-idx="${idx}" ${idx===0?'disabled':''}><i class="fas fa-arrow-up"></i> Up</button><button class="move-btn move-down" data-idx="${idx}" ${idx===allQuestions.length-1?'disabled':''}><i class="fas fa-arrow-down"></i> Down</button><button class="edit-question" data-id="${q.id}" data-text="${escapeHtml(q.text)}" data-type="${q.type}" data-cat="${escapeHtml(q.category)}" data-options="${escapeHtml(JSON.stringify(q.options||[]))}"><i class="fas fa-edit"></i> Edit</button><button class="delete-question" data-id="${q.id}"><i class="fas fa-trash"></i> Delete</button></div></div>`; }); div.innerHTML=html; document.querySelectorAll('.move-up').forEach(btn=>{ btn.addEventListener('click',async()=>{ const idx=parseInt(btn.getAttribute('data-idx')); await moveQuestionUp(idx); }); }); document.querySelectorAll('.move-down').forEach(btn=>{ btn.addEventListener('click',async()=>{ const idx=parseInt(btn.getAttribute('data-idx')); await moveQuestionDown(idx); }); }); document.querySelectorAll('.edit-question').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), oldText=btn.getAttribute('data-text'), oldType=btn.getAttribute('data-type'), oldCat=btn.getAttribute('data-cat'); const newText=prompt("Edit question:",oldText); if(!newText) return; const newType=prompt("Edit type (rating/smiley/short_text/long_text/dropdown):",oldType); if(!newType||!['rating','smiley','short_text','long_text','dropdown'].includes(newType)) return; let newOptions=null; if(newType==='dropdown'){ const opts=prompt("Enter options (comma separated):",""); if(opts) newOptions=opts.split(',').map(o=>o.trim()); } const newCat=prompt("Edit category:",oldCat); if(!newCat) return; const update={text:newText,type:newType,category:newCat}; if(newOptions) update.options=newOptions; await db.collection('surveyQuestions').doc(id).update(update); await loadQuestions(); })); document.querySelectorAll('.delete-question').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); if(confirm("Delete this question?")){ await db.collection('surveyQuestions').doc(id).delete(); await loadQuestions(); } })); }
     document.getElementById('questionTypeSelect').addEventListener('change',()=>{ const div=document.getElementById('dropdownOptionsDiv'); if(div) div.style.display=document.getElementById('questionTypeSelect').value==='dropdown'?'block':'none'; });
     async function addNewCategory(){ const name=document.getElementById('newCategoryName').value.trim(); if(!name) return; if(categories.includes(name)){alert("Category exists");return;} categories.push(name); await saveCategories(); document.getElementById('newCategoryName').value=''; await loadCategories(); }
-    async function addNewQuestion(){ const cat=document.getElementById('selectedCategory').value; if(!cat){alert("Select category");return;} const text=document.getElementById('newQuestionText').value.trim(); if(!text){alert("Enter question");return;} const type=document.getElementById('questionTypeSelect').value; let options=null; if(type==='dropdown'){ const opts=document.getElementById('dropdownOptions').value; if(opts) options=opts.split(',').map(o=>o.trim()); } await db.collection('surveyQuestions').add({text,type,category:cat,options,order:allQuestions.length}); document.getElementById('newQuestionText').value=''; document.getElementById('dropdownOptions').value=''; await loadQuestions(); }
-    
-    const tabs=document.querySelectorAll('.admin-tab'); tabs.forEach(tab=>{tab.addEventListener('click',()=>{ tabs.forEach(t=>t.classList.remove('active')); tab.classList.add('active'); const name=tab.getAttribute('data-admin-tab'); if(name==='manage'){ document.getElementById('manageTab').style.display='block'; document.getElementById('resultsTab').style.display='none'; renderAdminQuestions(); } else{ document.getElementById('manageTab').style.display='none'; document.getElementById('resultsTab').style.display='block'; loadAdminResults(); } }); });
+    async function addNewQuestion(){ const cat=document.getElementById('selectedCategory').value; if(!cat){alert("Select category");return;} const text=document.getElementById('newQuestionText').value.trim(); if(!text){alert("Enter question");return;} const type=document.getElementById('questionTypeSelect').value; let options=null; if(type==='dropdown'){ const opts=document.getElementById('dropdownOptions').value; if(opts) options=opts.split(',').map(o=>o.trim()); } const newOrder=allQuestions.length; await db.collection('surveyQuestions').add({text,type,category:cat,options,order:newOrder}); document.getElementById('newQuestionText').value=''; document.getElementById('dropdownOptions').value=''; await loadQuestions(); }
+    const tabs=document.querySelectorAll('.admin-tab'); tabs.forEach(tab=>{tab.addEventListener('click',()=>{ tabs.forEach(t=>t.classList.remove('active')); tab.classList.add('active'); const name=tab.getAttribute('data-admin-tab'); if(name==='manage'){ document.getElementById('manageTab').style.display='block'; document.getElementById('resultsTab').style.display='none'; if(adminAuthenticated) renderAdminQuestions(); } else{ document.getElementById('manageTab').style.display='none'; document.getElementById('resultsTab').style.display='block'; loadAdminResults(); } }); });
     function showAdminAuth(){ document.getElementById('adminPasswordModal').classList.remove('hidden'); } function hideAdminAuth(){ document.getElementById('adminPasswordModal').classList.add('hidden'); }
-    function verifyAdmin(){ const pass=document.getElementById('adminPassInput').value; if(typeof SUPERVISOR_PASSWORD!=='undefined'&&pass===SUPERVISOR_PASSWORD){ adminAuthenticated=true; hideAdminAuth(); document.getElementById('adminOverlay').classList.add('active'); loadQuestions(); renderAdminQuestions(); } else{ document.getElementById('adminPassError').textContent='Wrong password'; } }
+    function verifyAdmin(){ const pass=document.getElementById('adminPassInput').value; const supervisorPass = (typeof SUPERVISOR_PASSWORD !== 'undefined') ? SUPERVISOR_PASSWORD : "super123"; if(pass === supervisorPass){ adminAuthenticated=true; hideAdminAuth(); document.getElementById('adminOverlay').classList.add('active'); loadQuestions(); } else{ document.getElementById('adminPassError').textContent='Wrong supervisor password'; } }
     document.getElementById('adminFabBtn').addEventListener('click',showAdminAuth); document.getElementById('closeAdminBtn').addEventListener('click',()=>document.getElementById('adminOverlay').classList.remove('active')); document.getElementById('verifyAdminPassBtn').addEventListener('click',verifyAdmin); document.getElementById('cancelAdminPassBtn').addEventListener('click',hideAdminAuth); document.getElementById('addCategoryBtn').addEventListener('click',addNewCategory); document.getElementById('addQuestionBtn').addEventListener('click',addNewQuestion); document.getElementById('closeThankyouBtn').addEventListener('click',closeThankYou); document.getElementById('exportResultsPdfBtn')?.addEventListener('click',exportResultsToPDF);
     function escapeHtml(s){if(!s)return ''; return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
     async function initApp(){ if(firestoreReady){ await loadCategories(); await loadQuestions(); } }
     const deviceModal=document.getElementById('deviceAuthModal'), devPwd=document.getElementById('devicePasswordInput'), authBtn=document.getElementById('authorizeDeviceBtn'), devErr=document.getElementById('deviceAuthError'), appCont=document.getElementById('appContainer');
-    function handleDeviceAuth(){ if(authorizeDevice(devPwd.value)){ deviceModal.style.display='none'; appCont.style.display='block'; initApp(); } else{ devErr.textContent='Invalid password'; devPwd.value=''; } }
+    function handleDeviceAuth(){ if(authorizeDevice(devPwd.value)){ deviceModal.style.display='none'; appCont.style.display='block'; initApp(); } else{ devErr.textContent='Invalid master password'; devPwd.value=''; } }
     if(isDeviceAuthorized()){ deviceModal.style.display='none'; appCont.style.display='block'; initApp(); } else{ deviceModal.style.display='flex'; appCont.style.display='none'; authBtn.addEventListener('click',handleDeviceAuth); devPwd.addEventListener('keypress',e=>{if(e.key==='Enter') handleDeviceAuth();}); }
 </script>
 </body>
