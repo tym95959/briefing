@@ -706,7 +706,107 @@
         setTimeout(()=>reportWindow.print(), 500); 
     }
     
-    function printAllocationSheet(){ generatePDFReport(); }
+    function printAllocationSheet(){ 
+    if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } 
+    const reportWindow = window.open('', '_blank'); 
+    const reportDate = new Date().toLocaleString(); 
+    const refNo = "REF D15D-CKL/2025/29"; 
+    
+    // Get allocation data
+    const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS;
+    const allocations=currentSODRecord?.allocations||{}; 
+    const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"];
+    
+    let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Staff Allocation Report</title><style>
+        body{font-family:Arial,sans-serif;padding:20px;margin:0;}
+        h1{color:#1d6f8f;text-align:center;margin-bottom:5px;font-size:18px;}
+        h2{color:#2c6e8f;text-align:center;font-size:14px;margin-top:0;margin-bottom:10px;}
+        hr{border:1px solid #1d6f8f;margin:10px 0;}
+        .ref-no{text-align:center;font-size:10px;color:#666;margin-bottom:10px;}
+        .info-line{font-size:10px;margin:3px 0;}
+        .allocation-wrapper{display:flex;gap:20px;margin-top:20px;flex-wrap:wrap;}
+        .allocation-box{flex:1;min-width:45%;border:1px solid #ccc;padding:10px;border-radius:8px;}
+        .allocation-table{border-collapse:collapse;width:100%;margin-bottom:10px;}
+        .allocation-table th,.allocation-table td{border:1px solid #ddd;padding:6px;text-align:center;font-size:9px;}
+        .allocation-table th{background-color:#eef3fc;font-weight:bold;}
+        .area-col{text-align:left;background:#f8fbfe;font-weight:bold;}
+        .staff-list-cell{text-align:left;}
+        .staff-name-badge-report{display:inline-block;background:#eef2fa;padding:2px 5px;border-radius:10px;margin:1px;font-size:8px;}
+        .signature-line{display:flex;justify-content:space-between;margin-top:30px;padding:0 10px;}
+        .signature-box{text-align:center;font-size:10px;}
+        .signature-box div{margin-top:25px;border-top:1px solid #333;width:180px;padding-top:5px;}
+        .footer{text-align:center;font-size:9px;color:#999;margin-top:20px;}
+        .box-title{text-align:center;font-weight:bold;font-size:12px;margin-bottom:10px;background:#1d6f8f;color:white;padding:5px;border-radius:5px;}
+        @media print {
+            body{margin:0;padding:5px;}
+            .allocation-wrapper{display:flex;gap:15px;}
+            .allocation-box{border:1px solid #000;}
+        }
+    </style></head><body>
+    <h1>Koveli Lounge</h1>
+    <h2>Staff Allocation Sheet</h2>
+    <div class="ref-no">${refNo}</div>
+    <hr>
+    <div style="display:flex; justify-content:space-between;">
+        <div class="info-line"><strong>Date:</strong> ${currentDate}</div>
+        <div class="info-line"><strong>Shift:</strong> ${currentShift}</div>
+        <div class="info-line"><strong>Generated:</strong> ${reportDate}</div>
+    </div>
+    <div class="info-line"><strong>Supervisors:</strong> ${supervisorList.length > 0 ? supervisorList.join(', ') : 'None'}</div>
+    <hr>`;
+    
+    // Function to generate allocation table HTML
+    function generateAllocationTable(title) {
+        let tableHtml = `<div class="allocation-box">
+            <div class="box-title">${title}</div>
+            <table class="allocation-table">
+                <thead>
+                    <tr>
+                        <th class="area-col">Area / Time</th>
+                        ${slots.map(s=>`<th>${s.name}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        areas.forEach(area=>{ 
+            tableHtml+=`<tr>
+                <td class="area-col">${area}</td>`; 
+            slots.forEach(slot=>{ 
+                const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
+                tableHtml+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge-report">${escapeHtml(s)}</span>`).join('') || '—'}</td>`; 
+            }); 
+            tableHtml+=`</tr>`; 
+        }); 
+        
+        tableHtml += `</tbody>
+            </table>
+        </div>`;
+        return tableHtml;
+    }
+    
+    // TWO TABLES SIDE BY SIDE
+    htmlContent += `<div class="allocation-wrapper">
+        ${generateAllocationTable('📋 OFFICE COPY')}
+        ${generateAllocationTable('👔 SUPERVISOR COPY')}
+    </div>`;
+    
+    // Signature section
+    htmlContent += `<div class="signature-line">
+        <div class="signature-box">
+            <div>Prepared By (Supervisor)</div>
+        </div>
+        <div class="signature-box">
+            <div>Received By (Team Lead)</div>
+        </div>
+    </div>`;
+    
+    htmlContent += `<div class="footer">This is a system-generated allocation report. Valid for ${currentShift} shift on ${currentDate}.</div>`;
+    htmlContent += `</body></html>`;
+    
+    reportWindow.document.write(htmlContent); 
+    reportWindow.document.close(); 
+    setTimeout(()=>reportWindow.print(), 500); 
+}
     function exportFullReport(){ generatePDFReport(); }
     
     function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); loadAttendance(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } renderAllocation(); updateShiftStatusUI(); }
