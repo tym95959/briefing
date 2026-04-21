@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge · AI Insight Report & Analysis</title>
-    <!-- Firebase SDKs (required for data) -->
+    <title>Koveli Lounge · Supervisor Report: Analysis, Audit & Recommendations</title>
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External config (your existing files) -->
+    <!-- External configs (fire.js, config.js) -->
     <script src="fire.js"></script>
     <script src="config.js"></script>
-    <!-- Chart.js + GSAP + PDF libs -->
+    <!-- Chart.js, GSAP, PDF -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -21,115 +21,114 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #d4a86a 0%, #c9964e 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1300px; margin: 0 auto; }
-        .admin-panel { background: rgba(255,250,240,0.98); border-radius: 48px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); overflow: hidden; margin-bottom: 30px; }
-        .insight-header { background: linear-gradient(135deg, #2c3e2f, #1e2a1c); padding: 30px 40px; color: #ffd966; border-bottom: 3px solid #d4a017; }
-        .insight-header h1 { font-size: 2rem; display: flex; align-items: center; gap: 15px; }
-        .date-range-bar { background: #fff8ed; padding: 18px 30px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px; border-bottom: 1px solid #f0e2cd; }
-        .filter-group { display: flex; gap: 12px; align-items: center; background: white; padding: 5px 15px; border-radius: 60px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-        .filter-group label { font-weight: 600; color: #6b4c1a; }
-        input, select { padding: 8px 14px; border-radius: 40px; border: 1px solid #e2d5bc; background: white; }
-        .btn-gold { background: #d4a017; border: none; padding: 8px 20px; border-radius: 40px; color: white; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-gold:hover { background: #b8860b; transform: scale(0.98); }
-        .btn-outline { background: transparent; border: 2px solid #d4a017; color: #8b6914; padding: 8px 20px; border-radius: 40px; font-weight: 600; cursor: pointer; }
-        .insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; padding: 30px; }
-        .insight-card { background: white; border-radius: 28px; padding: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.05); transition: all 0.2s; border: 1px solid #f0e2cd; }
-        .insight-card h3 { font-size: 1.3rem; margin-bottom: 15px; color: #5e3a0c; border-left: 5px solid #d4a017; padding-left: 15px; }
-        .metric-big { font-size: 2.2rem; font-weight: 800; color: #d4a017; margin: 10px 0; }
-        .ai-insight { background: #fef7e8; padding: 18px; border-radius: 24px; margin-top: 12px; border-left: 4px solid #e6b422; font-style: italic; color: #4a3a1a; }
-        .category-badge { display: inline-block; background: #f0e6d2; border-radius: 50px; padding: 6px 14px; font-size: 0.75rem; margin: 4px; }
-        .positive { color: #2e7d32; font-weight: 700; }
-        .warning { color: #c62828; }
-        .chart-container { height: 180px; margin: 15px 0; }
-        .feedback-quote { background: #faf5e6; padding: 12px; border-radius: 20px; margin-top: 10px; font-size: 0.85rem; border-left: 3px solid #c9964e; }
-        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-        .export-btn { background: #2c3e2f; color: #ffd966; border: none; padding: 10px 20px; border-radius: 40px; margin: 10px 20px; cursor: pointer; }
-        @media (max-width: 700px) { .insight-grid { padding: 15px; } .insight-header h1 { font-size: 1.4rem; } }
-        .loading-spinner { text-align: center; padding: 60px; color: #fff; }
+        .supervisor-panel { background: rgba(255,250,240,0.98); border-radius: 48px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); overflow: hidden; }
+        .report-header { background: linear-gradient(135deg, #1e2a2a, #0f1c1c); padding: 28px 40px; color: #ffdf9c; border-bottom: 4px solid #d4a017; }
+        .report-header h1 { font-size: 2rem; display: flex; align-items: center; gap: 15px; }
+        .filter-bar { background: #fff8ed; padding: 16px 30px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px; border-bottom: 1px solid #f0e2cd; }
+        .filter-group { display: flex; gap: 12px; align-items: center; background: white; padding: 6px 18px; border-radius: 60px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .filter-group label { font-weight: 700; color: #6b4c1a; }
+        input, select { padding: 8px 14px; border-radius: 40px; border: 1px solid #e2d5bc; background: white; outline: none; }
+        .btn-gold { background: #d4a017; border: none; padding: 8px 22px; border-radius: 40px; color: white; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-gold:hover { background: #b8860b; transform: scale(0.97); }
+        .btn-outline { background: transparent; border: 2px solid #d4a017; color: #8b6914; padding: 8px 22px; border-radius: 40px; font-weight: 700; cursor: pointer; }
+        .stats-badge { background: #e8ddc8; padding: 5px 20px; border-radius: 60px; font-size: 0.85rem; font-weight: 600; color: #5e3a0c; margin-left: auto; }
+        .tabs { display: flex; gap: 6px; background: #fef5e6; padding: 0 30px; border-bottom: 1px solid #eeddbb; }
+        .tab-btn { padding: 14px 28px; font-weight: 700; cursor: pointer; background: transparent; border: none; font-size: 0.95rem; color: #6b4c1a; transition: all 0.2s; border-radius: 30px 30px 0 0; }
+        .tab-btn.active { background: white; color: #d4a017; border-bottom: 3px solid #d4a017; box-shadow: 0 -2px 8px rgba(0,0,0,0.02); }
+        .tab-content { display: none; padding: 30px; background: white; border-radius: 0 0 32px 32px; }
+        .tab-content.active { display: block; }
+        .insight-card { background: #fefcf8; border-radius: 28px; padding: 22px; margin-bottom: 28px; border: 1px solid #f0e2cd; box-shadow: 0 6px 12px rgba(0,0,0,0.03); }
+        .insight-card h3 { font-size: 1.4rem; color: #5e3a0c; border-left: 5px solid #d4a017; padding-left: 16px; margin-bottom: 18px; display: flex; align-items: center; gap: 12px; }
+        .metric-big { font-size: 2.5rem; font-weight: 800; color: #d4a017; margin: 12px 0; }
+        .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; margin-bottom: 24px; }
+        .audit-item { background: #fff7eb; border-radius: 24px; padding: 18px; margin-bottom: 16px; border-left: 5px solid; }
+        .recommendation-badge { background: #e6e9f0; padding: 10px 16px; border-radius: 20px; margin: 8px 0; display: flex; align-items: center; gap: 12px; }
+        .priority-high { border-left-color: #c62828; }
+        .priority-medium { border-left-color: #ff9800; }
+        .priority-low { border-left-color: #8bc34a; }
+        .chart-container { height: 200px; margin-top: 15px; }
+        .feedback-quote { background: #faf5e6; padding: 12px 18px; border-radius: 24px; margin-top: 12px; font-size: 0.85rem; border-left: 3px solid #d4a017; }
+        .export-btn-group { display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 20px; }
+        @media (max-width: 700px) { .filter-bar { flex-direction: column; align-items: stretch; } .stats-badge { margin-left: 0; text-align: center; } .tab-btn { padding: 10px 16px; } }
+        .status-msg { padding: 12px; border-radius: 30px; background: #f0f2f5; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 <div class="container" id="reportContainer">
-    <div class="admin-panel">
-        <div class="insight-header">
-            <h1><i class="fas fa-brain"></i> Koveli Lounge · AI-Driven Experience Analysis</h1>
-            <p style="color:#f5e6c8;">Real‑time sentiment & performance intelligence — powered by guest feedback</p>
+    <div class="supervisor-panel">
+        <div class="report-header">
+            <h1><i class="fas fa-clipboard-list"></i> Koveli Lounge · Supervisor Audit & Insights Report</h1>
+            <p style="color:#e9ddb0;">Data-driven analysis, performance audit, and strategic recommendations</p>
         </div>
-        <div class="date-range-bar">
-            <div class="filter-group"><i class="fas fa-calendar-week"></i><label>From:</label><input type="date" id="reportFromDate"></div>
-            <div class="filter-group"><label>To:</label><input type="date" id="reportToDate"></div>
-            <button id="applyReportFilterBtn" class="btn-gold"><i class="fas fa-chart-line"></i> Refresh Analysis</button>
-            <button id="exportReportPdfBtn" class="btn-outline"><i class="fas fa-file-pdf"></i> Export Report</button>
-            <span id="filterStatsBadge" style="margin-left: auto; background:#e8ddc8; padding:6px 16px; border-radius:60px; font-size:0.8rem;"></span>
+        <div class="filter-bar">
+            <div class="filter-group"><i class="fas fa-calendar-alt"></i><label>From:</label><input type="date" id="auditFromDate"></div>
+            <div class="filter-group"><label>To:</label><input type="date" id="auditToDate"></div>
+            <button id="applyAuditFilter" class="btn-gold"><i class="fas fa-chart-line"></i> Refresh Analysis</button>
+            <button id="exportFullReportBtn" class="btn-outline"><i class="fas fa-file-pdf"></i> Export Full Report</button>
+            <span id="responseStatsBadge" class="stats-badge"><i class="fas fa-database"></i> Loading...</span>
         </div>
-        <div id="insightContentArea">
-            <div class="loading-spinner"><i class="fas fa-spinner fa-pulse fa-3x"></i><br>Loading intelligent analysis...</div>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="analysis">📊 Analysis & KPIs</button>
+            <button class="tab-btn" data-tab="audit">🔍 Operational Audit</button>
+            <button class="tab-btn" data-tab="recommendations">🎯 Recommendations & Action Plan</button>
+            <button class="tab-btn" data-tab="rawResults">📋 Raw Survey Results</button>
         </div>
+        <div id="tabAnalysis" class="tab-content active"></div>
+        <div id="tabAudit" class="tab-content"></div>
+        <div id="tabRecommendations" class="tab-content"></div>
+        <div id="tabRawResults" class="tab-content"></div>
     </div>
-    <footer style="text-align:center; color:rgba(255,250,240,0.9); margin-top:20px;">✨ Koveli Lounge · AI Interpretation of Guest Journey ✨</footer>
 </div>
 
 <script>
-    // ----------------------------- GLOBALS -----------------------------
+    // ---------- FIREBASE & GLOBALS ----------
     let db = null, firestoreReady = false;
     let allQuestions = [], categories = [];
     let currentFilter = { fromDate: null, toDate: null };
-    let chartsCache = {};
+    let charts = {};
 
-    // Firebase init (compat)
     if (typeof firebase !== 'undefined' && firebase.apps.length && firebase.apps[0]) {
         try { db = firebase.firestore(); firestoreReady = true; } catch(e) { console.warn(e); }
     }
 
-    // Helper: escape HTML
-    function escapeHtml(s) { if(!s) return ''; return s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
 
-    // Load questions & config
-    async function loadQuestionsAndConfig() {
+    async function loadQuestions() {
         if (!firestoreReady) return [];
         const snap = await db.collection('surveyQuestions').orderBy('order', 'asc').get();
-        const qs = [];
-        snap.forEach(doc => qs.push({ id: doc.id, ...doc.data(), category: doc.data().category || 'General', order: doc.data().order || 0 }));
+        let qs = [];
+        snap.forEach(doc => qs.push({ id: doc.id, ...doc.data(), category: doc.data().category || 'General' }));
         allQuestions = qs;
-        // load categories
         const catDoc = await db.collection('surveyConfig').doc('categories').get();
         if (catDoc.exists) categories = catDoc.data().list || [];
-        else categories = ['General'];
         return allQuestions;
     }
 
-    // Fetch responses with date filter
-    async function fetchResponsesWithFilter(fromDate, toDate) {
+    async function fetchResponses(fromDate, toDate) {
         if (!firestoreReady) return [];
         let query = db.collection('surveyResponses');
         if (fromDate) {
-            const from = new Date(fromDate);
-            from.setHours(0,0,0,0);
-            query = query.where('submittedAt', '>=', from.toISOString());
+            let f = new Date(fromDate); f.setHours(0,0,0,0);
+            query = query.where('submittedAt', '>=', f.toISOString());
         }
         if (toDate) {
-            const to = new Date(toDate);
-            to.setHours(23,59,59,999);
-            query = query.where('submittedAt', '<=', to.toISOString());
+            let t = new Date(toDate); t.setHours(23,59,59,999);
+            query = query.where('submittedAt', '<=', t.toISOString());
         }
         const snap = await query.get();
-        const responses = [];
-        snap.forEach(doc => responses.push({ id: doc.id, ...doc.data() }));
-        return responses;
+        let res = [];
+        snap.forEach(d => res.push({ id: d.id, ...d.data() }));
+        return res;
     }
 
-    // ----- AI ANALYSIS ENGINE (rule-based + statistical + sentiment) -----
-    function generateAIAnalysis(responses, questions) {
+    // ------- ADVANCED ANALYSIS + AUDIT + RECOMMENDATION ENGINE -------
+    function computeFullAnalysis(responses, questions) {
         if (!responses.length) {
-            return { summary: "No feedback data available for the selected period. Please collect more responses to generate insights.", recommendations: ["Launch guest engagement campaign", "Add QR code at lounge exits"], topStrengths: [], improvementZones: [] };
+            return { summary: "No data available for selected period. Collect responses to generate audit insights.", kpis: { avgTotal: 0, totalResponses: 0 }, categoryScores: [], auditFindings: [], recommendations: [] };
         }
-        // Build mapping questionId -> question object
-        const qMap = new Map();
-        questions.forEach(q => qMap.set(q.id, q));
-
-        // Aggregate numeric ratings & text feedback per category
-        const categoryScores = {};      // { category: { sum, count, texts: [] } }
-        const categoryBreakdown = {};
-        const allTextFeedback = [];
+        const qMap = new Map(); questions.forEach(q => qMap.set(q.id, q));
+        let categoryData = {}; // { sum, count, texts, ratingsList }
+        let allTextFeedback = [];
 
         for (let resp of responses) {
             const respArr = resp.responses || [];
@@ -137,276 +136,217 @@
                 const q = qMap.get(r.questionId);
                 if (!q) continue;
                 const cat = q.category || 'General';
-                if (!categoryScores[cat]) { categoryScores[cat] = { sum: 0, count: 0, texts: [] }; }
-                // numeric conversion if rating or smiley
+                if (!categoryData[cat]) categoryData[cat] = { sum: 0, count: 0, texts: [], ratings: [] };
                 let numeric = null;
                 if (q.type === 'rating' && !isNaN(parseFloat(r.value))) numeric = parseFloat(r.value);
                 if (q.type === 'smiley') {
-                    const smileyMap = { 'very-poor': 1, 'poor': 2, 'average': 3, 'good': 4, 'excellent': 5 };
-                    numeric = smileyMap[r.value?.toLowerCase()] || null;
+                    const map = { 'very-poor': 1, 'poor': 2, 'average': 3, 'good': 4, 'excellent': 5 };
+                    numeric = map[r.value?.toLowerCase()] || null;
                 }
                 if (numeric !== null) {
-                    categoryScores[cat].sum += numeric;
-                    categoryScores[cat].count += 1;
+                    categoryData[cat].sum += numeric;
+                    categoryData[cat].count += 1;
+                    categoryData[cat].ratings.push(numeric);
                 }
-                // collect textual feedback (short/long/dropdown)
-                if (q.type === 'short_text' || q.type === 'long_text') {
+                if (q.type === 'short_text' || q.type === 'long_text' || q.type === 'dropdown') {
                     if (r.value && r.value.trim().length > 0) {
-                        categoryScores[cat].texts.push({ text: r.value, questionText: q.text });
+                        categoryData[cat].texts.push({ text: r.value, question: q.text });
                         allTextFeedback.push({ category: cat, text: r.value, question: q.text });
                     }
-                }
-                if (q.type === 'dropdown' && r.value && r.value.trim()) {
-                    categoryScores[cat].texts.push({ text: r.value, questionText: q.text });
-                    allTextFeedback.push({ category: cat, text: r.value, question: q.text });
                 }
             }
         }
 
-        // Compute average per category
-        const avgPerCategory = [];
-        for (let [cat, data] of Object.entries(categoryScores)) {
-            const avg = data.count > 0 ? (data.sum / data.count) : 0;
-            avgPerCategory.push({ category: cat, avgScore: avg, feedbackCount: data.count, texts: data.texts.slice(0, 5) });
+        let categoryScores = [];
+        for (let [cat, data] of Object.entries(categoryData)) {
+            let avg = data.count > 0 ? (data.sum / data.count) : 0;
+            categoryScores.push({ category: cat, avgScore: avg, feedbackCount: data.count, sampleTexts: data.texts.slice(0, 3), ratings: data.ratings });
         }
-        avgPerCategory.sort((a,b) => b.avgScore - a.avgScore);
-        const topStrengths = avgPerCategory.filter(c => c.avgScore >= 4.2).slice(0, 3);
-        const improvementZones = avgPerCategory.filter(c => c.avgScore <= 3.5).slice(0, 3);
-        
-        // overall NPS-like mood (average rating)
-        let totalScore = 0, totalCount = 0;
-        avgPerCategory.forEach(c => { totalScore += c.avgScore * c.feedbackCount; totalCount += c.feedbackCount; });
-        const globalAvg = totalCount > 0 ? (totalScore / totalCount) : 0;
-        let sentimentLevel = globalAvg >= 4.2 ? "Excellent 🌟" : (globalAvg >= 3.5 ? "Good 😊" : (globalAvg >= 2.8 ? "Average 😐" : "Needs Improvement ⚠️"));
-        
-        // Extract key themes from text (simple keyword spotting)
-        const keywordMap = { "clean":0, "comfort":0, "staff":0, "service":0, "food":0, "drink":0, "ambience":0, "wi-fi":0, "delay":0, "crowded":0, "friendly":0 };
-        allTextFeedback.forEach(item => {
-            const txt = item.text.toLowerCase();
-            for (let kw of Object.keys(keywordMap)) {
-                if (txt.includes(kw)) keywordMap[kw]++;
-            }
-        });
-        const topKeywords = Object.entries(keywordMap).filter(([k,v]) => v>0).sort((a,b)=>b[1]-a[1]).slice(0,5).map(kv => kv[0]);
-        
-        // generate dynamic recommendations
+        categoryScores.sort((a,b) => b.avgScore - a.avgScore);
+        let totalAvg = categoryScores.reduce((acc, c) => acc + (c.avgScore * c.feedbackCount), 0) / (categoryScores.reduce((acc,c)=>acc+c.feedbackCount,0) || 1);
+        let totalResponses = responses.length;
+
+        // ----- AUDIT FINDINGS (based on thresholds & response patterns) -----
+        let auditFindings = [];
+        // 1. Low performing categories (< 3.5)
+        let lowCategories = categoryScores.filter(c => c.avgScore < 3.5);
+        if (lowCategories.length) {
+            auditFindings.push({ type: "Service Gaps", severity: "high", description: `${lowCategories.length} category(s) scored below 3.5: ${lowCategories.map(c=>c.category).join(', ')}. Immediate attention required.` });
+        }
+        // 2. Text sentiment red flags (keywords)
+        let negativeKeywords = ['dirty', 'slow', 'rude', 'uncomfortable', 'bad', 'poor', 'disappointing', 'crowded', 'noise'];
+        let negativeMentions = allTextFeedback.filter(t => negativeKeywords.some(kw => t.text.toLowerCase().includes(kw)));
+        if (negativeMentions.length > 0) {
+            auditFindings.push({ type: "Guest Sentiment Alert", severity: "medium", description: `${negativeMentions.length} guest comment(s) contain critical keywords (e.g., slow, dirty, rude). Recommend root-cause analysis.` });
+        }
+        // 3. Low response volume relative to expected (mock threshold)
+        if (totalResponses < 15 && totalResponses > 0) {
+            auditFindings.push({ type: "Low Feedback Volume", severity: "medium", description: `Only ${totalResponses} responses received. Increase collection methods (QR codes, tablet at exit).` });
+        }
+        // 4. Consistency audit: variance in category scores > 1.5
+        let scoresArray = categoryScores.map(c => c.avgScore);
+        let maxScore = Math.max(...scoresArray, 0);
+        let minScore = Math.min(...scoresArray.filter(s=>s>0), 0);
+        if ((maxScore - minScore) > 1.8) {
+            auditFindings.push({ type: "Inconsistent Experience", severity: "medium", description: `Significant variance between top (${maxScore.toFixed(1)}) and bottom (${minScore.toFixed(1)}) categories. Uneven service delivery.` });
+        }
+        if (auditFindings.length === 0) auditFindings.push({ type: "Operational Health", severity: "low", description: "All metrics within acceptable range. Maintain continuous monitoring." });
+
+        // ----- AI RECOMMENDATIONS (actionable steps)-----
         let recommendations = [];
-        if (globalAvg < 3.2) recommendations.push("🔧 Prioritize service training & address cleanliness gaps — low overall sentiment detected.");
-        if (improvementZones.some(z => z.category.toLowerCase().includes('clean'))) recommendations.push("🧼 Deep cleaning protocol: enhance visibility of hygiene measures in lounge.");
-        if (improvementZones.some(z => z.category.toLowerCase().includes('food'))) recommendations.push("🍽️ Refresh menu variety & quality — recent feedback indicates food experience below expectations.");
-        if (topKeywords.includes('crowded')) recommendations.push("👥 Manage peak hour crowding: consider capacity alerts or express zones.");
-        if (topKeywords.includes('wi-fi')) recommendations.push("📶 Boost Wi-Fi bandwidth & promote fast connectivity as key amenity.");
-        if (responses.length > 10 && globalAvg >= 4.0) recommendations.push("🏆 Leverage strengths: feature top-rated categories in marketing (e.g., Staff Excellence).");
-        if (recommendations.length === 0) recommendations.push("✨ Continue maintaining high standards. Use guest shout-outs to motivate team.");
-        
-        // extract best & worst textual comments for illustration
-        let positiveComments = [], criticalComments = [];
-        allTextFeedback.forEach(f => {
-            if (f.text.toLowerCase().includes('amazing') || f.text.toLowerCase().includes('excellent') || f.text.toLowerCase().includes('love')) 
-                positiveComments.push(f.text.slice(0, 120));
-            else if (f.text.toLowerCase().includes('bad') || f.text.toLowerCase().includes('poor') || f.text.toLowerCase().includes('disappoint'))
-                criticalComments.push(f.text.slice(0, 120));
-        });
-        positiveComments = [...new Set(positiveComments)].slice(0, 2);
-        criticalComments = [...new Set(criticalComments)].slice(0, 2);
-        
+        for (let low of lowCategories) {
+            if (low.category.toLowerCase().includes('clean')) recommendations.push({ action: "Deep cleaning protocol & daily inspection log", impact: "High", category: low.category, timeline: "Immediate" });
+            else if (low.category.toLowerCase().includes('staff')) recommendations.push({ action: "Refresher hospitality training + mystery shopper program", impact: "High", category: low.category, timeline: "2 weeks" });
+            else if (low.category.toLowerCase().includes('food')) recommendations.push({ action: "Revise menu items, introduce seasonal specials & taste test panel", impact: "High", category: low.category, timeline: "1 month" });
+            else recommendations.push({ action: `Conduct focused improvement workshop for "${low.category}"`, impact: "Medium", category: low.category, timeline: "3 weeks" });
+        }
+        if (totalAvg < 3.2) recommendations.push({ action: "Emergency service audit — engage all team leaders for daily standup feedback reviews", impact: "Critical", category: "Overall", timeline: "Weekly reviews" });
+        if (totalResponses < 20) recommendations.push({ action: "Launch incentive for survey completion (e.g., free coffee voucher)", impact: "Medium", category: "Engagement", timeline: "Start within 1 week" });
+        if (negativeMentions.length > 0 && negativeMentions.length > totalResponses * 0.2) recommendations.push({ action: "Implement real-time complaint resolution protocol at lounge reception", impact: "High", category: "Service Recovery", timeline: "Immediate" });
+        if (recommendations.length === 0) recommendations.push({ action: "Celebrate strengths: share top ratings with staff and maintain gold standard", impact: "Low", category: "Recognition", timeline: "Ongoing" });
+
+        // generate sample quotes for qualitative
+        let positiveQuotes = allTextFeedback.filter(t => t.text.toLowerCase().match(/excellent|amazing|great|perfect|love|fantastic/)).slice(0, 3);
+        let criticalQuotes = negativeMentions.slice(0, 3);
+
         return {
-            summary: `Based on ${responses.length} guest feedback entries, the overall lounge experience score is ${globalAvg.toFixed(1)}/5 (${sentimentLevel}). ${topStrengths.length} categories exceed expectations, while ${improvementZones.length} areas show potential uplift.`,
-            globalAvg: globalAvg,
-            totalResponses: responses.length,
-            topStrengths: topStrengths,
-            improvementZones: improvementZones,
+            kpis: { avgTotal: totalAvg, totalResponses: totalResponses, categoriesCount: categoryScores.length },
+            categoryScores: categoryScores,
+            auditFindings: auditFindings,
             recommendations: recommendations,
-            avgPerCategory: avgPerCategory,
-            topKeywords: topKeywords,
-            positiveComments: positiveComments,
-            criticalComments: criticalComments,
-            allTextSamples: allTextFeedback.slice(0, 6)
+            positiveQuotes: positiveQuotes,
+            criticalQuotes: criticalQuotes,
+            allTextExamples: allTextFeedback.slice(0, 8),
+            rawResponses: responses
         };
     }
-    
-    // RENDER FULL AI INSIGHT DASHBOARD
-    async function renderInsightDashboard() {
-        const container = document.getElementById('insightContentArea');
-        if (!container) return;
-        container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-pulse fa-2x"></i> Analyzing feedback with AI layer...</div>';
-        
-        await loadQuestionsAndConfig();
-        const fromVal = currentFilter.fromDate;
-        const toVal = currentFilter.toDate;
-        const responses = await fetchResponsesWithFilter(fromVal, toVal);
-        const analysis = generateAIAnalysis(responses, allQuestions);
-        
-        // Update stats badge
-        const badgeSpan = document.getElementById('filterStatsBadge');
-        if (badgeSpan) {
-            if (fromVal || toVal) badgeSpan.innerHTML = `<i class="fas fa-filter"></i> ${analysis.totalResponses} responses (filtered)`;
-            else badgeSpan.innerHTML = `<i class="fas fa-globe"></i> ${analysis.totalResponses} total responses`;
+
+    // RENDER ALL TABS
+    async function renderFullReport() {
+        if (!firestoreReady) { document.getElementById('tabAnalysis').innerHTML = '<div class="status-msg">⚠️ Firebase not connected. Check config.</div>'; return; }
+        await loadQuestions();
+        const from = currentFilter.fromDate, to = currentFilter.toDate;
+        const responses = await fetchResponses(from, to);
+        const analysis = computeFullAnalysis(responses, allQuestions);
+        document.getElementById('responseStatsBadge').innerHTML = `<i class="fas fa-chart-pie"></i> ${analysis.kpis.totalResponses} responses · Score ${analysis.kpis.avgTotal.toFixed(1)}/5`;
+
+        // ---- Tab 1: Analysis & KPIs ----
+        let analysisHtml = `<div class="insight-card"><h3><i class="fas fa-chart-line"></i> Overall Performance Dashboard</h3>
+        <div class="metric-big">${analysis.kpis.avgTotal.toFixed(1)} / 5.0</div>
+        <p>Based on <strong>${analysis.kpis.totalResponses}</strong> guest submissions | ${analysis.kpis.categoriesCount} categories evaluated</p>
+        <div class="chart-container"><canvas id="categoryScoreChart" width="400" height="180"></canvas></div></div>`;
+        analysisHtml += `<div class="grid-2">`;
+        analysisHtml += `<div class="insight-card"><h3><i class="fas fa-star-half-alt"></i> Category Breakdown</h3><ul style="margin-left:20px;">`;
+        analysis.categoryScores.slice(0,6).forEach(c => { analysisHtml += `<li><strong>${escapeHtml(c.category)}</strong>: ${c.avgScore.toFixed(1)} ★ (${c.feedbackCount} ratings)</li>`; });
+        analysisHtml += `</ul></div>`;
+        analysisHtml += `<div class="insight-card"><h3><i class="fas fa-comment-dots"></i> Guest Voice (Sample)</h3>`;
+        if (analysis.positiveQuotes.length) analysisHtml += `<div><i class="fas fa-smile-wink"></i> Positive mentions:</div>${analysis.positiveQuotes.map(q => `<div class="feedback-quote">“${escapeHtml(q.text.substring(0,130))}”</div>`).join('')}`;
+        if (analysis.criticalQuotes.length) analysisHtml += `<div style="margin-top:12px;"><i class="fas fa-frown"></i> Areas of concern:</div>${analysis.criticalQuotes.map(q => `<div class="feedback-quote" style="border-left-color:#c62828;">“${escapeHtml(q.text.substring(0,130))}”</div>`).join('')}`;
+        if (!analysis.positiveQuotes.length && !analysis.criticalQuotes.length) analysisHtml += `<div class="status-msg">No textual feedback collected yet. Encourage open-ended questions.</div>`;
+        analysisHtml += `</div></div>`;
+        document.getElementById('tabAnalysis').innerHTML = analysisHtml;
+        // chart
+        const ctx = document.getElementById('categoryScoreChart')?.getContext('2d');
+        if (ctx && analysis.categoryScores.length) {
+            if (charts.categoryChart) charts.categoryChart.destroy();
+            charts.categoryChart = new Chart(ctx, { type: 'bar', data: { labels: analysis.categoryScores.map(c=>c.category), datasets: [{ label: 'Average Score (1-5)', data: analysis.categoryScores.map(c=>c.avgScore), backgroundColor: '#d4a017', borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: true, scales: { y: { min: 1, max: 5 } } } });
         }
-        
-        // Build HTML
-        let html = `<div class="insight-grid">`;
-        // Card 1: Overall health
-        html += `<div class="insight-card">
-            <h3><i class="fas fa-chart-simple"></i> Overall Experience Score</h3>
-            <div class="metric-big">${analysis.globalAvg ? analysis.globalAvg.toFixed(1) : '—'}/5.0</div>
-            <div>Based on ${analysis.totalResponses} submissions</div>
-            <div class="ai-insight"><i class="fas fa-robot"></i> <strong>AI Summary:</strong> ${analysis.summary}</div>
-        </div>`;
-        
-        // Card 2: Top strengths
-        html += `<div class="insight-card">
-            <h3><i class="fas fa-trophy"></i> Top Performing Categories</h3>`;
-        if (analysis.topStrengths.length) {
-            analysis.topStrengths.forEach(s => {
-                html += `<div class="flex-between"><span><i class="fas fa-star" style="color:#ffc107;"></i> ${escapeHtml(s.category)}</span><span class="positive">${s.avgScore.toFixed(1)} ★</span></div>`;
+
+        // ---- Tab 2: Operational Audit ----
+        let auditHtml = `<div class="insight-card"><h3><i class="fas fa-clipboard-check"></i> Audit Findings Summary</h3><p>Based on ${analysis.kpis.totalResponses} responses and qualitative patterns.</p>`;
+        analysis.auditFindings.forEach(f => {
+            let severityClass = f.severity === 'high' ? 'priority-high' : (f.severity === 'medium' ? 'priority-medium' : 'priority-low');
+            auditHtml += `<div class="audit-item ${severityClass}"><strong><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(f.type)}</strong> (${f.severity.toUpperCase()})<br>${escapeHtml(f.description)}</div>`;
+        });
+        auditHtml += `</div><div class="insight-card"><h3><i class="fas fa-chart-simple"></i> Performance Consistency Audit</h3>`;
+        let variance = analysis.categoryScores.length ? (Math.max(...analysis.categoryScores.map(c=>c.avgScore)) - Math.min(...analysis.categoryScores.map(c=>c.avgScore))).toFixed(2) : 0;
+        auditHtml += `<p><strong>Score range:</strong> ${variance} points gap between highest & lowest categories.</p><p><strong>Audit verdict:</strong> ${variance > 1.5 ? '⚠️ Inconsistent service delivery detected → standardize training' : '✅ Consistent experience across categories'}</p>`;
+        auditHtml += `<div><strong>Response health:</strong> ${analysis.kpis.totalResponses < 20 ? 'Low volume, risk of bias' : 'Adequate sample for decision-making'}</div></div>`;
+        document.getElementById('tabAudit').innerHTML = auditHtml;
+
+        // ---- Tab 3: Recommendations & Action Plan ----
+        let recHtml = `<div class="insight-card"><h3><i class="fas fa-tasks"></i> Strategic Recommendations (Prioritized)</h3>`;
+        analysis.recommendations.forEach((rec, idx) => {
+            let priorityIcon = rec.impact === 'High' ? '🔴' : (rec.impact === 'Critical' ? '🔥' : '🟡');
+            recHtml += `<div class="recommendation-badge"><div style="min-width: 40px;">${priorityIcon}</div><div><strong>${escapeHtml(rec.action)}</strong><br><span style="font-size:0.75rem;">Impact: ${rec.impact} | Timeline: ${rec.timeline} | Category: ${rec.category}</span></div></div>`;
+        });
+        recHtml += `</div><div class="insight-card"><h3><i class="fas fa-calendar-week"></i> Action Plan Roadmap</h3>
+        <ul style="margin-left: 24px;"><li><strong>Week 1:</strong> Address critical audit findings (high severity)</li><li><strong>Week 2-3:</strong> Implement top 2 recommendations related to low-scoring categories</li><li><strong>Monthly:</strong> Re-run audit report to track improvement scores</li><li><strong>Ongoing:</strong> Increase survey participation via digital screens & staff scripts</li></ul>
+        <div class="status-msg" style="margin-top:15px;"><i class="fas fa-lightbulb"></i> Recommended ownership: Lounge Manager + Guest Experience Lead. Review progress every 15 days.</div></div>`;
+        document.getElementById('tabRecommendations').innerHTML = recHtml;
+
+        // ---- Tab 4: Raw Results (all responses per question) ----
+        let rawHtml = `<div class="insight-card"><h3><i class="fas fa-table-list"></i> Individual Responses Log</h3><div style="max-height: 500px; overflow-y: auto;">`;
+        if (analysis.rawResponses.length === 0) rawHtml += `<p>No responses for selected date range.</p>`;
+        for (let resp of analysis.rawResponses.slice(0, 50)) {
+            rawHtml += `<div style="background:#fef7e8; border-radius:20px; padding:12px; margin-bottom:12px;"><i class="fas fa-receipt"></i> <strong>${new Date(resp.submittedAt).toLocaleString()}</strong>`;
+            const respEntries = resp.responses || [];
+            respEntries.forEach(r => {
+                const q = allQuestions.find(qq => qq.id === r.questionId);
+                rawHtml += `<div style="margin-left:16px; font-size:0.8rem; margin-top:6px;"><strong>${escapeHtml(q ? q.text : 'Question')}:</strong> ${escapeHtml(r.value)}</div>`;
             });
-        } else { html += `<div class="ai-insight">No category above 4.2 yet, focus on quick wins.</div>`; }
-        html += `</div>`;
-        
-        // Card 3: Improvement zones
-        html += `<div class="insight-card">
-            <h3><i class="fas fa-chart-line"></i> Priority Improvements</h3>`;
-        if (analysis.improvementZones.length) {
-            analysis.improvementZones.forEach(z => {
-                html += `<div class="flex-between"><span><i class="fas fa-exclamation-triangle" style="color:#c62828;"></i> ${escapeHtml(z.category)}</span><span class="warning">${z.avgScore.toFixed(1)}/5</span></div>`;
-            });
-        } else { html += `<div class="ai-insight">✨ All categories above 3.5 — maintain excellence!</div>`; }
-        html += `</div>`;
-        
-        // Card 4: Keyword insights (top themes)
-        html += `<div class="insight-card">
-            <h3><i class="fas fa-hashtag"></i> Guest Voice Themes</h3>
-            <div>${analysis.topKeywords.map(k => `<span class="category-badge"><i class="fas fa-comment"></i> ${k}</span>`).join('')}</div>
-            <div class="ai-insight" style="margin-top:12px;"><i class="fas fa-lightbulb"></i> Most frequent mentions: ${analysis.topKeywords.slice(0,3).join(', ') || "collect more text feedback"}</div>
-        </div>`;
-        
-        // Card 5: AI Recommendations
-        html += `<div class="insight-card">
-            <h3><i class="fas fa-list-check"></i> Actionable Recommendations</h3>
-            <ul style="margin-left: 20px; margin-top: 10px;">${analysis.recommendations.map(rec => `<li style="margin-bottom: 8px;">${rec}</li>`).join('')}</ul>
-        </div>`;
-        
-        // Card 6: Guest quotes (qualitative)
-        html += `<div class="insight-card">
-            <h3><i class="fas fa-quote-left"></i> Guest Voices</h3>`;
-        if (analysis.positiveComments.length) {
-            html += `<div><strong>👍 Positive highlights:</strong></div>`;
-            analysis.positiveComments.forEach(q => html += `<div class="feedback-quote">“${escapeHtml(q)}”</div>`);
+            rawHtml += `</div>`;
         }
-        if (analysis.criticalComments.length) {
-            html += `<div style="margin-top:12px;"><strong>⚠️ Areas heard:</strong></div>`;
-            analysis.criticalComments.forEach(q => html += `<div class="feedback-quote" style="border-left-color:#c62828;">“${escapeHtml(q)}”</div>`);
-        }
-        if (!analysis.positiveComments.length && !analysis.criticalComments.length) html += `<div class="ai-insight">Encourage open-ended feedback to unlock deeper insights.</div>`;
-        html += `</div>`;
-        
-        // Card 7: Category performance chart (visual summary)
-        html += `<div class="insight-card" style="grid-column: span 2;">
-            <h3><i class="fas fa-chart-column"></i> Category Performance Heatmap</h3>
-            <div class="chart-container"><canvas id="categoryPerformanceChart" width="400" height="180"></canvas></div>
-            <div class="ai-insight">Categories scoring below 3.5 require immediate supervisor review. Focus on high-impact drivers.</div>
-        </div>`;
-        
-        html += `</div>`;
-        container.innerHTML = html;
-        
-        // Render chart after DOM ready
-        if (analysis.avgPerCategory.length) {
-            const ctx = document.getElementById('categoryPerformanceChart')?.getContext('2d');
-            if (ctx) {
-                if (chartsCache.categoryChart) chartsCache.categoryChart.destroy();
-                const labels = analysis.avgPerCategory.map(c => c.category);
-                const data = analysis.avgPerCategory.map(c => c.avgScore);
-                chartsCache.categoryChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: { labels: labels, datasets: [{ label: 'Average Rating (1-5)', data: data, backgroundColor: '#d4a017', borderRadius: 8 }] },
-                    options: { responsive: true, maintainAspectRatio: true, scales: { y: { min: 1, max: 5, title: { display: true, text: 'Score' } } } }
-                });
-            }
-        }
-        
-        // Add textual sample analysis
-        if (analysis.allTextSamples.length) {
-            const textInsightDiv = document.createElement('div');
-            textInsightDiv.className = 'insight-card';
-            textInsightDiv.style.margin = '0 30px 30px 30px';
-            textInsightDiv.innerHTML = `<h3><i class="fas fa-message"></i> Recent verbatim insights</h3><div style="max-height:200px; overflow-y:auto;">`;
-            analysis.allTextSamples.slice(0, 5).forEach(sample => {
-                textInsightDiv.innerHTML += `<div class="feedback-quote"><strong>📌 ${escapeHtml(sample.question)}</strong><br>“${escapeHtml(sample.text.substring(0, 180))}”</div>`;
-            });
-            textInsightDiv.innerHTML += `</div>`;
-            container.appendChild(textInsightDiv);
-        }
+        rawHtml += `</div></div>`;
+        document.getElementById('tabRawResults').innerHTML = rawHtml;
     }
-    
-    // PDF export function (export insight area)
-    async function exportInsightToPDF() {
-        const element = document.getElementById('insightContentArea');
-        if (!element) return;
+
+    // PDF Export (captures active tab content)
+    async function exportActiveTabToPDF() {
+        const activeTabId = document.querySelector('.tab-btn.active')?.getAttribute('data-tab');
+        let contentDiv = null;
+        if (activeTabId === 'analysis') contentDiv = document.getElementById('tabAnalysis');
+        else if (activeTabId === 'audit') contentDiv = document.getElementById('tabAudit');
+        else if (activeTabId === 'recommendations') contentDiv = document.getElementById('tabRecommendations');
+        else contentDiv = document.getElementById('tabRawResults');
+        if (!contentDiv) return;
         try {
             const { jsPDF } = window.jspdf;
-            const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#fffaf2', logging: false });
+            const canvas = await html2canvas(contentDiv, { scale: 2, backgroundColor: '#ffffff' });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             const imgWidth = 190;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
-            pdf.save(`Koveli_Lounge_AI_Report_${new Date().toISOString().slice(0,19)}.pdf`);
-        } catch(err) { alert('PDF generation failed, but data is available.'); }
+            pdf.save(`Koveli_Report_${activeTabId}_${new Date().toISOString().slice(0,19)}.pdf`);
+        } catch(e) { alert('Export error but data available'); }
     }
-    
-    // attach filter events
-    function initFilters() {
-        const fromInput = document.getElementById('reportFromDate');
-        const toInput = document.getElementById('reportToDate');
-        const applyBtn = document.getElementById('applyReportFilterBtn');
-        const exportBtn = document.getElementById('exportReportPdfBtn');
-        if (fromInput && toInput && applyBtn) {
-            applyBtn.addEventListener('click', () => {
-                currentFilter.fromDate = fromInput.value || null;
-                currentFilter.toDate = toInput.value || null;
-                renderInsightDashboard();
+
+    // event listeners & init
+    function initUI() {
+        document.getElementById('applyAuditFilter').addEventListener('click', () => {
+            currentFilter.fromDate = document.getElementById('auditFromDate').value || null;
+            currentFilter.toDate = document.getElementById('auditToDate').value || null;
+            renderFullReport();
+        });
+        document.getElementById('exportFullReportBtn').addEventListener('click', exportActiveTabToPDF);
+        const tabsBtns = document.querySelectorAll('.tab-btn');
+        tabsBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabId = btn.getAttribute('data-tab');
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                if (tabId === 'analysis') document.getElementById('tabAnalysis').classList.add('active');
+                else if (tabId === 'audit') document.getElementById('tabAudit').classList.add('active');
+                else if (tabId === 'recommendations') document.getElementById('tabRecommendations').classList.add('active');
+                else if (tabId === 'rawResults') document.getElementById('tabRawResults').classList.add('active');
+                // refresh charts if needed
+                if (tabId === 'analysis' && charts.categoryChart) charts.categoryChart.update();
             });
-        }
-        if (exportBtn) exportBtn.addEventListener('click', exportInsightToPDF);
-        // set default filter last 30 days? optional
+        });
+        // default dates: last 30 days
         const today = new Date();
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(today.getDate() - 30);
-        if (!fromInput.value) fromInput.value = thirtyDaysAgo.toISOString().slice(0,10);
-        if (!toInput.value) toInput.value = today.toISOString().slice(0,10);
-        currentFilter.fromDate = fromInput.value;
-        currentFilter.toDate = toInput.value;
+        const monthAgo = new Date(); monthAgo.setDate(today.getDate() - 30);
+        document.getElementById('auditFromDate').value = monthAgo.toISOString().slice(0,10);
+        document.getElementById('auditToDate').value = today.toISOString().slice(0,10);
+        currentFilter.fromDate = monthAgo.toISOString().slice(0,10);
+        currentFilter.toDate = today.toISOString().slice(0,10);
+        renderFullReport();
     }
-    
-    // Device auth simulation (since we are inside report, we skip full device lock but ensure firebase ready)
-    async function startReport() {
-        if (!firestoreReady) {
-            document.getElementById('insightContentArea').innerHTML = '<div class="loading-spinner" style="color:#3e2a1a;">⚠️ Firebase not connected. Please check configuration (fire.js/config.js).</div>';
-            return;
-        }
-        initFilters();
-        await renderInsightDashboard();
-    }
-    
-    // Check if firebase is ready after small delay
-    window.addEventListener('DOMContentLoaded', () => {
-        // If firestore not ready after 1sec, try alternative
-        const checkFirebase = setInterval(() => {
-            if (typeof firebase !== 'undefined' && firebase.apps.length) {
-                if (!db) { try { db = firebase.firestore(); firestoreReady = true; } catch(e) {} }
-                if (firestoreReady) {
-                    clearInterval(checkFirebase);
-                    startReport();
-                }
-            } else if (document.readyState === 'complete') {
-                clearInterval(checkFirebase);
-                document.getElementById('insightContentArea').innerHTML = '<div class="loading-spinner">⚠️ Firebase SDK not initialized. Ensure fire.js and config.js exist with valid project.</div>';
-            }
-        }, 300);
-        setTimeout(() => { if (!firestoreReady) clearInterval(checkFirebase); }, 5000);
-    });
+
+    if (firestoreReady) initUI();
+    else setTimeout(() => { if (!firestoreReady) document.getElementById('tabAnalysis').innerHTML = '<div class="status-msg">Firebase not initialized. Ensure fire.js/config.js exist and project is active.</div>'; }, 500);
 </script>
 </body>
 </html>
