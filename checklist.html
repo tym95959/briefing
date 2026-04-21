@@ -171,6 +171,27 @@
         .info-text { font-size: 0.65rem; color: #7c9ab8; margin-top: 8px; text-align: center; }
         .empty-msg { text-align: center; padding: 30px 20px; color: #8aa9c4; font-size: 0.8rem; }
         .staff-list-manager, .task-list-manager { max-height: 300px; overflow-y: auto; }
+        .staff-multi-select {
+    padding: 5px;
+    border-radius: 8px;
+    border: 1.5px solid #e2eaf2;
+    font-size: 0.7rem;
+    background: white;
+    width: 140px;
+}
+
+.staff-multi-select option {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+}
+
+.assign-wrapper {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
     </style>
 </head>
 <body>
@@ -512,7 +533,66 @@
     function renderSODPanel() { if(!sodStaffListDiv) return; if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } supervisorTabs.classList.remove('hidden'); if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; }
     
     async function loadSODAllocation() { if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocation(); renderFullAllocation(); } catch(e){console.error(e);} }
-    function renderAllocation() { if(!currentSODRecord||!allocationContainer) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed"; let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; let staffHtml=''; if(canEdit){ let sodOptions = '<option value="">-- Add Staff --</option>'; if(sodStaffNames.length > 0) sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join(''); else sodOptions = '<option value="">-- No SOD staff available --</option>'; staffHtml = `<div class="assign-wrapper"><select class="staff-select-small" id="staffSel_${slot.id}_${area.replace(/\s/g,'_')}">${sodOptions}</select><button class="assign-small-btn assign-btn" data-slot="${slot.id}" data-area="${area}">Add</button></div>`; } html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)} ${canEdit?`<button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" onclick="removeStaff('${slot.id}','${area}','${escapeHtml(s)}')">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; allocationContainer.innerHTML=html; if(canEdit){ document.querySelectorAll('.assign-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`staffSel_${slotId}_${area.replace(/\s/g,'_')}`),staff=select.value; if(staff && sodStaffNames.includes(staff)) await assignStaff(slotId,area,staff); else if(staff && !sodStaffNames.includes(staff)) alert(`⚠️ ${staff} is not on duty.`); })); } }
+    function renderAllocation() { 
+    if(!currentSODRecord||!allocationContainer) return; 
+    const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed"; 
+    let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; 
+    const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
+    areas.forEach(area=>{ 
+        html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; 
+        slots.forEach(slot=>{ 
+            const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
+            let staffHtml=''; 
+            if(canEdit){ 
+                let sodOptions = '<option value="">-- Add Staff (Select multiple) --</option>'; 
+                if(sodStaffNames.length > 0) {
+                    sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+                } else { 
+                    sodOptions = '<option value="">-- No SOD staff available --</option>'; 
+                }
+                staffHtml = `<div class="assign-wrapper">
+                    <select multiple class="staff-multi-select" id="multiSel_${slot.id}_${area.replace(/\s/g,'_')}" style="min-width:120px; height:auto; min-height:80px;">${sodOptions}</select>
+                    <button class="assign-small-btn assign-multi-btn" data-slot="${slot.id}" data-area="${area}">Add Selected</button>
+                </div>`; 
+            } 
+            html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge"> ${escapeHtml(s)} ${canEdit?`<button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" onclick="removeStaff('${slot.id}','${area}','${escapeHtml(s)}')">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`; 
+        }); 
+        html+='</tr>'; 
+    }); 
+    html+='</tbody></table>'; 
+    allocationContainer.innerHTML=html; 
+    if(canEdit){ 
+        document.querySelectorAll('.assign-multi-btn').forEach(btn=>btn.addEventListener('click',async()=>{ 
+            const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`multiSel_${slotId}_${area.replace(/\s/g,'_')}`),selectedOptions=Array.from(select.selectedOptions).map(opt=>opt.value).filter(v=>v); 
+            if(selectedOptions.length===0){ alert("Please select at least one staff member"); return; }
+            const invalidStaff = selectedOptions.filter(staff => !sodStaffNames.includes(staff));
+            if(invalidStaff.length > 0){ alert(`⚠️ ${invalidStaff.join(', ')} is not on duty.`); return; }
+            await assignMultipleStaff(slotId,area,selectedOptions);
+        })); 
+    } 
+}
+    async function assignMultipleStaff(slotId,area,staffNames){ 
+    if(!currentSODRecord) return; 
+    const allocations={...currentSODRecord.allocations}; 
+    if(!allocations[slotId]) allocations[slotId]={}; 
+    if(!allocations[slotId][area]) allocations[slotId][area]=[]; 
+    let addedCount = 0;
+    staffNames.forEach(staffName => {
+        if(!allocations[slotId][area].includes(staffName)){ 
+            allocations[slotId][area].push(staffName); 
+            addedCount++;
+        }
+    });
+    if(addedCount > 0){
+        await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); 
+        currentSODRecord.allocations=allocations; 
+        renderAllocation(); 
+        renderFullAllocation(); 
+        alert(`✅ Added ${addedCount} staff member(s) to ${area}`);
+    } else {
+        alert("Selected staff already assigned to this area");
+    }
+}
     async function assignStaff(slotId,area,staffName){ if(!currentSODRecord) return; const allocations={...currentSODRecord.allocations}; if(!allocations[slotId]) allocations[slotId]={}; if(!allocations[slotId][area]) allocations[slotId][area]=[]; if(!allocations[slotId][area].includes(staffName)){ allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderFullAllocation(); } else { alert(`${staffName} already assigned`); } }
     async function removeStaff(slotId,area,staffName){ const allocations={...currentSODRecord.allocations}; if(allocations[slotId]&&allocations[slotId][area]){ allocations[slotId][area]=allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderFullAllocation(); } } window.removeStaff=removeStaff;
     
@@ -522,7 +602,7 @@
         const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; 
         let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; 
         const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
-        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='<tr>'; }); html+='</tbody></table>'; 
+        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge"> ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='<tr>'; }); html+='</tbody></table>'; 
         fullAllocationContainer.innerHTML=html; 
     }
     
@@ -626,7 +706,105 @@
         setTimeout(()=>reportWindow.print(), 500); 
     }
     
-    function printAllocationSheet(){ generatePDFReport(); }
+    function printAllocationSheet(){ 
+    if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } 
+    const reportWindow = window.open('', '_blank'); 
+    const reportDate = new Date().toLocaleString(); 
+    const refNo = "REF D15D-CKL/2025/29"; 
+    
+    // Get allocation data
+    const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS;
+    const allocations=currentSODRecord?.allocations||{}; 
+    const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"];
+    
+    let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Staff Allocation Report</title><style>
+        body{font-family:Arial,sans-serif;padding:20px;margin:0;}
+        h1{color:#1d6f8f;text-align:center;margin-bottom:5px;font-size:18px;}
+        h2{color:#2c6e8f;text-align:center;font-size:14px;margin-top:0;margin-bottom:10px;}
+        hr{border:1px solid #1d6f8f;margin:10px 0;}
+        .ref-no{text-align:center;font-size:10px;color:#666;margin-bottom:10px;}
+        .info-line{font-size:10px;margin:3px 0;}
+        .allocation-box{margin-bottom:30px;border:1px solid #ccc;padding:10px;border-radius:8px;page-break-inside:avoid;}
+        .allocation-table{border-collapse:collapse;width:100%;margin-bottom:10px;}
+        .allocation-table th,.allocation-table td{border:1px solid #ddd;padding:6px;text-align:center;font-size:9px;}
+        .allocation-table th{background-color:#eef3fc;font-weight:bold;}
+        .area-col{text-align:left;background:#f8fbfe;font-weight:bold;}
+        .staff-list-cell{text-align:left;}
+        .staff-name-badge-report{display:inline-block;background:#eef2fa;padding:2px 5px;border-radius:10px;margin:1px;font-size:8px;}
+        .signature-line{display:flex;justify-content:space-between;margin-top:30px;padding:0 10px;}
+        .signature-box{text-align:center;font-size:10px;}
+        .signature-box div{margin-top:25px;border-top:1px solid #333;width:180px;padding-top:5px;}
+        .footer{text-align:center;font-size:9px;color:#999;margin-top:20px;}
+        .box-title{text-align:center;font-weight:bold;font-size:12px;margin-bottom:10px;background:#1d6f8f;color:white;padding:5px;border-radius:5px;}
+        @media print {
+            body{margin:0;padding:5px;}
+            .allocation-box{border:1px solid #000;page-break-inside:avoid;}
+        }
+    </style></head><body>
+    <h1>Koveli Lounge</h1>
+    <h2>Staff Allocation Sheet</h2>
+    <div class="ref-no">${refNo}</div>
+    <hr>
+    <div style="display:flex; justify-content:space-between;">
+        <div class="info-line"><strong>Date:</strong> ${currentDate}</div>
+        <div class="info-line"><strong>Shift:</strong> ${currentShift}</div>
+        <div class="info-line"><strong>Generated:</strong> ${reportDate}</div>
+    </div>
+    <div class="info-line"><strong>Supervisors:</strong> ${supervisorList.length > 0 ? supervisorList.join(', ') : 'None'}</div>
+    <hr>`;
+    
+    // Function to generate allocation table HTML
+    function generateAllocationTable(title) {
+        let tableHtml = `<div class="allocation-box">
+            <div class="box-title">${title}</div>
+            <table class="allocation-table">
+                <thead>
+                    <tr>
+                        <th class="area-col">Area / Time</th>
+                        ${slots.map(s=>`<th>${s.name}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        areas.forEach(area=>{ 
+            tableHtml+=`<tr>
+                <td class="area-col">${area}</td>`; 
+            slots.forEach(slot=>{ 
+                const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
+                tableHtml+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge-report">${escapeHtml(s)}</span>`).join('') || '—'}</td>`; 
+            }); 
+            tableHtml+=`</tr>`; 
+        }); 
+        
+        tableHtml += `</tbody>
+            </table>
+        </div>`;
+        return tableHtml;
+    }
+    
+    // FIRST TABLE - TOP
+    htmlContent += generateAllocationTable('📋 OFFICE COPY');
+    
+    // SECOND TABLE - BOTTOM
+    htmlContent += generateAllocationTable('👔 SUPERVISOR COPY');
+    
+    // Signature section
+    htmlContent += `<div class="signature-line">
+        <div class="signature-box">
+            <div>Prepared By (Supervisor)</div>
+        </div>
+        <div class="signature-box">
+            <div>Received By (Team Lead)</div>
+        </div>
+    </div>`;
+    
+    htmlContent += `<div class="footer">This is a system-generated allocation report. Valid for ${currentShift} shift on ${currentDate}.</div>`;
+    htmlContent += `</body></html>`;
+    
+    reportWindow.document.write(htmlContent); 
+    reportWindow.document.close(); 
+    setTimeout(()=>reportWindow.print(), 500); 
+}
     function exportFullReport(){ generatePDFReport(); }
     
     function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); loadAttendance(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } renderAllocation(); updateShiftStatusUI(); }
