@@ -289,22 +289,32 @@
     
     // ============ HANDOVER LOG FUNCTIONS ============
     async function loadHandoverLog() { 
-        if(!firestoreReady || !currentDate || !currentShift) {
-            if(handoverContainer) handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift first</div>';
-            return; 
-        }
-        const id = getHandoverId(currentDate, currentShift); 
-        try { 
-            const doc = await db.collection("handoverLogs").doc(id).get(); 
-            if(doc.exists) { 
-                handoverData = doc.data(); 
-            } else { 
-                handoverData = { cards: [], compWheel: [], delayFlights: [], followup: [], importantMsg: "" }; 
-                await db.collection("handoverLogs").doc(id).set(handoverData);
-            } 
-            renderHandoverUI(); 
-        } catch(e) { console.error(e); handoverContainer.innerHTML = '<div class="empty-msg">Error loading handover log</div>'; } 
+    if(!firestoreReady || !currentDate || !currentShift) {
+        if(handoverContainer) handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift first</div>';
+        return; 
     }
+    const id = getHandoverId(currentDate, currentShift); 
+    try { 
+        const doc = await db.collection("handoverLogs").doc(id).get(); 
+        if(doc.exists) { 
+            handoverData = doc.data(); 
+            // Ensure new structure exists
+            handoverData.wheelchair = handoverData.wheelchair || [];
+            handoverData.complimentary = handoverData.complimentary || [];
+        } else { 
+            handoverData = { 
+                cards: [], 
+                wheelchair: [], 
+                complimentary: [], 
+                delayFlights: [], 
+                followup: [], 
+                importantMsg: "" 
+            }; 
+            await db.collection("handoverLogs").doc(id).set(handoverData);
+        } 
+        renderHandoverUI(); 
+    } catch(e) { console.error(e); handoverContainer.innerHTML = '<div class="empty-msg">Error loading handover log</div>'; } 
+}
     
     async function saveHandoverLog() { 
         if(!firestoreReady || !currentDate || !currentShift || !handoverData) return; 
@@ -348,84 +358,134 @@
     }
     
     function renderHandoverUI() {
-        if(!handoverContainer) return;
-        if(!currentDate || !currentShift) {
-            handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift to view handover log</div>';
-            return;
-        }
-        
-        // Ensure handoverData is initialized
-        if (!handoverData) {
-            handoverContainer.innerHTML = '<div class="empty-msg">Loading handover data...</div>';
-            return;
-        }
-        
-        // Ensure all arrays exist
-        handoverData.cards = handoverData.cards || [];
-        handoverData.compWheel = handoverData.compWheel || [];
-        handoverData.delayFlights = handoverData.delayFlights || [];
-        handoverData.followup = handoverData.followup || [];
-        handoverData.importantMsg = handoverData.importantMsg || "";
-        
-        let html = `
-            <div class="handover-section"><h4><i class="fas fa-ticket-alt"></i> 1. Cards / FQTV No</h4>
-            <table class="handover-table"><thead><tr><th>Flight</th><th>Seat</th><th>Need Cards/FQTV No</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th style="width:40px"></th></tr></thead><tbody>
-            ${handoverData.cards.length > 0 ? handoverData.cards.map((item,idx) => `<tr>
-                <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('cards',${idx},'flight',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.seat||'')}" onchange="updateRowField('cards',${idx},'seat',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.needCards||'')}" onchange="updateRowField('cards',${idx},'needCards',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('cards',${idx},'contact',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('cards',${idx},'remarks',this.value)"></td>
-                <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('cards',${idx},'done',this.checked)"></td>
-                <td><button class="delete-row-btn" onclick="deleteRow('cards',${idx})"><i class="fas fa-trash"></i></button></td>
-            </tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
-            </tbody></table>
-            <button class="add-row-btn" onclick="addRow(\'cards\',{flight:\'\',seat:\'\',needCards:\'\',contact:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Card Entry</button></div>
-            
-            <div class="handover-section"><h4><i class="fas fa-wheelchair"></i> 2. Complimentary & Wheel Chair</h4>
-            <table class="handover-table"><thead><tr><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>W/C No</th><th>Contact</th><th>Complimentary Done ✓</th><th></th></tr></thead><tbody>
-            ${handoverData.compWheel.length > 0 ? handoverData.compWheel.map((item,idx) => `<tr>
-                <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('compWheel',${idx},'flight',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('compWheel',${idx},'pax',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('compWheel',${idx},'desc',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.wcNo||'')}" onchange="updateRowField('compWheel',${idx},'wcNo',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('compWheel',${idx},'contact',this.value)"></td>
-                <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.complimentaryDone?'checked':''} onchange="updateRowField('compWheel',${idx},'complimentaryDone',this.checked)"></td>
-                <td><button class="delete-row-btn" onclick="deleteRow('compWheel',${idx})"><i class="fas fa-trash"></i></button></td>
-            </tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
-            </tbody></table>
-            <button class="add-row-btn" onclick="addRow(\'compWheel\',{flight:\'\',pax:\'\',desc:\'\',wcNo:\'\',contact:\'\',complimentaryDone:false})"><i class="fas fa-plus"></i> Add Wheelchair/Complimentary</button></div>
-            
-            <div class="handover-section"><h4><i class="fas fa-clock"></i> 3. DELAY FLIGHTS</h4>
-            <table class="handover-table"><thead><tr><th>Flight</th><th>ETA</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead><tbody>
-            ${handoverData.delayFlights.length > 0 ? handoverData.delayFlights.map((item,idx) => `<tr>
-                <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('delayFlights',${idx},'flight',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.eta||'')}" onchange="updateRowField('delayFlights',${idx},'eta',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('delayFlights',${idx},'remarks',this.value)"></td>
-                <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('delayFlights',${idx},'done',this.checked)"></td>
-                <td><button class="delete-row-btn" onclick="deleteRow('delayFlights',${idx})"><i class="fas fa-trash"></i></button></td>
-            </tr>`).join('') : '<tr><td colspan="5" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
-            </tbody></table>
-            <button class="add-row-btn" onclick="addRow(\'delayFlights\',{flight:\'\',eta:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Delay Flight</button></div>
-            
-            <div class="handover-section"><h4><i class="fas fa-user-follow"></i> 4. PASSENGERS TO FOLLOWUP (Walk-in / Non-Contracted / VIP / IO / Special Assistance)</h4>
-            <table class="handover-table"><thead><tr><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead><tbody>
-            ${handoverData.followup.length > 0 ? handoverData.followup.map((item,idx) => `<tr>
-                <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('followup',${idx},'flight',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('followup',${idx},'pax',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('followup',${idx},'desc',this.value)"></td>
-                <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('followup',${idx},'remarks',this.value)"></td>
-                <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('followup',${idx},'done',this.checked)"></td>
-                <td><button class="delete-row-btn" onclick="deleteRow('followup',${idx})"><i class="fas fa-trash"></i></button></td>
-            </tr>`).join('') : '<tr><td colspan="6" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
-            </tbody></table>
-            <button class="add-row-btn" onclick="addRow(\'followup\',{flight:\'\',pax:\'\',desc:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Follow-up Passenger</button></div>
-            
-            <div class="handover-section"><h4><i class="fas fa-envelope"></i> 5. IMPORTANT MESSAGES / OTHERS</h4>
-            <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes or messages for next shift..." onchange="updateImportantMsg(this.value)">${escapeHtml(handoverData.importantMsg)}</textarea></div>
-        `;
-        handoverContainer.innerHTML = html;
+    if(!handoverContainer) return;
+    if(!currentDate || !currentShift) {
+        handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift to view handover log</div>';
+        return;
     }
+    
+    // Ensure handoverData is initialized
+    if (!handoverData) {
+        handoverContainer.innerHTML = '<div class="empty-msg">Loading handover data...</div>';
+        return;
+    }
+    
+    // Ensure all arrays exist
+    handoverData.cards = handoverData.cards || [];
+    handoverData.wheelchair = handoverData.wheelchair || [];
+    handoverData.complimentary = handoverData.complimentary || [];
+    handoverData.delayFlights = handoverData.delayFlights || [];
+    handoverData.followup = handoverData.followup || [];
+    handoverData.importantMsg = handoverData.importantMsg || "";
+    
+    let html = `
+        <!-- CARDS SECTION - Blue Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdef5 100%); border-left: 5px solid #1976d2; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #1565c0;"><i class="fas fa-ticket-alt"></i> 1. Cards / FQTV No</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #1976d2; color: white;"><th>Flight</th><th>Seat</th><th>Need Cards/FQTV No</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th style="width:40px"></th></tr></thead>
+                <tbody>
+                ${handoverData.cards.length > 0 ? handoverData.cards.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('cards',${idx},'flight',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.seat||'')}" onchange="updateRowField('cards',${idx},'seat',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.needCards||'')}" onchange="updateRowField('cards',${idx},'needCards',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('cards',${idx},'contact',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('cards',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('cards',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('cards',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #1976d2;" onclick="addRow(\'cards\',{flight:\'\',seat:\'\',needCards:\'\',contact:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Card Entry</button>
+        </div>
+        
+        <!-- WHEELCHAIR SECTION - Orange Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-left: 5px solid #f57c00; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #e65100;"><i class="fas fa-wheelchair"></i> 2. Wheel Chair Request</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #f57c00; color: white;"><th>Passenger Name</th><th>Flight No</th><th>W/C No</th><th>Flight Time</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
+                <tbody>
+                ${handoverData.wheelchair.length > 0 ? handoverData.wheelchair.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.paxName||'')}" onchange="updateRowField('wheelchair',${idx},'paxName',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.flightNo||'')}" onchange="updateRowField('wheelchair',${idx},'flightNo',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.wcNo||'')}" onchange="updateRowField('wheelchair',${idx},'wcNo',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.flightTime||'')}" onchange="updateRowField('wheelchair',${idx},'flightTime',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('wheelchair',${idx},'contact',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('wheelchair',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('wheelchair',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('wheelchair',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="8" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #f57c00;" onclick="addRow(\'wheelchair\',{paxName:\'\',flightNo:\'\',wcNo:\'\',flightTime:\'\',contact:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Wheelchair Request</button>
+        </div>
+        
+        <!-- COMPLIMENTARY SECTION - Green Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-left: 5px solid #388e3c; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #2e7d32;"><i class="fas fa-gift"></i> 3. Complimentary Services</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #388e3c; color: white;"><th>Name</th><th>Flight No</th><th>No. of Pax</th><th>Authorized By</th><th>Flight Time</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
+                <tbody>
+                ${handoverData.complimentary.length > 0 ? handoverData.complimentary.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.name||'')}" onchange="updateRowField('complimentary',${idx},'name',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.flightNo||'')}" onchange="updateRowField('complimentary',${idx},'flightNo',this.value)"></td>
+                    <td><input class="handover-input" type="number" value="${escapeHtml(item.noOfPax||'')}" onchange="updateRowField('complimentary',${idx},'noOfPax',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.authBy||'')}" onchange="updateRowField('complimentary',${idx},'authBy',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.flightTime||'')}" onchange="updateRowField('complimentary',${idx},'flightTime',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('complimentary',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('complimentary',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('complimentary',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="8" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #388e3c;" onclick="addRow(\'complimentary\',{name:\'\',flightNo:\'\',noOfPax:\'\',authBy:\'\',flightTime:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Complimentary Entry</button>
+        </div>
+        
+        <!-- DELAY FLIGHTS SECTION - Red Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border-left: 5px solid #d32f2f; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #c62828;"><i class="fas fa-clock"></i> 4. DELAY FLIGHTS</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #d32f2f; color: white;"><th>Flight</th><th>ETA</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
+                <tbody>
+                ${handoverData.delayFlights.length > 0 ? handoverData.delayFlights.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('delayFlights',${idx},'flight',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.eta||'')}" onchange="updateRowField('delayFlights',${idx},'eta',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('delayFlights',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('delayFlights',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('delayFlights',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="5" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #d32f2f;" onclick="addRow(\'delayFlights\',{flight:\'\',eta:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Delay Flight</button>
+        </div>
+        
+        <!-- FOLLOWUP SECTION - Purple Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border-left: 5px solid #7b1fa2; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #6a1b9a;"><i class="fas fa-user-follow"></i> 5. PASSENGERS TO FOLLOWUP (Walk-in / Non-Contracted / VIP / IO / Special Assistance)</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #7b1fa2; color: white;"><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
+                <tbody>
+                ${handoverData.followup.length > 0 ? handoverData.followup.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('followup',${idx},'flight',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('followup',${idx},'pax',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('followup',${idx},'desc',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('followup',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('followup',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('followup',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="6" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #7b1fa2;" onclick="addRow(\'followup\',{flight:\'\',pax:\'\',desc:\'\',remarks:\'\',done:false})"><i class="fas fa-plus"></i> Add Follow-up Passenger</button>
+        </div>
+        
+        <!-- IMPORTANT MESSAGES SECTION - Grey Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%); border-left: 5px solid #616161; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #424242;"><i class="fas fa-envelope"></i> 6. IMPORTANT MESSAGES / OTHERS</h4>
+            <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes or messages for next shift..." onchange="updateImportantMsg(this.value)">${escapeHtml(handoverData.importantMsg)}</textarea>
+        </div>
+    `;
+    handoverContainer.innerHTML = html;
+}
     
     // Make functions globally accessible for onclick handlers
     window.addRow = addRow;
