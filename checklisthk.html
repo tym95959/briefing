@@ -1087,7 +1087,104 @@ async function cancelAcknowledgment(taskId, staffName) {
         renderTasks();
     }
 }
-    function renderTaskManager() { if(!taskListManager) return; const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); taskCategorySelectMgr.innerHTML = '<option value="">-- Select Category --</option>'+cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join(''); taskListManager.innerHTML = globalTasks.map(task => `<div class="task-manager-item"><div><strong>${escapeHtml(task.name)}</strong><span class="task-cat-badge">${escapeHtml(task.category||"General")}</span><span class="task-shift-badge">${task.shift || "Both"}</span></div><div><button class="btn-warning edit-task-btn" data-id="${task.id}" data-shift="${task.shift||'Both'}">Edit Shift</button><button class="btn-danger delete-task-btn" data-id="${task.id}">Delete</button></div></div>`).join(''); document.querySelectorAll('.edit-task-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), currShift=btn.getAttribute('data-shift'); const newShift=prompt("Edit shift (Morning/Evening/Both):",currShift); if(newShift && ["Morning","Evening","Both"].includes(newShift)) await saveGlobalTasks(globalTasks.map(t=>t.id===id?{...t,shift:newShift}:t)); })); document.querySelectorAll('.delete-task-btn').forEach(btn=>btn.addEventListener('click',async()=>{ if(confirm("Delete task?")) await saveGlobalTasks(globalTasks.filter(t=>t.id!==btn.getAttribute('data-id'))); })); }
+    function renderTaskManager() { 
+    if(!taskListManager) return; 
+    const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); 
+    taskCategorySelectMgr.innerHTML = '<option value="">-- Select Category --</option>'+cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join(''); 
+    
+    taskListManager.innerHTML = globalTasks.map(task => {
+        // Show dropdown options preview if task type is dropdown
+        let optionsPreview = '';
+        if (task.type === 'dropdown' && task.options && task.options.length) {
+            optionsPreview = `<div style="font-size:0.65rem; color:#666; margin-top:4px;">📋 Options: ${task.options.join(', ')}</div>`;
+        }
+        
+        return `<div class="task-manager-item">
+            <div style="flex:1;">
+                <strong>${escapeHtml(task.name)}</strong>
+                <span class="task-cat-badge">${escapeHtml(task.category || "General")}</span>
+                <span class="task-shift-badge">${task.shift || "Both"}</span>
+                <span class="task-cat-badge" style="background:#e3f2fd;">${task.type}</span>
+                ${optionsPreview}
+            </div>
+            <div>
+                <button class="btn-warning edit-task-full-btn" data-id="${task.id}" style="background:#ff9800;"><i class="fas fa-edit"></i> Edit Task</button>
+                <button class="btn-danger delete-task-btn" data-id="${task.id}"><i class="fas fa-trash"></i> Delete</button>
+            </div>
+        </div>`;
+    }).join(''); 
+    
+    // Full edit button handler (edits name, category, type, shift, dropdown options)
+    document.querySelectorAll('.edit-task-full-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const taskId = btn.getAttribute('data-id');
+            const taskToEdit = globalTasks.find(t => t.id === taskId);
+            if (taskToEdit) {
+                await editTaskFull(taskId, taskToEdit);
+            }
+        });
+    });
+    
+    document.querySelectorAll('.delete-task-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if(confirm("Delete task?")) {
+                await saveGlobalTasks(globalTasks.filter(t => t.id !== btn.getAttribute('data-id')));
+            }
+        });
+    });
+}
+
+// Add this new function for full task editing
+async function editTaskFull(taskId, oldTask) { 
+    // Edit Task Name
+    const newName = prompt("Edit Task Name:", oldTask.name);
+    if (!newName) return;
+    
+    // Edit Category
+    const newCategory = prompt("Edit Category (General, Handover, etc.):", oldTask.category || "General");
+    if (!newCategory) return;
+    
+    // Edit Type
+    const newType = prompt("Edit Task Type (done / acknowledge / dropdown):", oldTask.type);
+    if (!newType || !['done', 'acknowledge', 'dropdown'].includes(newType)) {
+        alert("Type must be: done, acknowledge, or dropdown");
+        return;
+    }
+    
+    // Edit Dropdown Options (if type is dropdown)
+    let newOptions = oldTask.options;
+    if (newType === 'dropdown') {
+        const currentOptions = (oldTask.options || []).join(", ");
+        const newOptionsStr = prompt("Edit Dropdown Options (comma separated):", currentOptions);
+        if (newOptionsStr !== null) {
+            newOptions = newOptionsStr.split(",").map(o => o.trim()).filter(o => o);
+            if (newOptions.length === 0) {
+                alert("Please add at least one dropdown option");
+                return;
+            }
+        }
+    } else {
+        newOptions = null;
+    }
+    
+    // Edit Shift
+    const newShift = prompt("Edit Shift (Both / Morning / Evening):", oldTask.shift || "Both");
+    const validShifts = ["Both", "Morning", "Evening"];
+    const finalShift = validShifts.includes(newShift) ? newShift : "Both";
+    
+    const updatedTask = { 
+        ...oldTask, 
+        name: newName, 
+        category: newCategory, 
+        type: newType, 
+        shift: finalShift, 
+        options: newOptions 
+    }; 
+    
+    const updatedTasks = globalTasks.map(t => t.id === taskId ? updatedTask : t); 
+    await saveGlobalTasks(updatedTasks); 
+    alert("✅ Task updated successfully!"); 
+}
     function renderStaffManager() { staffListManager.innerHTML = staffList.map(s => `<div class="staff-card">👤 ${escapeHtml(s.name)} <button class="delete-staff-mgr" data-id="${s.id}" style="color:#c62828; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button></div>`).join(''); document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); if(confirm("Delete staff?")){ await db.collection("staff").doc(id).delete(); await loadStaff(); } })); }
     function updateCategoryUI(){ const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); if(cats.length===0) cats.push("General"); }
     async function loadStaff(){ const snap=await db.collection("staff").orderBy("name").get(); staffList=snap.docs.map(doc=>({id:doc.id,name:doc.data().name})); renderStaffManager(); renderSODPanel(); renderAttendanceForm(); }
