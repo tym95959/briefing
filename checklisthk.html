@@ -248,6 +248,49 @@
 <div id="passwordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor Access</h3><input type="password" id="supervisorPassword" placeholder="Enter password"><button id="verifyPasswordBtn" class="verify-btn">Verify</button><button id="cancelPasswordBtn" class="cancel-btn">Cancel</button><p id="passwordError" style="color:#c62828; margin-top:8px;"></p></div></div>
 <div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device Authorization</h2><p>Enter master password to register this device.</p><input type="password" id="devicePasswordInput" placeholder="Device Authorization Password"><button id="authorizeDeviceBtn">Authorize Device</button><div id="deviceAuthError" class="device-error"></div></div></div>
 
+
+<div id="taskFullEditModal" class="password-modal hidden" style="z-index: 3000;">
+    <div class="password-box" style="width: 450px; max-width: 90%;">
+        <i class="fas fa-edit"></i>
+        <h3>Edit Task</h3>
+        <div style="text-align: left; margin-top: 15px;">
+            <div class="form-group">
+                <label>Task Name:</label>
+                <input type="text" id="editTaskNameField" class="handover-input" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label>Category:</label>
+                <input type="text" id="editTaskCategoryField" class="handover-input" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label>Task Type:</label>
+                <select id="editTaskTypeField" class="handover-input" style="width: 100%;">
+                    <option value="done">✅ Single Staff Done</option>
+                    <option value="acknowledge">👥 Multi-Acknowledge (SOD only)</option>
+                    <option value="dropdown">📋 Custom Dropdown</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Shift Assignment:</label>
+                <select id="editTaskShiftField" class="handover-input" style="width: 100%;">
+                    <option value="Both">🌓 Both Shifts</option>
+                    <option value="Morning">🌅 Morning Only</option>
+                    <option value="Evening">🌙 Evening Only</option>
+                </select>
+            </div>
+            <div id="editDropdownOptionsContainer" style="display: none;">
+                <label>Dropdown Options:</label>
+                <div id="editOptionsListContainer" style="background: #f8fbfe; border-radius: 12px; padding: 10px; margin-top: 5px; max-height: 200px; overflow-y: auto;"></div>
+                <button id="addEditOptionBtn" type="button" class="add-row-btn" style="margin-top: 8px; background: #4caf50;">+ Add Option</button>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button id="saveTaskEditBtn" class="verify-btn" style="flex: 1;">Save Changes</button>
+            <button id="closeTaskEditModalBtn" class="cancel-btn" style="flex: 1;">Cancel</button>
+        </div>
+        <div id="taskEditError" style="color: #c62828; margin-top: 10px; font-size: 0.7rem;"></div>
+    </div>
+</div>
 <script>
     const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
     let DEVICE_MASTER_PASSWORD = (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) ? MASTER_PASSWORD_GLOBAL : (typeof SUPERVISOR_PASSWORD !== 'undefined' ? SUPERVISOR_PASSWORD : "Admin123");
@@ -1000,9 +1043,11 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
             
             // Admin edit button (only visible to supervisor)
             let adminEditBtn = '';
-            if (currentRole === "supervisor") {
-                adminEditBtn = `<button class="edit-task-admin-btn" data-task-id="${task.id}" style="background:#ff9800; color:white; border:none; border-radius:20px; padding:2px 10px; font-size:0.6rem; margin-left:8px; cursor:pointer;"><i class="fas fa-edit"></i> Edit</button>`;
-            }
+                if (currentRole === "supervisor") {
+                    adminEditBtn = `<button class="edit-task-admin-btn" data-task-id="${task.id}" style="background:#ff9800; color:white; border:none; border-radius:20px; padding:2px 10px; font-size:0.6rem; margin-left:8px; cursor:pointer;">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>`;
+                }
             
             if(currentRole === "staff" && !isClosed){ 
                 let staffOptionsHtml = ''; 
@@ -1120,15 +1165,18 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
     
     // Admin edit buttons for tasks
     document.querySelectorAll('.edit-task-admin-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const taskId = btn.getAttribute('data-task-id');
-            const taskToEdit = globalTasks.find(t => t.id === taskId);
-            if (taskToEdit) {
-                await editTaskFull(taskId, taskToEdit);
-            }
-        });
+        btn.removeEventListener('click', handleAdminEditClick);
+        btn.addEventListener('click', handleAdminEditClick);
     });
+
+    function handleAdminEditClick(e) {
+        e.stopPropagation();
+        const taskId = e.currentTarget.getAttribute('data-task-id');
+        const taskToEdit = globalTasks.find(t => t.id === taskId);
+        if (taskToEdit) {
+            editTaskFull(taskId, taskToEdit);
+        }
+    }
     
     // Live preview for dropdown tasks
     document.querySelectorAll('.action-select').forEach(select => {
@@ -1193,14 +1241,19 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
     
     // Full edit button handler (edits name, category, type, shift, dropdown options)
     document.querySelectorAll('.edit-task-full-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const taskId = btn.getAttribute('data-id');
-            const taskToEdit = globalTasks.find(t => t.id === taskId);
-            if (taskToEdit) {
-                await editTaskFull(taskId, taskToEdit);
-            }
-        });
-    });
+    btn.removeEventListener('click', handleEditTaskClick);
+    btn.addEventListener('click', handleEditTaskClick);
+});
+
+function handleEditTaskClick(e) {
+    const taskId = e.currentTarget.getAttribute('data-id');
+    const taskToEdit = globalTasks.find(t => t.id === taskId);
+    if (taskToEdit) {
+        editTaskFull(taskId, taskToEdit);
+    }
+}
+       
+    
     
     document.querySelectorAll('.delete-task-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -1211,56 +1264,144 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
     });
 }
 
-// Add this new function for full task editing
-async function editTaskFull(taskId, oldTask) { 
-    // Edit Task Name
-    const newName = prompt("Edit Task Name:", oldTask.name);
-    if (!newName) return;
+// Global variable to track task being edited
+let currentEditingTaskObj = null;
+
+async function editTaskFull(taskId, oldTask) {
+    currentEditingTaskObj = { ...oldTask, id: taskId };
     
-    // Edit Category
-    const newCategory = prompt("Edit Category (General, Handover, etc.):", oldTask.category || "General");
-    if (!newCategory) return;
+    // Populate modal fields
+    document.getElementById('editTaskNameField').value = oldTask.name || '';
+    document.getElementById('editTaskCategoryField').value = oldTask.category || 'General';
+    document.getElementById('editTaskTypeField').value = oldTask.type || 'done';
+    document.getElementById('editTaskShiftField').value = oldTask.shift || 'Both';
     
-    // Edit Type
-    const newType = prompt("Edit Task Type (done / acknowledge / dropdown):", oldTask.type);
-    if (!newType || !['done', 'acknowledge', 'dropdown'].includes(newType)) {
-        alert("Type must be: done, acknowledge, or dropdown");
+    // Handle dropdown options visibility and rendering
+    const isDropdown = (oldTask.type === 'dropdown');
+    const container = document.getElementById('editDropdownOptionsContainer');
+    container.style.display = isDropdown ? 'block' : 'none';
+    
+    if (isDropdown) {
+        renderEditableOptionsList(oldTask.options || []);
+    }
+    
+    // Show modal
+    document.getElementById('taskFullEditModal').classList.remove('hidden');
+}
+
+function renderEditableOptionsList(options) {
+    const listContainer = document.getElementById('editOptionsListContainer');
+    if (!listContainer) return;
+    
+    if (!options || options.length === 0) {
+        listContainer.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">No options added. Click "Add Option" to create.</div>';
         return;
     }
     
-    // Edit Dropdown Options (if type is dropdown)
-    let newOptions = oldTask.options;
-    if (newType === 'dropdown') {
-        const currentOptions = (oldTask.options || []).join(", ");
-        const newOptionsStr = prompt("Edit Dropdown Options (comma separated):", currentOptions);
-        if (newOptionsStr !== null) {
-            newOptions = newOptionsStr.split(",").map(o => o.trim()).filter(o => o);
-            if (newOptions.length === 0) {
-                alert("Please add at least one dropdown option");
-                return;
-            }
+    listContainer.innerHTML = options.map((opt, idx) => `
+        <div class="option-item" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+            <input type="text" value="${escapeHtml(opt)}" placeholder="Option ${idx + 1}" 
+                   class="edit-option-field" data-index="${idx}" 
+                   style="flex: 1; padding: 6px 10px; border-radius: 20px; border: 1.5px solid #e2eaf2; font-size: 0.7rem;">
+            <button class="delete-option-btn" data-index="${idx}" 
+                    style="background: #f44336; color: white; border: none; border-radius: 20px; padding: 4px 10px; cursor: pointer; font-size: 0.6rem;">
+                <i class="fas fa-trash"></i> Remove
+            </button>
+        </div>
+    `).join('');
+    
+    // Add change listeners to option inputs
+    document.querySelectorAll('.edit-option-field').forEach(input => {
+        input.removeEventListener('change', handleOptionFieldChange);
+        input.addEventListener('change', handleOptionFieldChange);
+    });
+    
+    // Add click listeners to delete buttons
+    document.querySelectorAll('.delete-option-btn').forEach(btn => {
+        btn.removeEventListener('click', handleDeleteOption);
+        btn.addEventListener('click', handleDeleteOption);
+    });
+}
+
+function handleOptionFieldChange(e) {
+    const idx = parseInt(e.target.getAttribute('data-index'));
+    const newValue = e.target.value.trim();
+    if (currentEditingTaskObj && currentEditingTaskObj.options && newValue) {
+        currentEditingTaskObj.options[idx] = newValue;
+    }
+}
+
+function handleDeleteOption(e) {
+    const idx = parseInt(e.target.getAttribute('data-index'));
+    if (currentEditingTaskObj && currentEditingTaskObj.options) {
+        currentEditingTaskObj.options.splice(idx, 1);
+        renderEditableOptionsList(currentEditingTaskObj.options);
+    }
+}
+
+function addEditOptionToModal() {
+    if (!currentEditingTaskObj) return;
+    if (!currentEditingTaskObj.options) currentEditingTaskObj.options = [];
+    currentEditingTaskObj.options.push('');
+    renderEditableOptionsList(currentEditingTaskObj.options);
+    
+    // Focus on the new input
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('.edit-option-field');
+        if (inputs.length) {
+            inputs[inputs.length - 1].focus();
         }
-    } else {
-        newOptions = null;
+    }, 100);
+}
+
+async function saveTaskEditFromModal() {
+    if (!currentEditingTaskObj) {
+        document.getElementById('taskFullEditModal').classList.add('hidden');
+        return;
     }
     
-    // Edit Shift
-    const newShift = prompt("Edit Shift (Both / Morning / Evening):", oldTask.shift || "Both");
-    const validShifts = ["Both", "Morning", "Evening"];
-    const finalShift = validShifts.includes(newShift) ? newShift : "Both";
+    const newName = document.getElementById('editTaskNameField').value.trim();
+    const newCategory = document.getElementById('editTaskCategoryField').value.trim();
+    const newType = document.getElementById('editTaskTypeField').value;
+    const newShift = document.getElementById('editTaskShiftField').value;
     
-    const updatedTask = { 
-        ...oldTask, 
-        name: newName, 
-        category: newCategory, 
-        type: newType, 
-        shift: finalShift, 
-        options: newOptions 
-    }; 
+    // Validation
+    if (!newName) {
+        document.getElementById('taskEditError').innerText = 'Please enter a task name';
+        return;
+    }
+    if (!newCategory) {
+        document.getElementById('taskEditError').innerText = 'Please enter a category';
+        return;
+    }
     
-    const updatedTasks = globalTasks.map(t => t.id === taskId ? updatedTask : t); 
-    await saveGlobalTasks(updatedTasks); 
-    alert("✅ Task updated successfully!"); 
+    let newOptions = null;
+    if (newType === 'dropdown') {
+        newOptions = (currentEditingTaskObj.options || []).filter(opt => opt && opt.trim() !== '');
+        if (newOptions.length === 0) {
+            document.getElementById('taskEditError').innerText = 'Please add at least one dropdown option';
+            return;
+        }
+    }
+    
+    const updatedTask = {
+        ...currentEditingTaskObj,
+        name: newName,
+        category: newCategory,
+        type: newType,
+        shift: newShift,
+        options: newOptions
+    };
+    
+    const updatedTasks = globalTasks.map(t => t.id === currentEditingTaskObj.id ? updatedTask : t);
+    await saveGlobalTasks(updatedTasks);
+    
+    // Close modal and clear error
+    document.getElementById('taskFullEditModal').classList.add('hidden');
+    document.getElementById('taskEditError').innerText = '';
+    currentEditingTaskObj = null;
+    
+    alert("✅ Task updated successfully!");
 }
     function renderStaffManager() { staffListManager.innerHTML = staffList.map(s => `<div class="staff-card">👤 ${escapeHtml(s.name)} <button class="delete-staff-mgr" data-id="${s.id}" style="color:#c62828; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button></div>`).join(''); document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); if(confirm("Delete staff?")){ await db.collection("staff").doc(id).delete(); await loadStaff(); } })); }
     function updateCategoryUI(){ const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); if(cats.length===0) cats.push("General"); }
@@ -1362,7 +1503,67 @@ async function editTaskFull(taskId, oldTask) {
     
     
     console.log("✅ Update loaded: Staff can edit dropdown submissions, Admin can edit dropdown tasks with options");
+  // Add these to your init() function or after the modal elements exist
+function initTaskEditModalListeners() {
+    const modal = document.getElementById('taskFullEditModal');
+    const saveBtn = document.getElementById('saveTaskEditBtn');
+    const closeBtn = document.getElementById('closeTaskEditModalBtn');
+    const addOptionBtn = document.getElementById('addEditOptionBtn');
+    const taskTypeSelect = document.getElementById('editTaskTypeField');
     
+    if (saveBtn) {
+        saveBtn.removeEventListener('click', saveTaskEditFromModal);
+        saveBtn.addEventListener('click', saveTaskEditFromModal);
+    }
+    
+    if (closeBtn) {
+        closeBtn.removeEventListener('click', () => modal?.classList.add('hidden'));
+        closeBtn.addEventListener('click', () => {
+            modal?.classList.add('hidden');
+            document.getElementById('taskEditError').innerText = '';
+            currentEditingTaskObj = null;
+        });
+    }
+    
+    if (addOptionBtn) {
+        addOptionBtn.removeEventListener('click', addEditOptionToModal);
+        addOptionBtn.addEventListener('click', addEditOptionToModal);
+    }
+    
+    if (taskTypeSelect) {
+        taskTypeSelect.removeEventListener('change', handleTaskTypeChangeForModal);
+        taskTypeSelect.addEventListener('change', handleTaskTypeChangeForModal);
+    }
+    
+    // Close modal when clicking outside
+    if (modal) {
+        modal.removeEventListener('click', handleModalOutsideClick);
+        modal.addEventListener('click', handleModalOutsideClick);
+    }
+}
+
+function handleTaskTypeChangeForModal(e) {
+    const isDropdown = e.target.value === 'dropdown';
+    const container = document.getElementById('editDropdownOptionsContainer');
+    if (container) {
+        container.style.display = isDropdown ? 'block' : 'none';
+    }
+    if (isDropdown && currentEditingTaskObj) {
+        if (!currentEditingTaskObj.options) currentEditingTaskObj.options = [];
+        renderEditableOptionsList(currentEditingTaskObj.options);
+    }
+}
+
+function handleModalOutsideClick(e) {
+    const modal = document.getElementById('taskFullEditModal');
+    if (e.target === modal) {
+        modal.classList.add('hidden');
+        document.getElementById('taskEditError').innerText = '';
+        currentEditingTaskObj = null;
+    }
+}
+
+// Call this in your init() function  
     function printAllocationSheet(){ 
     if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } 
     const reportWindow = window.open('', '_blank'); 
@@ -1467,8 +1668,42 @@ async function editTaskFull(taskId, oldTask) {
     function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); loadAttendance(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } renderAllocation(); updateShiftStatusUI(); }
     function verifyPassword(){ const pwd = supervisorPassword.value; const valid = (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD) || (pwd === "Admin123"); if(valid){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText="Wrong password"; }
     function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-    async function init(){ const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); currentDate=savedDate||new Date().toISOString().slice(0,10); currentShift=savedShift||""; if(mainDate) mainDate.value=currentDate; if(mainShift) mainShift.value=currentShift; if(firestoreReady){ await loadGlobalTasks(); await loadStaff(); await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); await loadHandoverLog(); } mainDate.addEventListener('change',onDateShiftChange); mainShift.addEventListener('change',onDateShiftChange); staffRoleBtn.addEventListener('click',()=>setRole("staff")); supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); addTaskBtnMgr.addEventListener('click',addTaskMgr); addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); closeShiftBtn.addEventListener('click',closeShift); reopenShiftBtn.addEventListener('click',reopenShiftFn); verifyPasswordBtn.addEventListener('click',verifyPassword); cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); exportFullPdfBtn.addEventListener('click',exportFullReport); printAllocationBtn.addEventListener('click',printAllocationSheet); setRole("staff"); }
+    async function init(){ 
+    const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); 
+    currentDate=savedDate||new Date().toISOString().slice(0,10); 
+    currentShift=savedShift||""; 
+    if(mainDate) mainDate.value=currentDate; 
+    if(mainShift) mainShift.value=currentShift; 
+    if(firestoreReady){ 
+        await loadGlobalTasks(); 
+        await loadStaff(); 
+        await loadSODStaff(); 
+        await loadSODAllocation(); 
+        await loadTaskRecord(); 
+        await loadAttendance(); 
+        await loadSupervisors(); 
+        await loadHandoverLog(); 
+    } 
+    
+    // ✅ ADD THIS LINE - Initialize modal event listeners
+    initTaskEditModalListeners();
+    
+    mainDate.addEventListener('change',onDateShiftChange); 
+    mainShift.addEventListener('change',onDateShiftChange); 
+    staffRoleBtn.addEventListener('click',()=>setRole("staff")); 
+    supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); 
+    addTaskBtnMgr.addEventListener('click',addTaskMgr); 
+    addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); 
+    closeShiftBtn.addEventListener('click',closeShift); 
+    reopenShiftBtn.addEventListener('click',reopenShiftFn); 
+    verifyPasswordBtn.addEventListener('click',verifyPassword); 
+    cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); 
+    exportFullPdfBtn.addEventListener('click',exportFullReport); 
+    printAllocationBtn.addEventListener('click',printAllocationSheet); 
+    setRole("staff"); 
+}
     const deviceModal=document.getElementById('deviceAuthModal'), devicePasswordInput=document.getElementById('devicePasswordInput'), authorizeDeviceBtn=document.getElementById('authorizeDeviceBtn'), deviceAuthError=document.getElementById('deviceAuthError'), appContainer=document.getElementById('appContainer');
+   
     function handleDeviceAuth(){ if(authorizeDevice(devicePasswordInput.value)){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceAuthError.textContent='Invalid authorization password.'; devicePasswordInput.value=''; devicePasswordInput.focus(); } }
     if(isDeviceAuthorized()){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceModal.style.display='flex'; appContainer.style.display='none'; authorizeDeviceBtn.addEventListener('click',handleDeviceAuth); devicePasswordInput.addEventListener('keypress',e=>{if(e.key==='Enter') handleDeviceAuth();}); devicePasswordInput.focus(); }
 </script>
