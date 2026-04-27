@@ -741,30 +741,7 @@
     renderTasks(); 
 }
 
-// Also update the renderTasks function to show a "Cancel" button for acknowledged tasks
-// Find the acknowledge section in renderTasks and replace with this:
 
-else if(task.type === 'acknowledge'){ 
-    const ackHtml = taskAcks.length ? 
-        `<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n => {
-            // Add cancel button for each staff member who acknowledged (only visible to that staff member)
-            const cancelBtn = (currentRole === "staff" && selectedStaffName === n && !isClosed) ? 
-                `<button class="cancel-ack-btn" data-task-id="${task.id}" data-staff="${escapeHtml(n)}" style="background:#f44336; color:white; border:none; border-radius:15px; padding:2px 8px; margin-left:8px; font-size:0.6rem; cursor:pointer;">✖ Cancel</button>` : '';
-            return `👤 ${escapeHtml(n)}${cancelBtn}`;
-        }).join(', ')}</div>` : 
-        '<div class="completed-info">No acknowledgments yet</div>';
-    
-    // Only show staff select if not closed and not already acknowledged by current staff
-    const currentStaffAcknowledged = taskAcks.includes(selectedStaffName);
-    const showAckButton = !isClosed && !currentStaffAcknowledged;
-    
-    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>
-    ${ackHtml}
-    ${showAckButton ? `<div class="flex-row">${staffSelect}<button class="do-ack action-btn" data-id="${task.id}">Acknowledge</button></div>` : ''}`; 
-}
-
-// Add event listeners for cancel acknowledgment buttons (add this inside renderTasks after creating the HTML)
-// Add this after the existing event listeners:
 
 // Cancel acknowledgment buttons
 document.querySelectorAll('.cancel-ack-btn').forEach(btn => {
