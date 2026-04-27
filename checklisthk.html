@@ -697,7 +697,110 @@
     async function loadTaskRecord(){ const id=getTaskRecordId(currentDate,currentShift); const doc=await db.collection("taskRecords").doc(id).get(); if(doc.exists) currentTaskRecord={id:doc.id,...doc.data()}; else currentTaskRecord={date:currentDate,shift:currentShift,status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[],createdAt:new Date().toISOString()}; await db.collection("taskRecords").doc(id).set(currentTaskRecord,{merge:true}); currentTaskRecord.id=id; updateShiftStatusUI(); renderTasks(); }
     function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; if(currentRole==="supervisor"){ closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); } }
     async function completeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} const done={...currentTaskRecord.doneTasks}; if(done[taskId]){alert("Already completed");return;} done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; await db.collection("taskRecords").doc(currentTaskRecord.id).set({doneTasks:done},{merge:true}); currentTaskRecord.doneTasks=done; renderTasks(); }
-    async function acknowledgeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} if(!sodStaffNames.includes(staffName)){alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`);return;} const ackTasks={...currentTaskRecord.acknowledgedTasks}; let acks=ackTasks[taskId]||[]; if(acks.includes(staffName)){alert("Already acknowledged");return;} acks.push(staffName); ackTasks[taskId]=acks; await db.collection("taskRecords").doc(currentTaskRecord.id).set({acknowledgedTasks:ackTasks},{merge:true}); currentTaskRecord.acknowledgedTasks=ackTasks; renderTasks(); }
+    async function acknowledgeTask(taskId, staffName) { 
+    if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
+        alert("Shift closed"); 
+        return; 
+    } 
+    if(!staffName) {
+        alert("Select staff"); 
+        return; 
+    }
+    if(!sodStaffNames.includes(staffName)) { 
+        alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
+        return; 
+    } 
+    
+    const ackTasks = {...currentTaskRecord.acknowledgedTasks}; 
+    let acks = ackTasks[taskId] || []; 
+    
+    // Check if already acknowledged
+    if(acks.includes(staffName)) {
+        // Ask if they want to cancel their acknowledgment
+        if(confirm(`You already acknowledged this task. Do you want to CANCEL your acknowledgment?`)) {
+            acks = acks.filter(name => name !== staffName);
+            if(acks.length === 0) {
+                delete ackTasks[taskId];
+            } else {
+                ackTasks[taskId] = acks;
+            }
+            await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
+            currentTaskRecord.acknowledgedTasks = ackTasks; 
+            alert(`❌ Your acknowledgment has been cancelled.`);
+            renderTasks();
+        }
+        return;
+    }
+    
+    // New acknowledgment
+    acks.push(staffName); 
+    ackTasks[taskId] = acks; 
+    await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
+    currentTaskRecord.acknowledgedTasks = ackTasks;
+    alert(`✅ ${staffName} acknowledged task!`);
+    renderTasks(); 
+}
+
+// Also update the renderTasks function to show a "Cancel" button for acknowledged tasks
+// Find the acknowledge section in renderTasks and replace with this:
+
+else if(task.type === 'acknowledge'){ 
+    const ackHtml = taskAcks.length ? 
+        `<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n => {
+            // Add cancel button for each staff member who acknowledged (only visible to that staff member)
+            const cancelBtn = (currentRole === "staff" && selectedStaffName === n && !isClosed) ? 
+                `<button class="cancel-ack-btn" data-task-id="${task.id}" data-staff="${escapeHtml(n)}" style="background:#f44336; color:white; border:none; border-radius:15px; padding:2px 8px; margin-left:8px; font-size:0.6rem; cursor:pointer;">✖ Cancel</button>` : '';
+            return `👤 ${escapeHtml(n)}${cancelBtn}`;
+        }).join(', ')}</div>` : 
+        '<div class="completed-info">No acknowledgments yet</div>';
+    
+    // Only show staff select if not closed and not already acknowledged by current staff
+    const currentStaffAcknowledged = taskAcks.includes(selectedStaffName);
+    const showAckButton = !isClosed && !currentStaffAcknowledged;
+    
+    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>
+    ${ackHtml}
+    ${showAckButton ? `<div class="flex-row">${staffSelect}<button class="do-ack action-btn" data-id="${task.id}">Acknowledge</button></div>` : ''}`; 
+}
+
+// Add event listeners for cancel acknowledgment buttons (add this inside renderTasks after creating the HTML)
+// Add this after the existing event listeners:
+
+// Cancel acknowledgment buttons
+document.querySelectorAll('.cancel-ack-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const taskId = btn.getAttribute('data-task-id');
+        const staffName = btn.getAttribute('data-staff');
+        if(confirm(`Are you sure you want to cancel your acknowledgment for this task?`)) {
+            await cancelAcknowledgment(taskId, staffName);
+        }
+    });
+});
+
+async function cancelAcknowledgment(taskId, staffName) {
+    if(!currentTaskRecord || currentTaskRecord.status === "closed") {
+        alert("Shift closed");
+        return;
+    }
+    if(!staffName) return;
+    
+    const ackTasks = {...currentTaskRecord.acknowledgedTasks};
+    let acks = ackTasks[taskId] || [];
+    
+    if(acks.includes(staffName)) {
+        acks = acks.filter(name => name !== staffName);
+        if(acks.length === 0) {
+            delete ackTasks[taskId];
+        } else {
+            ackTasks[taskId] = acks;
+        }
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true });
+        currentTaskRecord.acknowledgedTasks = ackTasks;
+        alert(`❌ Your acknowledgment has been cancelled.`);
+        renderTasks();
+    }
+}
     async function submitDropdown(taskId, selectedValue, note, staffName) { 
     if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
         alert("Shift closed"); 
@@ -839,11 +942,30 @@
                     taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${staffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
                 } 
                 else if(task.type === 'acknowledge'){ 
-                    const ackHtml = taskAcks.length?`<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n=>`👤 ${escapeHtml(n)}`).join(', ')}</div>`:'<div class="completed-info">No acknowledgments yet</div>'; 
-                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${ackHtml}<div class="flex-row">${staffSelect}<button class="do-ack action-btn" data-id="${task.id}">Acknowledge</button></div>`; 
+                    // Build acknowledgment HTML with cancel buttons for each staff
+                    let ackHtml = '';
+                    if(taskAcks.length) {
+                        ackHtml = `<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): `;
+                        ackHtml += taskAcks.map(n => {
+                            // Add cancel button only for the currently logged in staff member
+                            const cancelBtn = (selectedStaffName === n) ? 
+                                `<button class="cancel-ack-btn" data-task-id="${task.id}" data-staff="${escapeHtml(n)}" style="background:#f44336; color:white; border:none; border-radius:15px; padding:2px 8px; margin-left:8px; font-size:0.6rem; cursor:pointer;">✖ Cancel</button>` : '';
+                            return `👤 ${escapeHtml(n)}${cancelBtn}`;
+                        }).join(', ');
+                        ackHtml += `</div>`;
+                    } else {
+                        ackHtml = '<div class="completed-info">No acknowledgments yet</div>';
+                    }
+                    
+                    // Only show acknowledge button if current staff hasn't acknowledged yet
+                    const currentStaffAcknowledged = taskAcks.includes(selectedStaffName);
+                    const showAckButton = !currentStaffAcknowledged;
+                    
+                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>
+                    ${ackHtml}
+                    ${showAckButton ? `<div class="flex-row">${staffSelect}<button class="do-ack action-btn" data-id="${task.id}">Acknowledge</button></div>` : ''}`; 
                 } 
                 else if(task.type === 'dropdown'){ 
-                    // Build options HTML with the ability to show existing selection
                     const optsHtml = task.options ? 
                         `<select id="dropSel_${task.id}" class="action-dropdown">
                             <option value="">-- Select --</option>
@@ -868,7 +990,7 @@
                 } 
             } 
             else { 
-                // Read-only view (closed shift or supervisor viewing)
+                // Read-only view
                 let statusHtml = ''; 
                 if(task.type === 'done'){ 
                     statusHtml = isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:'<div class="completed-info">⏳ Pending</div>'; 
@@ -898,6 +1020,18 @@
         if(sel) sel.value=""; 
     })); 
     
+    // Cancel acknowledgment buttons
+    document.querySelectorAll('.cancel-ack-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const taskId = btn.getAttribute('data-task-id');
+            const staffName = btn.getAttribute('data-staff');
+            if(confirm(`Are you sure you want to cancel your acknowledgment for this task?`)) {
+                await cancelAcknowledgment(taskId, staffName);
+            }
+        });
+    });
+    
     document.querySelectorAll('.do-drop').forEach(btn=>btn.addEventListener('click',async()=>{ 
         const id=btn.getAttribute('data-id'); 
         const staffSel=document.getElementById(`staffSel_${id}`); 
@@ -906,10 +1040,9 @@
         if(staffSel && dropSel) {
             await submitDropdown(id, dropSel.value, addText?.value, staffSel.value);
         }
-        // Don't auto-clear values to allow multiple staff members to submit
     })); 
     
-    // Admin edit buttons for tasks (supervisor can edit any task)
+    // Admin edit buttons for tasks
     document.querySelectorAll('.edit-task-admin-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -921,7 +1054,7 @@
         });
     });
     
-    // Add live preview: when staff selection changes, show existing submission for dropdown tasks
+    // Live preview for dropdown tasks
     document.querySelectorAll('.action-select').forEach(select => {
         select.addEventListener('change', function(e) {
             const taskIdMatch = this.id.match(/staffSel_(.+)/);
@@ -950,6 +1083,31 @@
     });
     
     tasksInfo.innerHTML = currentTaskRecord.status==="closed" ? "Shift Closed" : `Done:${Object.keys(done).length} | Acknowledged:${Object.values(ack).reduce((s,a)=>s+a.length,0)} | Pending:${getPendingTasksCount()}`; 
+}
+
+// Add this new function to handle canceling acknowledgment
+async function cancelAcknowledgment(taskId, staffName) {
+    if(!currentTaskRecord || currentTaskRecord.status === "closed") {
+        alert("Shift closed");
+        return;
+    }
+    if(!staffName) return;
+    
+    const ackTasks = {...currentTaskRecord.acknowledgedTasks};
+    let acks = ackTasks[taskId] || [];
+    
+    if(acks.includes(staffName)) {
+        acks = acks.filter(name => name !== staffName);
+        if(acks.length === 0) {
+            delete ackTasks[taskId];
+        } else {
+            ackTasks[taskId] = acks;
+        }
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true });
+        currentTaskRecord.acknowledgedTasks = ackTasks;
+        alert(`❌ Your acknowledgment has been cancelled.`);
+        renderTasks();
+    }
 }
     function renderTaskManager() { if(!taskListManager) return; const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); taskCategorySelectMgr.innerHTML = '<option value="">-- Select Category --</option>'+cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join(''); taskListManager.innerHTML = globalTasks.map(task => `<div class="task-manager-item"><div><strong>${escapeHtml(task.name)}</strong><span class="task-cat-badge">${escapeHtml(task.category||"General")}</span><span class="task-shift-badge">${task.shift || "Both"}</span></div><div><button class="btn-warning edit-task-btn" data-id="${task.id}" data-shift="${task.shift||'Both'}">Edit Shift</button><button class="btn-danger delete-task-btn" data-id="${task.id}">Delete</button></div></div>`).join(''); document.querySelectorAll('.edit-task-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'), currShift=btn.getAttribute('data-shift'); const newShift=prompt("Edit shift (Morning/Evening/Both):",currShift); if(newShift && ["Morning","Evening","Both"].includes(newShift)) await saveGlobalTasks(globalTasks.map(t=>t.id===id?{...t,shift:newShift}:t)); })); document.querySelectorAll('.delete-task-btn').forEach(btn=>btn.addEventListener('click',async()=>{ if(confirm("Delete task?")) await saveGlobalTasks(globalTasks.filter(t=>t.id!==btn.getAttribute('data-id'))); })); }
     function renderStaffManager() { staffListManager.innerHTML = staffList.map(s => `<div class="staff-card">👤 ${escapeHtml(s.name)} <button class="delete-staff-mgr" data-id="${s.id}" style="color:#c62828; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button></div>`).join(''); document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); if(confirm("Delete staff?")){ await db.collection("staff").doc(id).delete(); await loadStaff(); } })); }
