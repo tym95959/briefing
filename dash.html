@@ -3,14 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge | Dashboard & Quick Links</title>
-    <!-- Firebase SDKs (for auth & sync if needed) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External Config Files (if they exist, avoid conflicts) -->
-    <script src="fire.js"></script>
-    <script src="config.js"></script>
-    <!-- Google Fonts + Icons -->
+    <title>Koveli Lounge · Quick Launch Hub</title>
+    <!-- Google Fonts + Font Awesome Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -23,157 +17,89 @@
 
         body {
             background: linear-gradient(145deg, #eef2f9 0%, #e0e8f0 100%);
-            padding: 24px 28px;
+            padding: 28px 24px;
             min-height: 100vh;
         }
 
-        .dashboard-container {
-            max-width: 1400px;
+        .hub-container {
+            max-width: 1300px;
             margin: 0 auto;
         }
 
-        /* HEADER */
-        .dashboard-header {
-            background: rgba(255,255,255,0.75);
-            backdrop-filter: blur(12px);
+        /* HEADER - clean, no role/date/shift */
+        .hub-header {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(8px);
             border-radius: 48px;
-            padding: 16px 32px;
-            margin-bottom: 28px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 16px;
-            box-shadow: 0 6px 14px rgba(0,0,0,0.02);
-            border: 1px solid rgba(255,255,255,0.5);
+            padding: 24px 32px;
+            margin-bottom: 42px;
+            text-align: center;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.03);
+            border: 1px solid rgba(255,255,255,0.6);
+            transition: all 0.2s;
         }
-        .logo-area h1 {
-            font-size: 1.6rem;
+        .hub-header h1 {
+            font-size: 2rem;
             font-weight: 800;
             background: linear-gradient(135deg, #1a4c6e, #2c8daf);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
             letter-spacing: -0.3px;
+            margin-bottom: 10px;
         }
-        .logo-area p {
-            font-size: 0.7rem;
-            color: #5c7f9c;
-            margin-top: 4px;
-        }
-        .role-badge {
-            background: white;
-            border-radius: 60px;
-            padding: 6px 20px;
-            font-weight: 600;
-            font-size: 0.8rem;
-            color: #1d6f8f;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .role-badge i {
-            font-size: 1rem;
-        }
-
-        /* DATE / SHIFT BAR */
-        .info-ribbon {
-            background: white;
-            border-radius: 60px;
-            padding: 12px 28px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 32px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-        }
-        .date-shift-group {
-            display: flex;
-            gap: 14px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .date-shift-group input, .date-shift-group select {
-            padding: 8px 18px;
-            border-radius: 40px;
-            border: 1.5px solid #e2eaf2;
-            background: #fefefe;
+        .hub-header p {
+            font-size: 0.9rem;
+            color: #4f6f8a;
             font-weight: 500;
-            font-size: 0.8rem;
         }
-        .status-chip {
-            background: #e8f5e9;
-            color: #2e7d32;
-            padding: 6px 18px;
-            border-radius: 40px;
+        .badge-simple {
+            display: inline-block;
+            background: #ffffffcc;
+            padding: 5px 18px;
+            border-radius: 60px;
             font-size: 0.7rem;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .report-buttons {
-            display: flex;
-            gap: 12px;
-        }
-        .report-btn {
-            background: linear-gradient(135deg, #2c6e8f, #1d5a78);
-            border: none;
-            padding: 7px 18px;
-            border-radius: 40px;
-            color: white;
+            color: #2c6e8f;
+            margin-top: 14px;
             font-weight: 600;
-            font-size: 0.7rem;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: 0.2s;
         }
-        .report-btn.print {
-            background: linear-gradient(135deg, #2e7d32, #1b5e20);
-        }
-        .report-btn:hover { transform: translateY(-2px); filter: brightness(1.03); }
 
-        /* DASHBOARD GRID - CARDS LINKING TO EXISTING HTML PAGES */
-        .dashboard-grid {
+        /* MAIN GRID - cards for all redirects */
+        .main-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 28px;
+            margin-bottom: 48px;
         }
         .nav-card {
             background: white;
             border-radius: 32px;
-            padding: 24px 16px;
+            padding: 28px 16px 24px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-            box-shadow: 0 12px 26px -12px rgba(0,0,0,0.08);
-            border: 1px solid rgba(255,255,255,0.7);
+            transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
             text-decoration: none;
             display: block;
             color: inherit;
+            box-shadow: 0 12px 24px -14px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255,255,255,0.7);
         }
         .nav-card:hover {
-            transform: translateY(-8px);
+            transform: translateY(-6px);
             box-shadow: 0 24px 36px -14px rgba(29,111,143,0.25);
             border-color: #cde3ef;
             background: #ffffff;
         }
         .card-icon {
-            font-size: 2.8rem;
+            font-size: 2.7rem;
             background: linear-gradient(145deg, #eef3fc, #e2eaf2);
-            width: 80px;
-            height: 80px;
+            width: 85px;
+            height: 85px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 18px;
-            border-radius: 40px;
+            margin: 0 auto 20px;
+            border-radius: 36px;
             color: #1d6f8f;
             transition: 0.2s;
         }
@@ -184,397 +110,277 @@
         }
         .card-title {
             font-weight: 800;
-            font-size: 1rem;
+            font-size: 1.1rem;
             color: #1e3b4f;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
         .card-desc {
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             color: #6c8eaa;
-            line-height: 1.3;
+            line-height: 1.4;
+            padding: 0 8px;
         }
-        .link-badge {
+        .link-hint {
             display: inline-block;
             background: #eef3fc;
             font-size: 0.55rem;
-            padding: 4px 10px;
+            padding: 4px 12px;
             border-radius: 30px;
-            margin-top: 12px;
+            margin-top: 14px;
             color: #1d6f8f;
             font-weight: 600;
         }
 
-        /* SECONDARY ACTION ROW (smaller modules) */
+        /* SECONDARY SECTION - additional modules */
         .secondary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 18px;
-            margin-top: 8px;
-            margin-bottom: 35px;
+            gap: 22px;
+            margin: 16px 0 40px;
         }
         .sec-card {
-            background: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.95);
             backdrop-filter: blur(4px);
             border-radius: 28px;
             padding: 18px 12px;
             text-align: center;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s ease;
             border: 1px solid #eef2f8;
             text-decoration: none;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             color: #2c5a74;
         }
         .sec-card i {
-            font-size: 1.7rem;
+            font-size: 1.8rem;
             color: #2a8bb0;
         }
         .sec-card span {
             font-weight: 600;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
+        }
+        .sec-card small {
+            font-size: 0.6rem;
+            color: #7f9bb5;
         }
         .sec-card:hover {
             background: white;
             transform: translateY(-3px);
-            border-color: #cde3ef;
+            border-color: #bdd8ea;
             box-shadow: 0 6px 14px rgba(0,0,0,0.05);
         }
 
-        .welcome-footer {
+        /* FOOTER - minimal information */
+        .info-footer {
             background: rgba(255,255,255,0.7);
             border-radius: 28px;
-            padding: 20px;
+            padding: 18px 24px;
             text-align: center;
             font-size: 0.7rem;
             color: #5f7d99;
             margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 28px;
+            flex-wrap: wrap;
         }
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
+        .info-footer i {
+            margin-right: 5px;
+            color: #3c8db0;
         }
+
         @media (max-width: 680px) {
-            body { padding: 16px; }
-            .dashboard-grid { gap: 14px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
-            .card-icon { width: 60px; height: 60px; font-size: 2rem; }
+            body { padding: 18px; }
+            .main-grid { gap: 18px; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
+            .card-icon { width: 65px; height: 65px; font-size: 2rem; }
+            .hub-header h1 { font-size: 1.6rem; }
         }
-        button { cursor: pointer; }
+
+        /* simple micro-interaction */
+        .nav-card, .sec-card {
+            will-change: transform;
+        }
     </style>
 </head>
 <body>
-<div class="dashboard-container">
-    <!-- HEADER SECTION -->
-    <div class="dashboard-header">
-        <div class="logo-area">
-            <h1><i class="fas fa-chalkboard-user"></i> Koveli Lounge · Central Hub</h1>
-            <p>Quick access | Daily operations | Shift management</p>
-        </div>
-        <div class="role-badge">
-            <i class="fas fa-user-check"></i> <span id="roleDisplayText">Staff View</span>
-            <div style="width:1px; height:20px; background:#cddfe8; margin:0 8px;"></div>
-            <button id="toggleRoleBtn" style="background:#eef3fc; border:none; border-radius:30px; padding:4px 12px; font-size:0.7rem; font-weight:600; color:#1d6f8f;"><i class="fas fa-sync-alt"></i> Switch to Supervisor</button>
-        </div>
+<div class="hub-container">
+    <!-- HEADER SECTION: clean, no role, no shift selector, no date picker -->
+    <div class="hub-header">
+        <h1><i class="fas fa-door-open"></i> Koveli Lounge · Hub</h1>
+        <p>Central dashboard — jump to any module with one click</p>
+        <div class="badge-simple"><i class="fas fa-arrow-right"></i> All tools open in same tab</div>
     </div>
 
-    <!-- DATE / SHIFT / REPORT BAR -->
-    <div class="info-ribbon">
-        <div class="date-shift-group">
-            <input type="date" id="globalDate" value="">
-            <select id="globalShift">
-                <option value="">-- Select Shift --</option>
-                <option value="Morning">🌅 Morning (07:30-15:30)</option>
-                <option value="Evening">🌙 Evening (15:30-23:30)</option>
-            </select>
-            <div id="shiftStatusChip" class="status-chip"><i class="fas fa-lock-open"></i> Open</div>
-        </div>
-        <div class="report-buttons">
-            <button id="fullReportBtn" class="report-btn"><i class="fas fa-file-pdf"></i> Full Report</button>
-            <button id="printAllocationBtn" class="report-btn print"><i class="fas fa-print"></i> Allocation Sheet</button>
-        </div>
-    </div>
-
-    <!-- MAIN DASHBOARD LINKS (to existing html pages) -->
-    <div class="dashboard-grid" id="primaryGrid">
-        <!-- Daily Tasks -> checklist.html (Daily Tasks Tab) -->
-        <a href="checklist.html" class="nav-card" target="_self" id="dailyTasksLink">
+    <!-- PRIMARY GRID: core essential modules -->
+    <div class="main-grid">
+        <!-- Daily Tasks -> checklist.html -->
+        <a href="checklist.html" class="nav-card" target="_self">
             <div class="card-icon"><i class="fas fa-clipboard-list"></i></div>
             <div class="card-title">Daily Tasks</div>
             <div class="card-desc">Complete checklist & shift duties</div>
-            <div class="link-badge"><i class="fas fa-external-link-alt"></i> checklist.html</div>
+            <div class="link-hint">checklist.html</div>
         </a>
-        <!-- Staff Allocation -> allocation.html (or staff allocation tab) we link to your allocation page -->
-        <a href="allocation.html" class="nav-card" target="_self" id="allocationLink">
+
+        <!-- Staff Allocation -> allocation.html -->
+        <a href="allocation.html" class="nav-card" target="_self">
             <div class="card-icon"><i class="fas fa-map-marker-alt"></i></div>
             <div class="card-title">Staff Allocation</div>
-            <div class="card-desc">View / assign areas & SOD</div>
-            <div class="link-badge"><i class="fas fa-chalkboard"></i> allocation.html</div>
+            <div class="card-desc">Assign areas & SOD overview</div>
+            <div class="link-hint">allocation.html</div>
         </a>
+
         <!-- Shower Log -> showe.html -->
         <a href="showe.html" class="nav-card" target="_self">
             <div class="card-icon"><i class="fas fa-shower"></i></div>
             <div class="card-title">Shower Log</div>
             <div class="card-desc">Track shower usage & cleaning</div>
-            <div class="link-badge"><i class="fas fa-water"></i> showe.html</div>
+            <div class="link-hint">showe.html</div>
         </a>
-        <!-- Briefing Log -> breifing.html (spelling as requested) -->
+
+        <!-- Briefing Log -> breifing.html (exact spelling required) -->
         <a href="breifing.html" class="nav-card" target="_self">
             <div class="card-icon"><i class="fas fa-chalkboard"></i></div>
             <div class="card-title">Briefing Log</div>
-            <div class="card-desc">Shift briefing & announcements</div>
-            <div class="link-badge"><i class="fas fa-pen"></i> breifing.html</div>
+            <div class="card-desc">Shift briefings & announcements</div>
+            <div class="link-hint">breifing.html</div>
         </a>
-        <!-- Handover Log (internal) -> handover.html -->
+
+        <!-- Handover Log -> handover.html -->
         <a href="handover.html" class="nav-card" target="_self">
             <div class="card-icon"><i class="fas fa-exchange-alt"></i></div>
             <div class="card-title">Handover Log</div>
             <div class="card-desc">Cards, wheelchairs, follow-ups</div>
-            <div class="link-badge"><i class="fas fa-file-signature"></i> handover.html</div>
+            <div class="link-hint">handover.html</div>
         </a>
+
         <!-- Attendance & Absentees -> attendance.html -->
         <a href="attendance.html" class="nav-card" target="_self">
             <div class="card-icon"><i class="fas fa-calendar-check"></i></div>
             <div class="card-title">Attendance</div>
-            <div class="card-desc">Mark attendance, leaves, absentee</div>
-            <div class="link-badge"><i class="fas fa-user-clock"></i> attendance.html</div>
+            <div class="card-desc">Mark attendance & absentee</div>
+            <div class="link-hint">attendance.html</div>
         </a>
     </div>
 
-    <!-- SECONDARY ROW: Break Requests / Approvals + extra utilities -->
+    <!-- SECONDARY GRID: additional management tools & support pages -->
     <div class="secondary-grid">
         <a href="break_requests.html" class="sec-card" target="_self">
             <i class="fas fa-coffee"></i>
             <span>Break Requests</span>
-            <small style="font-size:0.6rem;">Request / approve breaks</small>
+            <small>Request / approve breaks</small>
         </a>
         <a href="supervisor_panel.html" class="sec-card" target="_self">
             <i class="fas fa-user-tie"></i>
             <span>Supervisor Panel</span>
-            <small style="font-size:0.6rem;">SOD, tasks mgmt</small>
+            <small>SOD, tasks mgmt</small>
         </a>
         <a href="task_manager.html" class="sec-card" target="_self">
             <i class="fas fa-tasks"></i>
             <span>Task Manager</span>
-            <small style="font-size:0.6rem;">Edit tasks & categories</small>
+            <small>Edit tasks & categories</small>
         </a>
         <a href="staff_management.html" class="sec-card" target="_self">
             <i class="fas fa-users"></i>
             <span>Staff Management</span>
-            <small style="font-size:0.6rem;">Add / remove staff</small>
+            <small>Add / remove staff</small>
         </a>
         <a href="reports.html" class="sec-card" target="_self">
             <i class="fas fa-chart-line"></i>
             <span>Reports</span>
-            <small style="font-size:0.6rem;">Daily summaries</small>
+            <small>Daily summaries</small>
         </a>
         <a href="settings.html" class="sec-card" target="_self">
             <i class="fas fa-sliders-h"></i>
             <span>Settings</span>
-            <small style="font-size:0.6rem;">Shift config, PDF</small>
+            <small>Shift config, PDF</small>
         </a>
     </div>
 
-    <!-- info reminder: all modules open in the same tab (no popup) -->
-    <div class="welcome-footer">
-        <i class="fas fa-link"></i> Direct navigation: all buttons link to existing pages (checklist, allocation, showe, breifing, handover, etc.). <br>
-        Use the date/shift selector above to sync context across modules (date & shift stored in localStorage).
+    <!-- simple footer: only help text and navigation info (fully static) -->
+    <div class="info-footer">
+        <span><i class="fas fa-link"></i> Direct redirect — all cards link to existing .html pages</span>
+        <span><i class="fas fa-folder-open"></i> Place all module files in same directory</span>
+        <span><i class="fas fa-mouse-pointer"></i> Click any tile to open the tool instantly</span>
     </div>
 </div>
 
 <script>
-    // ========== GLOBAL DATE & SHIFT SYNC (store in localStorage for all pages) ==========
-    const dateInput = document.getElementById('globalDate');
-    const shiftSelect = document.getElementById('globalShift');
-    const shiftStatusChip = document.getElementById('shiftStatusChip');
-    const roleDisplaySpan = document.getElementById('roleDisplayText');
-    const toggleRoleBtn = document.getElementById('toggleRoleBtn');
-    let currentRole = "staff";    // staff or supervisor
+    // ============================================================
+    // KOVELI HUB — PLAIN REDIRECT PAGE
+    // No date picker, no shift selector, no supervisor mode,
+    // no report generation, no allocation sheet button, no localStorage interference.
+    // This script only provides lightweight logging and graceful console hints.
+    // All navigation is standard and fully respects user click.
+    // ============================================================
     
-    // Load saved date/shift from localStorage
-    function loadPreferences() {
-        const savedDate = localStorage.getItem('koveli_selected_date');
-        const savedShift = localStorage.getItem('koveli_selected_shift');
-        const savedRole = localStorage.getItem('koveli_user_role');
-        if(savedDate) dateInput.value = savedDate;
-        else dateInput.value = new Date().toISOString().slice(0,10);
-        if(savedShift) shiftSelect.value = savedShift;
-        if(savedRole === "supervisor") {
-            currentRole = "supervisor";
-            roleDisplaySpan.innerText = "Supervisor View";
-            toggleRoleBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Switch to Staff';
-        } else {
-            currentRole = "staff";
-            roleDisplaySpan.innerText = "Staff View";
-            toggleRoleBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Switch to Supervisor';
-        }
-        // update shift status mock (just for UI)
-        updateShiftStatusUI();
-    }
-    
-    function updateShiftStatusUI() {
-        // simple visual (if shift selected you can later connect to actual open/closed status via firestore)
-        if(shiftSelect.value) {
-            shiftStatusChip.innerHTML = '<i class="fas fa-lock-open"></i> Shift Active';
-            shiftStatusChip.style.background = "#e8f5e9";
-            shiftStatusChip.style.color = "#2e7d32";
-        } else {
-            shiftStatusChip.innerHTML = '<i class="fas fa-clock"></i> No Shift';
-            shiftStatusChip.style.background = "#fff3e0";
-            shiftStatusChip.style.color = "#e65100";
-        }
-    }
-    
-    function savePreferences() {
-        localStorage.setItem('koveli_selected_date', dateInput.value);
-        localStorage.setItem('koveli_selected_shift', shiftSelect.value);
-        localStorage.setItem('koveli_user_role', currentRole);
-    }
-    
-    // when date or shift changes, sync to localStorage and also append parameter to links? optional
-    function syncToLocalStorage() {
-        savePreferences();
-        updateShiftStatusUI();
-        // optional: broadcast to other tabs (minor enhancement)
-    }
-    
-    // Toggle role (staff/supervisor) updates UI and can be used to change link behaviour? not needed but consistent
-    function toggleRole() {
-        if(currentRole === "staff") {
-            currentRole = "supervisor";
-            roleDisplaySpan.innerText = "Supervisor View";
-            toggleRoleBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Switch to Staff';
-        } else {
-            currentRole = "staff";
-            roleDisplaySpan.innerText = "Staff View";
-            toggleRoleBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Switch to Supervisor';
-        }
-        localStorage.setItem('koveli_user_role', currentRole);
-        // Optional: you could modify some links target based on role, but for now just UI.
-    }
-    
-    // ensure all primary/secondary links include current date and shift as query params? optional but clean.
-    function attachContextToLinks() {
-        const date = dateInput.value;
-        const shift = shiftSelect.value;
-        const query = `?date=${encodeURIComponent(date)}&shift=${encodeURIComponent(shift)}&role=${currentRole}`;
-        const allLinks = document.querySelectorAll('a.nav-card, a.sec-card');
-        allLinks.forEach(link => {
-            const href = link.getAttribute('href');
-            if(href && !href.startsWith('#')) {
-                // remove existing query and re-add
-                const baseUrl = href.split('?')[0];
-                if(baseUrl.endsWith('.html') || baseUrl === '') {
-                    link.setAttribute('href', baseUrl + query);
+    (function() {
+        // Collect all redirect links (both primary and secondary)
+        const allRedirectLinks = document.querySelectorAll('.nav-card, .sec-card');
+        
+        // List of expected page names for developer reference (not blocking)
+        const expectedFiles = [
+            'checklist.html', 'allocation.html', 'showe.html', 'breifing.html',
+            'handover.html', 'attendance.html', 'break_requests.html', 'supervisor_panel.html',
+            'task_manager.html', 'staff_management.html', 'reports.html', 'settings.html'
+        ];
+        
+        // Simple helper: log any link that might point to a missing file (only in console, no alerts)
+        function logLinkStatus() {
+            for (let link of allRedirectLinks) {
+                let href = link.getAttribute('href');
+                if (href && !href.startsWith('http') && !href.startsWith('#') && href.includes('.html')) {
+                    const cleanPath = href.split('?')[0]; // just in case any leftover params (none exist)
+                    if (!expectedFiles.includes(cleanPath) && !cleanPath.includes('allocation') && !cleanPath.includes('showe')) {
+                        console.log(`📄 Koveli Hub: link points to "${cleanPath}" — ensure this file exists in your folder.`);
+                    }
                 }
             }
-        });
-    }
-    
-    // Event listeners
-    dateInput.addEventListener('change', () => {
-        syncToLocalStorage();
-        attachContextToLinks();
-    });
-    shiftSelect.addEventListener('change', () => {
-        syncToLocalStorage();
-        attachContextToLinks();
-        updateShiftStatusUI();
-    });
-    toggleRoleBtn.addEventListener('click', () => {
-        toggleRole();
-        attachContextToLinks();
-    });
-    
-    // Report & Allocation sheet buttons: open global reports that use date/shift
-    document.getElementById('fullReportBtn').addEventListener('click', () => {
-        const date = dateInput.value;
-        const shift = shiftSelect.value;
-        if(!date || !shift) { alert("Please select date and shift before generating report."); return; }
-        alert(`📄 Generating FULL DAILY REPORT for ${date} - ${shift} shift.\n(Would open report.html or generate PDF in production.)`);
-        // In real scenario you would open a report page with context:
-        window.open(`report_full.html?date=${date}&shift=${shift}`, '_blank');
-    });
-    
-    document.getElementById('printAllocationBtn').addEventListener('click', () => {
-        const date = dateInput.value;
-        const shift = shiftSelect.value;
-        if(!date || !shift) { alert("Please select date and shift."); return; }
-        alert(`🖨️ Preparing allocation sheet for ${date} ${shift}. (Would open allocation_print.html)`);
-        window.open(`allocation_print.html?date=${date}&shift=${shift}`, '_blank');
-    });
-    
-    // Additional initializer: if some external pages don't exist, warn but still allow navigation.
-    // Because we're serving from same directory, user must have these files.
-    // Provide a safety check for console.
-    function validateLinks() {
-        const links = document.querySelectorAll('a.nav-card, a.sec-card');
-        links.forEach(link => {
-            const href = link.getAttribute('href');
-            if(href && href.includes('.html') && href.indexOf('?') > -1) {
-                const base = href.split('?')[0];
-                if(base !== '#' && !base.endsWith('.html')) {
-                    console.warn(`Link target ${base} might be missing.`);
+            console.log("✅ Koveli Lounge Hub: ready. All cards are pure redirects (no date/shift/supervisor/reports/allocationsheet).");
+        }
+        
+        // Add click listener for analytics / debugging (does not prevent navigation)
+        allRedirectLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                let destination = link.getAttribute('href');
+                if (destination && destination !== '#') {
+                    console.log(`🔀 Redirecting to: ${destination}`);
                 }
-            }
+            });
         });
-    }
-    
-    // initial load
-    loadPreferences();
-    updateShiftStatusUI();
-    attachContextToLinks();
-    validateLinks();
-    
-    // Optional: Simple firebase status demonstration (does not break anything, just local storage)
-    // Use firebase if needed, but we don't enforce connection
-    if (typeof firebase !== 'undefined' && firebase.apps.length) {
-        console.log("Firebase available for background sync.");
-    } else {
-        console.log("Running dashboard without Firebase - using localStorage for context");
-    }
-    
-    // listen to cross-tab storage events to keep date/shift in sync (optional)
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'koveli_selected_date' && e.newValue && dateInput.value !== e.newValue) {
-            dateInput.value = e.newValue;
-            attachContextToLinks();
-        }
-        if (e.key === 'koveli_selected_shift' && e.newValue && shiftSelect.value !== e.newValue) {
-            shiftSelect.value = e.newValue;
-            attachContextToLinks();
-            updateShiftStatusUI();
-        }
-        if (e.key === 'koveli_user_role' && e.newValue) {
-            currentRole = e.newValue;
-            roleDisplaySpan.innerText = currentRole === "supervisor" ? "Supervisor View" : "Staff View";
-            toggleRoleBtn.innerHTML = currentRole === "supervisor" ? '<i class="fas fa-sync-alt"></i> Switch to Staff' : '<i class="fas fa-sync-alt"></i> Switch to Supervisor';
-            attachContextToLinks();
-        }
-    });
-    
-    // Manual override: update links before click (to always include latest context)
-    document.querySelectorAll('a.nav-card, a.sec-card').forEach(link => {
-        link.addEventListener('click', (event) => {
-            // ensure the href has latest date/shift before navigating
-            const currentDate = dateInput.value;
-            const currentShiftVal = shiftSelect.value;
-            let href = link.getAttribute('href');
-            if (href && href.includes('.html')) {
-                const base = href.split('?')[0];
-                const newHref = `${base}?date=${encodeURIComponent(currentDate)}&shift=${encodeURIComponent(currentShiftVal)}&role=${currentRole}`;
-                link.setAttribute('href', newHref);
+        
+        // Verify that no unwanted elements exist (safety check)
+        function ensureNoLegacyElements() {
+            // Double-check that any element with ID related to date, shift, role, report, allocation-sheet is NOT present.
+            const legacyIds = ['globalDate', 'globalShift', 'toggleRoleBtn', 'fullReportBtn', 'printAllocationBtn', 'shiftStatusChip', 'roleDisplayText'];
+            let legacyFound = false;
+            legacyIds.forEach(id => {
+                if (document.getElementById(id)) {
+                    console.warn(`Legacy element ${id} found but it should not exist. If you see this, check HTML.`);
+                    legacyFound = true;
+                }
+            });
+            if (!legacyFound) {
+                console.log("✨ Clean state: No date/shift/supervisor/report controls detected.");
             }
-        });
-    });
-    
-    // provide a friendly tooltip for missing files: but not intrusive.
-    console.log("Dashboard ready — make sure the following files exist: checklist.html, allocation.html, showe.html, breifing.html, handover.html, attendance.html, etc.");
+        }
+        
+        // Optionally add a small visit counter? Not needed. Maintain minimalism.
+        // Also ensure no localStorage or sessionStorage is being set by this script.
+        // Override any potential external calls to localStorage/sessionStorage (not required)
+        // But just to be absolutely certain, we don't write anything to storage.
+        
+        logLinkStatus();
+        ensureNoLegacyElements();
+        
+        // Extra friendly message: This hub is intentionally simple.
+        console.log("🖱️ Koveli Lounge Hub — click any card to open the corresponding module. No additional overlays or forms.");
+    })();
 </script>
 
-<!-- small note to ensure the html pages exist -->
-<div style="display: none;">Navigation targets: checklist.html | allocation.html | showe.html | breifing.html | handover.html | attendance.html | break_requests.html | supervisor_panel.html | task_manager.html | staff_management.html</div>
+<!-- hidden reference list for completeness (no functional impact) -->
+<div style="display: none;">Redirect targets: checklist.html, allocation.html, showe.html, breifing.html, handover.html, attendance.html, break_requests.html, supervisor_panel.html, task_manager.html, staff_management.html, reports.html, settings.html</div>
 </body>
 </html>
