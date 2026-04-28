@@ -192,6 +192,8 @@
     margin-top: 6px;
     flex-wrap: wrap;
 }
+
+
     </style>
 </head>
 <body>
@@ -930,8 +932,17 @@
     });
 }
     function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; if(currentRole==="supervisor"){ closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); } }
-    async function completeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} const done={...currentTaskRecord.doneTasks}; if(done[taskId]){alert("Already completed");return;} done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; currentTaskRecord.doneTasks = done;
-await saveTaskRecordToFirebase(); currentTaskRecord.doneTasks=done; renderTasks(); }
+    async function completeTask(taskId,staffName){ 
+        if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} 
+        if(!staffName){alert("Select staff");return;} 
+        const done={...currentTaskRecord.doneTasks}; 
+        if(done[taskId]){alert("Already completed");return;} 
+        done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; 
+        currentTaskRecord.doneTasks = done;
+        await saveTaskRecordToFirebase(); 
+        // No success popup - just re-render
+        renderTasks(); 
+    }
     
     
     async function acknowledgeTask(taskId, staffName) { 
@@ -953,7 +964,6 @@ await saveTaskRecordToFirebase(); currentTaskRecord.doneTasks=done; renderTasks(
     
     // TOGGLE BEHAVIOR: If already acknowledged, DELETE it. If not, ADD it.
     if(acks.includes(staffName)) {
-        // DELETE/CANCEL acknowledgment (toggle off)
         acks = acks.filter(name => name !== staffName);
         if(acks.length === 0) {
             delete ackTasks[taskId];
@@ -962,7 +972,7 @@ await saveTaskRecordToFirebase(); currentTaskRecord.doneTasks=done; renderTasks(
         }
         currentTaskRecord.acknowledgedTasks = ackTasks;
         await saveTaskRecordToFirebase(); 
-        alert(`❌ ${staffName} removed acknowledgment for this task.`);
+        // alert removed - no popup
         renderTasks();
         return;
     }
@@ -972,9 +982,9 @@ await saveTaskRecordToFirebase(); currentTaskRecord.doneTasks=done; renderTasks(
     ackTasks[taskId] = acks; 
     currentTaskRecord.acknowledgedTasks = ackTasks;
     await saveTaskRecordToFirebase();
-    alert(`✅ ${staffName} acknowledged task!`);
+    // alert removed - no popup
     renderTasks(); 
-}   
+} 
 
 
 
@@ -1021,7 +1031,7 @@ async function submitDropdown(taskId, selectedValue, note, staffName) {
         selections.splice(existingIndex, 1);
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
         currentTaskRecord.dropdownSelections = selections; 
-        alert(`❌ Removed "${selectedValue}"${noteText ? ` with note "${noteText}"` : ''} entry for ${staffName}`);
+       
         renderTasks();
     } else {
         // ADD new entry (toggle on)
@@ -1035,7 +1045,7 @@ async function submitDropdown(taskId, selectedValue, note, staffName) {
         }); 
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
         currentTaskRecord.dropdownSelections = selections; 
-        alert(`✅ Added "${selectedValue}"${noteText ? ` with note "${noteText}"` : ''} for ${staffName}`);
+        
         renderTasks();
     }
 }
