@@ -743,25 +743,25 @@
     
     
     async function acknowledgeTask(taskId, staffName) { 
-    if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
-        alert("Shift closed"); 
-        return; 
-    } 
-    if(!staffName) {
-        alert("Select staff"); 
-        return; 
-    }
-    if(!sodStaffNames.includes(staffName)) { 
-        alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
-        return; 
-    } 
-    
-    // ✅ FIX: Add these declarations
-    const ackTasks = {...currentTaskRecord.acknowledgedTasks}; 
-    let acks = ackTasks[taskId] || [];
-    
-    if(acks.includes(staffName)) {
-        if(confirm(`You already acknowledged this task. Do you want to CANCEL your acknowledgment?`)) {
+        if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
+            alert("Shift closed"); 
+            return; 
+        } 
+        if(!staffName) {
+            alert("Select staff"); 
+            return; 
+        }
+        if(!sodStaffNames.includes(staffName)) { 
+            alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
+            return; 
+        } 
+        
+        const ackTasks = {...currentTaskRecord.acknowledgedTasks}; 
+        let acks = ackTasks[taskId] || [];
+        
+        // TOGGLE BEHAVIOR: If already acknowledged, DELETE it. If not, ADD it.
+        if(acks.includes(staffName)) {
+            // DELETE/CANCEL acknowledgment (toggle off)
             acks = acks.filter(name => name !== staffName);
             if(acks.length === 0) {
                 delete ackTasks[taskId];
@@ -770,19 +770,19 @@
             }
             await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
             currentTaskRecord.acknowledgedTasks = ackTasks; 
-            alert(`❌ Your acknowledgment has been cancelled.`);
+            alert(`❌ ${staffName} removed acknowledgment for this task.`);
             renderTasks();
+            return;
         }
-        return;
+        
+        // ADD acknowledgment (toggle on)
+        acks.push(staffName); 
+        ackTasks[taskId] = acks; 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
+        currentTaskRecord.acknowledgedTasks = ackTasks;
+        alert(`✅ ${staffName} acknowledged task!`);
+        renderTasks(); 
     }
-    
-    acks.push(staffName); 
-    ackTasks[taskId] = acks; 
-    await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
-    currentTaskRecord.acknowledgedTasks = ackTasks;
-    alert(`✅ ${staffName} acknowledged task!`);
-    renderTasks(); 
-}
 
 
 
@@ -802,29 +802,7 @@ document.querySelectorAll('.cancel-ack-btn').forEach(btn => {
 
     
    
-async function cancelAcknowledgment(taskId, staffName) {
-    if(!currentTaskRecord || currentTaskRecord.status === "closed") {
-        alert("Shift closed");
-        return;
-    }
-    if(!staffName) return;
-    
-    const ackTasks = {...currentTaskRecord.acknowledgedTasks};
-    let acks = ackTasks[taskId] || [];
-    
-    if(acks.includes(staffName)) {
-        acks = acks.filter(name => name !== staffName);
-        if(acks.length === 0) {
-            delete ackTasks[taskId];
-        } else {
-            ackTasks[taskId] = acks;
-        }
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true });
-        currentTaskRecord.acknowledgedTasks = ackTasks;
-        alert(`❌ Your acknowledgment has been cancelled.`);
-        renderTasks();
-    }
-}
+
 async function submitDropdown(taskId, selectedValue, note, staffName) { 
     if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
         alert("Shift closed"); 
@@ -1050,29 +1028,52 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
                     taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${staffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
                 } 
                 else if(task.type === 'acknowledge'){ 
-                    // Build acknowledgment HTML with cancel buttons for each staff
-                    let ackHtml = '';
-                    if(taskAcks.length) {
-                        ackHtml = `<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): `;
-                        ackHtml += taskAcks.map(n => {
-                            // Add cancel button only for the currently logged in staff member
-                            const cancelBtn = (selectedStaffName === n) ? 
-                                `<button class="cancel-ack-btn" data-task-id="${task.id}" data-staff="${escapeHtml(n)}" style="background:#f44336; color:white; border:none; border-radius:15px; padding:2px 8px; margin-left:8px; font-size:0.6rem; cursor:pointer;">✖ Cancel</button>` : '';
-                            return `👤 ${escapeHtml(n)}${cancelBtn}`;
-                        }).join(', ');
-                        ackHtml += `</div>`;
-                    } else {
-                        ackHtml = '<div class="completed-info">No acknowledgments yet</div>';
-                    }
-                    
-                    // Only show acknowledge button if current staff hasn't acknowledged yet
-                    const currentStaffAcknowledged = taskAcks.includes(selectedStaffName);
-                    const showAckButton = !currentStaffAcknowledged;
-                    
-                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>
-                    ${ackHtml}
-                    ${showAckButton ? `<div class="flex-row">${staffSelect}<button class="do-ack action-btn" data-id="${task.id}">Acknowledge</button></div>` : ''}`; 
-                } 
+                // Build acknowledgment HTML - show who has acknowledged
+                let ackHtml = '';
+                if(taskAcks.length) {
+                    ackHtml = `<div class="completed-info">✅ Acknowledged by (${taskAcks.length}/${sodStaffNames.length}): `;
+                    ackHtml += taskAcks.map(n => {
+                        // Highlight current staff's acknowledgment
+                        const isCurrentStaff = (selectedStaffName === n);
+                        return `<span style="background:${isCurrentStaff ? '#4caf50' : '#eef2fa'}; padding:3px 8px; border-radius:15px; margin:2px; display:inline-block;">
+                            👤 ${escapeHtml(n)} ${isCurrentStaff ? '✓' : ''}
+                        </span>`;
+                    }).join(', ');
+                    ackHtml += `</div>`;
+                } else {
+                    ackHtml = '<div class="completed-info">No acknowledgments yet</div>';
+                }
+                
+                // Show toggle button for ALL staff (including those who already acknowledged)
+                // The button text changes based on current state
+                const currentStaffAcknowledged = taskAcks.includes(selectedStaffName);
+                const buttonText = currentStaffAcknowledged ? '❌ Remove My Acknowledgment' : '✅ Acknowledge';
+                const buttonClass = currentStaffAcknowledged ? 'do-ack-toggle remove-btn' : 'do-ack-toggle add-btn';
+                
+                taskDivItem.innerHTML = `<div class="task-header">
+                    <div class="task-name">
+                        📋 ${escapeHtml(task.name)}${shiftBadge} 
+                        <span style="background:#ff9800; color:white; padding:2px 8px; border-radius:12px; font-size:0.6rem; margin-left:8px;">
+                            🔄 Toggle (click to add/remove)
+                        </span>
+                        ${adminEditBtn} 
+                        ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
+                    </div>
+                </div>
+                ${ackHtml}
+                <div class="flex-row">
+                    <select id="staffSel_${task.id}" class="action-select">
+                        <option value="">-- Select SOD staff --</option>
+                        ${sodStaffNames.map(s => `<option value="${escapeHtml(s)}" ${selectedStaffName === s ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+                    </select>
+                    <button class="${buttonClass} action-btn" data-id="${task.id}" style="${currentStaffAcknowledged ? 'background:#f44336;' : 'background:#4caf50;'}">
+                        ${buttonText}
+                    </button>
+                </div>
+                <div class="info-text" style="font-size:0.6rem; margin-top:5px;">
+                    💡 Tip: Select your name and click the button to toggle acknowledgment ON/OFF
+                </div>`; 
+            }
                 else if(task.type === 'dropdown'){ 
                     const optsHtml = task.options ? 
                         `<select id="dropSel_${task.id}" class="action-dropdown">
@@ -1132,11 +1133,23 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
         if(sel) await completeTask(id,sel.value); 
     })); 
     
-    document.querySelectorAll('.do-ack').forEach(btn=>btn.addEventListener('click',async()=>{ 
-        const id=btn.getAttribute('data-id'), sel=document.getElementById(`staffSel_${id}`); 
-        if(sel) await acknowledgeTask(id,sel.value); 
-        if(sel) sel.value=""; 
-    })); 
+    // Replace the old .do-ack listener with new .do-ack-toggle
+    document.querySelectorAll('.do-ack-toggle').forEach(btn=>{
+        btn.removeEventListener('click', handleAckToggle);
+        btn.addEventListener('click', handleAckToggle);
+    });
+
+    async function handleAckToggle(e) {
+        const btn = e.currentTarget;
+        const id = btn.getAttribute('data-id');
+        const sel = document.getElementById(`staffSel_${id}`);
+        if(sel && sel.value) {
+            await acknowledgeTask(id, sel.value);
+            // Don't clear the select - keep it for potential toggle off
+        } else if(sel && !sel.value) {
+            alert("Please select your name first");
+        }
+    }
     
     // Cancel acknowledgment buttons
     document.querySelectorAll('.cancel-ack-btn').forEach(btn => {
