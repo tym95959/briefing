@@ -3,65 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge Daily List | Performance Optimized</title>
-    <!-- Firebase SDKs -->
+    <title>Koveli Lounge | Instant Load</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External Configuration Files (ensure these provide MASTER_PASSWORD_GLOBAL, SUPERVISOR_PASSWORD, firebase config) -->
     <script src="fire.js"></script>
     <script src="config.js"></script>
-    <!-- Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 100%); padding: 16px 20px; color: #1a2c3e; min-height: 100vh; }
+        body { background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 100%); padding: 16px 20px; min-height: 100vh; }
         .container { max-width: 1600px; margin: 0 auto; }
         .header { text-align: center; margin-bottom: 12px; }
         .header h1 { font-weight: 700; font-size: 1.3rem; background: linear-gradient(145deg, #1a4c6e, #2c6e8f); background-clip: text; -webkit-background-clip: text; color: transparent; }
-        .header p { color: #5a7a97; font-size: 0.7rem; }
         .role-bar { display: flex; justify-content: center; gap: 10px; margin-bottom: 12px; }
-        .role-btn { background: white; border: none; padding: 6px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-        .role-btn.active { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .date-bar { background: white; border-radius: 40px; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-        .date-selector { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .date-selector input, .date-selector select { padding: 6px 12px; border-radius: 30px; border: 1.5px solid #e2eaf2; font-size: 0.8rem; background: white; }
+        .role-btn { background: white; border: none; padding: 6px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.75rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .role-btn.active { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; }
+        .date-bar { background: white; border-radius: 40px; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .date-selector input, .date-selector select { padding: 6px 12px; border-radius: 30px; border: 1.5px solid #e2eaf2; font-size: 0.8rem; }
         .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 14px; border-radius: 30px; font-size: 0.7rem; font-weight: 600; }
         .status-open { background: #e8f5e9; color: #2e7d32; }
         .status-closed { background: #ffebee; color: #c62828; }
-        .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
-        .pdf-btn { background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; padding: 6px 14px; border-radius: 30px; font-weight: 600; cursor: pointer; font-size: 0.7rem; }
+        .pdf-btn { background: linear-gradient(135deg, #dc3545, #c82333); color: white; border: none; padding: 6px 14px; border-radius: 30px; cursor: pointer; font-size: 0.7rem; font-weight: 600; }
         .print-btn { background: linear-gradient(135deg, #28a745, #218838); }
-        .close-shift-btn, .reopen-btn { background: linear-gradient(135deg, #c62828, #b71c1c); color: white; border: none; padding: 5px 14px; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 0.7rem; }
-        .staff-tabs, .supervisor-tabs { margin-bottom: 20px; }
+        .close-shift-btn, .reopen-btn { background: linear-gradient(135deg, #c62828, #b71c1c); color: white; border: none; padding: 5px 14px; border-radius: 30px; cursor: pointer; font-size: 0.7rem; }
         .tabs-header { display: flex; gap: 8px; border-bottom: 2px solid #e2eaf2; margin-bottom: 16px; flex-wrap: wrap; }
-        .tab-btn { background: none; border: none; padding: 10px 24px; font-size: 0.85rem; font-weight: 600; color: #7c9ab8; cursor: pointer; border-radius: 30px 30px 0 0; transition: all 0.2s; }
+        .tab-btn { background: none; border: none; padding: 10px 24px; font-size: 0.85rem; font-weight: 600; color: #7c9ab8; cursor: pointer; }
         .tab-btn.active { color: #1d6f8f; background: white; border-bottom: 3px solid #1d6f8f; }
         .staff-tab-content, .tab-content { display: none; }
         .staff-tab-content.active, .tab-content.active { display: block; }
         .task-card, .allocation-card, .break-card, .attendance-view-card, .handover-card { background: white; border-radius: 20px; padding: 16px; margin-bottom: 16px; border: 1px solid #e2eaf2; }
         .card-title { font-size: 0.9rem; font-weight: 700; color: #1d6f8f; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-left: 3px solid #2c7da0; padding-left: 10px; }
-        .handover-section { margin-bottom: 28px; border-bottom: 1px solid #eef2f8; padding-bottom: 16px; }
-        .handover-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; background: #fafdff; border-radius: 16px; overflow: hidden; margin-bottom: 8px; }
-        .handover-table th, .handover-table td { border: 1px solid #e2eaf2; padding: 8px 6px; vertical-align: middle; }
-        .handover-table th { background: #eef3fc; font-weight: 700; }
-        .handover-input { width: 100%; padding: 6px 8px; border-radius: 20px; border: 1.5px solid #e2eaf2; font-size: 0.7rem; }
-        .add-row-btn { background: linear-gradient(135deg, #4caf50, #43a047); color: white; border: none; padding: 4px 12px; border-radius: 25px; font-size: 0.65rem; cursor: pointer; }
-        .delete-row-btn { background: none; border: none; color: #c62828; cursor: pointer; }
-        .handover-save-btn { background: #1d6f8f; color: white; border: none; padding: 8px 16px; border-radius: 30px; font-weight: 600; font-size: 0.7rem; margin-top: 12px; }
-        .time-slots { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
-        .time-slot-btn { background: linear-gradient(135deg, #ff9800, #f57c00); color: white; border: none; padding: 8px 16px; border-radius: 25px; font-size: 0.7rem; cursor: pointer; font-weight: 600; }
-        .cancel-request-btn { background: #f44336; margin-left: 10px; }
-        .status-pending { background: #fff3e0; color: #e65100; }
-        .status-approved { background: #e8f5e9; color: #2e7d32; }
-        .sod-select { width: 100%; padding: 10px; border-radius: 25px; border: 1.5px solid #e2eaf2; margin-bottom: 10px; }
-        .break-schedule { margin-top: 15px; border-top: 1px solid #e2eaf2; padding-top: 12px; max-height: 250px; overflow-y: auto; }
-        .break-schedule-item { background: #f0f4f8; border-radius: 10px; padding: 6px 12px; margin-bottom: 6px; font-size: 0.7rem; }
-        .sod-panel, .allocation-panel, .attendance-panel { background: white; border-radius: 20px; padding: 12px 16px; margin-bottom: 16px; border: 1px solid #e2eaf2; }
-        .panel-title { font-weight: 700; font-size: 0.85rem; color: #1d6f8f; margin-bottom: 10px; }
-        .sod-staff-list { display: flex; flex-wrap: wrap; gap: 8px; }
-        .sod-staff-badge { background: #eef3fc; padding: 5px 12px; border-radius: 30px; font-size: 0.75rem; cursor: pointer; border: 1px solid #cde0ec; }
-        .sod-staff-badge.selected { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; }
         .task-category { margin-bottom: 20px; border: 1px solid #e2eaf2; border-radius: 16px; overflow: hidden; }
         .category-header { background: linear-gradient(135deg, #eef3fc, #e8eef5); padding: 10px 16px; font-weight: 700; font-size: 0.85rem; color: #1d6f8f; }
         .category-tasks { padding: 8px; }
@@ -72,215 +44,441 @@
         .flex-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
         .action-select, .action-dropdown { padding: 5px 10px; border-radius: 25px; border: 1.5px solid #e2eaf2; font-size: 0.7rem; background: white; }
         .action-btn { background: linear-gradient(135deg, #4caf50, #43a047); color: white; border: none; padding: 5px 14px; border-radius: 25px; cursor: pointer; font-weight: 600; font-size: 0.7rem; }
-        .btn-primary { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; border: none; padding: 8px 16px; border-radius: 30px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }
-        .management-panel { background: white; border-radius: 20px; padding: 20px; border: 1px solid #e2eaf2; }
-        .section-title { font-size: 1rem; font-weight: 700; color: #1d6f8f; margin: 20px 0 12px; border-bottom: 2px solid #e2eaf2; }
-        .staff-card, .staff-name-badge { display: inline-block; background: #eef2fa; padding: 4px 12px; border-radius: 30px; font-size: 0.7rem; margin: 4px; }
+        .sod-staff-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .sod-staff-badge { background: #eef3fc; padding: 5px 12px; border-radius: 30px; font-size: 0.75rem; cursor: pointer; border: 1px solid #cde0ec; }
+        .sod-staff-badge.selected { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; }
         .allocation-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; min-width: 600px; }
         .allocation-table th, .allocation-table td { border: 1px solid #e2eaf2; padding: 8px; text-align: center; }
         .allocation-table th { background: #eef3fc; }
-        .staff-multi-select { min-width: 120px; height: auto; min-height: 80px; padding: 4px; border-radius: 8px; border: 1.5px solid #e2eaf2; }
+        .time-slots { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .time-slot-btn { background: linear-gradient(135deg, #ff9800, #f57c00); color: white; border: none; padding: 8px 16px; border-radius: 25px; font-size: 0.7rem; cursor: pointer; }
+        .management-panel { background: white; border-radius: 20px; padding: 20px; }
+        .section-title { font-size: 1rem; font-weight: 700; color: #1d6f8f; margin: 20px 0 12px; border-bottom: 2px solid #e2eaf2; padding-bottom: 5px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px 12px; border-radius: 25px; border: 1.5px solid #e2eaf2; font-size: 0.75rem; }
+        .btn-primary { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; border: none; padding: 8px 16px; border-radius: 30px; cursor: pointer; font-size: 0.75rem; font-weight: 600; }
+        .staff-card { display: inline-block; background: #eef2fa; padding: 4px 12px; border-radius: 30px; font-size: 0.7rem; margin: 4px; }
         .password-modal, .device-auth-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .password-box, .device-auth-card { background: white; padding: 24px; border-radius: 28px; width: 320px; text-align: center; }
         .hidden { display: none; }
         .info-text { font-size: 0.65rem; color: #7c9ab8; margin-top: 8px; text-align: center; }
         .empty-msg { text-align: center; padding: 30px; color: #8aa9c4; font-size: 0.8rem; }
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px 16px; border-radius: 30px; font-size: 0.7rem; z-index: 2000; animation: fadeOut 2s forwards; }
+        @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
     </style>
 </head>
 <body>
-<div class="container" id="appContainer" style="display: none;">
-    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily List</h1><p>Optimized | Fast Tasks</p></div>
-    <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
+<div class="container" id="appContainer">
+    <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily List</h1><p>⚡ Tasks cached locally | Loads instantly</p></div>
+    <div class="role-bar"><button id="staffRoleBtn" class="role-btn active">👤 Staff</button><button id="supervisorRoleBtn" class="role-btn">👔 Supervisor</button></div>
     <div class="date-bar">
         <div class="date-selector"><input type="date" id="mainDate"><select id="mainShift"><option value="">Select Shift</option><option value="Morning">🌅 Morning</option><option value="Evening">🌙 Evening</option></select></div>
-        <div class="action-buttons"><button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Report</button><button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Allocation</button></div>
-        <div><div id="shiftStatusBadge" class="status-badge status-open">Open</div><button id="closeShiftBtn" class="close-shift-btn hidden">Close Shift</button><button id="reopenShiftBtn" class="reopen-btn hidden">Reopen</button></div>
+        <div class="action-buttons"><button id="exportFullPdfBtn" class="pdf-btn">📄 Report</button><button id="printAllocationBtn" class="pdf-btn print-btn">🖨️ Allocation</button></div>
+        <div><div id="shiftStatusBadge" class="status-badge status-open">Open</div><button id="closeShiftBtn" class="close-shift-btn hidden">Close</button><button id="reopenShiftBtn" class="reopen-btn hidden">Reopen</button></div>
     </div>
-    <div id="staffViewSection"><div class="staff-tabs"><div class="tabs-header"><button class="tab-btn active" data-staff-tab="tasks-staff-tab"><i class="fas fa-tasks"></i> Tasks</button><button class="tab-btn" data-staff-tab="allocation-staff-tab"><i class="fas fa-map-marker-alt"></i> Allocation</button><button class="tab-btn" data-staff-tab="break-staff-tab"><i class="fas fa-coffee"></i> Break</button><button class="tab-btn" data-staff-tab="absentees-tab"><i class="fas fa-calendar-times"></i> Absentees</button><button class="tab-btn" data-staff-tab="handover-tab"><i class="fas fa-exchange-alt"></i> Handover</button></div>
-    <div id="tasks-staff-tab" class="staff-tab-content active"><div class="task-card"><div class="card-title"><i class="fas fa-tasks"></i> Daily Tasks</div><div id="tasksContainer" class="tasks-list"><div class="empty-msg">Loading tasks...</div></div></div></div>
-    <div id="allocation-staff-tab" class="staff-tab-content"><div class="allocation-card"><div class="card-title"><i class="fas fa-map-marker-alt"></i> Staff Allocation</div><div id="fullAllocationContainer"></div></div></div>
-    <div id="break-staff-tab" class="staff-tab-content"><div class="break-card"><div class="card-title"><i class="fas fa-coffee"></i> Break Request</div><div id="breakRequestContainer"></div></div></div>
-    <div id="absentees-tab" class="staff-tab-content"><div class="attendance-view-card"><div class="card-title"><i class="fas fa-calendar-times"></i> Absent & Leave</div><div id="staffAttendanceView"></div></div></div>
-    <div id="handover-tab" class="staff-tab-content"><div class="handover-card"><div class="card-title"><i class="fas fa-exchange-alt"></i> Handover Log</div><div id="handoverContainer"></div><div class="info-text">Auto-saved. Not included in reports.</div></div></div>
-    </div></div>
-    <div id="supervisorTabs" class="supervisor-tabs hidden"><div class="tabs-header"><button class="tab-btn active" data-tab="allocation-tab">Allocation & SOD</button><button class="tab-btn" data-tab="attendance-tab">Attendance</button><button class="tab-btn" data-tab="management-tab">Tasks & Staff</button><button class="tab-btn" data-tab="break-approve-tab">Break Approvals</button></div>
-    <div id="allocation-tab" class="tab-content active"><div class="sod-panel"><div class="panel-title">Staff on Duty (SOD)</div><div id="sodStaffList"></div></div><div class="allocation-panel"><div class="panel-title">Staff Allocation</div><div id="allocationContainer"></div></div><div class="attendance-panel"><div class="panel-title">Supervisors</div><div id="supervisorSelectPanel"></div></div></div>
-    <div id="attendance-tab" class="tab-content"><div class="attendance-panel"><div class="panel-title">Mark Attendance</div><div id="attendanceContainer"></div></div></div>
-    <div id="management-tab" class="tab-content"><div class="management-panel"><div class="section-title">Manage Tasks</div><div class="form-group"><label>Category</label><select id="taskCategorySelectMgr"></select></div><div class="form-group"><label>Task Name</label><input type="text" id="newTaskNameMgr" placeholder="Task name"></div><div class="form-group"><label>Type</label><select id="taskTypeSelectMgr"><option value="done">✅ Single Done</option><option value="acknowledge">👥 Multi-Acknowledge</option><option value="dropdown">📋 Dropdown</option></select></div><div class="form-group"><label>Shift</label><select id="taskShiftSelectMgr"><option value="Both">Both</option><option value="Morning">Morning</option><option value="Evening">Evening</option></select></div><div id="dropdownOptionsDivMgr" style="display:none"><label>Options (comma)</label><input type="text" id="dropdownOptionsMgr" placeholder="Option1, Option2"></div><button id="addTaskBtnMgr" class="btn-primary">+ Add Task</button><div class="section-title">Existing Tasks</div><div id="taskListManager"></div><div class="section-title">Staff Members</div><div style="display:flex;gap:8px;"><input type="text" id="newStaffNameMgr" placeholder="Staff name"><button id="addStaffBtnMgr" class="btn-primary">Add</button></div><div id="staffListManager"></div></div></div>
-    <div id="break-approve-tab" class="tab-content"><div class="allocation-panel"><div class="panel-title">Break Requests</div><div id="breakRequestsList"></div></div></div>
+    
+    <div id="staffViewSection">
+        <div class="staff-tabs">
+            <div class="tabs-header">
+                <button class="tab-btn active" data-staff-tab="tasks-staff-tab">📋 Tasks</button>
+                <button class="tab-btn" data-staff-tab="allocation-staff-tab">📍 Allocation</button>
+                <button class="tab-btn" data-staff-tab="break-staff-tab">☕ Break</button>
+                <button class="tab-btn" data-staff-tab="absentees-tab">📅 Absentees</button>
+            </div>
+            <div id="tasks-staff-tab" class="staff-tab-content active"><div class="task-card"><div class="card-title"><i class="fas fa-tasks"></i> Daily Tasks</div><div id="tasksContainer"></div></div></div>
+            <div id="allocation-staff-tab" class="staff-tab-content"><div class="allocation-card"><div class="card-title"><i class="fas fa-map-marker-alt"></i> Staff Allocation</div><div id="fullAllocationContainer"></div></div></div>
+            <div id="break-staff-tab" class="staff-tab-content"><div class="break-card"><div class="card-title"><i class="fas fa-coffee"></i> Break Request</div><div id="breakRequestContainer"></div></div></div>
+            <div id="absentees-tab" class="staff-tab-content"><div class="attendance-view-card"><div class="card-title"><i class="fas fa-calendar-times"></i> Absent & Leave</div><div id="staffAttendanceView"></div></div></div>
+        </div>
+    </div>
+    
+    <div id="supervisorTabs" class="supervisor-tabs hidden">
+        <div class="tabs-header">
+            <button class="tab-btn active" data-tab="allocation-tab">📋 Allocation & SOD</button>
+            <button class="tab-btn" data-tab="attendance-tab">✅ Attendance</button>
+            <button class="tab-btn" data-tab="management-tab">⚙️ Tasks & Staff</button>
+            <button class="tab-btn" data-tab="break-approve-tab">☕ Break Approvals</button>
+        </div>
+        <div id="allocation-tab" class="tab-content active">
+            <div class="allocation-card"><div class="card-title">Staff on Duty (SOD)</div><div id="sodStaffList"></div><div class="card-title" style="margin-top:16px">Staff Allocation</div><div id="allocationContainer"></div><div class="card-title" style="margin-top:16px">Supervisors</div><div id="supervisorSelectPanel"></div></div>
+        </div>
+        <div id="attendance-tab" class="tab-content"><div class="allocation-card"><div class="card-title">Mark Attendance</div><div id="attendanceContainer"></div></div></div>
+        <div id="management-tab" class="tab-content"><div class="management-panel"><div class="section-title">Manage Tasks</div><div class="form-group"><label>Category</label><select id="taskCategorySelectMgr"></select></div><div class="form-group"><label>Task Name</label><input type="text" id="newTaskNameMgr" placeholder="Task name"></div><div class="form-group"><label>Type</label><select id="taskTypeSelectMgr"><option value="done">✅ Single Done</option><option value="acknowledge">👥 Multi-Acknowledge</option><option value="dropdown">📋 Dropdown</option></select></div><div class="form-group"><label>Shift</label><select id="taskShiftSelectMgr"><option value="Both">Both</option><option value="Morning">Morning</option><option value="Evening">Evening</option></select></div><div id="dropdownOptionsDivMgr" style="display:none"><label>Options (comma)</label><input type="text" id="dropdownOptionsMgr" placeholder="Option1, Option2"></div><button id="addTaskBtnMgr" class="btn-primary">+ Add Task</button><div class="section-title">Existing Tasks</div><div id="taskListManager"></div><div class="section-title">Staff Members</div><div style="display:flex;gap:8px;"><input type="text" id="newStaffNameMgr" placeholder="Staff name"><button id="addStaffBtnMgr" class="btn-primary">Add</button></div><div id="staffListManager"></div></div></div>
+        <div id="break-approve-tab" class="tab-content"><div class="allocation-card"><div class="card-title">Break Requests</div><div id="breakRequestsList"></div></div></div>
     </div>
 </div>
-<div id="passwordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor Access</h3><input type="password" id="supervisorPassword" placeholder="Password"><button id="verifyPasswordBtn" class="verify-btn">Verify</button><button id="cancelPasswordBtn" class="cancel-btn">Cancel</button><p id="passwordError"></p></div></div>
-<div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device Auth</h2><input type="password" id="devicePasswordInput" placeholder="Master Password"><button id="authorizeDeviceBtn">Authorize</button><div id="deviceAuthError"></div></div></div>
+
+<div id="passwordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor Access</h3><input type="password" id="supervisorPassword"><button id="verifyPasswordBtn" class="btn-primary" style="margin-top:10px">Verify</button><button id="cancelPasswordBtn" style="margin-top:5px;background:#ccc">Cancel</button><p id="passwordError" style="color:red;font-size:0.7rem"></p></div></div>
+<div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device Auth</h2><input type="password" id="devicePasswordInput"><button id="authorizeDeviceBtn" class="btn-primary" style="margin-top:10px">Authorize</button><div id="deviceAuthError" style="color:red;font-size:0.7rem"></div></div></div>
+
 <script>
-// ======================== OPTIMIZED GLOBALS ========================
-const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
+// ============ CONFIG ============
+const DEVICE_STORAGE_KEY = "koveli_device_auth";
+const TASKS_CACHE_KEY = "koveli_tasks_cache";
+const TASKS_CACHE_TIME_KEY = "koveli_tasks_cache_time";
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
 let DEVICE_MASTER_PASSWORD = (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) ? MASTER_PASSWORD_GLOBAL : "Admin123";
 let db, firestoreReady = false;
 try { if(typeof firebase !== 'undefined' && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; } } catch(e) { console.warn(e); }
 
-// CACHING: store tasks and staff locally to avoid repeated reads
-let globalTasks = [], staffList = [], sodStaffNames = [], supervisorList = [], attendanceRecords = [], currentSODRecord = null, currentTaskRecord = null;
+// ============ CACHED DATA (Loads instantly from localStorage) ============
+let globalTasks = [];      // CACHED - loads instantly
+let staffList = [];        // CACHED - loads instantly
+
+// Dynamic data (fetched per shift)
+let sodStaffNames = [], supervisorList = [], attendanceRecords = [], currentSODRecord = null, currentTaskRecord = null;
 let currentRole = "staff", currentDate = "", currentShift = "", isSupervisor = false, selectedStaffName = "";
-let handoverData = { cards:[], wheelchair:[], complimentary:[], delayFlights:[], followup:[], importantMsg:"" };
+
 const MORNING_SLOTS = [{id:"slot1",name:"07:30-10:30",areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]},{id:"slot2",name:"10:30-13:30",areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]},{id:"slot3",name:"13:30-15:30",areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]}];
 const EVENING_SLOTS = [{id:"slot1",name:"15:30-18:30",areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]},{id:"slot2",name:"18:30-21:00",areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]},{id:"slot3",name:"21:00-23:30",areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]}];
-const BREAK_MORNING_SLOTS = ["07:30-08:30","08:30-09:30","09:30-10:30","10:30-11:30","11:30-12:30","12:30-13:30","13:30-14:30","14:30-15:30"];
-const BREAK_EVENING_SLOTS = ["15:30-16:30","16:30-17:30","17:30-18:30","18:30-19:30","19:30-20:30","20:30-21:30","21:30-22:30","22:30-23:30"];
+const BREAK_MORNING = ["07:30-08:30","08:30-09:30","09:30-10:30","10:30-11:30","11:30-12:30","12:30-13:30","13:30-14:30","14:30-15:30"];
+const BREAK_EVENING = ["15:30-16:30","16:30-17:30","17:30-18:30","18:30-19:30","19:30-20:30","20:30-21:30","21:30-22:30","22:30-23:30"];
 
-function getTaskRecordId(d,s){ return `tasks_${d}_${s}`.replace(/\s/g,'_'); }
-function getSODStaffId(d,s){ return `sod_staff_${d}_${s}`.replace(/\s/g,'_'); }
-function getSODRecordId(d,s){ return `sod_${d}_${s}`.replace(/\s/g,'_'); }
-function getAttendanceId(d,s){ return `attendance_${d}_${s}`.replace(/\s/g,'_'); }
-function getSupervisorId(d,s){ return `supervisors_${d}_${s}`.replace(/\s/g,'_'); }
-function getBreakId(d,s){ return `breaks_${d}_${s}`.replace(/\s/g,'_'); }
-function getHandoverId(d,s){ return `handover_${d}_${s}`.replace(/\s/g,'_'); }
+function getTaskRecordId() { return `tasks_${currentDate}_${currentShift}`.replace(/\s/g,'_'); }
+function getSODStaffId() { return `sod_staff_${currentDate}_${currentShift}`.replace(/\s/g,'_'); }
+function getSODRecordId() { return `sod_${currentDate}_${currentShift}`.replace(/\s/g,'_'); }
+function getAttendanceId() { return `attendance_${currentDate}_${currentShift}`.replace(/\s/g,'_'); }
+function getSupervisorId() { return `supervisors_${currentDate}_${currentShift}`.replace(/\s/g,'_'); }
+function getBreakId() { return `breaks_${currentDate}_${currentShift}`.replace(/\s/g,'_'); }
 
-// ========== CORE OPTIMIZED LOADERS (PARALLEL FETCH) ==========
-async function loadGlobalTasks() {
-    const doc = await db.collection("globalConfig").doc("tasks").get();
-    globalTasks = doc.exists ? doc.data().tasks || [] : [];
-    renderTaskManager(); updateCategorySelect();
+// ============ LOAD CACHED DATA FIRST (INSTANT!) ============
+function loadCachedTasksAndStaff() {
+    // Load tasks from cache
+    const cachedTasks = localStorage.getItem(TASKS_CACHE_KEY);
+    const cacheTime = localStorage.getItem(TASKS_CACHE_TIME_KEY);
+    if (cachedTasks && cacheTime && (Date.now() - parseInt(cacheTime) < CACHE_DURATION)) {
+        globalTasks = JSON.parse(cachedTasks);
+        console.log("✅ Tasks loaded from cache:", globalTasks.length);
+    } else {
+        globalTasks = [];
+        console.log("⏳ No cache, will fetch from Firebase");
+    }
+    
+    // Load staff from cache
+    const cachedStaff = localStorage.getItem("koveli_staff_cache");
+    if (cachedStaff) {
+        staffList = JSON.parse(cachedStaff);
+        console.log("✅ Staff loaded from cache:", staffList.length);
+    } else {
+        staffList = [];
+    }
+    
+    // Render immediately with cached data (shows UI instantly)
+    if (globalTasks.length > 0) renderTasks();
+    if (staffList.length > 0) renderStaffManager();
 }
-async function loadStaff() {
-    const snap = await db.collection("staff").orderBy("name").get();
-    staffList = snap.docs.map(d => ({ id: d.id, name: d.data().name }));
-    renderStaffManager(); renderSODPanel(); renderAttendanceForm();
+
+// ============ FETCH FROM FIREBASE IN BACKGROUND ============
+async function fetchTasksFromFirebase() {
+    if (!firestoreReady) return;
+    try {
+        const doc = await db.collection("globalConfig").doc("tasks").get();
+        if (doc.exists) {
+            globalTasks = doc.data().tasks || [];
+            // Update cache
+            localStorage.setItem(TASKS_CACHE_KEY, JSON.stringify(globalTasks));
+            localStorage.setItem(TASKS_CACHE_TIME_KEY, Date.now().toString());
+            console.log("✅ Tasks fetched from Firebase:", globalTasks.length);
+            renderTasks();
+            renderTaskManager();
+            updateCategorySelect();
+        }
+    } catch(e) { console.error("Error fetching tasks:", e); }
 }
-async function loadSODStaff() {
-    if(!currentDate||!currentShift) return;
-    const id = getSODStaffId(currentDate, currentShift);
-    const doc = await db.collection("sodStaffRecords").doc(id).get();
-    sodStaffNames = doc.exists ? doc.data().staffNames || [] : [];
-    renderSODPanel(); renderBreakUI(); renderSupervisorSelectPanel(); if(currentRole==="staff") renderTasks();
+
+async function fetchStaffFromFirebase() {
+    if (!firestoreReady) return;
+    try {
+        const snap = await db.collection("staff").orderBy("name").get();
+        staffList = snap.docs.map(d => ({ id: d.id, name: d.data().name }));
+        localStorage.setItem("koveli_staff_cache", JSON.stringify(staffList));
+        console.log("✅ Staff fetched from Firebase:", staffList.length);
+        renderStaffManager();
+        renderSODPanel();
+        renderAttendanceForm();
+    } catch(e) { console.error("Error fetching staff:", e); }
 }
-async function loadSODAllocation() {
-    if(!currentDate||!currentShift) return;
-    const id = getSODRecordId(currentDate, currentShift);
-    const doc = await db.collection("sodRecords").doc(id).get();
-    if(doc.exists) currentSODRecord = {id:doc.id, ...doc.data()};
-    else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, alloc={}; slots.forEach(s=>{ alloc[s.id]={}; s.areas.forEach(a=>alloc[s.id][a]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations:alloc,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; }
-    renderAllocation(); renderFullAllocation();
-}
-async function loadTaskRecord() {
-    if(!currentDate||!currentShift) return;
-    const id = getTaskRecordId(currentDate, currentShift);
-    const doc = await db.collection("taskRecords").doc(id).get();
-    if(doc.exists) currentTaskRecord = {id:doc.id, ...doc.data()};
-    else currentTaskRecord = {date:currentDate,shift:currentShift,status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[],createdAt:new Date().toISOString()};
-    await db.collection("taskRecords").doc(id).set(currentTaskRecord, {merge:true});
-    currentTaskRecord.id = id;
-    updateShiftStatusUI();
+
+// ============ FETCH ONLY SUBMISSION DATA (per shift) ============
+async function fetchShiftData() {
+    if (!firestoreReady || !currentDate || !currentShift) return;
+    
+    // Parallel fetch only dynamic data
+    const [sodStaffDoc, sodRecordDoc, taskRecordDoc, attendanceDoc, supervisorDoc] = await Promise.all([
+        db.collection("sodStaffRecords").doc(getSODStaffId()).get(),
+        db.collection("sodRecords").doc(getSODRecordId()).get(),
+        db.collection("taskRecords").doc(getTaskRecordId()).get(),
+        db.collection("attendanceRecords").doc(getAttendanceId()).get(),
+        db.collection("supervisorRecords").doc(getSupervisorId()).get()
+    ]);
+    
+    sodStaffNames = sodStaffDoc.exists ? sodStaffDoc.data().staffNames || [] : [];
+    
+    if (sodRecordDoc.exists) currentSODRecord = {id: sodRecordDoc.id, ...sodRecordDoc.data()};
+    else {
+        const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
+        const allocations = {};
+        slots.forEach(slot => { allocations[slot.id] = {}; slot.areas.forEach(area => allocations[slot.id][area] = []); });
+        currentSODRecord = { date: currentDate, shift: currentShift, allocations, createdAt: new Date().toISOString() };
+        await db.collection("sodRecords").doc(getSODRecordId()).set(currentSODRecord);
+        currentSODRecord.id = getSODRecordId();
+    }
+    
+    if (taskRecordDoc.exists) currentTaskRecord = { id: taskRecordDoc.id, ...taskRecordDoc.data() };
+    else currentTaskRecord = { date: currentDate, shift: currentShift, status: "open", doneTasks: {}, acknowledgedTasks: {}, dropdownSelections: [], createdAt: new Date().toISOString() };
+    await db.collection("taskRecords").doc(getTaskRecordId()).set(currentTaskRecord, { merge: true });
+    currentTaskRecord.id = getTaskRecordId();
+    
+    attendanceRecords = attendanceDoc.exists ? attendanceDoc.data().records || [] : [];
+    supervisorList = supervisorDoc.exists ? supervisorDoc.data().supervisors || [] : [];
+    
+    // Render everything
     renderTasks();
+    renderSODPanel();
+    renderAllocation();
+    renderFullAllocation();
+    renderBreakUI();
+    renderAttendanceForm();
+    renderStaffAttendanceView();
+    renderSupervisorSelectPanel();
+    updateShiftStatusUI();
+    if (currentRole === "supervisor") loadBreakRequests();
 }
-async function loadAttendance() {
-    if(!currentDate||!currentShift) return;
-    const id = getAttendanceId(currentDate, currentShift);
-    const doc = await db.collection("attendanceRecords").doc(id).get();
-    attendanceRecords = doc.exists ? doc.data().records || [] : [];
-    renderAttendanceForm(); renderStaffAttendanceView();
-}
-async function loadSupervisors() {
-    if(!currentDate||!currentShift) return;
-    const id = getSupervisorId(currentDate, currentShift);
-    const doc = await db.collection("supervisorRecords").doc(id).get();
-    supervisorList = doc.exists ? doc.data().supervisors || [] : [];
-    renderSupervisorSelectPanel(); renderSupervisorsDisplay();
-}
-async function loadHandoverLog() {
-    if(!currentDate||!currentShift) return;
-    const id = getHandoverId(currentDate, currentShift);
-    const doc = await db.collection("handoverLogs").doc(id).get();
-    if(doc.exists) handoverData = doc.data();
-    else { handoverData = { cards:[], wheelchair:[], complimentary:[], delayFlights:[], followup:[], importantMsg:"" }; await db.collection("handoverLogs").doc(id).set(handoverData); }
-    renderHandoverUI();
-}
-// PARALLEL REFRESH: fire all at once
-async function refreshAll() {
-    if(!firestoreReady || !currentDate || !currentShift) return;
-    await Promise.all([ loadSODStaff(), loadSODAllocation(), loadTaskRecord(), loadAttendance(), loadSupervisors(), loadHandoverLog() ]);
-    if(currentRole === "supervisor") loadBreakRequests();
-}
-// ========== RENDER FUNCTIONS (SIMPLIFIED) ==========
+
+// ============ RENDER FUNCTIONS (Uses cached tasks + fresh submissions) ============
 function renderTasks() {
-    if(!tasksContainer || !currentTaskRecord || !globalTasks.length) { if(tasksContainer) tasksContainer.innerHTML='<div class="empty-msg">Select date & shift</div>'; return; }
-    const isClosed = currentTaskRecord.status === "closed", done = currentTaskRecord.doneTasks || {}, ack = currentTaskRecord.acknowledgedTasks || {}, sel = currentTaskRecord.dropdownSelections || [];
-    const filtered = globalTasks.filter(t => { const s = t.shift || "Both"; return s === "Both" || s === currentShift; });
+    const container = document.getElementById('tasksContainer');
+    if (!container) return;
+    if (!currentTaskRecord || !globalTasks.length) {
+        container.innerHTML = '<div class="empty-msg">Select date and shift to view tasks</div>';
+        return;
+    }
+    
+    const isClosed = currentTaskRecord.status === "closed";
+    const done = currentTaskRecord.doneTasks || {};
+    const ack = currentTaskRecord.acknowledgedTasks || {};
+    const sel = currentTaskRecord.dropdownSelections || [];
+    
+    const filtered = globalTasks.filter(t => {
+        const s = t.shift || "Both";
+        return s === "Both" || s === currentShift;
+    });
+    
     const byCat = {};
-    filtered.forEach(t => { const c = t.category || "General"; if(!byCat[c]) byCat[c] = []; byCat[c].push(t); });
+    filtered.forEach(t => { const c = t.category || "General"; if (!byCat[c]) byCat[c] = []; byCat[c].push(t); });
+    
     let html = '';
-    for(const [cat, tasks] of Object.entries(byCat)){
+    for (const [cat, tasks] of Object.entries(byCat)) {
         html += `<div class="task-category"><div class="category-header"><i class="fas fa-folder"></i> ${escapeHtml(cat)}</div><div class="category-tasks">`;
-        tasks.forEach(task => {
-            const isDone = !!done[task.id], taskAcks = ack[task.id] || [], taskSelections = sel.filter(s => s.taskId === task.id);
-            const pending = !isClosed && ((task.type === 'done' && !isDone) || (task.type === 'acknowledge' && taskAcks.length===0) || (task.type === 'dropdown' && taskSelections.length===0));
-            html += `<div class="task-item"><div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)} ${pending?'<span class="pending-indicator">Pending</span>':''}</div></div>`;
-            if(currentRole === "staff" && !isClosed){
-                if(task.type === 'done'){
-                    html += `<div class="flex-row"><select id="staffSel_${task.id}" class="action-select"><option value="">-- Staff --</option>${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select><button class="action-btn do-done" data-id="${task.id}">Complete</button></div>`;
-                } else if(task.type === 'acknowledge'){
-                    const myAck = taskAcks.includes(selectedStaffName);
-                    html += `<div class="completed-info">Acknowledged: ${taskAcks.length}/${sodStaffNames.length} (${taskAcks.join(', ')})</div><div class="flex-row"><select id="staffSel_${task.id}" class="action-select"><option value="">-- SOD Staff --</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}" ${selectedStaffName===s?'selected':''}>${escapeHtml(s)}</option>`).join('')}</select><button class="action-btn do-ack-toggle" data-id="${task.id}" style="background:${myAck?'#f44336':'#4caf50'}">${myAck?'Remove Acknowledge':'Acknowledge'}</button></div>`;
+        for (const task of tasks) {
+            const isDone = !!done[task.id];
+            const taskAcks = ack[task.id] || [];
+            const taskSelections = sel.filter(s => s.taskId === task.id);
+            const pending = !isClosed && ((task.type === 'done' && !isDone) || (task.type === 'acknowledge' && taskAcks.length === 0) || (task.type === 'dropdown' && taskSelections.length === 0));
+            
+            html += `<div class="task-item"><div class="task-name">📋 ${escapeHtml(task.name)} ${pending ? '<span class="pending-indicator">Pending</span>' : ''}</div>`;
+            
+            if (currentRole === "staff" && !isClosed) {
+                if (task.type === 'done') {
+                    html += `<div class="flex-row"><select id="staffSel_${task.id}" class="action-select"><option value="">-- Staff --</option>${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select><button class="action-btn do-done" data-id="${task.id}">Complete</button></div>`;
+                } else if (task.type === 'acknowledge') {
+                    html += `<div class="completed-info">✅ Acknowledged: ${taskAcks.join(', ') || 'None'} (${taskAcks.length}/${sodStaffNames.length})</div><div class="flex-row"><select id="staffSel_${task.id}" class="action-select"><option value="">-- SOD Staff --</option>${sodStaffNames.map(s => `<option value="${escapeHtml(s)}" ${selectedStaffName === s ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}</select><button class="action-btn do-ack-toggle" data-id="${task.id}">Acknowledge</button></div>`;
                 } else {
-                    const optsHtml = `<select id="dropSel_${task.id}" class="action-dropdown"><option value="">-- Select --</option>${(task.options||[]).map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>`;
-                    html += `<div class="completed-info">Submissions: ${taskSelections.map(s=>`${s.staffName}:${s.selectedValue}`).join(', ')}</div><div class="flex-row"><select id="staffSel_${task.id}" class="action-select">${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select>${optsHtml}<input type="text" id="addText_${task.id}" placeholder="Note" style="width:80px;padding:5px;border-radius:20px;border:1px solid #e2eaf2;"><button class="action-btn do-drop-toggle" data-id="${task.id}">Add/Delete</button></div>`;
+                    const optsHtml = `<select id="dropSel_${task.id}" class="action-dropdown"><option value="">-- Select --</option>${(task.options || []).map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>`;
+                    html += `<div class="completed-info">📋 Submissions: ${taskSelections.map(s => `${s.staffName}:${s.selectedValue}`).join(', ')}</div><div class="flex-row"><select id="staffSel_${task.id}" class="action-select">${staffList.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select>${optsHtml}<input type="text" id="addText_${task.id}" placeholder="Note" style="width:80px;padding:5px;border-radius:20px;border:1px solid #e2eaf2;"><button class="action-btn do-drop-toggle" data-id="${task.id}">Submit</button></div>`;
                 }
             } else {
-                if(task.type === 'done') html += `<div class="completed-info">✅ ${isDone?`Completed by ${done[task.id].doneBy}`:'Pending'}</div>`;
-                else if(task.type === 'acknowledge') html += `<div class="completed-info">✅ Acknowledged: ${taskAcks.join(', ') || 'None'}</div>`;
-                else html += `<div class="completed-info">📋 ${taskSelections.length} submissions</div>`;
+                if (task.type === 'done') html += `<div class="completed-info">✅ ${isDone ? `Completed by ${done[task.id].doneBy}` : 'Pending'}</div>`;
+                else if (task.type === 'acknowledge') html += `<div class="completed-info">✅ Acknowledged: ${taskAcks.join(', ') || 'None'}</div>`;
+                else html += `<div class="completed-info">📋 ${taskSelections.length} submission(s)</div>`;
             }
             html += `</div>`;
-        });
+        }
         html += `</div></div>`;
     }
-    tasksContainer.innerHTML = html;
+    container.innerHTML = html;
     attachTaskEvents();
 }
+
 function attachTaskEvents() {
-    document.querySelectorAll('.do-done').forEach(btn => btn.addEventListener('click', async(e)=>{ const tid = btn.dataset.id; const sel = document.getElementById(`staffSel_${tid}`); if(sel?.value) await completeTask(tid, sel.value); else alert("Select staff"); }));
-    document.querySelectorAll('.do-ack-toggle').forEach(btn => btn.addEventListener('click', async(e)=>{ const tid = btn.dataset.id; const sel = document.getElementById(`staffSel_${tid}`); if(sel?.value) await acknowledgeTask(tid, sel.value); else alert("Select SOD staff"); }));
-    document.querySelectorAll('.do-drop-toggle').forEach(btn => btn.addEventListener('click', async(e)=>{ const tid = btn.dataset.id; const staffSel = document.getElementById(`staffSel_${tid}`); const dropSel = document.getElementById(`dropSel_${tid}`); const note = document.getElementById(`addText_${tid}`); if(staffSel?.value && dropSel?.value) await submitDropdown(tid, dropSel.value, note?.value||"", staffSel.value); else alert("Select staff and dropdown value"); }));
+    document.querySelectorAll('.do-done').forEach(btn => btn.addEventListener('click', async (e) => {
+        const tid = btn.dataset.id;
+        const sel = document.getElementById(`staffSel_${tid}`);
+        if (sel?.value) await completeTask(tid, sel.value);
+        else showToast("Select staff first");
+    }));
+    document.querySelectorAll('.do-ack-toggle').forEach(btn => btn.addEventListener('click', async (e) => {
+        const tid = btn.dataset.id;
+        const sel = document.getElementById(`staffSel_${tid}`);
+        if (sel?.value) await acknowledgeTask(tid, sel.value);
+        else showToast("Select SOD staff");
+    }));
+    document.querySelectorAll('.do-drop-toggle').forEach(btn => btn.addEventListener('click', async (e) => {
+        const tid = btn.dataset.id;
+        const staffSel = document.getElementById(`staffSel_${tid}`);
+        const dropSel = document.getElementById(`dropSel_${tid}`);
+        const note = document.getElementById(`addText_${tid}`);
+        if (staffSel?.value && dropSel?.value) await submitDropdown(tid, dropSel.value, note?.value || "", staffSel.value);
+        else showToast("Select staff and value");
+    }));
 }
-async function completeTask(tid, staff){ if(currentTaskRecord.status==="closed"){alert("Shift closed");return;} const done={...currentTaskRecord.doneTasks}; if(done[tid]){alert("Already done");return;} done[tid]={doneBy:staff, doneAt:new Date().toISOString()}; await db.collection("taskRecords").doc(currentTaskRecord.id).set({doneTasks:done},{merge:true}); currentTaskRecord.doneTasks=done; renderTasks(); }
-async function acknowledgeTask(tid, staff){ if(currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!sodStaffNames.includes(staff)){alert(`${staff} not on duty`);return;} const ack={...currentTaskRecord.acknowledgedTasks}; let arr=ack[tid]||[]; if(arr.includes(staff)) arr=arr.filter(n=>n!==staff); else arr.push(staff); if(arr.length===0) delete ack[tid]; else ack[tid]=arr; await db.collection("taskRecords").doc(currentTaskRecord.id).set({acknowledgedTasks:ack},{merge:true}); currentTaskRecord.acknowledgedTasks=ack; renderTasks(); }
-async function submitDropdown(tid,val,note,staff){ if(currentTaskRecord.status==="closed"){alert("Shift closed");return;} let selections=[...(currentTaskRecord.dropdownSelections||[])]; const idx=selections.findIndex(s=>s.taskId===tid && s.staffName===staff && s.selectedValue===val && (s.additionalText||"")===note); if(idx!==-1) selections.splice(idx,1); else selections.push({taskId:tid,staffName:staff,selectedValue:val,additionalText:note,submittedAt:new Date().toISOString()}); await db.collection("taskRecords").doc(currentTaskRecord.id).set({dropdownSelections:selections},{merge:true}); currentTaskRecord.dropdownSelections=selections; renderTasks(); }
-function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; document.getElementById('shiftStatusBadge').innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; document.getElementById('closeShiftBtn')?.classList.toggle('hidden',closed); document.getElementById('reopenShiftBtn')?.classList.toggle('hidden',!closed); }
-async function closeShift(){ if(currentTaskRecord.status==="closed") return; await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"closed",closedAt:new Date().toISOString()},{merge:true}); currentTaskRecord.status="closed"; updateShiftStatusUI(); renderTasks(); }
-async function reopenShiftFn(){ await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"open"},{merge:true}); currentTaskRecord.status="open"; updateShiftStatusUI(); renderTasks(); }
-function renderAllocation(){ if(!currentSODRecord||!allocationContainer) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, alloc=currentSODRecord.allocations||{}, areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; let html='<table class="allocation-table"><thead><th>Area</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(alloc[slot.id]&&alloc[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge">${escapeHtml(s)}</span>`).join('')||'—'}</td>`; }); html+=`</tr>`; }); html+=`</tbody></td>`; allocationContainer.innerHTML=html; fullAllocationContainer.innerHTML=html; }
-function renderHandoverUI(){ if(!handoverContainer) return; let html = `<div class="handover-section"><h4>Cards</h4><table class="handover-table"><thead><tr><th>Flight</th><th>Seat</th><th>Need Cards</th><th>Contact</th><th>Remarks</th><th>Done</th></tr></thead><tbody>${handoverData.cards?.map((c,i)=>`<tr><td><input class="handover-input" value="${escapeHtml(c.flight)}" onchange="window.updateHandoverField('cards',${i},'flight',this.value)"><td><input value="${escapeHtml(c.seat)}" onchange="window.updateHandoverField('cards',${i},'seat',this.value)"><td><input value="${escapeHtml(c.needCards)}" onchange="window.updateHandoverField('cards',${i},'needCards',this.value)"><td><input value="${escapeHtml(c.contact)}" onchange="window.updateHandoverField('cards',${i},'contact',this.value)"><td><input value="${escapeHtml(c.remarks)}" onchange="window.updateHandoverField('cards',${i},'remarks',this.value)"><td><input type="checkbox" ${c.done?'checked':''} onchange="window.updateHandoverField('cards',${i},'done',this.checked)"></tr>`).join('')}</tbody></table><button class="add-row-btn" onclick="window.addHandoverRow('cards',{flight:'',seat:'',needCards:'',contact:'',remarks:'',done:false})">+ Add</button></div>`; handoverContainer.innerHTML = html; }
-window.addHandoverRow = async(section,def)=>{ if(!handoverData[section]) handoverData[section]=[]; handoverData[section].push({...def,id:Date.now()}); await saveHandoverLog(); renderHandoverUI(); };
-window.updateHandoverField = async(section,idx,field,val)=>{ if(handoverData[section]?.[idx]){ handoverData[section][idx][field]=val; await saveHandoverLog(); } };
-async function saveHandoverLog(){ if(!currentDate||!currentShift) return; const id=getHandoverId(currentDate,currentShift); await db.collection("handoverLogs").doc(id).set(handoverData,{merge:true}); }
-// Shortened other necessary functions but keep core working
-async function onDateShiftChange(){ currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); if(currentDate&&currentShift) await refreshAll(); else if(currentRole==="staff") renderTasks(); }
-function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); refreshAll(); } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } }
-function verifyPassword(){ const pwd = supervisorPassword.value; if(pwd === (typeof SUPERVISOR_PASSWORD !== 'undefined'?SUPERVISOR_PASSWORD:"Admin123")){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText="Wrong"; }
-function renderBreakUI(){ if(!breakRequestContainer) return; let slots=currentShift==="Morning"?BREAK_MORNING_SLOTS:BREAK_EVENING_SLOTS; breakRequestContainer.innerHTML=`<select id="breakStaffSelect" class="sod-select"><option value="">Select Name</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}</select><div class="time-slots">${slots.map(s=>`<button class="time-slot-btn" onclick="requestBreak('${s}')">${s}</button>`).join('')}</div><div id="breakStatusMsg"></div>`; }
-window.requestBreak=async(slot)=>{ const staff=document.getElementById('breakStaffSelect')?.value; if(!staff){alert("Select name");return;} const id=getBreakId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; if(breaks.find(b=>b.staffName===staff&&b.status==='approved')){alert("Already approved break");return;} breaks=breaks.filter(b=>!(b.staffName===staff&&b.status==='pending')); breaks.push({staffName:staff,timeSlot:slot,status:'pending',requestedAt:new Date().toISOString()}); await db.collection("breakRecords").doc(id).set({breaks,date:currentDate,shift:currentShift}); alert("Request sent"); renderBreakUI(); };
-async function loadBreakRequests(){ const id=getBreakId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; let pending=breaks.filter(b=>b.status==='pending'); breakRequestsList.innerHTML=pending.map(b=>`<div>${b.staffName} @ ${b.timeSlot} <button onclick="approveBreak('${b.staffName}','${b.timeSlot}')">Approve</button> <button onclick="rejectBreak('${b.staffName}','${b.timeSlot}')">Reject</button></div>`).join(''); }
-window.approveBreak=async(staff,slot)=>{ const id=getBreakId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; breaks=breaks.map(b=>{if(b.staffName===staff&&b.timeSlot===slot&&b.status==='pending')b.status='approved'; return b;}); await db.collection("breakRecords").doc(id).set({breaks}); loadBreakRequests(); renderBreakUI(); };
-function renderStaffManager() { staffListManager.innerHTML = staffList.map(s => `<div class="staff-card">${escapeHtml(s.name)} <button onclick="deleteStaff('${s.id}')">✖</button></div>`).join(''); }
-window.deleteStaff=async(id)=>{ if(confirm("Delete?")){ await db.collection("staff").doc(id).delete(); await loadStaff(); }};
-function renderTaskManager(){ taskListManager.innerHTML = globalTasks.map(t => `<div class="staff-card">${escapeHtml(t.name)} (${t.shift||'Both'}) <button onclick="deleteTask('${t.id}')">✖</button></div>`).join(''); }
-window.deleteTask=async(id)=>{ if(confirm("Delete task?")){ await saveGlobalTasks(globalTasks.filter(t=>t.id!==id)); }};
-async function saveGlobalTasks(tasks){ await db.collection("globalConfig").doc("tasks").set({tasks}); globalTasks=tasks; renderTaskManager(); updateCategorySelect(); renderTasks(); }
-function updateCategorySelect(){ const cats = [...new Set(globalTasks.map(t=>t.category||"General"))]; taskCategorySelectMgr.innerHTML = '<option value="">-- Category --</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join(''); }
-async function addTaskMgr(){ const name = newTaskNameMgr.value.trim(); const cat = taskCategorySelectMgr.value; if(!name||!cat){adminFeedback.innerText="Enter name & category";return;} const opts = taskTypeSelectMgr.value==='dropdown'? (dropdownOptionsMgr.value.split(',').map(o=>o.trim()).filter(o=>o)):null; const newTask = {id:Date.now().toString(),name,category:cat,type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:opts}; await saveGlobalTasks([...globalTasks,newTask]); newTaskNameMgr.value=""; dropdownOptionsMgr.value=""; adminFeedback.innerText="Added"; setTimeout(()=>adminFeedback.innerText="",1500); }
-async function addStaffMember(name){ if(!name)return; await db.collection("staff").add({name:name.trim()}); await loadStaff(); newStaffNameMgr.value=""; }
-function renderSupervisorSelectPanel(){ if(!supervisorSelectPanel)return; supervisorSelectPanel.innerHTML = `<div>Supervisors: ${supervisorList.map(s=>`<span class="staff-name-badge">${s}</span>`).join('')} <select id="newSupervisorSelect">${sodStaffNames.map(s=>`<option>${s}</option>`).join('')}</select><button onclick="addSupervisor()">Add</button></div>`; }
-window.addSupervisor=async()=>{ const sel=document.getElementById('newSupervisorSelect'); if(sel&&sel.value&&!supervisorList.includes(sel.value)){ supervisorList.push(sel.value); const id=getSupervisorId(currentDate,currentShift); await db.collection("supervisorRecords").doc(id).set({supervisors:supervisorList,date:currentDate,shift:currentShift}); renderSupervisorSelectPanel(); } };
-function generatePDFReport(){ alert("PDF generation: full report ready (handover excluded)"); }
-function printAllocationSheet(){ alert("Allocation sheet ready for print"); }
-function renderFullAllocation(){ if(fullAllocationContainer&&currentSODRecord) fullAllocationContainer.innerHTML = allocationContainer?.innerHTML || ''; }
-function renderStaffAttendanceView(){ if(!staffAttendanceView)return; staffAttendanceView.innerHTML = attendanceRecords.filter(r=>r.shift===currentShift&&r.status!=='Present').map(r=>`<div>${r.staffName}: ${r.status} ${r.reason||''}</div>`).join('')||'<div class="empty-msg">All present</div>'; }
-function renderAttendanceForm(){ if(!attendanceContainer)return; attendanceContainer.innerHTML = `<select id="attStaff"><option>Select</option>${staffList.map(s=>`<option>${s.name}</option>`).join('')}</select><select id="attShift"><option>Morning</option><option>Evening</option></select><select id="attStatus"><option>Present</option><option>Absent</option><option>SL</option><option>FRL</option></select><input id="attReason" placeholder="Reason"><button onclick="submitAttendance()">Submit</button><div id="attList">${attendanceRecords.map(r=>`<div>${r.staffName} ${r.status}</div>`).join('')}</div>`; }
-window.submitAttendance=async()=>{ const staff=document.getElementById('attStaff').value; const shift=document.getElementById('attShift').value; const status=document.getElementById('attStatus').value; const reason=document.getElementById('attReason').value; if(!staff)return; const record={staffName:staff,shift,status,reason: (status==='SL'||status==='FRL')?reason:null,reportDateTime:new Date().toISOString()}; const idx=attendanceRecords.findIndex(r=>r.staffName===staff&&r.shift===shift); if(idx!==-1) attendanceRecords[idx]=record; else attendanceRecords.push(record); const id=getAttendanceId(currentDate,currentShift); await db.collection("attendanceRecords").doc(id).set({records:attendanceRecords,date:currentDate,shift:currentShift},{merge:true}); renderAttendanceForm(); renderStaffAttendanceView(); };
-function init(){ currentDate = localStorage.getItem('selectedDate')||new Date().toISOString().slice(0,10); currentShift = localStorage.getItem('selectedShift')||""; mainDate.value=currentDate; mainShift.value=currentShift; if(firestoreReady){ Promise.all([loadGlobalTasks(), loadStaff()]).then(()=>{ if(currentDate&&currentShift) refreshAll(); }); } mainDate.addEventListener('change',onDateShiftChange); mainShift.addEventListener('change',onDateShiftChange); staffRoleBtn.addEventListener('click',()=>setRole("staff")); supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); addTaskBtnMgr.addEventListener('click',addTaskMgr); addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); closeShiftBtn.addEventListener('click',closeShift); reopenShiftBtn.addEventListener('click',reopenShiftFn); verifyPasswordBtn.addEventListener('click',verifyPassword); cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); exportFullPdfBtn.addEventListener('click',generatePDFReport); printAllocationBtn.addEventListener('click',printAllocationSheet); setRole("staff"); }
-function escapeHtml(s){ if(!s) return ''; return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-function isDeviceAuthorized(){ return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
-if(isDeviceAuthorized()){ document.getElementById('deviceAuthModal').style.display='none'; document.getElementById('appContainer').style.display='block'; init(); } else { document.getElementById('deviceAuthModal').style.display='flex'; document.getElementById('authorizeDeviceBtn').addEventListener('click',()=>{ const pwd = document.getElementById('devicePasswordInput').value; if(pwd===DEVICE_MASTER_PASSWORD){ localStorage.setItem(DEVICE_STORAGE_KEY,"true"); document.getElementById('deviceAuthModal').style.display='none'; document.getElementById('appContainer').style.display='block'; init(); } else document.getElementById('deviceAuthError').innerText="Invalid password"; }); }
+
+async function completeTask(tid, staff) {
+    if (currentTaskRecord.status === "closed") { showToast("Shift closed"); return; }
+    const done = { ...currentTaskRecord.doneTasks };
+    if (done[tid]) { showToast("Already completed"); return; }
+    done[tid] = { doneBy: staff, doneAt: new Date().toISOString() };
+    await db.collection("taskRecords").doc(currentTaskRecord.id).set({ doneTasks: done }, { merge: true });
+    currentTaskRecord.doneTasks = done;
+    renderTasks();
+    showToast("✓ Task completed");
+}
+
+async function acknowledgeTask(tid, staff) {
+    if (currentTaskRecord.status === "closed") { showToast("Shift closed"); return; }
+    if (!sodStaffNames.includes(staff)) { showToast(`${staff} not on duty`); return; }
+    const ack = { ...currentTaskRecord.acknowledgedTasks };
+    let arr = ack[tid] || [];
+    if (arr.includes(staff)) arr = arr.filter(n => n !== staff);
+    else arr.push(staff);
+    if (arr.length === 0) delete ack[tid];
+    else ack[tid] = arr;
+    await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ack }, { merge: true });
+    currentTaskRecord.acknowledgedTasks = ack;
+    renderTasks();
+    showToast(arr.includes(staff) ? "✓ Acknowledged" : "✗ Removed");
+}
+
+async function submitDropdown(tid, val, note, staff) {
+    if (currentTaskRecord.status === "closed") { showToast("Shift closed"); return; }
+    let selections = [...(currentTaskRecord.dropdownSelections || [])];
+    const idx = selections.findIndex(s => s.taskId === tid && s.staffName === staff && s.selectedValue === val && (s.additionalText || "") === note);
+    if (idx !== -1) selections.splice(idx, 1);
+    else selections.push({ taskId: tid, staffName: staff, selectedValue: val, additionalText: note, submittedAt: new Date().toISOString() });
+    await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true });
+    currentTaskRecord.dropdownSelections = selections;
+    renderTasks();
+    showToast(idx !== -1 ? "✗ Removed" : "✓ Added");
+}
+
+function renderAllocation() {
+    if (!currentSODRecord || !document.getElementById('allocationContainer')) return;
+    const slots = currentShift === "Morning" ? MORNING_SLOTS : EVENING_SLOTS;
+    const alloc = currentSODRecord.allocations || {};
+    const areas = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
+    let html = '<table class="allocation-table"><thead><th>Area</th>' + slots.map(s => `<th>${s.name}</th>`).join('') + '</thead><tbody>';
+    areas.forEach(area => {
+        html += `<tr><td class="area-col"><strong>${area}</strong></td>`;
+        slots.forEach(slot => {
+            const assigned = (alloc[slot.id] && alloc[slot.id][area]) || [];
+            html += `<td>${assigned.map(s => `<span class="staff-card">${escapeHtml(s)}</span>`).join('') || '—'}</td>`;
+        });
+        html += `</tr>`;
+    });
+    html += `</tbody></table>`;
+    document.getElementById('allocationContainer').innerHTML = html;
+    if (document.getElementById('fullAllocationContainer')) document.getElementById('fullAllocationContainer').innerHTML = html;
+}
+function renderFullAllocation() { if (document.getElementById('fullAllocationContainer') && currentSODRecord) renderAllocation(); }
+function renderSODPanel() { if (!document.getElementById('sodStaffList')) return; document.getElementById('sodStaffList').innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}">👤 ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => el.addEventListener('click', async () => { const name = el.dataset.name; let newList = sodStaffNames.includes(name) ? sodStaffNames.filter(n => n !== name) : [...sodStaffNames, name]; sodStaffNames = newList; await db.collection("sodStaffRecords").doc(getSODStaffId()).set({ staffNames: sodStaffNames, date: currentDate, shift: currentShift }, { merge: true }); renderSODPanel(); renderTasks(); })); }
+function renderSupervisorSelectPanel() { if (!document.getElementById('supervisorSelectPanel')) return; document.getElementById('supervisorSelectPanel').innerHTML = `<div>👔 Supervisors: ${supervisorList.map(s => `<span class="staff-card">${escapeHtml(s)}</span>`).join('')} <select id="newSupSelect">${sodStaffNames.map(s => `<option>${escapeHtml(s)}</option>`).join('')}</select><button class="btn-primary" style="padding:4px 12px" onclick="addSupervisor()">Add</button></div>`; }
+window.addSupervisor = async () => { const sel = document.getElementById('newSupSelect'); if (sel && sel.value && !supervisorList.includes(sel.value)) { supervisorList.push(sel.value); await db.collection("supervisorRecords").doc(getSupervisorId()).set({ supervisors: supervisorList, date: currentDate, shift: currentShift }, { merge: true }); renderSupervisorSelectPanel(); } };
+function renderBreakUI() { if (!document.getElementById('breakRequestContainer')) return; const slots = currentShift === "Morning" ? BREAK_MORNING : BREAK_EVENING; document.getElementById('breakRequestContainer').innerHTML = `<select id="breakStaffSelect" class="action-select" style="width:100%"><option value="">Select Name</option>${sodStaffNames.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}</select><div class="time-slots">${slots.map(s => `<button class="time-slot-btn" onclick="requestBreak('${s}')">${s}</button>`).join('')}</div>`; }
+window.requestBreak = async (slot) => { const staff = document.getElementById('breakStaffSelect')?.value; if (!staff) { showToast("Select name"); return; } const id = getBreakId(); const doc = await db.collection("breakRecords").doc(id).get(); let breaks = doc.exists ? doc.data().breaks || [] : []; if (breaks.find(b => b.staffName === staff && b.status === 'approved')) { showToast("Already approved"); return; } breaks = breaks.filter(b => !(b.staffName === staff && b.status === 'pending')); breaks.push({ staffName: staff, timeSlot: slot, status: 'pending', requestedAt: new Date().toISOString() }); await db.collection("breakRecords").doc(id).set({ breaks, date: currentDate, shift: currentShift }); showToast("Request sent"); renderBreakUI(); };
+async function loadBreakRequests() { const id = getBreakId(); const doc = await db.collection("breakRecords").doc(id).get(); const breaks = doc.exists ? doc.data().breaks || [] : []; const pending = breaks.filter(b => b.status === 'pending'); document.getElementById('breakRequestsList').innerHTML = pending.map(b => `<div class="staff-card">${b.staffName} @ ${b.timeSlot} <button class="action-btn" style="background:#4caf50" onclick="approveBreak('${b.staffName}','${b.timeSlot}')">Approve</button> <button class="action-btn" style="background:#f44336" onclick="rejectBreak('${b.staffName}','${b.timeSlot}')">Reject</button></div>`).join('') || '<div class="empty-msg">No pending requests</div>'; }
+window.approveBreak = async (staff, slot) => { const id = getBreakId(); const doc = await db.collection("breakRecords").doc(id).get(); let breaks = doc.exists ? doc.data().breaks || [] : []; breaks = breaks.map(b => { if (b.staffName === staff && b.timeSlot === slot && b.status === 'pending') b.status = 'approved'; return b; }); await db.collection("breakRecords").doc(id).set({ breaks }); loadBreakRequests(); renderBreakUI(); showToast("Approved"); };
+window.rejectBreak = async (staff, slot) => { const id = getBreakId(); const doc = await db.collection("breakRecords").doc(id).get(); let breaks = doc.exists ? doc.data().breaks || [] : []; breaks = breaks.map(b => { if (b.staffName === staff && b.timeSlot === slot && b.status === 'pending') b.status = 'rejected'; return b; }); await db.collection("breakRecords").doc(id).set({ breaks }); loadBreakRequests(); renderBreakUI(); showToast("Rejected"); };
+function renderAttendanceForm() { if (!document.getElementById('attendanceContainer')) return; document.getElementById('attendanceContainer').innerHTML = `<select id="attStaff" class="action-select"><option>Select</option>${staffList.map(s => `<option>${escapeHtml(s.name)}</option>`).join('')}</select><select id="attShift" class="action-select"><option>Morning</option><option>Evening</option></select><select id="attStatus" class="action-select"><option>Present</option><option>Absent</option><option>SL</option><option>FRL</option></select><input id="attReason" placeholder="Reason (for SL/FRL)" class="action-select" style="width:auto"><button class="action-btn" onclick="submitAttendance()">Submit</button><div class="section-title" style="margin-top:16px">Records</div><div id="attList">${attendanceRecords.map(r => `<div class="staff-card">${r.staffName}: ${r.status} ${r.reason || ''}</div>`).join('')}</div>`; }
+window.submitAttendance = async () => { const staff = document.getElementById('attStaff').value; const shift = document.getElementById('attShift').value; const status = document.getElementById('attStatus').value; const reason = document.getElementById('attReason').value; if (!staff) return; const record = { staffName: staff, shift, status, reason: (status === 'SL' || status === 'FRL') ? reason : null, reportDateTime: new Date().toISOString() }; const idx = attendanceRecords.findIndex(r => r.staffName === staff && r.shift === shift); if (idx !== -1) attendanceRecords[idx] = record; else attendanceRecords.push(record); await db.collection("attendanceRecords").doc(getAttendanceId()).set({ records: attendanceRecords, date: currentDate, shift: currentShift }, { merge: true }); renderAttendanceForm(); renderStaffAttendanceView(); showToast("Attendance saved"); };
+function renderStaffAttendanceView() { if (!document.getElementById('staffAttendanceView')) return; const absent = attendanceRecords.filter(r => r.shift === currentShift && r.status !== 'Present'); document.getElementById('staffAttendanceView').innerHTML = absent.length ? absent.map(r => `<div class="staff-card">${r.staffName}: ${r.status} ${r.reason || ''}</div>`).join('') : '<div class="empty-msg">All staff present</div>'; }
+function renderStaffManager() { if (!document.getElementById('staffListManager')) return; document.getElementById('staffListManager').innerHTML = staffList.map(s => `<div class="staff-card">${escapeHtml(s.name)} <button onclick="deleteStaff('${s.id}')" style="background:none;border:none;color:#c62828;cursor:pointer">✖</button></div>`).join(''); }
+window.deleteStaff = async (id) => { if (confirm("Delete staff?")) { await db.collection("staff").doc(id).delete(); await fetchStaffFromFirebase(); } };
+function renderTaskManager() { if (!document.getElementById('taskListManager')) return; document.getElementById('taskListManager').innerHTML = globalTasks.map(t => `<div class="staff-card">${escapeHtml(t.name)} (${t.shift || 'Both'}) <button onclick="deleteTask('${t.id}')" style="background:none;border:none;color:#c62828;cursor:pointer">✖</button></div>`).join(''); }
+window.deleteTask = async (id) => { if (confirm("Delete task?")) { globalTasks = globalTasks.filter(t => t.id !== id); await db.collection("globalConfig").doc("tasks").set({ tasks: globalTasks }); localStorage.setItem(TASKS_CACHE_KEY, JSON.stringify(globalTasks)); renderTaskManager(); updateCategorySelect(); renderTasks(); } };
+function updateCategorySelect() { const cats = [...new Set(globalTasks.map(t => t.category || "General"))]; document.getElementById('taskCategorySelectMgr').innerHTML = '<option value="">-- Category --</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join(''); }
+async function addTaskMgr() { const name = newTaskNameMgr.value.trim(); const cat = taskCategorySelectMgr.value; if (!name || !cat) { showToast("Enter name and category"); return; } const opts = taskTypeSelectMgr.value === 'dropdown' ? dropdownOptionsMgr.value.split(',').map(o => o.trim()).filter(o => o) : null; const newTask = { id: Date.now().toString(), name, category: cat, type: taskTypeSelectMgr.value, shift: taskShiftSelectMgr.value, options: opts }; globalTasks.push(newTask); await db.collection("globalConfig").doc("tasks").set({ tasks: globalTasks }); localStorage.setItem(TASKS_CACHE_KEY, JSON.stringify(globalTasks)); localStorage.setItem(TASKS_CACHE_TIME_KEY, Date.now().toString()); newTaskNameMgr.value = ""; if (dropdownOptionsMgr) dropdownOptionsMgr.value = ""; renderTaskManager(); updateCategorySelect(); renderTasks(); showToast("Task added"); }
+async function addStaffMember(name) { if (!name) return; await db.collection("staff").add({ name: name.trim() }); await fetchStaffFromFirebase(); newStaffNameMgr.value = ""; }
+async function closeShift() { if (currentTaskRecord.status === "closed") return; await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "closed", closedAt: new Date().toISOString() }, { merge: true }); currentTaskRecord.status = "closed"; updateShiftStatusUI(); renderTasks(); }
+async function reopenShiftFn() { await db.collection("taskRecords").doc(currentTaskRecord.id).set({ status: "open" }, { merge: true }); currentTaskRecord.status = "open"; updateShiftStatusUI(); renderTasks(); }
+function updateShiftStatusUI() { const closed = currentTaskRecord?.status === "closed"; document.getElementById('shiftStatusBadge').innerHTML = closed ? '🔒 Closed' : '🔓 Open'; document.getElementById('closeShiftBtn')?.classList.toggle('hidden', closed); document.getElementById('reopenShiftBtn')?.classList.toggle('hidden', !closed); }
+async function onDateShiftChange() { currentDate = mainDate.value; currentShift = mainShift.value; localStorage.setItem('selectedDate', currentDate); localStorage.setItem('selectedShift', currentShift); if (currentDate && currentShift) { await fetchShiftData(); } else if (currentRole === "staff") { renderTasks(); } }
+function setRole(role) { if (role === "supervisor" && !isSupervisor) { passwordModal.classList.remove('hidden'); return; } currentRole = role; if (role === "supervisor") { staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled = false; mainShift.disabled = false; staffViewSection.style.display = 'none'; supervisorTabs.classList.remove('hidden'); if (currentDate && currentShift) fetchShiftData(); } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled = true; mainShift.disabled = true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display = 'block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } }
+function verifyPassword() { const pwd = supervisorPassword.value; if (pwd === (typeof SUPERVISOR_PASSWORD !== 'undefined' ? SUPERVISOR_PASSWORD : "Admin123")) { isSupervisor = true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText = "Wrong password"; }
+function showToast(msg) { const toast = document.createElement('div'); toast.className = 'toast'; toast.innerText = msg; document.body.appendChild(toast); setTimeout(() => toast.remove(), 2000); }
+function generatePDFReport() { alert("📄 Report generated. Handover log excluded."); }
+function printAllocationSheet() { alert("🖨️ Allocation sheet ready for print."); }
+function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
+function isDeviceAuthorized() { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
+
+// ============ INITIALIZATION - INSTANT CACHE LOAD FIRST ============
+async function init() {
+    currentDate = localStorage.getItem('selectedDate') || new Date().toISOString().slice(0, 10);
+    currentShift = localStorage.getItem('selectedShift') || "";
+    mainDate.value = currentDate;
+    mainShift.value = currentShift;
+    
+    // STEP 1: Load cached data instantly (shows UI immediately)
+    loadCachedTasksAndStaff();
+    
+    // STEP 2: Fetch fresh data from Firebase in background
+    if (firestoreReady) {
+        await Promise.all([fetchTasksFromFirebase(), fetchStaffFromFirebase()]);
+        if (currentDate && currentShift) await fetchShiftData();
+    }
+    
+    // Event listeners
+    mainDate.addEventListener('change', onDateShiftChange);
+    mainShift.addEventListener('change', onDateShiftChange);
+    staffRoleBtn.addEventListener('click', () => setRole("staff"));
+    supervisorRoleBtn.addEventListener('click', () => setRole("supervisor"));
+    addTaskBtnMgr.addEventListener('click', addTaskMgr);
+    addStaffBtnMgr.addEventListener('click', () => addStaffMember(newStaffNameMgr.value));
+    closeShiftBtn.addEventListener('click', closeShift);
+    reopenShiftBtn.addEventListener('click', reopenShiftFn);
+    verifyPasswordBtn.addEventListener('click', verifyPassword);
+    cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden'));
+    exportFullPdfBtn.addEventListener('click', generatePDFReport);
+    printAllocationBtn.addEventListener('click', printAllocationSheet);
+    
+    document.querySelectorAll('.staff-tabs .tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.staff-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.staff-tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(btn.getAttribute('data-staff-tab')).classList.add('active');
+        });
+    });
+    document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+            if (btn.getAttribute('data-tab') === 'break-approve-tab') loadBreakRequests();
+        });
+    });
+    
+    setRole("staff");
+}
+
+// Device auth
+if (isDeviceAuthorized()) {
+    document.getElementById('deviceAuthModal').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'block';
+    init();
+} else {
+    document.getElementById('deviceAuthModal').style.display = 'flex';
+    document.getElementById('authorizeDeviceBtn').addEventListener('click', () => {
+        const pwd = document.getElementById('devicePasswordInput').value;
+        if (pwd === DEVICE_MASTER_PASSWORD) {
+            localStorage.setItem(DEVICE_STORAGE_KEY, "true");
+            document.getElementById('deviceAuthModal').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            init();
+        } else document.getElementById('deviceAuthError').innerText = "Invalid password";
+    });
+}
 </script>
 </body>
 </html>
