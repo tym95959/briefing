@@ -881,48 +881,46 @@ await saveTaskRecordToFirebase(); currentTaskRecord.doneTasks=done; renderTasks(
     
     
     async function acknowledgeTask(taskId, staffName) { 
-        if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
-            alert("Shift closed"); 
-            return; 
-        } 
-        if(!staffName) {
-            alert("Select staff"); 
-            return; 
-        }
-        if(!sodStaffNames.includes(staffName)) { 
-            alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
-            return; 
-        } 
-        
-        const ackTasks = {...currentTaskRecord.acknowledgedTasks}; 
-        let acks = ackTasks[taskId] || [];
-        
-        // TOGGLE BEHAVIOR: If already acknowledged, DELETE it. If not, ADD it.
-        if(acks.includes(staffName)) {
-            // DELETE/CANCEL acknowledgment (toggle off)
-            acks = acks.filter(name => name !== staffName);
-            if(acks.length === 0) {
-                delete ackTasks[taskId];
-            } else {
-                ackTasks[taskId] = acks;
-            }
-            currentTaskRecord.acknowledgedTasks = ackTasks;
-await saveTaskRecordToFirebase(); 
-            currentTaskRecord.acknowledgedTasks = ackTasks; 
-            alert(`❌ ${staffName} removed acknowledgment for this task.`);
-            renderTasks();
-            return;
-        }
-        
-        // ADD acknowledgment (toggle on)
-        acks.push(staffName); 
-        ackTasks[taskId] = acks; 
-        currentTaskRecord.dropdownSelections = selections;
-await saveTaskRecordToFirebase();
-        currentTaskRecord.acknowledgedTasks = ackTasks;
-        alert(`✅ ${staffName} acknowledged task!`);
-        renderTasks(); 
+    if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
+        alert("Shift closed"); 
+        return; 
+    } 
+    if(!staffName) {
+        alert("Select staff"); 
+        return; 
     }
+    if(!sodStaffNames.includes(staffName)) { 
+        alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
+        return; 
+    } 
+    
+    const ackTasks = {...currentTaskRecord.acknowledgedTasks}; 
+    let acks = ackTasks[taskId] || [];
+    
+    // TOGGLE BEHAVIOR: If already acknowledged, DELETE it. If not, ADD it.
+    if(acks.includes(staffName)) {
+        // DELETE/CANCEL acknowledgment (toggle off)
+        acks = acks.filter(name => name !== staffName);
+        if(acks.length === 0) {
+            delete ackTasks[taskId];
+        } else {
+            ackTasks[taskId] = acks;
+        }
+        currentTaskRecord.acknowledgedTasks = ackTasks;
+        await saveTaskRecordToFirebase(); 
+        alert(`❌ ${staffName} removed acknowledgment for this task.`);
+        renderTasks();
+        return;
+    }
+    
+    // ADD acknowledgment (toggle on)
+    acks.push(staffName); 
+    ackTasks[taskId] = acks; 
+    currentTaskRecord.acknowledgedTasks = ackTasks;
+    await saveTaskRecordToFirebase();
+    alert(`✅ ${staffName} acknowledged task!`);
+    renderTasks(); 
+}   
 
 
 
@@ -1771,6 +1769,25 @@ function initTaskEditModalListeners() {
     if (modal) {
         modal.removeEventListener('click', handleModalOutsideClick);
         modal.addEventListener('click', handleModalOutsideClick);
+    }
+}
+
+async function saveTaskRecordToFirebase() {
+    if(!currentTaskRecord) return;
+    const id = getTaskRecordId(currentDate, currentShift);
+    const storageKey = `taskRecord_${currentDate}_${currentShift}`;
+    
+    // Update timestamp
+    currentTaskRecord.updatedAt = new Date().toISOString();
+    
+    // Save to localStorage immediately (FAST!)
+    localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
+    
+    // Save to Firebase in background (SLOW but persistent)
+    try {
+        await db.collection("taskRecords").doc(id).set(currentTaskRecord, {merge: true});
+    } catch(e) {
+        console.warn("Failed to save to Firebase, but localStorage is updated", e);
     }
 }
 
