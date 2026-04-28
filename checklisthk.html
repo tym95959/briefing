@@ -193,7 +193,97 @@
     flex-wrap: wrap;
 }
 
+/* Modern Loading Spinner Styles */
+.saving-overlay {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+    backdrop-filter: blur(8px);
+}
 
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.saving-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.6s linear infinite;
+}
+
+.saving-spinner-pulse {
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    animation: pulse 1s ease infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.3); opacity: 1; }
+}
+
+.saving-text {
+    letter-spacing: 1px;
+}
+
+.saving-text span {
+    animation: blink 1.4s infinite;
+}
+
+.saving-text span:nth-child(2) { animation-delay: 0.2s; }
+.saving-text span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes blink {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+
+/* Button loading state */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.6s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+}
     </style>
 </head>
 <body>
@@ -330,7 +420,39 @@
     function getHandoverId(date, shift) { return `handover_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTasksForCurrentShift() { if (!currentShift) return globalTasks; return globalTasks.filter(task => { const taskShift = task.shift || "Both"; return taskShift === "Both" || taskShift === currentShift; }); }
     
+    let savingTimeout = null;
+function showSavingNotification(message = "Saving") {
+    // Remove existing notification
+    const existing = document.querySelector('.saving-overlay');
+    if(existing) existing.remove();
     
+    // Clear previous timeout
+    if(savingTimeout) clearTimeout(savingTimeout);
+    
+    // Create notification
+    const notification = document.createElement('div');
+    notification.className = 'saving-overlay';
+    notification.innerHTML = `
+        <div class="saving-spinner"></div>
+        <div class="saving-text">
+            ${message}<span>.</span><span>.</span><span>.</span>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Auto hide after 1.5 seconds
+    savingTimeout = setTimeout(() => {
+        const notif = document.querySelector('.saving-overlay');
+        if(notif) notif.remove();
+    }, 1500);
+}
+
+// Hide notification immediately
+function hideSavingNotification() {
+    if(savingTimeout) clearTimeout(savingTimeout);
+    const notif = document.querySelector('.saving-overlay');
+    if(notif) notif.remove();
+}
     
     // ============ HANDOVER LOG FUNCTIONS ============
     async function loadHandoverLog() { 
@@ -932,58 +1054,96 @@
     });
 }
     function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; if(currentRole==="supervisor"){ closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); } }
-    async function completeTask(taskId,staffName){ 
-        if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} 
-        if(!staffName){alert("Select staff");return;} 
-        const done={...currentTaskRecord.doneTasks}; 
-        if(done[taskId]){alert("Already completed");return;} 
-        done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; 
-        currentTaskRecord.doneTasks = done;
-        await saveTaskRecordToFirebase(); 
-        // No success popup - just re-render
-        renderTasks(); 
-    }
-    
-    
-    async function acknowledgeTask(taskId, staffName) { 
-    if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
+    async function completeTask(taskId, staffName, buttonElement = null) { 
+    if(!currentTaskRecord||currentTaskRecord.status==="closed") {
         alert("Shift closed"); 
-        return; 
+        return false;
     } 
     if(!staffName) {
         alert("Select staff"); 
-        return; 
+        return false;
+    } 
+    
+    // Show loading state on button
+    if(buttonElement) {
+        buttonElement.innerHTML = '<span class="btn-spinner"></span> Saving...';
+        buttonElement.classList.add('btn-loading');
+    }
+    
+    try {
+        const done = {...currentTaskRecord.doneTasks}; 
+        if(done[taskId]) {
+            alert("Already completed"); 
+            return false;
+        } 
+        done[taskId] = {doneBy: staffName, doneAt: new Date().toISOString()}; 
+        currentTaskRecord.doneTasks = done;
+        await saveTaskRecordToFirebase(); 
+        renderTasks();
+        return true;
+    } catch(e) {
+        console.error(e);
+        return false;
+    }
+}
+    
+    
+    async function acknowledgeTask(taskId, staffName, buttonElement = null) { 
+    if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
+        alert("Shift closed"); 
+        return false;
+    } 
+    if(!staffName) {
+        alert("Select staff"); 
+        return false;
     }
     if(!sodStaffNames.includes(staffName)) { 
         alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
-        return; 
+        return false;
     } 
     
-    const ackTasks = {...currentTaskRecord.acknowledgedTasks}; 
-    let acks = ackTasks[taskId] || [];
-    
-    // TOGGLE BEHAVIOR: If already acknowledged, DELETE it. If not, ADD it.
-    if(acks.includes(staffName)) {
-        acks = acks.filter(name => name !== staffName);
-        if(acks.length === 0) {
-            delete ackTasks[taskId];
-        } else {
-            ackTasks[taskId] = acks;
-        }
-        currentTaskRecord.acknowledgedTasks = ackTasks;
-        await saveTaskRecordToFirebase(); 
-        // alert removed - no popup
-        renderTasks();
-        return;
+    // Show loading state on button
+    if(buttonElement) {
+        const isRemoving = buttonElement.innerHTML.includes('Remove');
+        buttonElement.innerHTML = '<span class="btn-spinner"></span> Saving...';
+        buttonElement.classList.add('btn-loading');
+        buttonElement.disabled = true;
     }
     
-    // ADD acknowledgment (toggle on)
-    acks.push(staffName); 
-    ackTasks[taskId] = acks; 
-    currentTaskRecord.acknowledgedTasks = ackTasks;
-    await saveTaskRecordToFirebase();
-    // alert removed - no popup
-    renderTasks(); 
+    try {
+        const ackTasks = {...currentTaskRecord.acknowledgedTasks}; 
+        let acks = ackTasks[taskId] || [];
+        
+        if(acks.includes(staffName)) {
+            acks = acks.filter(name => name !== staffName);
+            if(acks.length === 0) {
+                delete ackTasks[taskId];
+            } else {
+                ackTasks[taskId] = acks;
+            }
+            currentTaskRecord.acknowledgedTasks = ackTasks;
+            await saveTaskRecordToFirebase(); 
+            renderTasks();
+            return true;
+        }
+        
+        acks.push(staffName); 
+        ackTasks[taskId] = acks; 
+        currentTaskRecord.acknowledgedTasks = ackTasks;
+        await saveTaskRecordToFirebase();
+        renderTasks();
+        return true;
+    } finally {
+        if(buttonElement) {
+            setTimeout(() => {
+                const isRemoving = buttonElement.innerHTML.includes('Remove');
+                const originalText = isRemoving ? '❌ Remove My Acknowledgment' : '✅ Acknowledge';
+                buttonElement.innerHTML = originalText;
+                buttonElement.classList.remove('btn-loading');
+                buttonElement.disabled = false;
+            }, 500);
+        }
+    }
 } 
 
 
@@ -1005,48 +1165,62 @@ document.querySelectorAll('.cancel-ack-btn').forEach(btn => {
     
    
 
-async function submitDropdown(taskId, selectedValue, note, staffName) { 
+async function submitDropdown(taskId, selectedValue, note, staffName, buttonElement = null) { 
     if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
         alert("Shift closed"); 
-        return; 
+        return false;
     } 
     if(!selectedValue || !staffName) {
         alert("Please select a value and staff name");
-        return;
+        return false;
     }
     
-    const selections = [...(currentTaskRecord.dropdownSelections || [])];
-    const noteText = note || "";
+    // Show loading state on button
+    if(buttonElement) {
+        buttonElement.innerHTML = '<span class="btn-spinner"></span> Saving...';
+        buttonElement.classList.add('btn-loading');
+        buttonElement.disabled = true;
+    }
     
-    // Check if EXACT same entry exists (same staff, same task, same value, AND same note)
-    const existingIndex = selections.findIndex(s => 
-        s.taskId === taskId && 
-        s.staffName === staffName && 
-        s.selectedValue === selectedValue &&
-        (s.additionalText || "") === noteText
-    );
-    
-    if(existingIndex !== -1) {
-        // DELETE the existing entry (toggle off)
-        selections.splice(existingIndex, 1);
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
-        currentTaskRecord.dropdownSelections = selections; 
-       
-        renderTasks();
-    } else {
-        // ADD new entry (toggle on)
-        selections.push({ 
-            taskId, 
-            staffName, 
-            selectedValue, 
-            additionalText: noteText, 
-            submittedAt: new Date().toISOString(),
-            entryId: Date.now() + Math.random() // Unique ID for each entry
-        }); 
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
-        currentTaskRecord.dropdownSelections = selections; 
+    try {
+        const selections = [...(currentTaskRecord.dropdownSelections || [])];
+        const noteText = note || "";
         
-        renderTasks();
+        const existingIndex = selections.findIndex(s => 
+            s.taskId === taskId && 
+            s.staffName === staffName && 
+            s.selectedValue === selectedValue &&
+            (s.additionalText || "") === noteText
+        );
+        
+        if(existingIndex !== -1) {
+            selections.splice(existingIndex, 1);
+            currentTaskRecord.dropdownSelections = selections;
+            await saveTaskRecordToFirebase();
+            renderTasks();
+            return true;
+        } else {
+            selections.push({ 
+                taskId, 
+                staffName, 
+                selectedValue, 
+                additionalText: noteText, 
+                submittedAt: new Date().toISOString(),
+                entryId: Date.now() + Math.random()
+            }); 
+            currentTaskRecord.dropdownSelections = selections;
+            await saveTaskRecordToFirebase();
+            renderTasks();
+            return true;
+        }
+    } finally {
+        if(buttonElement) {
+            setTimeout(() => {
+                buttonElement.innerHTML = '➕ Add / Delete';
+                buttonElement.classList.remove('btn-loading');
+                buttonElement.disabled = false;
+            }, 500);
+        }
     }
 }
 
@@ -1395,6 +1569,16 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
         btn.addEventListener('click', handleAckToggle);
     });
 
+    document.querySelectorAll('.do-done').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        const id = btn.getAttribute('data-id');
+        const sel = document.getElementById(`staffSel_${id}`);
+        if(sel && sel.value) {
+            await completeTask(id, sel.value, btn);
+        }
+    });
+});
+
     async function handleAckToggle(e) {
         const btn = e.currentTarget;
         const id = btn.getAttribute('data-id');
@@ -1414,27 +1598,26 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
     });
 
     async function handleDropdownToggle(e) {
-        const btn = e.currentTarget;
-        const taskId = btn.getAttribute('data-id');
-        const staffSel = document.getElementById(`staffSel_${taskId}`);
-        const dropSel = document.getElementById(`dropSel_${taskId}`);
-        const addText = document.getElementById(`addText_${taskId}`);
-        
-        if(!staffSel || !staffSel.value) {
-            alert("Please select a staff member");
-            return;
-        }
-        if(!dropSel || !dropSel.value) {
-            alert("Please select a value from dropdown");
-            return;
-        }
-        
-        await submitDropdown(taskId, dropSel.value, addText?.value || "", staffSel.value);
-        
-        // Clear the dropdown selection after submit (but keep staff selected)
-        if(dropSel) dropSel.value = "";
-        if(addText) addText.value = "";
+    const btn = e.currentTarget;
+    const taskId = btn.getAttribute('data-id');
+    const staffSel = document.getElementById(`staffSel_${taskId}`);
+    const dropSel = document.getElementById(`dropSel_${taskId}`);
+    const addText = document.getElementById(`addText_${taskId}`);
+    
+    if(!staffSel || !staffSel.value) {
+        alert("Please select a staff member");
+        return;
     }
+    if(!dropSel || !dropSel.value) {
+        alert("Please select a value from dropdown");
+        return;
+    }
+    
+    await submitDropdown(taskId, dropSel.value, addText?.value || "", staffSel.value, btn);
+    
+    if(dropSel) dropSel.value = "";
+    if(addText) addText.value = "";
+}
     
     
     
@@ -1853,6 +2036,9 @@ async function saveTaskRecordToFirebase() {
     const id = getTaskRecordId(currentDate, currentShift);
     const storageKey = `taskRecord_${currentDate}_${currentShift}`;
     
+    // Show saving notification
+    showSavingNotification("Saving");
+    
     // Update timestamp
     currentTaskRecord.updatedAt = new Date().toISOString();
     
@@ -1864,6 +2050,14 @@ async function saveTaskRecordToFirebase() {
         await db.collection("taskRecords").doc(id).set(currentTaskRecord, {merge: true});
     } catch(e) {
         console.warn("Failed to save to Firebase, but localStorage is updated", e);
+        hideSavingNotification();
+        // Show error briefly
+        const errorNotif = document.createElement('div');
+        errorNotif.className = 'saving-overlay';
+        errorNotif.style.background = 'linear-gradient(135deg, #c62828, #b71c1c)';
+        errorNotif.innerHTML = `<div class="saving-spinner-pulse"></div><div>Save failed! Check connection.</div>`;
+        document.body.appendChild(errorNotif);
+        setTimeout(() => errorNotif.remove(), 2000);
     }
 }
 
