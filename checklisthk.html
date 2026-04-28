@@ -172,24 +172,26 @@
         .empty-msg { text-align: center; padding: 30px 20px; color: #8aa9c4; font-size: 0.8rem; }
         .staff-list-manager, .task-list-manager { max-height: 300px; overflow-y: auto; }
         .staff-multi-select {
-            padding: 5px;
-            border-radius: 8px;
-            border: 1.5px solid #e2eaf2;
-            font-size: 0.7rem;
-            background: white;
-            width: 140px;
-        }
-        .staff-multi-select option {
-            padding: 4px 8px;
-            font-size: 0.7rem;
-        }
-        .assign-wrapper {
-            display: flex;
-            gap: 6px;
-            align-items: flex-start;
-            margin-top: 6px;
-            flex-wrap: wrap;
-        }
+    padding: 5px;
+    border-radius: 8px;
+    border: 1.5px solid #e2eaf2;
+    font-size: 0.7rem;
+    background: white;
+    width: 140px;
+}
+
+.staff-multi-select option {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+}
+
+.assign-wrapper {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
     </style>
 </head>
 <body>
@@ -246,16 +248,54 @@
 <div id="passwordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor Access</h3><input type="password" id="supervisorPassword" placeholder="Enter password"><button id="verifyPasswordBtn" class="verify-btn">Verify</button><button id="cancelPasswordBtn" class="cancel-btn">Cancel</button><p id="passwordError" style="color:#c62828; margin-top:8px;"></p></div></div>
 <div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device Authorization</h2><p>Enter master password to register this device.</p><input type="password" id="devicePasswordInput" placeholder="Device Authorization Password"><button id="authorizeDeviceBtn">Authorize Device</button><div id="deviceAuthError" class="device-error"></div></div></div>
 
+
+<div id="taskFullEditModal" class="password-modal hidden" style="z-index: 3000;">
+    <div class="password-box" style="width: 450px; max-width: 90%;">
+        <i class="fas fa-edit"></i>
+        <h3>Edit Task</h3>
+        <div style="text-align: left; margin-top: 15px;">
+            <div class="form-group">
+                <label>Task Name:</label>
+                <input type="text" id="editTaskNameField" class="handover-input" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label>Category:</label>
+                <input type="text" id="editTaskCategoryField" class="handover-input" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label>Task Type:</label>
+                <select id="editTaskTypeField" class="handover-input" style="width: 100%;">
+                    <option value="done">✅ Single Staff Done</option>
+                    <option value="acknowledge">👥 Multi-Acknowledge (SOD only)</option>
+                    <option value="dropdown">📋 Custom Dropdown</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Shift Assignment:</label>
+                <select id="editTaskShiftField" class="handover-input" style="width: 100%;">
+                    <option value="Both">🌓 Both Shifts</option>
+                    <option value="Morning">🌅 Morning Only</option>
+                    <option value="Evening">🌙 Evening Only</option>
+                </select>
+            </div>
+            <div id="editDropdownOptionsContainer" style="display: none;">
+                <label>Dropdown Options:</label>
+                <div id="editOptionsListContainer" style="background: #f8fbfe; border-radius: 12px; padding: 10px; margin-top: 5px; max-height: 200px; overflow-y: auto;"></div>
+                <button id="addEditOptionBtn" type="button" class="add-row-btn" style="margin-top: 8px; background: #4caf50;">+ Add Option</button>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button id="saveTaskEditBtn" class="verify-btn" style="flex: 1;">Save Changes</button>
+            <button id="closeTaskEditModalBtn" class="cancel-btn" style="flex: 1;">Cancel</button>
+        </div>
+        <div id="taskEditError" style="color: #c62828; margin-top: 10px; font-size: 0.7rem;"></div>
+    </div>
+</div>
 <script>
-    // ============ ORIGINAL CODE WITH ONLY TASK STORAGE MODIFIED ============
-    // Tasks now load from localStorage instead of Firebase for speed
-    
     const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
     let DEVICE_MASTER_PASSWORD = (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) ? MASTER_PASSWORD_GLOBAL : (typeof SUPERVISOR_PASSWORD !== 'undefined' ? SUPERVISOR_PASSWORD : "Admin123");
-    
     function isDeviceAuthorized() { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
     function authorizeDevice(pwd) { if(pwd === DEVICE_MASTER_PASSWORD) { localStorage.setItem(DEVICE_STORAGE_KEY, "true"); return true; } return false; }
-    
     let db, firestoreReady = false;
     try { if(typeof firebase !== 'undefined' && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; } } catch(err) { console.error(err); }
     
@@ -266,50 +306,17 @@
     
     let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [], selectedStaffName = "", attendanceRecords = [], supervisorList = [];
     
-    // ============ NEW: LOCAL STORAGE FOR TASKS ============
-    const TASKS_STORAGE_KEY = "koveli_global_tasks";
-    const STAFF_STORAGE_KEY = "koveli_staff_list";
-    
-    function loadTasksFromLocal() {
-        const stored = localStorage.getItem(TASKS_STORAGE_KEY);
-        if(stored) {
-            globalTasks = JSON.parse(stored);
-        } else {
-            // Default tasks if none exist
-            globalTasks = [
-                { id: "1", name: "Welcome all guests at entrance", category: "Service", type: "done", shift: "Both", options: null },
-                { id: "2", name: "Check buffet area cleanliness", category: "Kitchen", type: "acknowledge", shift: "Both", options: null },
-                { id: "3", name: "Staff attendance verification", category: "HR", type: "dropdown", shift: "Both", options: ["Present", "Absent", "Late"] }
-            ];
-            saveTasksToLocal();
-        }
-    }
-    
-    function saveTasksToLocal() {
-        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(globalTasks));
-    }
-    
-    function loadStaffFromLocal() {
-        const stored = localStorage.getItem(STAFF_STORAGE_KEY);
-        if(stored) {
-            staffList = JSON.parse(stored);
-        } else {
-            staffList = [
-                { id: "1", name: "John Doe" },
-                { id: "2", name: "Jane Smith" },
-                { id: "3", name: "Mike Johnson" },
-                { id: "4", name: "Sarah Williams" }
-            ];
-            saveStaffToLocal();
-        }
-    }
-    
-    function saveStaffToLocal() {
-        localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(staffList));
-    }
-    
-    // Handover Log Data
+    // Handover Log Data - Initialize with empty arrays
     let handoverData = { cards: [], wheelchair: [], complimentary: [], delayFlights: [], followup: [], importantMsg: "" };
+    
+    // DOM Elements
+    const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn'), mainDate = document.getElementById('mainDate'), mainShift = document.getElementById('mainShift'), shiftStatusBadge = document.getElementById('shiftStatusBadge'), reopenShiftBtn = document.getElementById('reopenShiftBtn'), closeShiftBtn = document.getElementById('closeShiftBtn'), allocationContainer = document.getElementById('allocationContainer'), tasksContainer = document.getElementById('tasksContainer'), tasksInfo = document.getElementById('tasksInfo'), supervisorTabs = document.getElementById('supervisorTabs'), sodStaffListDiv = document.getElementById('sodStaffList'), sodHint = document.getElementById('sodHint'), shiftFilterIndicator = document.getElementById('shiftFilterIndicator'), staffViewSection = document.getElementById('staffViewSection'), fullAllocationContainer = document.getElementById('fullAllocationContainer'), breakRequestContainer = document.getElementById('breakRequestContainer'), breakStatus = document.getElementById('breakStatus'), breakRequestsList = document.getElementById('breakRequestsList'), attendanceContainer = document.getElementById('attendanceContainer'), staffAttendanceView = document.getElementById('staffAttendanceView'), supervisorsDisplay = document.getElementById('supervisorsDisplay'), supervisorSelectPanel = document.getElementById('supervisorSelectPanel'), handoverContainer = document.getElementById('handoverContainer');
+    const taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr'), newTaskNameMgr = document.getElementById('newTaskNameMgr'), taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr'), taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr'), dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr'), dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr'), addTaskBtnMgr = document.getElementById('addTaskBtnMgr'), taskListManager = document.getElementById('taskListManager'), newStaffNameMgr = document.getElementById('newStaffNameMgr'), addStaffBtnMgr = document.getElementById('addStaffBtnMgr'), staffListManager = document.getElementById('staffListManager'), adminFeedback = document.getElementById('adminFeedback'), passwordModal = document.getElementById('passwordModal'), supervisorPassword = document.getElementById('supervisorPassword'), verifyPasswordBtn = document.getElementById('verifyPasswordBtn'), cancelPasswordBtn = document.getElementById('cancelPasswordBtn'), passwordError = document.getElementById('passwordError'), exportFullPdfBtn = document.getElementById('exportFullPdfBtn'), printAllocationBtn = document.getElementById('printAllocationBtn');
+    
+    if(taskTypeSelectMgr) taskTypeSelectMgr.addEventListener('change', () => { if(dropdownOptionsDivMgr) dropdownOptionsDivMgr.style.display = taskTypeSelectMgr.value === 'dropdown' ? 'block' : 'none'; });
+    
+    document.querySelectorAll('.staff-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.staff-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.staff-tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-staff-tab')).classList.add('active'); if(btn.getAttribute('data-staff-tab') === 'handover-tab') { loadHandoverLog(); } }); });
+    document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-tab')).classList.add('active'); if(btn.getAttribute('data-tab') === 'break-approve-tab') loadBreakRequests(); if(btn.getAttribute('data-tab') === 'attendance-tab') renderAttendanceForm(); }); });
     
     // Helper Functions
     function getSODRecordId(date, shift) { return `sod_${date}_${shift}`.replace(/\s/g, '_'); }
@@ -321,26 +328,36 @@
     function getHandoverId(date, shift) { return `handover_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTasksForCurrentShift() { if (!currentShift) return globalTasks; return globalTasks.filter(task => { const taskShift = task.shift || "Both"; return taskShift === "Both" || taskShift === currentShift; }); }
     
+    
+    
     // ============ HANDOVER LOG FUNCTIONS ============
     async function loadHandoverLog() { 
-        if(!firestoreReady || !currentDate || !currentShift) {
-            if(handoverContainer) handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift first</div>';
-            return; 
-        }
-        const id = getHandoverId(currentDate, currentShift); 
-        try { 
-            const doc = await db.collection("handoverLogs").doc(id).get(); 
-            if(doc.exists) { 
-                handoverData = doc.data(); 
-                handoverData.wheelchair = handoverData.wheelchair || [];
-                handoverData.complimentary = handoverData.complimentary || [];
-            } else { 
-                handoverData = { cards: [], wheelchair: [], complimentary: [], delayFlights: [], followup: [], importantMsg: "" }; 
-                await db.collection("handoverLogs").doc(id).set(handoverData);
-            } 
-            renderHandoverUI(); 
-        } catch(e) { console.error(e); handoverContainer.innerHTML = '<div class="empty-msg">Error loading handover log</div>'; } 
+    if(!firestoreReady || !currentDate || !currentShift) {
+        if(handoverContainer) handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift first</div>';
+        return; 
     }
+    const id = getHandoverId(currentDate, currentShift); 
+    try { 
+        const doc = await db.collection("handoverLogs").doc(id).get(); 
+        if(doc.exists) { 
+            handoverData = doc.data(); 
+            // Ensure new structure exists
+            handoverData.wheelchair = handoverData.wheelchair || [];
+            handoverData.complimentary = handoverData.complimentary || [];
+        } else { 
+            handoverData = { 
+                cards: [], 
+                wheelchair: [], 
+                complimentary: [], 
+                delayFlights: [], 
+                followup: [], 
+                importantMsg: "" 
+            }; 
+            await db.collection("handoverLogs").doc(id).set(handoverData);
+        } 
+        renderHandoverUI(); 
+    } catch(e) { console.error(e); handoverContainer.innerHTML = '<div class="empty-msg">Error loading handover log</div>'; } 
+}
     
     async function saveHandoverLog() { 
         if(!firestoreReady || !currentDate || !currentShift || !handoverData) return; 
@@ -349,8 +366,15 @@
     }
     
     function addRow(section, defaultObj) { 
-        if (!handoverData) return;
-        if (!handoverData[section]) handoverData[section] = [];
+        // Ensure handoverData exists and the section exists
+        if (!handoverData) {
+            console.error("Handover data not loaded yet");
+            alert("Please wait for handover log to load before adding entries.");
+            return;
+        }
+        if (!handoverData[section]) {
+            handoverData[section] = [];
+        }
         handoverData[section].push({ ...defaultObj, id: Date.now() + Math.random() }); 
         renderHandoverUI(); 
         saveHandoverLog(); 
@@ -377,116 +401,136 @@
     }
     
     function renderHandoverUI() {
-        if(!handoverContainer) return;
-        if(!currentDate || !currentShift) {
-            handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift to view handover log</div>';
-            return;
-        }
-        handoverData.cards = handoverData.cards || [];
-        handoverData.wheelchair = handoverData.wheelchair || [];
-        handoverData.complimentary = handoverData.complimentary || [];
-        handoverData.delayFlights = handoverData.delayFlights || [];
-        handoverData.followup = handoverData.followup || [];
-        handoverData.importantMsg = handoverData.importantMsg || "";
-        
-        let html = `
-            <div class="handover-section" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdef5 100%); border-left: 5px solid #1976d2; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #1565c0;"><i class="fas fa-ticket-alt"></i> 1. Cards / FQTV No</h4>
-                <table class="handover-table" style="background: white;">
-                    <thead><tr style="background: #1976d2; color: black;"><th>Flight</th><th>Seat</th><th>Need Cards/FQTV No</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th style="width:40px"></th></tr></thead>
-                    <tbody>
-                        ${handoverData.cards.length > 0 ? handoverData.cards.map((item,idx) => `<tr>
-                            <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('cards',${idx},'flight',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.seat||'')}" onchange="updateRowField('cards',${idx},'seat',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.needCards||'')}" onchange="updateRowField('cards',${idx},'needCards',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('cards',${idx},'contact',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('cards',${idx},'remarks',this.value)"></td>
-                            <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('cards',${idx},'done',this.checked)"></td>
-                            <td><button class="delete-row-btn" onclick="deleteRow('cards',${idx})"><i class="fas fa-trash"></i></button></td>
-                        </tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
-                    </tbody>
-                </table>
-                <button class="add-row-btn" style="background: #1976d2; color: white;" onclick="addRow('cards',{flight:'',seat:'',needCards:'',contact:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Card Entry</button>
-            </div>
-            <div class="handover-section" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-left: 5px solid #f57c00; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #e65100;"><i class="fas fa-wheelchair"></i> 2. Wheel Chair Request</h4>
-                <table class="handover-table" style="background: white;">
-                    <thead><tr style="background: #f57c00; color: black;"><th>Passenger Name</th><th>Flight No</th><th>W/C No</th><th>Flight Time</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
-                    <tbody>
-                        ${handoverData.wheelchair.length > 0 ? handoverData.wheelchair.map((item,idx) => `<tr>
-                            <td><input class="handover-input" value="${escapeHtml(item.paxName||'')}" onchange="updateRowField('wheelchair',${idx},'paxName',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.flightNo||'')}" onchange="updateRowField('wheelchair',${idx},'flightNo',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.wcNo||'')}" onchange="updateRowField('wheelchair',${idx},'wcNo',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.flightTime||'')}" onchange="updateRowField('wheelchair',${idx},'flightTime',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('wheelchair',${idx},'contact',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('wheelchair',${idx},'remarks',this.value)"></td>
-                            <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('wheelchair',${idx},'done',this.checked)"></td>
-                            <td><button class="delete-row-btn" onclick="deleteRow('wheelchair',${idx})"><i class="fas fa-trash"></i></button></td>
-                        </tr>`).join('') : '<tr><td colspan="8" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
-                    </tbody>
-                </table>
-                <button class="add-row-btn" style="background: #f57c00; color: white;" onclick="addRow('wheelchair',{paxName:'',flightNo:'',wcNo:'',flightTime:'',contact:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Wheelchair Request</button>
-            </div>
-            <div class="handover-section" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-left: 5px solid #388e3c; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #2e7d32;"><i class="fas fa-gift"></i> 3. Complimentary Services</h4>
-                <table class="handover-table" style="background: white;">
-                    <thead><tr style="background: #388e3c; color: black;"><th>Name</th><th>Flight No</th><th>No. of Pax</th><th>Authorized By</th><th>Flight Time</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
-                    <tbody>
-                        ${handoverData.complimentary.length > 0 ? handoverData.complimentary.map((item,idx) => `<tr>
-                            <td><input class="handover-input" value="${escapeHtml(item.name||'')}" onchange="updateRowField('complimentary',${idx},'name',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.flightNo||'')}" onchange="updateRowField('complimentary',${idx},'flightNo',this.value)"></td>
-                            <td><input class="handover-input" type="number" value="${escapeHtml(item.noOfPax||'')}" onchange="updateRowField('complimentary',${idx},'noOfPax',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.authBy||'')}" onchange="updateRowField('complimentary',${idx},'authBy',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.flightTime||'')}" onchange="updateRowField('complimentary',${idx},'flightTime',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('complimentary',${idx},'remarks',this.value)"></td>
-                            <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('complimentary',${idx},'done',this.checked)"></td>
-                            <td><button class="delete-row-btn" onclick="deleteRow('complimentary',${idx})"><i class="fas fa-trash"></i></button></td>
-                        </tr>`).join('') : '<tr><td colspan="8" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
-                    </tbody>
-                </table>
-                <button class="add-row-btn" style="background: #388e3c; color: white;" onclick="addRow('complimentary',{name:'',flightNo:'',noOfPax:'',authBy:'',flightTime:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Complimentary Entry</button>
-            </div>
-            <div class="handover-section" style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border-left: 5px solid #d32f2f; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #c62828;"><i class="fas fa-clock"></i> 4. DELAY FLIGHTS</h4>
-                <table class="handover-table" style="background: white;">
-                    <thead><tr style="background: #d32f2f; color: black;"><th>Flight</th><th>ETA</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
-                    <tbody>
-                        ${handoverData.delayFlights.length > 0 ? handoverData.delayFlights.map((item,idx) => `<tr>
-                            <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('delayFlights',${idx},'flight',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.eta||'')}" onchange="updateRowField('delayFlights',${idx},'eta',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('delayFlights',${idx},'remarks',this.value)"></td>
-                            <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('delayFlights',${idx},'done',this.checked)"></td>
-                            <td><button class="delete-row-btn" onclick="deleteRow('delayFlights',${idx})"><i class="fas fa-trash"></i></button></td>
-                        </tr>`).join('') : '<tr><td colspan="5" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
-                    </tbody>
-                </table>
-                <button class="add-row-btn" style="background: #d32f2f; color: white;" onclick="addRow('delayFlights',{flight:'',eta:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Delay Flight</button>
-            </div>
-            <div class="handover-section" style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border-left: 5px solid #7b1fa2; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #6a1b9a;"><i class="fas fa-user-follow"></i> 5. PASSENGERS TO FOLLOWUP</h4>
-                <table class="handover-table" style="background: white;">
-                    <thead><tr style="background: #7b1fa2; color: black;"><th>Flight</th><th>Pax</th><th>Description</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
-                    <tbody>
-                        ${handoverData.followup.length > 0 ? handoverData.followup.map((item,idx) => `<tr>
-                            <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('followup',${idx},'flight',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('followup',${idx},'pax',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('followup',${idx},'desc',this.value)"></td>
-                            <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('followup',${idx},'remarks',this.value)"></td>
-                            <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('followup',${idx},'done',this.checked)"></td>
-                            <td><button class="delete-row-btn" onclick="deleteRow('followup',${idx})"><i class="fas fa-trash"></i></button></td>
-                        </tr>`).join('') : '<tr><td colspan="6" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
-                    </tbody>
-                </table>
-                <button class="add-row-btn" style="background: #7b1fa2; color: white;" onclick="addRow('followup',{flight:'',pax:'',desc:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Follow-up Passenger</button>
-            </div>
-            <div class="handover-section" style="background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%); border-left: 5px solid #616161; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
-                <h4 style="color: #424242;"><i class="fas fa-envelope"></i> 6. IMPORTANT MESSAGES / OTHERS</h4>
-                <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes for next shift..." onchange="updateImportantMsg(this.value)">${escapeHtml(handoverData.importantMsg)}</textarea>
-            </div>
-        `;
-        handoverContainer.innerHTML = html;
+    if(!handoverContainer) return;
+    if(!currentDate || !currentShift) {
+        handoverContainer.innerHTML = '<div class="empty-msg">Please select date and shift to view handover log</div>';
+        return;
     }
     
+    // Ensure handoverData is initialized
+    if (!handoverData) {
+        handoverContainer.innerHTML = '<div class="empty-msg">Loading handover data...</div>';
+        return;
+    }
+    
+    // Ensure all arrays exist
+    handoverData.cards = handoverData.cards || [];
+    handoverData.wheelchair = handoverData.wheelchair || [];
+    handoverData.complimentary = handoverData.complimentary || [];
+    handoverData.delayFlights = handoverData.delayFlights || [];
+    handoverData.followup = handoverData.followup || [];
+    handoverData.importantMsg = handoverData.importantMsg || "";
+    
+    let html = `
+        <!-- CARDS SECTION - Blue Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdef5 100%); border-left: 5px solid #1976d2; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #1565c0;"><i class="fas fa-ticket-alt"></i> 1. Cards / FQTV No</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #1976d2; color: black;"><th>Flight</th><th>Seat</th><th>Need Cards/FQTV No</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th style="width:40px"></th></tr></thead>
+                <tbody>
+                ${handoverData.cards.length > 0 ? handoverData.cards.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('cards',${idx},'flight',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.seat||'')}" onchange="updateRowField('cards',${idx},'seat',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.needCards||'')}" onchange="updateRowField('cards',${idx},'needCards',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('cards',${idx},'contact',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('cards',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('cards',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('cards',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #1976d2; color: white;" onclick="addRow('cards',{flight:'',seat:'',needCards:'',contact:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Card Entry</button>
+        </div>
+        
+        <!-- WHEELCHAIR SECTION - Orange Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-left: 5px solid #f57c00; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #e65100;"><i class="fas fa-wheelchair"></i> 2. Wheel Chair Request</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #f57c00; color: black;"><th>Passenger Name</th><th>Flight No</th><th>W/C No</th><th>Flight Time</th><th>Contact</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
+                <tbody>
+                ${handoverData.wheelchair.length > 0 ? handoverData.wheelchair.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.paxName||'')}" onchange="updateRowField('wheelchair',${idx},'paxName',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.flightNo||'')}" onchange="updateRowField('wheelchair',${idx},'flightNo',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.wcNo||'')}" onchange="updateRowField('wheelchair',${idx},'wcNo',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.flightTime||'')}" onchange="updateRowField('wheelchair',${idx},'flightTime',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.contact||'')}" onchange="updateRowField('wheelchair',${idx},'contact',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('wheelchair',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('wheelchair',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('wheelchair',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="8" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #f57c00; color: white;" onclick="addRow('wheelchair',{paxName:'',flightNo:'',wcNo:'',flightTime:'',contact:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Wheelchair Request</button>
+        </div>
+        
+        <!-- COMPLIMENTARY SECTION - Green Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-left: 5px solid #388e3c; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #2e7d32;"><i class="fas fa-gift"></i> 3. Complimentary Services</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #388e3c; color: black;"><th>Name</th><th>Flight No</th><th>No. of Pax</th><th>Authorized By</th><th>Flight Time</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
+                <tbody>
+                ${handoverData.complimentary.length > 0 ? handoverData.complimentary.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.name||'')}" onchange="updateRowField('complimentary',${idx},'name',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.flightNo||'')}" onchange="updateRowField('complimentary',${idx},'flightNo',this.value)"></td>
+                    <td><input class="handover-input" type="number" value="${escapeHtml(item.noOfPax||'')}" onchange="updateRowField('complimentary',${idx},'noOfPax',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.authBy||'')}" onchange="updateRowField('complimentary',${idx},'authBy',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.flightTime||'')}" onchange="updateRowField('complimentary',${idx},'flightTime',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('complimentary',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('complimentary',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('complimentary',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="8" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #388e3c; color: white;" onclick="addRow('complimentary',{name:'',flightNo:'',noOfPax:'',authBy:'',flightTime:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Complimentary Entry</button>
+        </div>
+        
+        <!-- DELAY FLIGHTS SECTION - Red Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border-left: 5px solid #d32f2f; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #c62828;"><i class="fas fa-clock"></i> 4. DELAY FLIGHTS</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #d32f2f; color: black;"><th>Flight</th><th>ETA</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
+                <tbody>
+                ${handoverData.delayFlights.length > 0 ? handoverData.delayFlights.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('delayFlights',${idx},'flight',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.eta||'')}" onchange="updateRowField('delayFlights',${idx},'eta',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('delayFlights',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('delayFlights',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('delayFlights',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="5" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #d32f2f; color: white;" onclick="addRow('delayFlights',{flight:'',eta:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Delay Flight</button>
+        </div>
+        
+        <!-- FOLLOWUP SECTION - Purple Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border-left: 5px solid #7b1fa2; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #6a1b9a;"><i class="fas fa-user-follow"></i> 5. PASSENGERS TO FOLLOWUP (Walk-in / Non-Contracted / VIP / IO / Special Assistance)</h4>
+            <table class="handover-table" style="background: white;">
+                <thead><tr style="background: #7b1fa2; color: black;"><th>Flight</th><th>Pax</th><th>Passenger Description</th><th>Remarks</th><th>Done ✓</th><th></th></tr></thead>
+                <tbody>
+                ${handoverData.followup.length > 0 ? handoverData.followup.map((item,idx) => `<tr>
+                    <td><input class="handover-input" value="${escapeHtml(item.flight||'')}" onchange="updateRowField('followup',${idx},'flight',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.pax||'')}" onchange="updateRowField('followup',${idx},'pax',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.desc||'')}" onchange="updateRowField('followup',${idx},'desc',this.value)"></td>
+                    <td><input class="handover-input" value="${escapeHtml(item.remarks||'')}" onchange="updateRowField('followup',${idx},'remarks',this.value)"></td>
+                    <td style="text-align:center"><input type="checkbox" class="handover-checkbox" ${item.done?'checked':''} onchange="updateRowField('followup',${idx},'done',this.checked)"></td>
+                    <td><button class="delete-row-btn" onclick="deleteRow('followup',${idx})"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('') : '<tr><td colspan="6" style="text-align:center">No entries yet. Click "Add" to create.</td></tr>'}
+                </tbody>
+            </table>
+            <button class="add-row-btn" style="background: #7b1fa2; color: white;" onclick="addRow('followup',{flight:'',pax:'',desc:'',remarks:'',done:false})"><i class="fas fa-plus"></i> Add Follow-up Passenger</button>
+        </div>
+        
+        <!-- IMPORTANT MESSAGES SECTION - Grey Theme -->
+        <div class="handover-section" style="background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%); border-left: 5px solid #616161; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="color: #424242;"><i class="fas fa-envelope"></i> 6. IMPORTANT MESSAGES / OTHERS</h4>
+            <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes or messages for next shift..." onchange="updateImportantMsg(this.value)">${escapeHtml(handoverData.importantMsg)}</textarea>
+        </div>
+    `;
+    handoverContainer.innerHTML = html;
+}
+    
+    // Make functions globally accessible for onclick handlers
     window.addRow = addRow;
     window.updateRowField = updateRowField;
     window.deleteRow = deleteRow;
@@ -589,93 +633,71 @@
     
     async function loadSODStaff() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSODStaffRecordId(currentDate, currentShift); try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; } renderSODPanel(); renderBreakUI(); renderSupervisorSelectPanel(); }
     async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); renderSupervisorSelectPanel(); }
-    
-    function renderSODPanel() { 
-        if(!sodStaffListDiv) return; 
-        if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } 
-        supervisorTabs.classList.remove('hidden'); 
-        if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } 
-        sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); 
-        document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); 
-        sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; 
-    }
+    function renderSODPanel() { if(!sodStaffListDiv) return; if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } supervisorTabs.classList.remove('hidden'); if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; }
     
     async function loadSODAllocation() { if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocation(); renderFullAllocation(); } catch(e){console.error(e);} }
-    
     function renderAllocation() { 
-        if(!currentSODRecord||!allocationContainer) return; 
-        const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed"; 
-        let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; 
-        const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
-        areas.forEach(area=>{ 
-            html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; 
-            slots.forEach(slot=>{ 
-                const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
-                let staffHtml=''; 
-                if(canEdit){ 
-                    let sodOptions = '<option value="">-- Add Staff (Select multiple) --</option>'; 
-                    if(sodStaffNames.length > 0) {
-                        sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-                    } else { 
-                        sodOptions = '<option value="">-- No SOD staff available --</option>'; 
-                    }
-                    staffHtml = `<div class="assign-wrapper">
-                        <select multiple class="staff-multi-select" id="multiSel_${slot.id}_${area.replace(/\s/g,'_')}" style="min-width:120px; height:auto; min-height:80px;">${sodOptions}</select>
-                        <button class="assign-small-btn assign-multi-btn" data-slot="${slot.id}" data-area="${area}">Add Selected</button>
-                    </div>`; 
-                } 
-                html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge"> ${escapeHtml(s)} ${canEdit?`<button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" onclick="removeStaff('${slot.id}','${area}','${escapeHtml(s)}')">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`; 
-            }); 
-            html+='</tr>'; 
+    if(!currentSODRecord||!allocationContainer) return; 
+    const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed"; 
+    let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; 
+    const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
+    areas.forEach(area=>{ 
+        html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; 
+        slots.forEach(slot=>{ 
+            const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
+            let staffHtml=''; 
+            if(canEdit){ 
+                let sodOptions = '<option value="">-- Add Staff (Select multiple) --</option>'; 
+                if(sodStaffNames.length > 0) {
+                    sodOptions += sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+                } else { 
+                    sodOptions = '<option value="">-- No SOD staff available --</option>'; 
+                }
+                staffHtml = `<div class="assign-wrapper">
+                    <select multiple class="staff-multi-select" id="multiSel_${slot.id}_${area.replace(/\s/g,'_')}" style="min-width:120px; height:auto; min-height:80px;">${sodOptions}</select>
+                    <button class="assign-small-btn assign-multi-btn" data-slot="${slot.id}" data-area="${area}">Add Selected</button>
+                </div>`; 
+            } 
+            html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge"> ${escapeHtml(s)} ${canEdit?`<button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" onclick="removeStaff('${slot.id}','${area}','${escapeHtml(s)}')">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`; 
         }); 
-        html+='</tbody></table>'; 
-        allocationContainer.innerHTML=html; 
-        if(canEdit){ 
-            document.querySelectorAll('.assign-multi-btn').forEach(btn=>btn.addEventListener('click',async()=>{ 
-                const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`multiSel_${slotId}_${area.replace(/\s/g,'_')}`),selectedOptions=Array.from(select.selectedOptions).map(opt=>opt.value).filter(v=>v); 
-                if(selectedOptions.length===0){ alert("Please select at least one staff member"); return; }
-                const invalidStaff = selectedOptions.filter(staff => !sodStaffNames.includes(staff));
-                if(invalidStaff.length > 0){ alert(`⚠️ ${invalidStaff.join(', ')} is not on duty.`); return; }
-                await assignMultipleStaff(slotId,area,selectedOptions);
-            })); 
-        } 
-    }
-    
-    async function assignMultipleStaff(slotId,area,staffNames){ 
-        if(!currentSODRecord) return; 
-        const allocations={...currentSODRecord.allocations}; 
-        if(!allocations[slotId]) allocations[slotId]={}; 
-        if(!allocations[slotId][area]) allocations[slotId][area]=[]; 
-        let addedCount = 0;
-        staffNames.forEach(staffName => {
-            if(!allocations[slotId][area].includes(staffName)){ 
-                allocations[slotId][area].push(staffName); 
-                addedCount++;
-            }
-        });
-        if(addedCount > 0){
-            await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); 
-            currentSODRecord.allocations=allocations; 
-            renderAllocation(); 
-            renderFullAllocation(); 
-            alert(`✅ Added ${addedCount} staff member(s) to ${area}`);
-        } else {
-            alert("Selected staff already assigned to this area");
-        }
-    }
-    
-    async function removeStaff(slotId,area,staffName){ 
-        if(!currentSODRecord) return;
-        const allocations={...currentSODRecord.allocations}; 
-        if(allocations[slotId]&&allocations[slotId][area]){ 
-            allocations[slotId][area]=allocations[slotId][area].filter(s=>s!==staffName); 
-            await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); 
-            currentSODRecord.allocations=allocations; 
-            renderAllocation(); 
-            renderFullAllocation(); 
-        } 
+        html+='</tr>'; 
+    }); 
+    html+='</tbody></table>'; 
+    allocationContainer.innerHTML=html; 
+    if(canEdit){ 
+        document.querySelectorAll('.assign-multi-btn').forEach(btn=>btn.addEventListener('click',async()=>{ 
+            const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`multiSel_${slotId}_${area.replace(/\s/g,'_')}`),selectedOptions=Array.from(select.selectedOptions).map(opt=>opt.value).filter(v=>v); 
+            if(selectedOptions.length===0){ alert("Please select at least one staff member"); return; }
+            const invalidStaff = selectedOptions.filter(staff => !sodStaffNames.includes(staff));
+            if(invalidStaff.length > 0){ alert(`⚠️ ${invalidStaff.join(', ')} is not on duty.`); return; }
+            await assignMultipleStaff(slotId,area,selectedOptions);
+        })); 
     } 
-    window.removeStaff=removeStaff;
+}
+    async function assignMultipleStaff(slotId,area,staffNames){ 
+    if(!currentSODRecord) return; 
+    const allocations={...currentSODRecord.allocations}; 
+    if(!allocations[slotId]) allocations[slotId]={}; 
+    if(!allocations[slotId][area]) allocations[slotId][area]=[]; 
+    let addedCount = 0;
+    staffNames.forEach(staffName => {
+        if(!allocations[slotId][area].includes(staffName)){ 
+            allocations[slotId][area].push(staffName); 
+            addedCount++;
+        }
+    });
+    if(addedCount > 0){
+        await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); 
+        currentSODRecord.allocations=allocations; 
+        renderAllocation(); 
+        renderFullAllocation(); 
+        alert(`✅ Added ${addedCount} staff member(s) to ${area}`);
+    } else {
+        alert("Selected staff already assigned to this area");
+    }
+}
+    async function assignStaff(slotId,area,staffName){ if(!currentSODRecord) return; const allocations={...currentSODRecord.allocations}; if(!allocations[slotId]) allocations[slotId]={}; if(!allocations[slotId][area]) allocations[slotId][area]=[]; if(!allocations[slotId][area].includes(staffName)){ allocations[slotId][area].push(staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderFullAllocation(); } else { alert(`${staffName} already assigned`); } }
+    async function removeStaff(slotId,area,staffName){ const allocations={...currentSODRecord.allocations}; if(allocations[slotId]&&allocations[slotId][area]){ allocations[slotId][area]=allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(currentSODRecord.id).set({allocations},{merge:true}); currentSODRecord.allocations=allocations; renderAllocation(); renderFullAllocation(); } } window.removeStaff=removeStaff;
     
     function renderFullAllocation() { 
         if(!fullAllocationContainer) return; 
@@ -683,39 +705,12 @@
         const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}; 
         let html='<table class="allocation-table"><thead><th class="area-col">Area / Time</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</thead><tbody>'; 
         const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
-        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge"> ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='</tr>'; }); html+='</tbody></table>'; 
+        areas.forEach(area=>{ html+=`<tr><td class="area-col"><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge"> ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; }); html+='<tr>'; }); html+='</tbody></table>'; 
         fullAllocationContainer.innerHTML=html; 
     }
     
-    async function requestBreak(timeSlot) { 
-        if(!selectedStaffName){ alert("Please select your name from SOD list"); return; } 
-        if(!currentDate||!currentShift){ alert("Please select date and shift first"); return; } 
-        const id=getBreakRecordId(currentDate,currentShift); 
-        const doc=await db.collection("breakRecords").doc(id).get(); 
-        let breaks=doc.exists?doc.data().breaks||[]:[]; 
-        const existingApproved=breaks.find(b=>b.staffName===selectedStaffName && b.status==='approved'); 
-        if(existingApproved){ alert("You already have an approved break for today."); return; } 
-        breaks = breaks.filter(b=>!(b.staffName===selectedStaffName && b.status==='pending')); 
-        breaks.push({staffName:selectedStaffName, timeSlot:timeSlot, requestedAt:new Date().toISOString(), status:'pending'}); 
-        await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); 
-        renderBreakUI(); 
-        if(currentRole==="supervisor") loadBreakRequests(); 
-        alert("Break request sent to supervisor"); 
-    }
-    
-    async function cancelBreakRequest() { 
-        if(!selectedStaffName){ alert("Please select your name first"); return; } 
-        const id=getBreakRecordId(currentDate,currentShift); 
-        const doc=await db.collection("breakRecords").doc(id).get(); 
-        let breaks=doc.exists?doc.data().breaks||[]:[]; 
-        const pendingRequest = breaks.find(b=>b.staffName===selectedStaffName && b.status==='pending'); 
-        if(!pendingRequest){ alert("No pending request to cancel"); return; } 
-        breaks = breaks.filter(b=>!(b.staffName===selectedStaffName && b.status==='pending')); 
-        await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); 
-        renderBreakUI(); 
-        alert("Break request cancelled."); 
-    }
-    
+    async function requestBreak(timeSlot) { if(!selectedStaffName){ alert("Please select your name from SOD list"); return; } if(!currentDate||!currentShift){ alert("Please select date and shift first"); return; } const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; const existingApproved=breaks.find(b=>b.staffName===selectedStaffName && b.status==='approved'); if(existingApproved){ alert("You already have an approved break for today."); return; } breaks = breaks.filter(b=>!(b.staffName===selectedStaffName && b.status==='pending')); breaks.push({staffName:selectedStaffName, timeSlot:timeSlot, requestedAt:new Date().toISOString(), status:'pending'}); await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); renderBreakUI(); if(currentRole==="supervisor") loadBreakRequests(); alert("Break request sent to supervisor"); }
+    async function cancelBreakRequest() { if(!selectedStaffName){ alert("Please select your name first"); return; } const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; const pendingRequest = breaks.find(b=>b.staffName===selectedStaffName && b.status==='pending'); if(!pendingRequest){ alert("No pending request to cancel"); return; } breaks = breaks.filter(b=>!(b.staffName===selectedStaffName && b.status==='pending')); await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); renderBreakUI(); alert("Break request cancelled."); }
     async function renderBreakUI() { 
         if(!breakRequestContainer) return; 
         if(!currentDate||!currentShift){ breakRequestContainer.innerHTML='<div class="empty-msg">Select date and shift first</div>'; return; } 
@@ -735,84 +730,57 @@
         breakHtml+=`</div></div></div>`; 
         breakRequestContainer.innerHTML=breakHtml; 
         document.getElementById('staffSelectBreak')?.addEventListener('change',(e)=>{ selectedStaffName=e.target.value; renderBreakUI(); }); 
-    } 
-    window.requestBreak=requestBreak; 
-    window.cancelBreakRequest=cancelBreakRequest;
+    } window.requestBreak=requestBreak; window.cancelBreakRequest=cancelBreakRequest;
     
-    async function loadBreakRequests() { 
-        if(!breakRequestsList) return; 
-        const id=getBreakRecordId(currentDate,currentShift); 
-        const doc=await db.collection("breakRecords").doc(id).get(); 
-        let breaks=doc.exists?doc.data().breaks||[]:[]; 
-        const pendingBreaks=breaks.filter(b=>b.status==='pending'); 
-        if(pendingBreaks.length===0){ breakRequestsList.innerHTML='<div class="empty-msg">No pending break requests</div>'; return; } 
-        breakRequestsList.innerHTML=pendingBreaks.map(b=>`<div class="break-request-item"><span><strong>${escapeHtml(b.staffName)}</strong> requests break at ${b.timeSlot}</span><div><button class="btn-approve action-btn" style="background:#4caf50;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Approve</button><button class="btn-reject action-btn" style="background:#f44336; margin-left:5px;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Reject</button></div></div>`).join(''); 
-        document.querySelectorAll('.btn-approve').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'approved'); })); 
-        document.querySelectorAll('.btn-reject').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'rejected'); })); 
-    }
+    async function loadBreakRequests() { if(!breakRequestsList) return; const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; const pendingBreaks=breaks.filter(b=>b.status==='pending'); if(pendingBreaks.length===0){ breakRequestsList.innerHTML='<div class="empty-msg">No pending break requests</div>'; return; } breakRequestsList.innerHTML=pendingBreaks.map(b=>`<div class="break-request-item"><span><strong>${escapeHtml(b.staffName)}</strong> requests break at ${b.timeSlot}</span><div><button class="btn-approve action-btn" style="background:#4caf50;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Approve</button><button class="btn-reject action-btn" style="background:#f44336; margin-left:5px;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Reject</button></div></div>`).join(''); document.querySelectorAll('.btn-approve').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'approved'); })); document.querySelectorAll('.btn-reject').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'rejected'); })); }
+    async function updateBreakStatus(staffName,timeSlot,status){ const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; breaks=breaks.map(b=>{ if(b.staffName===staffName && b.timeSlot===timeSlot && b.status==='pending') b.status=status; return b; }); await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); loadBreakRequests(); renderBreakUI(); alert(`${status === 'approved' ? 'Approved' : 'Rejected'} break`); }
     
-    async function updateBreakStatus(staffName,timeSlot,status){ 
-        const id=getBreakRecordId(currentDate,currentShift); 
-        const doc=await db.collection("breakRecords").doc(id).get(); 
-        let breaks=doc.exists?doc.data().breaks||[]:[]; 
-        breaks=breaks.map(b=>{ if(b.staffName===staffName && b.timeSlot===timeSlot && b.status==='pending') b.status=status; return b; }); 
-        await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); 
-        loadBreakRequests(); 
-        renderBreakUI(); 
-        alert(`${status === 'approved' ? 'Approved' : 'Rejected'} break`); 
-    }
-    
-    // ============ MODIFIED: TASKS NOW FROM LOCALSTORAGE, SUBMISSIONS TO FIREBASE ============
     async function loadGlobalTasks(){ 
-        // Tasks are already loaded from localStorage in init
-        // This function now just syncs with UI
-        updateCategoryUI(); 
-        renderTasks(); 
-        renderTaskManager(); 
-    }
-    
-    async function saveGlobalTasks(tasks){ 
-        // Save to localStorage instead of Firebase
-        globalTasks = tasks;
-        saveTasksToLocal();
-        updateCategoryUI(); 
-        renderTasks(); 
-        renderTaskManager(); 
-    }
-    
-    async function loadTaskRecord(){ 
-        const id=getTaskRecordId(currentDate,currentShift); 
+    // First try to load from localStorage
+        const cached = localStorage.getItem('koveli_global_tasks');
+        if(cached) {
+            globalTasks = JSON.parse(cached);
+            updateCategoryUI(); 
+            renderTasks(); 
+            renderTaskManager();
+        }
+        
+        // Then fetch from Firebase in background and update if newer
         try {
-            const doc=await db.collection("taskRecords").doc(id).get(); 
-            if(doc.exists) currentTaskRecord={id:doc.id,...doc.data()}; 
-            else currentTaskRecord={date:currentDate,shift:currentShift,status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[],createdAt:new Date().toISOString()}; 
-            await db.collection("taskRecords").doc(id).set(currentTaskRecord,{merge:true}); 
-            currentTaskRecord.id=id; 
-            updateShiftStatusUI(); 
-            renderTasks();
-        } catch(e) { console.error("Error loading task record:", e); }
+            const doc = await db.collection("globalConfig").doc("tasks").get(); 
+            const fbTasks = doc.exists ? doc.data().tasks || [] : [];
+            
+            // Compare and update if different (check length or timestamp)
+            if(JSON.stringify(fbTasks) !== JSON.stringify(globalTasks)) {
+                globalTasks = fbTasks;
+                localStorage.setItem('koveli_global_tasks', JSON.stringify(globalTasks));
+                updateCategoryUI(); 
+                renderTasks(); 
+                renderTaskManager();
+            }
+        } catch(e) {
+            console.warn("Firebase fetch failed, using cached data", e);
+        }
     }
-    
-    function updateShiftStatusUI(){ 
-        const closed=currentTaskRecord?.status==="closed"; 
-        shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; 
-        shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; 
-        if(currentRole==="supervisor"){ 
-            closeShiftBtn.classList.toggle('hidden',closed); 
-            reopenShiftBtn.classList.toggle('hidden',!closed); 
-        } 
-    }
-    
-    async function completeTask(taskId,staffName){ 
-        if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} 
-        if(!staffName){alert("Select staff");return;} 
-        const done={...currentTaskRecord.doneTasks}; 
-        if(done[taskId]){alert("Already completed");return;} 
-        done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; 
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({doneTasks:done},{merge:true}); 
-        currentTaskRecord.doneTasks=done; 
+    async function saveGlobalTasks(tasks){ 
+        // Save to localStorage immediately for speed
+        globalTasks = tasks;
+        localStorage.setItem('koveli_global_tasks', JSON.stringify(tasks));
+        updateCategoryUI(); 
         renderTasks(); 
+        renderTaskManager();
+        
+        // Save to Firebase in background
+        try {
+            await db.collection("globalConfig").doc("tasks").set({tasks});
+        } catch(e) {
+            console.warn("Failed to save to Firebase, but localStorage is updated", e);
+        }
     }
+    async function loadTaskRecord(){ const id=getTaskRecordId(currentDate,currentShift); const doc=await db.collection("taskRecords").doc(id).get(); if(doc.exists) currentTaskRecord={id:doc.id,...doc.data()}; else currentTaskRecord={date:currentDate,shift:currentShift,status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[],createdAt:new Date().toISOString()}; await db.collection("taskRecords").doc(id).set(currentTaskRecord,{merge:true}); currentTaskRecord.id=id; updateShiftStatusUI(); renderTasks(); }
+    function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; if(currentRole==="supervisor"){ closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); } }
+    async function completeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} const done={...currentTaskRecord.doneTasks}; if(done[taskId]){alert("Already completed");return;} done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; await db.collection("taskRecords").doc(currentTaskRecord.id).set({doneTasks:done},{merge:true}); currentTaskRecord.doneTasks=done; renderTasks(); }
+    
     
     async function acknowledgeTask(taskId, staffName) { 
         if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
@@ -827,9 +795,13 @@
             alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
             return; 
         } 
+        
         const ackTasks = {...currentTaskRecord.acknowledgedTasks}; 
         let acks = ackTasks[taskId] || [];
+        
+        // TOGGLE BEHAVIOR: If already acknowledged, DELETE it. If not, ADD it.
         if(acks.includes(staffName)) {
+            // DELETE/CANCEL acknowledgment (toggle off)
             acks = acks.filter(name => name !== staffName);
             if(acks.length === 0) {
                 delete ackTasks[taskId];
@@ -842,6 +814,8 @@
             renderTasks();
             return;
         }
+        
+        // ADD acknowledgment (toggle on)
         acks.push(staffName); 
         ackTasks[taskId] = acks; 
         await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
@@ -849,488 +823,734 @@
         alert(`✅ ${staffName} acknowledged task!`);
         renderTasks(); 
     }
+
+
+
+// Cancel acknowledgment buttons
+document.querySelectorAll('.cancel-ack-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const taskId = btn.getAttribute('data-task-id');
+        const staffName = btn.getAttribute('data-staff');
+        if(confirm(`Are you sure you want to cancel your acknowledgment for this task?`)) {
+            await cancelAcknowledgment(taskId, staffName);
+        }
+    });
+});
+
+// Keep ONLY ONE of these - remove the duplicate at the end
+
     
-    async function submitDropdown(taskId, selectedValue, note, staffName) { 
-        if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
-            alert("Shift closed"); 
-            return; 
-        } 
-        if(!selectedValue || !staffName) {
-            alert("Please select a value and staff name");
+   
+
+async function submitDropdown(taskId, selectedValue, note, staffName) { 
+    if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
+        alert("Shift closed"); 
+        return; 
+    } 
+    if(!selectedValue || !staffName) {
+        alert("Please select a value and staff name");
+        return;
+    }
+    
+    const selections = [...(currentTaskRecord.dropdownSelections || [])];
+    const noteText = note || "";
+    
+    // Check if EXACT same entry exists (same staff, same task, same value, AND same note)
+    const existingIndex = selections.findIndex(s => 
+        s.taskId === taskId && 
+        s.staffName === staffName && 
+        s.selectedValue === selectedValue &&
+        (s.additionalText || "") === noteText
+    );
+    
+    if(existingIndex !== -1) {
+        // DELETE the existing entry (toggle off)
+        selections.splice(existingIndex, 1);
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
+        currentTaskRecord.dropdownSelections = selections; 
+        alert(`❌ Removed "${selectedValue}"${noteText ? ` with note "${noteText}"` : ''} entry for ${staffName}`);
+        renderTasks();
+    } else {
+        // ADD new entry (toggle on)
+        selections.push({ 
+            taskId, 
+            staffName, 
+            selectedValue, 
+            additionalText: noteText, 
+            submittedAt: new Date().toISOString(),
+            entryId: Date.now() + Math.random() // Unique ID for each entry
+        }); 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
+        currentTaskRecord.dropdownSelections = selections; 
+        alert(`✅ Added "${selectedValue}"${noteText ? ` with note "${noteText}"` : ''} for ${staffName}`);
+        renderTasks();
+    }
+}
+
+
+
+// Open modal for full task editing
+function openTaskEditModal(task) {
+    currentEditingTask = task;
+    
+    document.getElementById('editTaskName').value = task.name || '';
+    document.getElementById('editTaskCategory').value = task.category || 'General';
+    document.getElementById('editTaskType').value = task.type || 'done';
+    document.getElementById('editTaskShift').value = task.shift || 'Both';
+    
+    const optionsGroup = document.getElementById('editDropdownOptionsGroup');
+    
+    if (task.type === 'dropdown') {
+        optionsGroup.style.display = 'block';
+        renderEditOptionsList(task.options || []);
+    } else {
+        optionsGroup.style.display = 'none';
+    }
+    
+    document.getElementById('taskEditModal').classList.remove('hidden');
+}
+
+// Render options list in edit modal
+function renderEditOptionsList(options) {
+    const container = document.getElementById('editOptionsList');
+    if (!container) return;
+    
+    if (options.length === 0) {
+        container.innerHTML = '<div style="color:#999; text-align:center; padding:10px;">No options added. Click "Add Option" to create.</div>';
+        return;
+    }
+    
+    container.innerHTML = options.map((opt, idx) => `
+        <div class="option-item">
+            <input type="text" value="${escapeHtml(opt)}" placeholder="Option ${idx + 1}" class="edit-option-input" data-index="${idx}">
+            <button class="remove-option-btn" data-index="${idx}"><i class="fas fa-trash"></i></button>
+        </div>
+    `).join('');
+    
+    // Add event listeners to option inputs
+    document.querySelectorAll('.edit-option-input').forEach(input => {
+        input.removeEventListener('change', handleOptionChange);
+        input.addEventListener('change', handleOptionChange);
+    });
+    
+    document.querySelectorAll('.remove-option-btn').forEach(btn => {
+        btn.removeEventListener('click', handleRemoveOption);
+        btn.addEventListener('click', handleRemoveOption);
+    });
+}
+
+function handleOptionChange(e) {
+    const idx = parseInt(e.target.getAttribute('data-index'));
+    const newValue = e.target.value.trim();
+    if (newValue && currentEditingTask.options) {
+        currentEditingTask.options[idx] = newValue;
+    }
+}
+
+function handleRemoveOption(e) {
+    const idx = parseInt(e.target.getAttribute('data-index'));
+    if (currentEditingTask.options) {
+        currentEditingTask.options.splice(idx, 1);
+        renderEditOptionsList(currentEditingTask.options);
+    }
+}
+
+function addEditOption() {
+    if (!currentEditingTask.options) currentEditingTask.options = [];
+    currentEditingTask.options.push('');
+    renderEditOptionsList(currentEditingTask.options);
+    
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('.edit-option-input');
+        if (inputs.length) {
+            inputs[inputs.length - 1].focus();
+        }
+    }, 100);
+}
+
+async function saveTaskEdit() {
+    if (!currentEditingTask) return;
+    
+    const newName = document.getElementById('editTaskName').value.trim();
+    const newCategory = document.getElementById('editTaskCategory').value.trim();
+    const newType = document.getElementById('editTaskType').value;
+    const newShift = document.getElementById('editTaskShift').value;
+    
+    if (!newName) {
+        alert("Please enter a task name");
+        return;
+    }
+    if (!newCategory) {
+        alert("Please enter a category");
+        return;
+    }
+    
+    let newOptions = currentEditingTask.options || [];
+    if (newType === 'dropdown') {
+        newOptions = newOptions.filter(opt => opt && opt.trim() !== '');
+        if (newOptions.length === 0) {
+            alert("Please add at least one dropdown option");
             return;
         }
-        const selections = [...(currentTaskRecord.dropdownSelections || [])];
-        const noteText = note || "";
-        const existingIndex = selections.findIndex(s => 
-            s.taskId === taskId && 
-            s.staffName === staffName && 
-            s.selectedValue === selectedValue &&
-            (s.additionalText || "") === noteText
-        );
-        if(existingIndex !== -1) {
-            selections.splice(existingIndex, 1);
-            await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
-            currentTaskRecord.dropdownSelections = selections; 
-            alert(`❌ Removed "${selectedValue}" entry for ${staffName}`);
-            renderTasks();
-        } else {
-            selections.push({ 
-                taskId, 
-                staffName, 
-                selectedValue, 
-                additionalText: noteText, 
-                submittedAt: new Date().toISOString(),
-                entryId: Date.now() + Math.random()
-            }); 
-            await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
-            currentTaskRecord.dropdownSelections = selections; 
-            alert(`✅ Added "${selectedValue}" for ${staffName}`);
-            renderTasks();
-        }
+    } else {
+        newOptions = null;
     }
     
-    async function closeShift(){ 
-        if(currentTaskRecord.status==="closed") return; 
-        const pendingCount = getPendingTasksCount(); 
-        if(pendingCount>0 && !confirm(`${pendingCount} pending task(s). Close anyway?`)) return; 
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"closed",closedAt:new Date().toISOString()},{merge:true}); 
-        currentTaskRecord.status="closed"; 
-        updateShiftStatusUI(); 
-        renderTasks(); 
-    }
+    const updatedTask = {
+        ...currentEditingTask,
+        name: newName,
+        category: newCategory,
+        type: newType,
+        shift: newShift,
+        options: newOptions
+    };
     
-    async function reopenShiftFn(){ 
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"open"},{merge:true}); 
-        currentTaskRecord.status="open"; 
-        updateShiftStatusUI(); 
-        renderTasks(); 
-    }
+    const updatedTasks = globalTasks.map(t => t.id === currentEditingTask.id ? updatedTask : t);
+    await saveGlobalTasks(updatedTasks);
     
-    function getPendingTasksCount(){ 
-        if(!currentTaskRecord) return 0; 
-        let p=0; 
-        const filteredTasks = getTasksForCurrentShift(); 
-        for(const t of filteredTasks){ 
-            if(t.type==='done' && !currentTaskRecord.doneTasks[t.id]) p++; 
-            else if(t.type==='acknowledge' && (currentTaskRecord.acknowledgedTasks[t.id]||[]).length === 0) p++; 
-            else if(t.type==='dropdown' && (currentTaskRecord.dropdownSelections||[]).filter(s=>s.taskId===t.id).length===0) p++; 
-        } 
-        return p; 
-    }
+    document.getElementById('taskEditModal').classList.add('hidden');
+    currentEditingTask = null;
+    
+    alert("✅ Task updated successfully!");
+}
+
+function closeTaskEditModal() {
+    document.getElementById('taskEditModal').classList.add('hidden');
+    currentEditingTask = null;
+}
+
+
+   
+async function closeShift(){ if(currentTaskRecord.status==="closed") return; const pendingCount = getPendingTasksCount(); if(pendingCount>0 && !confirm(`${pendingCount} pending task(s). Close anyway?`)) return; await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"closed",closedAt:new Date().toISOString()},{merge:true}); currentTaskRecord.status="closed"; updateShiftStatusUI(); renderTasks(); }
+    async function reopenShiftFn(){ await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"open"},{merge:true}); currentTaskRecord.status="open"; updateShiftStatusUI(); renderTasks(); }
+    function getPendingTasksCount(){ if(!currentTaskRecord) return 0; let p=0; const filteredTasks = getTasksForCurrentShift(); for(const t of filteredTasks){ if(t.type==='done' && !currentTaskRecord.doneTasks[t.id]) p++; else if(t.type==='acknowledge' && (currentTaskRecord.acknowledgedTasks[t.id]||[]).length === 0) p++; else if(t.type==='dropdown' && (currentTaskRecord.dropdownSelections||[]).filter(s=>s.taskId===t.id).length===0) p++; } return p; }
     
     function renderTasks() { 
-        if(!currentTaskRecord || !globalTasks.length){ 
-            tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>'; 
-            return; 
-        } 
-        const isClosed = currentTaskRecord.status === "closed"; 
-        const done = currentTaskRecord.doneTasks || {}; 
-        const ack = currentTaskRecord.acknowledgedTasks || {}; 
-        const sel = currentTaskRecord.dropdownSelections || []; 
-        const filteredTasks = getTasksForCurrentShift(); 
-        shiftFilterIndicator.innerHTML = currentShift ? `📌 ${currentShift} shift tasks` : ''; 
+    if(!currentTaskRecord || !globalTasks.length){ 
+        tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>'; 
+        return; 
+    } 
+    const isClosed = currentTaskRecord.status === "closed"; 
+    const done = currentTaskRecord.doneTasks || {}; 
+    const ack = currentTaskRecord.acknowledgedTasks || {}; 
+    const sel = currentTaskRecord.dropdownSelections || []; 
+    const filteredTasks = getTasksForCurrentShift(); 
+    shiftFilterIndicator.innerHTML = currentShift ? `📌 ${currentShift} shift tasks` : ''; 
+    
+    const byCat = {}; 
+    filteredTasks.forEach(t => { 
+        const c = t.category || "General"; 
+        if(!byCat[c]) byCat[c] = []; 
+        byCat[c].push(t); 
+    }); 
+    
+    tasksContainer.innerHTML = ''; 
+    
+    for(const [cat, tasks] of Object.entries(byCat)){ 
+        const catDiv = document.createElement('div'); 
+        catDiv.className = 'task-category'; 
+        catDiv.innerHTML = `<div class="category-header"><i class="fas fa-folder"></i> ${escapeHtml(cat)}</div><div class="category-tasks"></div>`; 
+        const tasksDiv = catDiv.querySelector('.category-tasks'); 
         
-        const byCat = {}; 
-        filteredTasks.forEach(t => { 
-            const c = t.category || "General"; 
-            if(!byCat[c]) byCat[c] = []; 
-            byCat[c].push(t); 
-        }); 
-        
-        tasksContainer.innerHTML = ''; 
-        
-        for(const [cat, tasks] of Object.entries(byCat)){ 
-            const catDiv = document.createElement('div'); 
-            catDiv.className = 'task-category'; 
-            catDiv.innerHTML = `<div class="category-header"><i class="fas fa-folder"></i> ${escapeHtml(cat)}</div><div class="category-tasks"></div>`; 
-            const tasksDiv = catDiv.querySelector('.category-tasks'); 
+        tasks.forEach(task => { 
+            const taskDivItem = document.createElement('div'); 
+            taskDivItem.className = 'task-item'; 
+            const isDone = !!done[task.id]; 
+            const taskAcks = ack[task.id] || []; 
+            const taskSelections = sel.filter(s => s.taskId === task.id); 
+            const pendingFlag = !isClosed && ((task.type === 'done' && !isDone) || (task.type === 'acknowledge' && taskAcks.length === 0) || (task.type === 'dropdown' && taskSelections.length === 0)); 
+            const shiftBadge = task.shift && task.shift !== "Both" ? `<span class="shift-badge shift-${task.shift.toLowerCase()}">${task.shift} only</span>` : ''; 
             
-            tasks.forEach(task => { 
-                const taskDivItem = document.createElement('div'); 
-                taskDivItem.className = 'task-item'; 
-                const isDone = !!done[task.id]; 
-                const taskAcks = ack[task.id] || []; 
-                const taskSelections = sel.filter(s => s.taskId === task.id); 
-                const pendingFlag = !isClosed && ((task.type === 'done' && !isDone) || (task.type === 'acknowledge' && taskAcks.length === 0) || (task.type === 'dropdown' && taskSelections.length === 0)); 
-                const shiftBadge = task.shift && task.shift !== "Both" ? `<span class="shift-badge shift-${task.shift.toLowerCase()}">${task.shift} only</span>` : ''; 
-                
-                let adminEditBtn = '';
+            // Admin edit button (only visible to supervisor)
+            let adminEditBtn = '';
                 if (currentRole === "supervisor") {
-                    adminEditBtn = `<button class="edit-task-admin-btn" data-task-id="${task.id}" style="background:#ff9800; color:white; border:none; border-radius:20px; padding:2px 10px; font-size:0.6rem; margin-left:8px; cursor:pointer;"><i class="fas fa-edit"></i> Edit</button>`;
+                    adminEditBtn = `<button class="edit-task-admin-btn" data-task-id="${task.id}" style="background:#ff9800; color:white; border:none; border-radius:20px; padding:2px 10px; font-size:0.6rem; margin-left:8px; cursor:pointer;">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>`;
+                }
+            
+            if(currentRole === "staff" && !isClosed){ 
+                let staffOptionsHtml = ''; 
+                if(task.type === 'acknowledge') { 
+                    if(sodStaffNames.length === 0) staffOptionsHtml = '<option value="">-- No SOD staff --</option>'; 
+                    else staffOptionsHtml = `<option value="">-- Select SOD staff --</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}`; 
+                } else { 
+                    staffOptionsHtml = `<option value="">-- Select staff --</option>${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}`; 
+                } 
+                const staffSelect = `<select id="staffSel_${task.id}" class="action-select">${staffOptionsHtml}</select>`; 
+                
+                if(task.type === 'done'){ 
+                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${staffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
+                } 
+                else if(task.type === 'acknowledge'){ 
+                // Build acknowledgment HTML - show who has acknowledged
+                let ackHtml = '';
+                if(taskAcks.length) {
+                    ackHtml = `<div class="completed-info">✅ Acknowledged by (${taskAcks.length}/${sodStaffNames.length}): `;
+                    ackHtml += taskAcks.map(n => {
+                        // Highlight current staff's acknowledgment
+                        const isCurrentStaff = (selectedStaffName === n);
+                        return `<span style="background:${isCurrentStaff ? '#4caf50' : '#eef2fa'}; padding:3px 8px; border-radius:15px; margin:2px; display:inline-block;">
+                            👤 ${escapeHtml(n)} ${isCurrentStaff ? '✓' : ''}
+                        </span>`;
+                    }).join(', ');
+                    ackHtml += `</div>`;
+                } else {
+                    ackHtml = '<div class="completed-info">No acknowledgments yet</div>';
                 }
                 
-                if(currentRole === "staff" && !isClosed){ 
-                    let staffOptionsHtml = ''; 
-                    if(task.type === 'acknowledge') { 
-                        if(sodStaffNames.length === 0) staffOptionsHtml = '<option value="">-- No SOD staff --</option>'; 
-                        else staffOptionsHtml = `<option value="">-- Select SOD staff --</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}`; 
-                    } else { 
-                        staffOptionsHtml = `<option value="">-- Select staff --</option>${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}`; 
-                    } 
-                    const staffSelect = `<select id="staffSel_${task.id}" class="action-select">${staffOptionsHtml}</select>`; 
-                    
-                    if(task.type === 'done'){ 
-                        taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${staffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
-                    } 
-                    else if(task.type === 'acknowledge'){ 
-                        let ackHtml = '';
-                        if(taskAcks.length) {
-                            ackHtml = `<div class="completed-info">✅ Acknowledged by (${taskAcks.length}/${sodStaffNames.length}): `;
-                            ackHtml += taskAcks.map(n => `<span style="background:#eef2fa; padding:3px 8px; border-radius:15px; margin:2px; display:inline-block;">👤 ${escapeHtml(n)}</span>`).join(', ');
-                            ackHtml += `</div>`;
-                        } else {
-                            ackHtml = '<div class="completed-info">No acknowledgments yet</div>';
-                        }
-                        const currentStaffAcknowledged = taskAcks.includes(selectedStaffName);
-                        const buttonText = currentStaffAcknowledged ? '❌ Remove Acknowledgment' : '✅ Acknowledge';
-                        const buttonClass = currentStaffAcknowledged ? 'do-ack-toggle remove-btn' : 'do-ack-toggle add-btn';
-                        taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>
-                        ${ackHtml}
-                        <div class="flex-row">
-                            <select id="staffSel_${task.id}" class="action-select">
-                                <option value="">-- Select SOD staff --</option>
-                                ${sodStaffNames.map(s => `<option value="${escapeHtml(s)}" ${selectedStaffName === s ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
-                            </select>
-                            <button class="${buttonClass} action-btn" data-id="${task.id}" style="${currentStaffAcknowledged ? 'background:#f44336;' : 'background:#4caf50;'}">
-                                ${buttonText}
-                            </button>
-                        </div>
-                        <div class="info-text" style="font-size:0.6rem; margin-top:5px;">💡 Tip: Select your name and click the button to toggle acknowledgment ON/OFF</div>`; 
-                    }
-                    else if(task.type === 'dropdown'){ 
-                        const optsHtml = task.options ? 
-                            `<select id="dropSel_${task.id}" class="action-dropdown">
-                                <option value="">-- Select --</option>
-                                ${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
-                            </select>` : 
-                            '<select><option>No options</option></select>';
+                // Show toggle button for ALL staff (including those who already acknowledged)
+                // The button text changes based on current state
+                const currentStaffAcknowledged = taskAcks.includes(selectedStaffName);
+                const buttonText = currentStaffAcknowledged ? '❌ Remove My Acknowledgment' : '✅ Acknowledge';
+                const buttonClass = currentStaffAcknowledged ? 'do-ack-toggle remove-btn' : 'do-ack-toggle add-btn';
+                
+                taskDivItem.innerHTML = `<div class="task-header">
+                    <div class="task-name">
+                        📋 ${escapeHtml(task.name)}${shiftBadge} 
                         
-                        let subsHtml = '';
-                        if(taskSelections.length) {
-                            subsHtml = `<div class="completed-info" style="max-height:200px; overflow-y:auto;">
-                                📋 Submissions (${taskSelections.length} total - click same value to delete):<br>
-                                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;">`;
-                            taskSelections.forEach((entry) => {
-                                const isCurrentStaff = (selectedStaffName === entry.staffName);
-                                subsHtml += `<span style="display:inline-block; background:${isCurrentStaff ? '#ffebee' : '#f5f5f5'}; padding:4px 10px; border-radius:20px; font-size:0.7rem;">
-                                    👤 ${escapeHtml(entry.staffName)}: ${escapeHtml(entry.selectedValue)}${entry.additionalText ? ` (${escapeHtml(entry.additionalText)})` : ''}
-                                </span>`;
-                            });
-                            subsHtml += `</div></div>`;
-                        } else {
-                            subsHtml = '<div class="completed-info">No submissions yet</div>';
-                        }
+                        ${adminEditBtn} 
+                        ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
+                    </div>
+                </div>
+                ${ackHtml}
+                <div class="flex-row">
+                    <select id="staffSel_${task.id}" class="action-select">
+                        <option value="">-- Select SOD staff --</option>
+                        ${sodStaffNames.map(s => `<option value="${escapeHtml(s)}" ${selectedStaffName === s ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+                    </select>
+                    <button class="${buttonClass} action-btn" data-id="${task.id}" style="${currentStaffAcknowledged ? 'background:#f44336;' : 'background:#4caf50;'}">
+                        ${buttonText}
+                    </button>
+                </div>
+                <div class="info-text" style="font-size:0.6rem; margin-top:5px;">
+                    💡 Tip: Select your name and click the button to toggle acknowledgment ON/OFF
+                </div>`; 
+            }
+                else if(task.type === 'dropdown'){ 
+                const optsHtml = task.options ? 
+                    `<select id="dropSel_${task.id}" class="action-dropdown">
+                        <option value="">-- Select --</option>
+                        ${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
+                    </select>` : 
+                    '<select><option>No options</option></select>';
+                
+                // Group submissions by staff for better display
+                let subsHtml = '';
+                    if(taskSelections.length) {
+                        subsHtml = `<div class="completed-info" style="max-height:200px; overflow-y:auto;">
+                            📋 Submissions (${taskSelections.length} total - click same value to delete):<br>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;">`;
                         
-                        taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>
-                        ${subsHtml}
-                        <div class="flex-row">
-                            <select id="staffSel_${task.id}" class="action-select">
-                                <option value="">-- Select staff --</option>
-                                ${staffList.map(s => `<option value="${escapeHtml(s.name)}" ${selectedStaffName === s.name ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
-                            </select>
-                            ${optsHtml}
-                            <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (optional)" maxlength="20" style="width:100px;">
-                            <button class="do-drop-toggle action-btn" data-id="${task.id}" style="background:#4caf50;">➕ Add / Delete</button>
-                        </div>
-                        <div class="info-text" style="font-size:0.6rem; margin-top:5px;">💡 Tip: Select same option twice to DELETE, or choose new option to ADD</div>`; 
+                        taskSelections.forEach((entry, idx) => {
+                            const isCurrentStaff = (selectedStaffName === entry.staffName);
+                            subsHtml += `<span style="display:inline-block; background:${isCurrentStaff ? '#ffebee' : '#f5f5f5'}; padding:4px 10px; border-radius:20px; font-size:0.7rem;">
+                                👤 ${escapeHtml(entry.staffName)}: ${escapeHtml(entry.selectedValue)}${entry.additionalText ? ` (${escapeHtml(entry.additionalText)})` : ''}
+                                ${isCurrentStaff ? 
+                                    `<button class="delete-dropdown-entry" data-task-id="${task.id}" data-staff="${escapeHtml(entry.staffName)}" data-value="${escapeHtml(entry.selectedValue)}" style="background:#f44336; color:white; border:none; border-radius:15px; padding:2px 8px; margin-left:6px; cursor:pointer; font-size:0.6rem;">✖</button>` 
+                                    : ''}
+                            </span>`;
+                        });
+                        
+                        subsHtml += `</div></div>`;
+                    } else {
+                        subsHtml = '<div class="completed-info">No submissions yet</div>';
                     }
+                
+                // Show toggle button info
+                const toggleHint = `<div class="info-text" style="font-size:0.6rem; margin-top:5px; color:#666;">
+                    💡 Tip: Select same option twice to DELETE, or choose new option to ADD
+                </div>`;
+                
+                taskDivItem.innerHTML = `<div class="task-header">
+                    <div class="task-name">
+                        📋 ${escapeHtml(task.name)}${shiftBadge} 
+                        
+                        ${adminEditBtn} 
+                        ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
+                    </div>
+                </div>
+                ${subsHtml}
+                <div class="flex-row">
+                    <select id="staffSel_${task.id}" class="action-select">
+                        <option value="">-- Select staff --</option>
+                        ${staffList.map(s => `<option value="${escapeHtml(s.name)}" ${selectedStaffName === s.name ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
+                    </select>
+                    ${optsHtml}
+                    <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (optional)" maxlength="20" style="width:100px;">
+                    <button class="do-drop-toggle action-btn" data-id="${task.id}" style="background:#4caf50;">
+                        ➕ Add / Delete
+                    </button>
+                </div>
+                ${toggleHint}`; 
+            }
+            } 
+            else { 
+                // Read-only view
+                let statusHtml = ''; 
+                if(task.type === 'done'){ 
+                    statusHtml = isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:'<div class="completed-info">⏳ Pending</div>'; 
+                } 
+                else if(task.type === 'acknowledge'){ 
+                    statusHtml = `<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n=>`👤 ${escapeHtml(n)}`).join(', ')}</div>`; 
                 } 
                 else { 
-                    let statusHtml = ''; 
-                    if(task.type === 'done'){ 
-                        statusHtml = isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:'<div class="completed-info">⏳ Pending</div>'; 
-                    } 
-                    else if(task.type === 'acknowledge'){ 
-                        statusHtml = `<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n=>`👤 ${escapeHtml(n)}`).join(', ')}</div>`; 
-                    } 
-                    else { 
-                        statusHtml = `<div class="completed-info">📋 ${taskSelections.length} submission(s)</div>`; 
-                    } 
-                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn}</div></div>${statusHtml}`; 
+                    statusHtml = `<div class="completed-info">📋 ${taskSelections.length} submission(s)${taskSelections.some(s => s.edited) ? ' (some edited)' : ''}</div>`; 
                 } 
-                tasksDiv.appendChild(taskDivItem); 
-            }); 
-            tasksContainer.appendChild(catDiv); 
-        } 
-        
-        // Event listeners
-        document.querySelectorAll('.do-done').forEach(btn=>btn.addEventListener('click',async()=>{ 
-            const id=btn.getAttribute('data-id'), sel=document.getElementById(`staffSel_${id}`); 
-            if(sel) await completeTask(id,sel.value); 
-        })); 
-        
-        document.querySelectorAll('.do-ack-toggle').forEach(btn=>{
-            btn.removeEventListener('click', handleAckToggle);
-            btn.addEventListener('click', handleAckToggle);
-        });
-        
-        async function handleAckToggle(e) {
-            const btn = e.currentTarget;
-            const id = btn.getAttribute('data-id');
-            const sel = document.getElementById(`staffSel_${id}`);
-            if(sel && sel.value) {
-                await acknowledgeTask(id, sel.value);
-            } else if(sel && !sel.value) {
-                alert("Please select your name first");
-            }
+                taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn}</div></div>${statusHtml}`; 
+            } 
+            tasksDiv.appendChild(taskDivItem); 
+        }); 
+        tasksContainer.appendChild(catDiv); 
+    } 
+    
+    // Event listeners for action buttons
+       // Event listeners for action buttons
+    document.querySelectorAll('.do-done').forEach(btn=>btn.addEventListener('click',async()=>{ 
+        const id=btn.getAttribute('data-id'), sel=document.getElementById(`staffSel_${id}`); 
+        if(sel) await completeTask(id,sel.value); 
+    })); 
+    
+    // Replace the old .do-ack listener with new .do-ack-toggle
+    document.querySelectorAll('.do-ack-toggle').forEach(btn=>{
+        btn.removeEventListener('click', handleAckToggle);
+        btn.addEventListener('click', handleAckToggle);
+    });
+
+    async function handleAckToggle(e) {
+        const btn = e.currentTarget;
+        const id = btn.getAttribute('data-id');
+        const sel = document.getElementById(`staffSel_${id}`);
+        if(sel && sel.value) {
+            await acknowledgeTask(id, sel.value);
+            // Don't clear the select - keep it for potential toggle off
+        } else if(sel && !sel.value) {
+            alert("Please select your name first");
         }
-        
-        document.querySelectorAll('.do-drop-toggle').forEach(btn => {
-            btn.removeEventListener('click', handleDropdownToggle);
-            btn.addEventListener('click', handleDropdownToggle);
-        });
-        
-        async function handleDropdownToggle(e) {
-            const btn = e.currentTarget;
-            const taskId = btn.getAttribute('data-id');
-            const staffSel = document.getElementById(`staffSel_${taskId}`);
-            const dropSel = document.getElementById(`dropSel_${taskId}`);
-            const addText = document.getElementById(`addText_${taskId}`);
-            if(!staffSel || !staffSel.value) {
-                alert("Please select a staff member");
-                return;
-            }
-            if(!dropSel || !dropSel.value) {
-                alert("Please select a value from dropdown");
-                return;
-            }
-            await submitDropdown(taskId, dropSel.value, addText?.value || "", staffSel.value);
-            if(dropSel) dropSel.value = "";
-            if(addText) addText.value = "";
-        }
-        
-        document.querySelectorAll('.edit-task-admin-btn').forEach(btn => {
-            btn.removeEventListener('click', handleAdminEditClick);
-            btn.addEventListener('click', handleAdminEditClick);
-        });
-        
-        function handleAdminEditClick(e) {
-            e.stopPropagation();
-            const taskId = e.currentTarget.getAttribute('data-task-id');
-            const taskToEdit = globalTasks.find(t => t.id === taskId);
-            if (taskToEdit) {
-                editTaskFull(taskId, taskToEdit);
-            }
-        }
-        
-        tasksInfo.innerHTML = currentTaskRecord.status==="closed" ? "Shift Closed" : `Done:${Object.keys(done).length} | Acknowledged:${Object.values(ack).reduce((s,a)=>s+a.length,0)} | Pending:${getPendingTasksCount()}`; 
     }
     
-    // Task Edit Modal Functions
-    let currentEditingTaskObj = null;
-    
-    function editTaskFull(taskId, oldTask) {
-        currentEditingTaskObj = { ...oldTask, id: taskId };
-        document.getElementById('editTaskNameField').value = oldTask.name || '';
-        document.getElementById('editTaskCategoryField').value = oldTask.category || 'General';
-        document.getElementById('editTaskTypeField').value = oldTask.type || 'done';
-        document.getElementById('editTaskShiftField').value = oldTask.shift || 'Both';
-        const isDropdown = (oldTask.type === 'dropdown');
-        const container = document.getElementById('editDropdownOptionsContainer');
-        container.style.display = isDropdown ? 'block' : 'none';
-        if (isDropdown) {
-            renderEditableOptionsList(oldTask.options || []);
-        }
-        document.getElementById('taskFullEditModal').classList.remove('hidden');
-    }
-    
-    function renderEditableOptionsList(options) {
-        const listContainer = document.getElementById('editOptionsListContainer');
-        if (!listContainer) return;
-        if (!options || options.length === 0) {
-            listContainer.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">No options added. Click "Add Option" to create.</div>';
+    // ✅ ATTACH DROPDOWN TOGGLE BUTTONS (CORRECTED)
+    document.querySelectorAll('.do-drop-toggle').forEach(btn => {
+        btn.removeEventListener('click', handleDropdownToggle);
+        btn.addEventListener('click', handleDropdownToggle);
+    });
+
+    async function handleDropdownToggle(e) {
+        const btn = e.currentTarget;
+        const taskId = btn.getAttribute('data-id');
+        const staffSel = document.getElementById(`staffSel_${taskId}`);
+        const dropSel = document.getElementById(`dropSel_${taskId}`);
+        const addText = document.getElementById(`addText_${taskId}`);
+        
+        if(!staffSel || !staffSel.value) {
+            alert("Please select a staff member");
             return;
         }
-        listContainer.innerHTML = options.map((opt, idx) => `
-            <div class="option-item" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                <input type="text" value="${escapeHtml(opt)}" placeholder="Option ${idx + 1}" class="edit-option-field" data-index="${idx}" style="flex: 1; padding: 6px 10px; border-radius: 20px; border: 1.5px solid #e2eaf2; font-size: 0.7rem;">
-                <button class="delete-option-btn" data-index="${idx}" style="background: #f44336; color: white; border: none; border-radius: 20px; padding: 4px 10px; cursor: pointer; font-size: 0.6rem;"><i class="fas fa-trash"></i> Remove</button>
-            </div>
-        `).join('');
-        
-        document.querySelectorAll('.edit-option-field').forEach(input => {
-            input.removeEventListener('change', handleOptionFieldChange);
-            input.addEventListener('change', handleOptionFieldChange);
-        });
-        document.querySelectorAll('.delete-option-btn').forEach(btn => {
-            btn.removeEventListener('click', handleDeleteOption);
-            btn.addEventListener('click', handleDeleteOption);
-        });
-    }
-    
-    function handleOptionFieldChange(e) {
-        const idx = parseInt(e.target.getAttribute('data-index'));
-        const newValue = e.target.value.trim();
-        if (currentEditingTaskObj && currentEditingTaskObj.options && newValue) {
-            currentEditingTaskObj.options[idx] = newValue;
-        }
-    }
-    
-    function handleDeleteOption(e) {
-        const idx = parseInt(e.target.getAttribute('data-index'));
-        if (currentEditingTaskObj && currentEditingTaskObj.options) {
-            currentEditingTaskObj.options.splice(idx, 1);
-            renderEditableOptionsList(currentEditingTaskObj.options);
-        }
-    }
-    
-    function addEditOptionToModal() {
-        if (!currentEditingTaskObj) return;
-        if (!currentEditingTaskObj.options) currentEditingTaskObj.options = [];
-        currentEditingTaskObj.options.push('');
-        renderEditableOptionsList(currentEditingTaskObj.options);
-        setTimeout(() => {
-            const inputs = document.querySelectorAll('.edit-option-field');
-            if (inputs.length) inputs[inputs.length - 1].focus();
-        }, 100);
-    }
-    
-    async function saveTaskEditFromModal() {
-        if (!currentEditingTaskObj) {
-            document.getElementById('taskFullEditModal').classList.add('hidden');
+        if(!dropSel || !dropSel.value) {
+            alert("Please select a value from dropdown");
             return;
         }
-        const newName = document.getElementById('editTaskNameField').value.trim();
-        const newCategory = document.getElementById('editTaskCategoryField').value.trim();
-        const newType = document.getElementById('editTaskTypeField').value;
-        const newShift = document.getElementById('editTaskShiftField').value;
-        if (!newName) {
-            document.getElementById('taskEditError').innerText = 'Please enter a task name';
-            return;
-        }
-        if (!newCategory) {
-            document.getElementById('taskEditError').innerText = 'Please enter a category';
-            return;
-        }
-        let newOptions = null;
-        if (newType === 'dropdown') {
-            newOptions = (currentEditingTaskObj.options || []).filter(opt => opt && opt.trim() !== '');
-            if (newOptions.length === 0) {
-                document.getElementById('taskEditError').innerText = 'Please add at least one dropdown option';
-                return;
-            }
-        }
-        const updatedTask = {
-            ...currentEditingTaskObj,
-            name: newName,
-            category: newCategory,
-            type: newType,
-            shift: newShift,
-            options: newOptions
-        };
-        const updatedTasks = globalTasks.map(t => t.id === currentEditingTaskObj.id ? updatedTask : t);
-        await saveGlobalTasks(updatedTasks);
-        document.getElementById('taskFullEditModal').classList.add('hidden');
-        document.getElementById('taskEditError').innerText = '';
-        currentEditingTaskObj = null;
-        alert("✅ Task updated successfully!");
+        
+        await submitDropdown(taskId, dropSel.value, addText?.value || "", staffSel.value);
+        
+        // Clear the dropdown selection after submit (but keep staff selected)
+        if(dropSel) dropSel.value = "";
+        if(addText) addText.value = "";
     }
     
-    function renderTaskManager() { 
-        if(!taskListManager) return; 
-        const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); 
-        taskCategorySelectMgr.innerHTML = '<option value="">-- Select Category --</option>'+cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join(''); 
-        taskListManager.innerHTML = globalTasks.map(task => {
-            let optionsPreview = '';
-            if (task.type === 'dropdown' && task.options && task.options.length) {
-                optionsPreview = `<div style="font-size:0.65rem; color:#666; margin-top:4px;">📋 Options: ${task.options.join(', ')}</div>`;
-            }
-            return `<div class="task-manager-item">
-                <div style="flex:1;">
-                    <strong>${escapeHtml(task.name)}</strong>
-                    <span class="task-cat-badge">${escapeHtml(task.category || "General")}</span>
-                    <span class="task-shift-badge">${task.shift || "Both"}</span>
-                    <span class="task-cat-badge" style="background:#e3f2fd;">${task.type}</span>
-                    ${optionsPreview}
-                </div>
-                <div>
-                    <button class="btn-warning edit-task-full-btn" data-id="${task.id}" style="background:#ff9800;"><i class="fas fa-edit"></i> Edit Task</button>
-                    <button class="btn-danger delete-task-btn" data-id="${task.id}"><i class="fas fa-trash"></i> Delete</button>
-                </div>
-            </div>`;
-        }).join(''); 
-        
-        document.querySelectorAll('.edit-task-full-btn').forEach(btn => {
-            btn.removeEventListener('click', handleEditTaskClick);
-            btn.addEventListener('click', handleEditTaskClick);
-        });
-        
-        function handleEditTaskClick(e) {
-            const taskId = e.currentTarget.getAttribute('data-id');
-            const taskToEdit = globalTasks.find(t => t.id === taskId);
-            if (taskToEdit) {
-                editTaskFull(taskId, taskToEdit);
-            }
+    
+    
+    // Admin edit buttons for tasks
+    document.querySelectorAll('.edit-task-admin-btn').forEach(btn => {
+        btn.removeEventListener('click', handleAdminEditClick);
+        btn.addEventListener('click', handleAdminEditClick);
+    });
+
+    function handleAdminEditClick(e) {
+        e.stopPropagation();
+        const taskId = e.currentTarget.getAttribute('data-task-id');
+        const taskToEdit = globalTasks.find(t => t.id === taskId);
+        if (taskToEdit) {
+            editTaskFull(taskId, taskToEdit);
         }
-        
-        document.querySelectorAll('.delete-task-btn').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                if(confirm("Delete task?")) {
-                    await saveGlobalTasks(globalTasks.filter(t => t.id !== btn.getAttribute('data-id')));
+    }
+    
+    // Live preview for dropdown tasks
+    document.querySelectorAll('.action-select').forEach(select => {
+        select.addEventListener('change', function(e) {
+            const taskIdMatch = this.id.match(/staffSel_(.+)/);
+            if (taskIdMatch && taskIdMatch[1]) {
+                const taskId = taskIdMatch[1];
+                const task = globalTasks.find(t => t.id === taskId);
+                if (task && task.type === 'dropdown') {
+                    const selections = currentTaskRecord?.dropdownSelections || [];
+                    const existing = selections.find(s => s.taskId === taskId && s.staffName === this.value);
+                    const dropSelect = document.getElementById(`dropSel_${taskId}`);
+                    const addText = document.getElementById(`addText_${taskId}`);
+                    const submitBtn = document.querySelector(`.do-drop[data-id="${taskId}"]`);
+                    
+                    if (existing) {
+                        if (dropSelect && existing.selectedValue) dropSelect.value = existing.selectedValue;
+                        if (addText && existing.additionalText) addText.value = existing.additionalText;
+                        if (submitBtn) submitBtn.textContent = 'Update';
+                    } else {
+                        if (dropSelect) dropSelect.value = '';
+                        if (addText) addText.value = '';
+                        if (submitBtn) submitBtn.textContent = 'Submit';
+                    }
                 }
-            });
+            }
         });
+    });
+    
+    tasksInfo.innerHTML = currentTaskRecord.status==="closed" ? "Shift Closed" : `Done:${Object.keys(done).length} | Acknowledged:${Object.values(ack).reduce((s,a)=>s+a.length,0)} | Pending:${getPendingTasksCount()}`; 
+     attachDropdownPreviewListener();
+}
+
+// Add this new function to handle canceling acknowledgment
+
+    function renderTaskManager() { 
+    if(!taskListManager) return; 
+    const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); 
+    taskCategorySelectMgr.innerHTML = '<option value="">-- Select Category --</option>'+cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join(''); 
+    
+    taskListManager.innerHTML = globalTasks.map(task => {
+        // Show dropdown options preview if task type is dropdown
+        let optionsPreview = '';
+        if (task.type === 'dropdown' && task.options && task.options.length) {
+            optionsPreview = `<div style="font-size:0.65rem; color:#666; margin-top:4px;">📋 Options: ${task.options.join(', ')}</div>`;
+        }
+        
+        return `<div class="task-manager-item">
+            <div style="flex:1;">
+                <strong>${escapeHtml(task.name)}</strong>
+                <span class="task-cat-badge">${escapeHtml(task.category || "General")}</span>
+                <span class="task-shift-badge">${task.shift || "Both"}</span>
+                <span class="task-cat-badge" style="background:#e3f2fd;">${task.type}</span>
+                ${optionsPreview}
+            </div>
+            <div>
+                <button class="btn-warning edit-task-full-btn" data-id="${task.id}" style="background:#ff9800;"><i class="fas fa-edit"></i> Edit Task</button>
+                <button class="btn-danger delete-task-btn" data-id="${task.id}"><i class="fas fa-trash"></i> Delete</button>
+            </div>
+        </div>`;
+    }).join(''); 
+    
+    // Full edit button handler (edits name, category, type, shift, dropdown options)
+    document.querySelectorAll('.edit-task-full-btn').forEach(btn => {
+    btn.removeEventListener('click', handleEditTaskClick);
+    btn.addEventListener('click', handleEditTaskClick);
+});
+
+function handleEditTaskClick(e) {
+    const taskId = e.currentTarget.getAttribute('data-id');
+    const taskToEdit = globalTasks.find(t => t.id === taskId);
+    if (taskToEdit) {
+        editTaskFull(taskId, taskToEdit);
+    }
+}
+       
+    
+    
+    document.querySelectorAll('.delete-task-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if(confirm("Delete task?")) {
+                await saveGlobalTasks(globalTasks.filter(t => t.id !== btn.getAttribute('data-id')));
+            }
+        });
+    });
+}
+
+// Global variable to track task being edited
+let currentEditingTaskObj = null;
+
+async function editTaskFull(taskId, oldTask) {
+    currentEditingTaskObj = { ...oldTask, id: taskId };
+    
+    // Populate modal fields
+    document.getElementById('editTaskNameField').value = oldTask.name || '';
+    document.getElementById('editTaskCategoryField').value = oldTask.category || 'General';
+    document.getElementById('editTaskTypeField').value = oldTask.type || 'done';
+    document.getElementById('editTaskShiftField').value = oldTask.shift || 'Both';
+    
+    // Handle dropdown options visibility and rendering
+    const isDropdown = (oldTask.type === 'dropdown');
+    const container = document.getElementById('editDropdownOptionsContainer');
+    container.style.display = isDropdown ? 'block' : 'none';
+    
+    if (isDropdown) {
+        renderEditableOptionsList(oldTask.options || []);
     }
     
-    function renderStaffManager() { 
-        staffListManager.innerHTML = staffList.map(s => `<div class="staff-card">👤 ${escapeHtml(s.name)} <button class="delete-staff-mgr" data-id="${s.id}" style="color:#c62828; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button></div>`).join(''); 
-        document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); if(confirm("Delete staff?")){ staffList = staffList.filter(s => s.id !== id); saveStaffToLocal(); renderStaffManager(); renderSODPanel(); } })); 
+    // Show modal
+    document.getElementById('taskFullEditModal').classList.remove('hidden');
+}
+
+function renderEditableOptionsList(options) {
+    const listContainer = document.getElementById('editOptionsListContainer');
+    if (!listContainer) return;
+    
+    if (!options || options.length === 0) {
+        listContainer.innerHTML = '<div style="color: #999; text-align: center; padding: 10px;">No options added. Click "Add Option" to create.</div>';
+        return;
     }
     
-    function updateCategoryUI(){ 
-        const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); 
-        if(cats.length===0) cats.push("General"); 
+    listContainer.innerHTML = options.map((opt, idx) => `
+        <div class="option-item" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+            <input type="text" value="${escapeHtml(opt)}" placeholder="Option ${idx + 1}" 
+                   class="edit-option-field" data-index="${idx}" 
+                   style="flex: 1; padding: 6px 10px; border-radius: 20px; border: 1.5px solid #e2eaf2; font-size: 0.7rem;">
+            <button class="delete-option-btn" data-index="${idx}" 
+                    style="background: #f44336; color: white; border: none; border-radius: 20px; padding: 4px 10px; cursor: pointer; font-size: 0.6rem;">
+                <i class="fas fa-trash"></i> Remove
+            </button>
+        </div>
+    `).join('');
+    
+    // Add change listeners to option inputs
+    document.querySelectorAll('.edit-option-field').forEach(input => {
+        input.removeEventListener('change', handleOptionFieldChange);
+        input.addEventListener('change', handleOptionFieldChange);
+    });
+    
+    // Add click listeners to delete buttons
+    document.querySelectorAll('.delete-option-btn').forEach(btn => {
+        btn.removeEventListener('click', handleDeleteOption);
+        btn.addEventListener('click', handleDeleteOption);
+    });
+}
+
+function handleOptionFieldChange(e) {
+    const idx = parseInt(e.target.getAttribute('data-index'));
+    const newValue = e.target.value.trim();
+    if (currentEditingTaskObj && currentEditingTaskObj.options && newValue) {
+        currentEditingTaskObj.options[idx] = newValue;
+    }
+}
+
+function handleDeleteOption(e) {
+    const idx = parseInt(e.target.getAttribute('data-index'));
+    if (currentEditingTaskObj && currentEditingTaskObj.options) {
+        currentEditingTaskObj.options.splice(idx, 1);
+        renderEditableOptionsList(currentEditingTaskObj.options);
+    }
+}
+
+function addEditOptionToModal() {
+    if (!currentEditingTaskObj) return;
+    if (!currentEditingTaskObj.options) currentEditingTaskObj.options = [];
+    currentEditingTaskObj.options.push('');
+    renderEditableOptionsList(currentEditingTaskObj.options);
+    
+    // Focus on the new input
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('.edit-option-field');
+        if (inputs.length) {
+            inputs[inputs.length - 1].focus();
+        }
+    }, 100);
+}
+
+async function saveTaskEditFromModal() {
+    if (!currentEditingTaskObj) {
+        document.getElementById('taskFullEditModal').classList.add('hidden');
+        return;
     }
     
-    async function refreshAll(){ 
-        await loadSODStaff(); 
-        await loadSODAllocation(); 
-        await loadTaskRecord(); 
-        await loadAttendance(); 
-        await loadSupervisors(); 
-        await loadHandoverLog(); 
-        renderBreakUI(); 
-        if(currentRole==="supervisor") loadBreakRequests(); 
-        renderFullAllocation(); 
+    const newName = document.getElementById('editTaskNameField').value.trim();
+    const newCategory = document.getElementById('editTaskCategoryField').value.trim();
+    const newType = document.getElementById('editTaskTypeField').value;
+    const newShift = document.getElementById('editTaskShiftField').value;
+    
+    // Validation
+    if (!newName) {
+        document.getElementById('taskEditError').innerText = 'Please enter a task name';
+        return;
+    }
+    if (!newCategory) {
+        document.getElementById('taskEditError').innerText = 'Please enter a category';
+        return;
     }
     
-    async function onDateShiftChange(){ 
-        currentDate = mainDate.value; 
-        currentShift = mainShift.value; 
-        localStorage.setItem('selectedDate', currentDate); 
-        localStorage.setItem('selectedShift', currentShift); 
-        if(currentRole==="supervisor") { 
-            await refreshAll(); 
-        } else { 
-            renderFullAllocation(); 
-            renderBreakUI(); 
-            renderTasks(); 
-            renderStaffAttendanceView(); 
-        } 
+    let newOptions = null;
+    if (newType === 'dropdown') {
+        newOptions = (currentEditingTaskObj.options || []).filter(opt => opt && opt.trim() !== '');
+        if (newOptions.length === 0) {
+            document.getElementById('taskEditError').innerText = 'Please add at least one dropdown option';
+            return;
+        }
     }
+    
+    const updatedTask = {
+        ...currentEditingTaskObj,
+        name: newName,
+        category: newCategory,
+        type: newType,
+        shift: newShift,
+        options: newOptions
+    };
+    
+    const updatedTasks = globalTasks.map(t => t.id === currentEditingTaskObj.id ? updatedTask : t);
+    await saveGlobalTasks(updatedTasks);
+    
+    // Close modal and clear error
+    document.getElementById('taskFullEditModal').classList.add('hidden');
+    document.getElementById('taskEditError').innerText = '';
+    currentEditingTaskObj = null;
+    
+    alert("✅ Task updated successfully!");
+}
+    function renderStaffManager() { staffListManager.innerHTML = staffList.map(s => `<div class="staff-card">👤 ${escapeHtml(s.name)} <button class="delete-staff-mgr" data-id="${s.id}" style="color:#c62828; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button></div>`).join(''); document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); if(confirm("Delete staff?")){ await db.collection("staff").doc(id).delete(); await loadStaff(); } })); }
+    function updateCategoryUI(){ const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); if(cats.length===0) cats.push("General"); }
+    async function loadStaff(){ 
+        // Try localStorage first
+        const cached = localStorage.getItem('koveli_staff_list');
+        if(cached) {
+            staffList = JSON.parse(cached);
+            renderStaffManager(); 
+            renderSODPanel(); 
+            renderAttendanceForm();
+        }
+        
+        // Fetch from Firebase in background
+        try {
+            const snap = await db.collection("staff").orderBy("name").get(); 
+            staffList = snap.docs.map(doc=>({id:doc.id,name:doc.data().name}));
+            localStorage.setItem('koveli_staff_list', JSON.stringify(staffList));
+            renderStaffManager(); 
+            renderSODPanel(); 
+            renderAttendanceForm();
+        } catch(e) {
+            console.warn("Firebase staff fetch failed", e);
+        }
+    }
+    async function addStaffMember(name){ if(!name.trim()){adminFeedback.innerText="Enter name";return;} await db.collection("staff").add({name:name.trim()}); await loadStaff(); newStaffNameMgr.value=""; adminFeedback.innerText="Staff added"; setTimeout(()=>adminFeedback.innerText="",2000); }
+    async function addTaskMgr(){ if(!newTaskNameMgr.value.trim()){adminFeedback.innerText="Enter task name";return;} const cat=taskCategorySelectMgr.value; if(!cat){adminFeedback.innerText="Select category";return;} const newTask={id:Date.now().toString(),name:newTaskNameMgr.value.trim(),category:cat,type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:taskTypeSelectMgr.value==='dropdown'&&dropdownOptionsMgr.value?dropdownOptionsMgr.value.split(',').map(o=>o.trim()):null}; await saveGlobalTasks([...globalTasks,newTask]); newTaskNameMgr.value=""; if(dropdownOptionsMgr) dropdownOptionsMgr.value=""; adminFeedback.innerText="Task added"; setTimeout(()=>adminFeedback.innerText="",2000); }
+    async function refreshAll(){ await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); await loadHandoverLog(); renderBreakUI(); if(currentRole==="supervisor") loadBreakRequests(); renderFullAllocation(); }
+    async function onDateShiftChange(){ if(currentRole!=="supervisor"){ renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); attachDropdownPreviewListener(); } else { currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); } }
     
     function generatePDFReport() { 
         if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } 
         const reportWindow = window.open('', '_blank'); 
         const reportDate = new Date().toLocaleString(); 
         const refNo = "REF D15D-CKL/2025/29"; 
-        let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Daily Checklist Report</title><style>body{font-family:Arial,sans-serif;padding:20px;}h1{color:#1d6f8f;text-align:center;}.allocation-table{border-collapse:collapse;width:100%;}.allocation-table th,.allocation-table td{border:1px solid #ddd;padding:8px;}</style></head><body><h1>Koveli Lounge Daily Checklist</h1><div class="ref-no">${refNo}</div><hr><div><strong>Date:</strong> ${currentDate}</div><div><strong>Shift:</strong> ${currentShift}</div><div><strong>Generated on:</strong> ${reportDate}</div><hr><div class="section-title">Staff Allocation</div>`;
-        
+        let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Daily Checklist Report</title><style>body{font-family:Arial,sans-serif;padding:20px;margin:0;}h1{color:#1d6f8f;text-align:center;margin-bottom:5px;}hr{border:1px solid #1d6f8f;margin:15px 0;}.ref-no{text-align:center;font-size:12px;color:#666;margin-bottom:15px;}.info-line{font-size:12px;margin:5px 0;}.section-title{font-size:14px;font-weight:bold;margin:15px 0 10px 0;padding-bottom:5px;border-bottom:1px solid #ccc;}.allocation-table{border-collapse:collapse;width:100%;margin-bottom:15px;}.allocation-table th,.allocation-table td{border:1px solid #ddd;padding:8px;text-align:center;font-size:11px;}.allocation-table th{background-color:#eef3fc;}.area-col{text-align:left;background:#f8fbfe;}.staff-list-cell{text-align:left;}.staff-name-badge-report{display:inline-block;background:#eef2fa;padding:2px 6px;border-radius:12px;margin:2px;font-size:10px;}table{border-collapse:collapse;width:100%;margin-bottom:15px;}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:11px;}th{background-color:#eef3fc;}.status-present{color:#2e7d32;}.status-absent{color:#c62828;}.status-sl{color:#ff9800;}.status-frl{color:#1565c0;}</style></head><body><h1>Koveli Lounge Daily Checklist</h1><div class="ref-no">${refNo}</div><hr><div class="info-line"><strong>Date:</strong> ${currentDate}</div><div class="info-line"><strong>Shift:</strong> ${currentShift}</div><div class="info-line"><strong>Generated on:</strong> ${reportDate}</div><div class="info-line"><strong>Shift Status:</strong> ${currentTaskRecord?.status === 'closed' ? 'Closed' : 'Open'}</div><div class="info-line"><strong>Supervisors on Duty:</strong> ${supervisorList.length > 0 ? supervisorList.join(', ') : 'None'}</div><div class="info-line"></div><hr>`; 
         if(currentSODRecord){ 
             const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS;
             const allocations=currentSODRecord.allocations||{}; 
-            htmlContent+=`<table class="allocation-table"><thead><th>Area</th>${slots.map(s=>`<th>${s.name}</th>`).join('')}</thead><tbody>`; 
-            AREAS.forEach(area=>{ 
-                htmlContent+=`<tr><td><strong>${area}</strong></td>`; 
+            const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
+            htmlContent+=`<div class="section-title">Staff Allocation</div><table class="allocation-table"><thead><th class="area-col">Area / Time</th>${slots.map(s=>`<th>${s.name}</th>`).join('')}</thead><tbody>`; 
+            areas.forEach(area=>{ 
+                htmlContent+=`<tr><td class="area-col"><strong>${area}</strong></td>`; 
                 slots.forEach(slot=>{ 
                     const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
-                    htmlContent+=`<td>${assigned.join(', ')||'—'}</td>`; 
+                    htmlContent+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge-report">👤 ${escapeHtml(s)}</span>`).join('') || '—'}</td>`; 
                 }); 
                 htmlContent+=`</tr>`; 
             }); 
             htmlContent+=`</tbody></table>`; 
         }
-        
         htmlContent+=`<div class="section-title">Tasks Summary</div><table><thead><th>Task</th><th>Status</th></thead><tbody>`; 
         const doneTasks=currentTaskRecord?.doneTasks||{}; 
         const ackTasks=currentTaskRecord?.acknowledgedTasks||{}; 
@@ -1347,302 +1567,264 @@
             } 
             htmlContent+=`<tr><td>${escapeHtml(task.name)}</td><td>${status}</td>`; 
         } 
-        htmlContent+=`</tbody></table><hr><div style="text-align:center; font-size:10px;">System-generated report. Handover log excluded.</div></body></html>`;
-        reportWindow.document.write(htmlContent); 
-        reportWindow.document.close(); 
-        setTimeout(()=>reportWindow.print(), 500); 
-    }
-    
-    function printAllocationSheet(){ 
-        if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } 
-        const reportWindow = window.open('', '_blank'); 
-        const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS;
-        const allocations=currentSODRecord?.allocations||{}; 
-        let htmlContent = `<!DOCTYPE html><html><head><title>Staff Allocation</title><style>body{font-family:Arial;padding:20px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;}</style></head><body><h1>Koveli Lounge Staff Allocation</h1><h3>Date: ${currentDate} | Shift: ${currentShift}</h3><table><thead><th>Area</th>${slots.map(s=>`<th>${s.name}</th>`).join('')}</thead><tbody>`;
-        AREAS.forEach(area=>{ 
-            htmlContent+=`<tr><td><strong>${area}</strong></td>`; 
-            slots.forEach(slot=>{ 
-                const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
-                htmlContent+=`<td>${assigned.join(', ')||'—'}</td>`; 
+        htmlContent+=`</tbody></table>`;
+        if(attendanceRecords.length>0){ 
+            htmlContent+=`<div class="section-title">Attendance Records (${currentShift} Shift)</div><table><thead><th>Staff Name</th><th>Status</th><th>Reason</th><th>Reported Time</th></thead><tbody>`; 
+            attendanceRecords.filter(r=>r.shift===currentShift).forEach(r=>{ 
+                let statusClass = r.status==='Present'?'status-present':r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; 
+                htmlContent+=`<tr><td>${escapeHtml(r.staffName)}</td><td class="${statusClass}">${r.status}</td><td>${r.reason?escapeHtml(r.reason):'—'}</td><td>${r.reportDateTime?new Date(r.reportDateTime).toLocaleString():'—'}</td>`; 
             }); 
-            htmlContent+=`</tr>`; 
-        }); 
-        htmlContent+=`</tbody></table><div class="signature-line" style="display:flex; justify-content:space-between; margin-top:50px;"><div>Prepared By: ___________</div><div>Received By: ___________</div></div></body></html>`;
+            htmlContent+=`</tbody></table>`; 
+        }
+        htmlContent+=`<hr><div style="text-align:center; font-size:10px; color:#999; margin-top:20px;">This is a system-generated report. Handover log is excluded as requested.</div></body></html>`;
         reportWindow.document.write(htmlContent); 
         reportWindow.document.close(); 
         setTimeout(()=>reportWindow.print(), 500); 
     }
-    
-    function setRole(role){ 
-        if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } 
-        currentRole=role; 
-        if(role==="supervisor"){ 
-            staffRoleBtn.classList.remove("active"); 
-            supervisorRoleBtn.classList.add("active"); 
-            mainDate.disabled=false; 
-            mainShift.disabled=false; 
-            staffViewSection.style.display='none'; 
-            supervisorTabs.classList.remove('hidden'); 
-            if(currentDate&&currentShift) refreshAll(); 
-            else { renderSODPanel(); loadAttendance(); } 
-        } else { 
-            supervisorRoleBtn.classList.remove("active"); 
-            staffRoleBtn.classList.add("active"); 
-            mainDate.disabled=true; 
-            mainShift.disabled=true; 
-            supervisorTabs.classList.add('hidden'); 
-            staffViewSection.style.display='block'; 
-            renderFullAllocation(); 
-            renderBreakUI(); 
-            renderTasks(); 
-            renderStaffAttendanceView(); 
-        } 
-        renderAllocation(); 
-        updateShiftStatusUI(); 
+
+    function attachDropdownPreviewListener() {
+        // This will be called after renderTasks to add live preview when staff changes
+        const staffSelects = document.querySelectorAll('.action-select');
+        staffSelects.forEach(select => {
+            select.removeEventListener('change', handleStaffChange);
+            select.addEventListener('change', handleStaffChange);
+        });
     }
     
-    function verifyPassword(){ 
-        const pwd = supervisorPassword.value; 
-        const valid = (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD) || (pwd === "Admin123"); 
-        if(valid){ 
-            isSupervisor=true; 
-            passwordModal.classList.add('hidden'); 
-            setRole("supervisor"); 
-        } else passwordError.innerText="Wrong password"; 
-    }
-    
-    function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-    
-    function initTaskEditModalListeners() {
-        const modal = document.getElementById('taskFullEditModal');
-        const saveBtn = document.getElementById('saveTaskEditBtn');
-        const closeBtn = document.getElementById('closeTaskEditModalBtn');
-        const addOptionBtn = document.getElementById('addEditOptionBtn');
-        const taskTypeSelect = document.getElementById('editTaskTypeField');
-        
-        if (saveBtn) {
-            saveBtn.removeEventListener('click', saveTaskEditFromModal);
-            saveBtn.addEventListener('click', saveTaskEditFromModal);
-        }
-        if (closeBtn) {
-            closeBtn.removeEventListener('click', () => modal?.classList.add('hidden'));
-            closeBtn.addEventListener('click', () => {
-                modal?.classList.add('hidden');
-                document.getElementById('taskEditError').innerText = '';
-                currentEditingTaskObj = null;
-            });
-        }
-        if (addOptionBtn) {
-            addOptionBtn.removeEventListener('click', addEditOptionToModal);
-            addOptionBtn.addEventListener('click', addEditOptionToModal);
-        }
-        if (taskTypeSelect) {
-            taskTypeSelect.removeEventListener('change', handleTaskTypeChangeForModal);
-            taskTypeSelect.addEventListener('change', handleTaskTypeChangeForModal);
-        }
-        if (modal) {
-            modal.removeEventListener('click', handleModalOutsideClick);
-            modal.addEventListener('click', handleModalOutsideClick);
+    function handleStaffChange(e) {
+        const select = e.target;
+        const taskIdMatch = select.id.match(/staffSel_(.+)/);
+        if (taskIdMatch && taskIdMatch[1]) {
+            const taskId = taskIdMatch[1];
+            const selectedStaff = select.value;
+            const task = globalTasks.find(t => t.id === taskId);
+            if (task && task.type === 'dropdown') {
+                const selections = currentTaskRecord?.dropdownSelections || [];
+                const existing = selections.find(s => s.taskId === taskId && s.staffName === selectedStaff);
+                const dropSelect = document.getElementById(`dropSel_${taskId}`);
+                const addText = document.getElementById(`addText_${taskId}`);
+                const submitBtn = document.querySelector(`.do-drop[data-id="${taskId}"]`);
+                
+                if (existing) {
+                    if (dropSelect && existing.selectedValue) dropSelect.value = existing.selectedValue;
+                    if (addText && existing.additionalText) addText.value = existing.additionalText;
+                    if (submitBtn) submitBtn.textContent = 'Update';
+                } else {
+                    if (dropSelect) dropSelect.value = '';
+                    if (addText) addText.value = '';
+                    if (submitBtn) submitBtn.textContent = 'Submit';
+                }
+            }
         }
     }
     
-    function handleTaskTypeChangeForModal(e) {
-        const isDropdown = e.target.value === 'dropdown';
-        const container = document.getElementById('editDropdownOptionsContainer');
-        if (container) container.style.display = isDropdown ? 'block' : 'none';
-        if (isDropdown && currentEditingTaskObj) {
-            if (!currentEditingTaskObj.options) currentEditingTaskObj.options = [];
-            renderEditableOptionsList(currentEditingTaskObj.options);
-        }
+    // Override renderTasks to also attach dropdown preview listener
+    
+    
+    console.log("✅ Update loaded: Staff can edit dropdown submissions, Admin can edit dropdown tasks with options");
+  // Add these to your init() function or after the modal elements exist
+function initTaskEditModalListeners() {
+    const modal = document.getElementById('taskFullEditModal');
+    const saveBtn = document.getElementById('saveTaskEditBtn');
+    const closeBtn = document.getElementById('closeTaskEditModalBtn');
+    const addOptionBtn = document.getElementById('addEditOptionBtn');
+    const taskTypeSelect = document.getElementById('editTaskTypeField');
+    
+    if (saveBtn) {
+        saveBtn.removeEventListener('click', saveTaskEditFromModal);
+        saveBtn.addEventListener('click', saveTaskEditFromModal);
     }
     
-    function handleModalOutsideClick(e) {
-        const modal = document.getElementById('taskFullEditModal');
-        if (e.target === modal) {
-            modal.classList.add('hidden');
+    if (closeBtn) {
+        closeBtn.removeEventListener('click', () => modal?.classList.add('hidden'));
+        closeBtn.addEventListener('click', () => {
+            modal?.classList.add('hidden');
             document.getElementById('taskEditError').innerText = '';
             currentEditingTaskObj = null;
-        }
+        });
     }
     
-    async function init(){ 
-        const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); 
-        currentDate=savedDate||new Date().toISOString().slice(0,10); 
-        currentShift=savedShift||""; 
-        if(mainDate) mainDate.value=currentDate; 
-        if(mainShift) mainShift.value=currentShift; 
-        
-        // Load tasks and staff from localStorage (FAST - no network)
-        loadTasksFromLocal();
-        loadStaffFromLocal();
-        
-        // Initialize DOM elements
-        sodStaffListDiv = document.getElementById('sodStaffList');
-        sodHint = document.getElementById('sodHint');
-        allocationContainer = document.getElementById('allocationContainer');
-        fullAllocationContainer = document.getElementById('fullAllocationContainer');
-        tasksContainer = document.getElementById('tasksContainer');
-        breakRequestContainer = document.getElementById('breakRequestContainer');
-        staffAttendanceView = document.getElementById('staffAttendanceView');
-        handoverContainer = document.getElementById('handoverContainer');
-        attendanceContainer = document.getElementById('attendanceContainer');
-        breakRequestsList = document.getElementById('breakRequestsList');
-        taskListManager = document.getElementById('taskListManager');
-        staffListManager = document.getElementById('staffListManager');
-        taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr');
-        supervisorSelectPanel = document.getElementById('supervisorSelectPanel');
-        supervisorsDisplay = document.getElementById('supervisorsDisplay');
-        closeShiftBtn = document.getElementById('closeShiftBtn');
-        reopenShiftBtn = document.getElementById('reopenShiftBtn');
-        shiftStatusBadge = document.getElementById('shiftStatusBadge');
-        mainDate = document.getElementById('mainDate');
-        mainShift = document.getElementById('mainShift');
-        staffRoleBtn = document.getElementById('staffRoleBtn');
-        supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
-        newTaskNameMgr = document.getElementById('newTaskNameMgr');
-        newStaffNameMgr = document.getElementById('newStaffNameMgr');
-        addTaskBtnMgr = document.getElementById('addTaskBtnMgr');
-        addStaffBtnMgr = document.getElementById('addStaffBtnMgr');
-        taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr');
-        dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr');
-        dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr');
-        taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr');
-        exportFullPdfBtn = document.getElementById('exportFullPdfBtn');
-        printAllocationBtn = document.getElementById('printAllocationBtn');
-        passwordModal = document.getElementById('passwordModal');
-        supervisorPassword = document.getElementById('supervisorPassword');
-        verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
-        cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
-        passwordError = document.getElementById('passwordError');
-        supervisorTabs = document.getElementById('supervisorTabs');
-        staffViewSection = document.getElementById('staffViewSection');
-        
-        // Update UI
-        renderTaskManager();
-        renderStaffManager();
-        
-        if(firestoreReady){ 
-            await loadSODStaff(); 
-            await loadSODAllocation(); 
-            await loadTaskRecord(); 
-            await loadAttendance(); 
-            await loadSupervisors(); 
-            await loadHandoverLog(); 
-        } 
-        
-        initTaskEditModalListeners();
-        
-        mainDate.addEventListener('change',onDateShiftChange); 
-        mainShift.addEventListener('change',onDateShiftChange); 
-        staffRoleBtn.addEventListener('click',()=>setRole("staff")); 
-        supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); 
-        addTaskBtnMgr.addEventListener('click', addTaskMgr);
-        addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); 
-        closeShiftBtn.addEventListener('click',closeShift); 
-        reopenShiftBtn.addEventListener('click',reopenShiftFn); 
-        verifyPasswordBtn.addEventListener('click',verifyPassword); 
-        cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); 
-        exportFullPdfBtn.addEventListener('click',generatePDFReport); 
-        printAllocationBtn.addEventListener('click',printAllocationSheet);
-        
-        if(taskTypeSelectMgr) taskTypeSelectMgr.addEventListener('change', () => { if(dropdownOptionsDivMgr) dropdownOptionsDivMgr.style.display = taskTypeSelectMgr.value === 'dropdown' ? 'block' : 'none'; });
-        
-        setRole("staff"); 
+    if (addOptionBtn) {
+        addOptionBtn.removeEventListener('click', addEditOptionToModal);
+        addOptionBtn.addEventListener('click', addEditOptionToModal);
     }
     
-    async function addTaskMgr(){ 
-        if(!newTaskNameMgr.value.trim()){adminFeedback.innerText="Enter task name";return;} 
-        const cat=taskCategorySelectMgr.value; 
-        if(!cat){adminFeedback.innerText="Select category";return;} 
-        const newTask={id:Date.now().toString(),name:newTaskNameMgr.value.trim(),category:cat,type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:taskTypeSelectMgr.value==='dropdown'&&dropdownOptionsMgr.value?dropdownOptionsMgr.value.split(',').map(o=>o.trim()):null}; 
-        await saveGlobalTasks([...globalTasks,newTask]); 
-        newTaskNameMgr.value=""; 
-        if(dropdownOptionsMgr) dropdownOptionsMgr.value=""; 
-        adminFeedback.innerText="Task added"; 
-        setTimeout(()=>adminFeedback.innerText="",2000); 
+    if (taskTypeSelect) {
+        taskTypeSelect.removeEventListener('change', handleTaskTypeChangeForModal);
+        taskTypeSelect.addEventListener('change', handleTaskTypeChangeForModal);
     }
     
-    async function addStaffMember(name){ 
-        if(!name.trim()){adminFeedback.innerText="Enter name";return;} 
-        const newId = Date.now().toString();
-        staffList.push({id:newId, name:name.trim()}); 
-        saveStaffToLocal();
-        renderStaffManager(); 
-        renderSODPanel();
-        newStaffNameMgr.value=""; 
-        adminFeedback.innerText="Staff added"; 
-        setTimeout(()=>adminFeedback.innerText="",2000); 
+    // Close modal when clicking outside
+    if (modal) {
+        modal.removeEventListener('click', handleModalOutsideClick);
+        modal.addEventListener('click', handleModalOutsideClick);
     }
-    
-    const deviceModal=document.getElementById('deviceAuthModal'), devicePasswordInput=document.getElementById('devicePasswordInput'), authorizeDeviceBtn=document.getElementById('authorizeDeviceBtn'), deviceAuthError=document.getElementById('deviceAuthError'), appContainer=document.getElementById('appContainer');
-    
-    function handleDeviceAuth(){ 
-        if(authorizeDevice(devicePasswordInput.value)){ 
-            deviceModal.style.display='none'; 
-            appContainer.style.display='block'; 
-            init(); 
-        } else { 
-            deviceAuthError.textContent='Invalid authorization password.'; 
-            devicePasswordInput.value=''; 
-            devicePasswordInput.focus(); 
-        } 
-    }
-    
-    if(isDeviceAuthorized()){ 
-        deviceModal.style.display='none'; 
-        appContainer.style.display='block'; 
-        init(); 
-    } else { 
-        deviceModal.style.display='flex'; 
-        appContainer.style.display='none'; 
-        authorizeDeviceBtn.addEventListener('click',handleDeviceAuth); 
-        devicePasswordInput.addEventListener('keypress',e=>{if(e.key==='Enter') handleDeviceAuth();}); 
-        devicePasswordInput.focus(); 
-    }
-</script>
+}
 
-<!-- Task Edit Modal -->
-<div id="taskFullEditModal" class="password-modal hidden" style="z-index: 3000;">
-    <div class="password-box" style="width: 450px; max-width: 90%;">
-        <i class="fas fa-edit"></i>
-        <h3>Edit Task</h3>
-        <div style="text-align: left; margin-top: 15px;">
-            <div class="form-group">
-                <label>Task Name:</label>
-                <input type="text" id="editTaskNameField" class="handover-input" style="width: 100%;">
-            </div>
-            <div class="form-group">
-                <label>Category:</label>
-                <input type="text" id="editTaskCategoryField" class="handover-input" style="width: 100%;">
-            </div>
-            <div class="form-group">
-                <label>Task Type:</label>
-                <select id="editTaskTypeField" class="handover-input" style="width: 100%;">
-                    <option value="done">✅ Single Staff Done</option>
-                    <option value="acknowledge">👥 Multi-Acknowledge (SOD only)</option>
-                    <option value="dropdown">📋 Custom Dropdown</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Shift Assignment:</label>
-                <select id="editTaskShiftField" class="handover-input" style="width: 100%;">
-                    <option value="Both">🌓 Both Shifts</option>
-                    <option value="Morning">🌅 Morning Only</option>
-                    <option value="Evening">🌙 Evening Only</option>
-                </select>
-            </div>
-            <div id="editDropdownOptionsContainer" style="display: none;">
-                <label>Dropdown Options:</label>
-                <div id="editOptionsListContainer" style="background: #f8fbfe; border-radius: 12px; padding: 10px; margin-top: 5px; max-height: 200px; overflow-y: auto;"></div>
-                <button id="addEditOptionBtn" type="button" class="add-row-btn" style="margin-top: 8px; background: #4caf50;">+ Add Option</button>
-            </div>
-        </div>
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button id="saveTaskEditBtn" class="verify-btn" style="flex: 1;">Save Changes</button>
-            <button id="closeTaskEditModalBtn" class="cancel-btn" style="flex: 1;">Cancel</button>
-        </div>
-        <div id="taskEditError" style="color: #c62828; margin-top: 10px; font-size: 0.7rem;"></div>
+function handleTaskTypeChangeForModal(e) {
+    const isDropdown = e.target.value === 'dropdown';
+    const container = document.getElementById('editDropdownOptionsContainer');
+    if (container) {
+        container.style.display = isDropdown ? 'block' : 'none';
+    }
+    if (isDropdown && currentEditingTaskObj) {
+        if (!currentEditingTaskObj.options) currentEditingTaskObj.options = [];
+        renderEditableOptionsList(currentEditingTaskObj.options);
+    }
+}
+
+function handleModalOutsideClick(e) {
+    const modal = document.getElementById('taskFullEditModal');
+    if (e.target === modal) {
+        modal.classList.add('hidden');
+        document.getElementById('taskEditError').innerText = '';
+        currentEditingTaskObj = null;
+    }
+}
+
+// Call this in your init() function  
+    function printAllocationSheet(){ 
+    if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } 
+    const reportWindow = window.open('', '_blank'); 
+    const reportDate = new Date().toLocaleString(); 
+    const refNo = "REF D15D-CKL/2025/29"; 
+    
+    // Get allocation data
+    const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS;
+    const allocations=currentSODRecord?.allocations||{}; 
+    const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"];
+    
+    let htmlContent = `<!DOCTYPE html><html><head><title>Koveli Lounge Staff Allocation Report</title><style>
+        body{font-family:Arial,sans-serif;padding:20px;margin:0;}
+        h1{color:#1d6f8f;text-align:center;margin-bottom:5px;font-size:18px;}
+        h2{color:#2c6e8f;text-align:center;font-size:14px;margin-top:0;margin-bottom:10px;}
+        hr{border:1px solid #1d6f8f;margin:10px 0;}
+        .ref-no{text-align:center;font-size:10px;color:#666;margin-bottom:10px;}
+        .info-line{font-size:10px;margin:3px 0;}
+        .allocation-box{margin-bottom:30px;border:1px solid #ccc;padding:10px;border-radius:8px;page-break-inside:avoid;}
+        .allocation-table{border-collapse:collapse;width:100%;margin-bottom:10px;}
+        .allocation-table th,.allocation-table td{border:1px solid #ddd;padding:6px;text-align:center;font-size:9px;}
+        .allocation-table th{background-color:#eef3fc;font-weight:bold;}
+        .area-col{text-align:left;background:#f8fbfe;font-weight:bold;}
+        .staff-list-cell{text-align:left;}
+        .staff-name-badge-report{display:inline-block;background:#eef2fa;padding:2px 5px;border-radius:10px;margin:1px;font-size:8px;}
+        .signature-line{display:flex;justify-content:space-between;margin-top:30px;padding:0 10px;}
+        .signature-box{text-align:center;font-size:10px;}
+        .signature-box div{margin-top:25px;border-top:1px solid #333;width:180px;padding-top:5px;}
+        .footer{text-align:center;font-size:9px;color:#999;margin-top:20px;}
+        .box-title{text-align:center;font-weight:bold;font-size:12px;margin-bottom:10px;background:#1d6f8f;color:white;padding:5px;border-radius:5px;}
+        @media print {
+            body{margin:0;padding:5px;}
+            .allocation-box{border:1px solid #000;page-break-inside:avoid;}
+        }
+    </style></head><body>
+    <h1>Koveli Lounge</h1>
+    <h2>Staff Allocation Sheet</h2>
+    <div class="ref-no">${refNo}</div>
+    <hr>
+    <div style="display:flex; justify-content:space-between;">
+        <div class="info-line"><strong>Date:</strong> ${currentDate}</div>
+        <div class="info-line"><strong>Shift:</strong> ${currentShift}</div>
+        <div class="info-line"><strong>Generated:</strong> ${reportDate}</div>
     </div>
-</div>
+    <div class="info-line"><strong>Supervisors:</strong> ${supervisorList.length > 0 ? supervisorList.join(', ') : 'None'}</div>
+    <hr>`;
+    
+    // Function to generate allocation table HTML
+    function generateAllocationTable(title) {
+        let tableHtml = `<div class="allocation-box">
+            <div class="box-title">${title}</div>
+            <table class="allocation-table">
+                <thead>
+                    <tr>
+                        <th class="area-col">Area / Time</th>
+                        ${slots.map(s=>`<th>${s.name}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        areas.forEach(area=>{ 
+            tableHtml+=`<tr>
+                <td class="area-col">${area}</td>`; 
+            slots.forEach(slot=>{ 
+                const assigned=(allocations[slot.id]&&allocations[slot.id][area])||[]; 
+                tableHtml+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge-report">${escapeHtml(s)}</span>`).join('') || '—'}</td>`; 
+            }); 
+            tableHtml+=`</tr>`; 
+        }); 
+        
+        tableHtml += `</tbody>
+            </table>
+        </div>`;
+        return tableHtml;
+    }
+    
+    // FIRST TABLE - TOP
+    htmlContent += generateAllocationTable('📋 OFFICE COPY');
+    
+    // SECOND TABLE - BOTTOM
+    htmlContent += generateAllocationTable('👔 SUPERVISOR COPY');
+    
+    // Signature section
+    htmlContent += `<div class="signature-line">
+        <div class="signature-box">
+            <div>Prepared By (Supervisor)</div>
+        </div>
+        <div class="signature-box">
+            <div>Received By (Team Lead)</div>
+        </div>
+    </div>`;
+    
+    htmlContent += `<div class="footer">This is a system-generated allocation report. Valid for ${currentShift} shift on ${currentDate}.</div>`;
+    htmlContent += `</body></html>`;
+    
+    reportWindow.document.write(htmlContent); 
+    reportWindow.document.close(); 
+    setTimeout(()=>reportWindow.print(), 500); 
+}
+    function exportFullReport(){ generatePDFReport(); }
+    
+    function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); loadAttendance(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } renderAllocation(); updateShiftStatusUI(); }
+    function verifyPassword(){ const pwd = supervisorPassword.value; const valid = (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD) || (pwd === "Admin123"); if(valid){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText="Wrong password"; }
+    function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    async function init(){ 
+    const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); 
+    currentDate=savedDate||new Date().toISOString().slice(0,10); 
+    currentShift=savedShift||""; 
+    if(mainDate) mainDate.value=currentDate; 
+    if(mainShift) mainShift.value=currentShift; 
+    if(firestoreReady){ 
+        await loadGlobalTasks(); 
+        await loadStaff(); 
+        await loadSODStaff(); 
+        await loadSODAllocation(); 
+        await loadTaskRecord(); 
+        await loadAttendance(); 
+        await loadSupervisors(); 
+        await loadHandoverLog(); 
+    } 
+    
+    // ✅ ADD THIS LINE - Initialize modal event listeners
+    initTaskEditModalListeners();
+    
+    mainDate.addEventListener('change',onDateShiftChange); 
+    mainShift.addEventListener('change',onDateShiftChange); 
+    staffRoleBtn.addEventListener('click',()=>setRole("staff")); 
+    supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); 
+    addTaskBtnMgr.addEventListener('click',addTaskMgr); 
+    addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); 
+    closeShiftBtn.addEventListener('click',closeShift); 
+    reopenShiftBtn.addEventListener('click',reopenShiftFn); 
+    verifyPasswordBtn.addEventListener('click',verifyPassword); 
+    cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); 
+    exportFullPdfBtn.addEventListener('click',exportFullReport); 
+    printAllocationBtn.addEventListener('click',printAllocationSheet); 
+    setRole("staff"); 
+}
+    const deviceModal=document.getElementById('deviceAuthModal'), devicePasswordInput=document.getElementById('devicePasswordInput'), authorizeDeviceBtn=document.getElementById('authorizeDeviceBtn'), deviceAuthError=document.getElementById('deviceAuthError'), appContainer=document.getElementById('appContainer');
+   
+    function handleDeviceAuth(){ if(authorizeDevice(devicePasswordInput.value)){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceAuthError.textContent='Invalid authorization password.'; devicePasswordInput.value=''; devicePasswordInput.focus(); } }
+    if(isDeviceAuthorized()){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceModal.style.display='flex'; appContainer.style.display='none'; authorizeDeviceBtn.addEventListener('click',handleDeviceAuth); devicePasswordInput.addEventListener('keypress',e=>{if(e.key==='Enter') handleDeviceAuth();}); devicePasswordInput.focus(); }
+</script>
 </body>
 </html>
