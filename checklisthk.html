@@ -827,55 +827,54 @@
             console.warn("Failed to save to Firebase, but localStorage is updated", e);
         }
     }
-    async function loadTaskRecord(){ 
-        const id=getTaskRecordId(currentDate,currentShift);
-        const storageKey = `taskRecord_${currentDate}_${currentShift}`;
-        
-        // Try to load from localStorage first (INSTANT!)
-        const cached = localStorage.getItem(storageKey);
-        if(cached) {
-            currentTaskRecord = JSON.parse(cached);
-            currentTaskRecord.id = id;
-            updateShiftStatusUI(); 
-            renderTasks();
-        }
-        
-        // Fetch from Firebase in background and update if newer
-        try {
-            const doc = await db.collection("taskRecords").doc(id).get(); 
-            if(doc.exists) {
-                const fbRecord = {id:doc.id,...doc.data()};
-                // Only update if Firebase has newer data
-                if(!cached || new Date(fbRecord.updatedAt || 0) > new Date(currentTaskRecord.updatedAt || 0)) {
-                    currentTaskRecord = fbRecord;
-                    localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
-                    updateShiftStatusUI(); 
-                    renderTasks();
-                }
-            } else {
-                // Create new record if doesn't exist
-                if(!cached) {
-                    currentTaskRecord = {
-                        id: id,
-                        date: currentDate,
-                        shift: currentShift,
-                        status: "open",
-                        doneTasks: {},
-                        acknowledgedTasks: {},
-                        dropdownSelections: [],
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                    };
-                    localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
-                    await db.collection("taskRecords").doc(id).set(currentTaskRecord);
-                    updateShiftStatusUI(); 
-                    renderTasks();
-                }
-            }
-        } catch(e) {
-            console.warn("Firebase task record fetch failed, using cached data", e);
-        }
+    function loadTaskRecord(){  // ← REMOVE 'async' keyword
+    const id=getTaskRecordId(currentDate,currentShift);
+    const storageKey = `taskRecord_${currentDate}_${currentShift}`;
+    
+    // Load from localStorage first (INSTANT!)
+    const cached = localStorage.getItem(storageKey);
+    if(cached) {
+        currentTaskRecord = JSON.parse(cached);
+        currentTaskRecord.id = id;
+        updateShiftStatusUI(); 
+        renderTasks();  // ✅ UI loads immediately (MILISECONDS)
     }
+    
+    // Fetch from Firebase WITHOUT awaiting (background)
+    db.collection("taskRecords").doc(id).get().then(doc => {  // ← REMOVE await, use .then()
+        if(doc.exists) {
+            const fbRecord = {id:doc.id,...doc.data()};
+            // Only update if Firebase has newer data
+            if(!cached || new Date(fbRecord.updatedAt || 0) > new Date(currentTaskRecord.updatedAt || 0)) {
+                currentTaskRecord = fbRecord;
+                localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
+                updateShiftStatusUI(); 
+                renderTasks();
+            }
+        } else {
+            // Create new record if doesn't exist
+            if(!cached) {
+                currentTaskRecord = {
+                    id: id,
+                    date: currentDate,
+                    shift: currentShift,
+                    status: "open",
+                    doneTasks: {},
+                    acknowledgedTasks: {},
+                    dropdownSelections: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
+                db.collection("taskRecords").doc(id).set(currentTaskRecord);  // ← NO await
+                updateShiftStatusUI(); 
+                renderTasks();
+            }
+        }
+    }).catch(e => {
+        console.warn("Firebase task record fetch failed, using cached data", e);
+    });
+}
     function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; if(currentRole==="supervisor"){ closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); } }
     async function completeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} const done={...currentTaskRecord.doneTasks}; if(done[taskId]){alert("Already completed");return;} done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; currentTaskRecord.doneTasks = done;
 await saveTaskRecordToFirebase(); currentTaskRecord.doneTasks=done; renderTasks(); }
@@ -1631,7 +1630,17 @@ async function saveTaskEditFromModal() {
     }
     async function addStaffMember(name){ if(!name.trim()){adminFeedback.innerText="Enter name";return;} await db.collection("staff").add({name:name.trim()}); await loadStaff(); newStaffNameMgr.value=""; adminFeedback.innerText="Staff added"; setTimeout(()=>adminFeedback.innerText="",2000); }
     async function addTaskMgr(){ if(!newTaskNameMgr.value.trim()){adminFeedback.innerText="Enter task name";return;} const cat=taskCategorySelectMgr.value; if(!cat){adminFeedback.innerText="Select category";return;} const newTask={id:Date.now().toString(),name:newTaskNameMgr.value.trim(),category:cat,type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:taskTypeSelectMgr.value==='dropdown'&&dropdownOptionsMgr.value?dropdownOptionsMgr.value.split(',').map(o=>o.trim()):null}; await saveGlobalTasks([...globalTasks,newTask]); newTaskNameMgr.value=""; if(dropdownOptionsMgr) dropdownOptionsMgr.value=""; adminFeedback.innerText="Task added"; setTimeout(()=>adminFeedback.innerText="",2000); }
-    async function refreshAll(){ await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); await loadHandoverLog(); renderBreakUI(); if(currentRole==="supervisor") loadBreakRequests(); renderFullAllocation(); }
+    function refreshAll(){  // ← REMOVE 'async'
+    loadSODStaff();      // ← REMOVE 'await'
+    loadSODAllocation(); // ← REMOVE 'await'
+    loadTaskRecord();    // ← REMOVE 'await'
+    loadAttendance();    // ← REMOVE 'await'
+    loadSupervisors();   // ← REMOVE 'await'
+    loadHandoverLog();   // ← REMOVE 'await'
+    renderBreakUI(); 
+    if(currentRole==="supervisor") loadBreakRequests(); 
+    renderFullAllocation(); 
+}
     async function onDateShiftChange(){ if(currentRole!=="supervisor"){ renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); attachDropdownPreviewListener(); } else { currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); } }
     
     function generatePDFReport() { 
@@ -1891,25 +1900,26 @@ function handleModalOutsideClick(e) {
     function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); loadAttendance(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } renderAllocation(); updateShiftStatusUI(); }
     function verifyPassword(){ const pwd = supervisorPassword.value; const valid = (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD) || (pwd === "Admin123"); if(valid){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText="Wrong password"; }
     function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-    async function init(){ 
+    function init(){  // ← REMOVE 'async'
     const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); 
     currentDate=savedDate||new Date().toISOString().slice(0,10); 
     currentShift=savedShift||""; 
     if(mainDate) mainDate.value=currentDate; 
     if(mainShift) mainShift.value=currentShift; 
     if(firestoreReady){ 
-        await loadGlobalTasks(); 
-        await loadStaff(); 
-        await loadSODStaff(); 
-        await loadSODAllocation(); 
-        await loadTaskRecord(); 
-        await loadAttendance(); 
-        await loadSupervisors(); 
-        await loadHandoverLog(); 
+        loadGlobalTasks();      // ← REMOVE 'await'
+        loadStaff();            // ← REMOVE 'await'
+        loadSODStaff();         // ← REMOVE 'await'
+        loadSODAllocation();    // ← REMOVE 'await'
+        loadTaskRecord();       // ← REMOVE 'await' (now non-async)
+        loadAttendance();       // ← REMOVE 'await'
+        loadSupervisors();      // ← REMOVE 'await'
+        loadHandoverLog();      // ← REMOVE 'await'
     } 
     
-    // ✅ ADD THIS LINE - Initialize modal event listeners
     initTaskEditModalListeners();
+    
+
     
     mainDate.addEventListener('change',onDateShiftChange); 
     mainShift.addEventListener('change',onDateShiftChange); 
