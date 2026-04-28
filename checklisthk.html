@@ -1211,10 +1211,15 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
         });
     });
     
-        document.querySelectorAll('.do-drop-toggle').forEach(btn=>{
-            btn.removeEventListener('click', handleDropdownToggle);
-            btn.addEventListener('click', handleDropdownToggle);
-        });
+        document.querySelectorAll('.do-drop').forEach(btn=>btn.addEventListener('click',async()=>{ 
+            const id=btn.getAttribute('data-id'); 
+            const staffSel=document.getElementById(`staffSel_${id}`); 
+            const dropSel=document.getElementById(`dropSel_${id}`); 
+            const addText=document.getElementById(`addText_${id}`); 
+            if(staffSel && dropSel) {
+                await submitDropdown(id, dropSel.value, addText?.value, staffSel.value);
+            }
+        }));
 
         async function handleDropdownToggle(e) {
             const btn = e.currentTarget;
