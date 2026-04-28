@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Koveli Lounge | Mobile Hub</title>
+    <title>Koveli Lounge | Tablet Hub</title>
     <!-- Google Fonts + Font Awesome Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -15,351 +15,383 @@
         }
 
         body {
-            background: #eef2f9;
+            background: #e2e8f0;
             font-family: 'Inter', sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            padding: 16px;
+            padding: 24px;
         }
 
-        /* PHONE CONTAINER - like a real mobile screen */
-        .phone-screen {
-            max-width: 400px;
+        /* TABLET CONTAINER — simulates a typical tablet view (responsive, no fixed phone shape) */
+        .tablet-dashboard {
             width: 100%;
+            max-width: 1024px;
             margin: 0 auto;
             background: #f8fafd;
-            border-radius: 44px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 8px #e2e8f0, 0 0 0 12px #cbd5e1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            height: 700px;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            scrollbar-width: thin;
+            border-radius: 48px;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0,0,0,0.02);
+            overflow: hidden;
+            transition: all 0.2s ease;
         }
 
-        /* Hide scrollbar for cleaner look (optional) */
-        .phone-screen::-webkit-scrollbar {
-            width: 4px;
-        }
-        .phone-screen::-webkit-scrollbar-track {
-            background: #e2e8f0;
-            border-radius: 10px;
-        }
-        .phone-screen::-webkit-scrollbar-thumb {
-            background: #94a3b8;
-            border-radius: 10px;
+        /* MAIN CONTENT — no header, no footer, just icons grid */
+        .app-container {
+            padding: 32px 28px 40px 28px;
         }
 
-        /* MAIN SCROLLABLE CONTENT - NO HEADER, NO FOOTER */
-        .app-grid {
-            padding: 20px 18px 32px 18px;
-            flex: 1;
-        }
-
-        /* TITLE ROW (minimal, but required for context – not a header bar, just a small label) 
-           To strictly follow "no header/footer", we keep only a tiny badge at the top, but it's not a header.
-           Based on requirement: "no need of header and footer" — so we remove any top bar completely. */
-        .screen-title {
-            display: none;
-        }
-
-        /* ICON GRID - phone friendly, 2 columns for compact, can adapt to 3 if space */
+        /* ICON GRID — responsive for tablet: auto fits 3-4 columns */
         .icon-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px 16px;
-            margin-top: 8px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 28px 24px;
+            margin-bottom: 40px;
         }
 
-        /* CARD STYLES - pure icon + text, like mobile home screen */
-        .app-icon {
+        /* CARD STYLE - big enough for finger tap on tablet */
+        .app-card {
             background: white;
-            border-radius: 28px;
-            padding: 20px 12px 18px 12px;
+            border-radius: 36px;
+            padding: 24px 12px 20px 12px;
             text-align: center;
             text-decoration: none;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
-            transition: all 0.2s ease;
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.02);
-            border: 1px solid rgba(255,255,255,0.7);
-            backdrop-filter: blur(2px);
+            gap: 14px;
+            transition: all 0.25s ease;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(255,255,255,0.6);
             cursor: pointer;
+            backdrop-filter: blur(2px);
         }
-        .app-icon:active {
-            transform: scale(0.96);
-            background: #ffffff;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        .app-card:active {
+            transform: scale(0.97);
+            background: #fefefe;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        /* hover effects for tablet with mouse, but works also for touch */
+        .app-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 30px -12px rgba(29,111,143,0.2);
+            border-color: #cde3ef;
         }
 
-        .icon-circle {
-            width: 70px;
-            height: 70px;
+        .icon-bg {
+            width: 88px;
+            height: 88px;
             background: linear-gradient(145deg, #eef3fc, #e2eaf2);
-            border-radius: 32px;
+            border-radius: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.2rem;
+            font-size: 2.6rem;
             color: #1d6f8f;
             transition: 0.2s;
             margin-bottom: 4px;
         }
-
-        .app-icon:hover .icon-circle {
+        .app-card:hover .icon-bg {
             background: #1d6f8f;
             color: white;
             transform: scale(0.96);
         }
 
         .app-name {
-            font-weight: 700;
-            font-size: 0.85rem;
+            font-weight: 800;
+            font-size: 1rem;
             color: #1e3b4f;
             letter-spacing: -0.2px;
         }
-
         .app-desc {
-            font-size: 0.6rem;
+            font-size: 0.7rem;
             color: #7c9abb;
             font-weight: 500;
-            line-height: 1.3;
+            line-height: 1.35;
+            max-width: 120px;
             margin-top: 2px;
         }
 
-        /* SECONDARY ITEMS (smaller modules but consistent with phone layout) */
-        .secondary-label {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #5f7d9c;
-            margin: 20px 0 8px 6px;
-            letter-spacing: -0.2px;
+        /* SECONDARY SECTION - additional tools, also grid optimized */
+        .secondary-header {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
+            margin: 16px 0 20px 8px;
         }
-        .secondary-label i {
-            font-size: 0.7rem;
+        .secondary-header i {
+            font-size: 1rem;
             color: #6c8eaa;
+        }
+        .secondary-header span {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #446b88;
+            letter-spacing: -0.2px;
+            background: rgba(255,255,240,0.5);
+            padding: 4px 14px;
+            border-radius: 40px;
         }
         .secondary-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 14px;
-            margin-top: 8px;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 20px;
+            margin-bottom: 12px;
         }
-        .sec-icon-card {
-            background: rgba(255,255,255,0.9);
-            border-radius: 24px;
-            padding: 14px 8px;
+        .sec-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 28px;
+            padding: 18px 10px;
             text-align: center;
             text-decoration: none;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             border: 1px solid #eef2f8;
             transition: 0.2s;
+            backdrop-filter: blur(2px);
         }
-        .sec-icon-card:active {
+        .sec-card:active {
             transform: scale(0.96);
             background: white;
         }
-        .sec-icon-card i {
-            font-size: 1.8rem;
+        .sec-card:hover {
+            transform: translateY(-3px);
+            background: white;
+            border-color: #cde3ef;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.05);
+        }
+        .sec-card i {
+            font-size: 2rem;
             color: #2a8bb0;
         }
-        .sec-icon-card span {
-            font-weight: 600;
-            font-size: 0.75rem;
+        .sec-card span {
+            font-weight: 700;
+            font-size: 0.85rem;
             color: #264e68;
         }
-        .sec-icon-card small {
-            font-size: 0.55rem;
+        .sec-card small {
+            font-size: 0.6rem;
             color: #7f9bb5;
+            font-weight: 500;
         }
 
-        /* NO HEADER, NO FOOTER — removed completely */
-        .status-bar-placeholder {
-            display: none;
-        }
-
-        /* small extra bottom padding for comfortable scroll */
+        /* NO HEADER, NO FOOTER — absolutely no extra bars */
         .spacer {
-            height: 8px;
+            height: 4px;
         }
 
-        @media (max-width: 450px) {
-            .phone-screen {
-                max-width: 100%;
-                height: auto;
-                min-height: 85vh;
-                border-radius: 36px;
-                box-shadow: 0 20px 40px -12px rgba(0,0,0,0.3);
+        /* Tablet portrait & landscape adjustments */
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
             }
-            .icon-circle {
-                width: 60px;
-                height: 60px;
-                font-size: 1.9rem;
-            }
-            .app-name {
-                font-size: 0.78rem;
+            .app-container {
+                padding: 24px 20px 32px 20px;
             }
             .icon-grid {
+                gap: 20px;
+                grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            }
+            .icon-bg {
+                width: 74px;
+                height: 74px;
+                font-size: 2.2rem;
+            }
+            .app-name {
+                font-size: 0.9rem;
+            }
+            .secondary-grid {
+                grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
                 gap: 16px;
             }
+        }
+
+        @media (min-width: 1024px) {
+            .icon-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 30px;
+            }
+            .secondary-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* for large tablets (landscape) we show 4 columns elegantly */
+        @media (min-width: 1280px) {
+            .tablet-dashboard {
+                max-width: 1200px;
+            }
+            .icon-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            .secondary-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        /* no header/footer elements exist */
+        .no-elements {
+            display: none;
         }
     </style>
 </head>
 <body>
-<div class="phone-screen">
-    <!-- NO HEADER: absolutely no top bar, no logo area, no role badge, no date/shift -->
-    <div class="app-grid">
-        <!-- hidden title: to respect "no header" we don't display any heading block -->
-        
-        <!-- MAIN ICONS (primary modules) - phone optimized grid -->
+<div class="tablet-dashboard">
+    <div class="app-container">
+        <!-- MAIN ICONS: primary modules (tablet friendly grid) -->
         <div class="icon-grid">
             <!-- Daily Tasks -->
-            <a href="checklist.html" class="app-icon" target="_self">
-                <div class="icon-circle"><i class="fas fa-clipboard-list"></i></div>
+            <a href="checklist.html" class="app-card" target="_self">
+                <div class="icon-bg"><i class="fas fa-clipboard-list"></i></div>
                 <div class="app-name">Daily Tasks</div>
-                <div class="app-desc">Checklist & duties</div>
+                <div class="app-desc">Checklist & shift duties</div>
             </a>
             <!-- Staff Allocation -->
-            <a href="allocation.html" class="app-icon" target="_self">
-                <div class="icon-circle"><i class="fas fa-map-marker-alt"></i></div>
+            <a href="allocation.html" class="app-card" target="_self">
+                <div class="icon-bg"><i class="fas fa-map-marker-alt"></i></div>
                 <div class="app-name">Staff Allocation</div>
-                <div class="app-desc">Assign areas & SOD</div>
+                <div class="app-desc">Assign areas, SOD</div>
             </a>
             <!-- Shower Log -->
-            <a href="showe.html" class="app-icon" target="_self">
-                <div class="icon-circle"><i class="fas fa-shower"></i></div>
+            <a href="showe.html" class="app-card" target="_self">
+                <div class="icon-bg"><i class="fas fa-shower"></i></div>
                 <div class="app-name">Shower Log</div>
                 <div class="app-desc">Usage & cleaning</div>
             </a>
             <!-- Briefing Log -->
-            <a href="breifing.html" class="app-icon" target="_self">
-                <div class="icon-circle"><i class="fas fa-chalkboard"></i></div>
+            <a href="breifing.html" class="app-card" target="_self">
+                <div class="icon-bg"><i class="fas fa-chalkboard"></i></div>
                 <div class="app-name">Briefing Log</div>
                 <div class="app-desc">Announcements</div>
             </a>
             <!-- Handover Log -->
-            <a href="handover.html" class="app-icon" target="_self">
-                <div class="icon-circle"><i class="fas fa-exchange-alt"></i></div>
+            <a href="handover.html" class="app-card" target="_self">
+                <div class="icon-bg"><i class="fas fa-exchange-alt"></i></div>
                 <div class="app-name">Handover Log</div>
                 <div class="app-desc">Cards, wheelchairs</div>
             </a>
             <!-- Attendance -->
-            <a href="attendance.html" class="app-icon" target="_self">
-                <div class="icon-circle"><i class="fas fa-calendar-check"></i></div>
+            <a href="attendance.html" class="app-card" target="_self">
+                <div class="icon-bg"><i class="fas fa-calendar-check"></i></div>
                 <div class="app-name">Attendance</div>
                 <div class="app-desc">Mark absentee</div>
             </a>
         </div>
 
-        <!-- secondary modules with label (soft separator) but no footer or header -->
-        <div class="secondary-label">
-            <i class="fas fa-ellipsis-h"></i> <span>Additional tools</span> <i class="fas fa-ellipsis-h"></i>
+        <!-- Secondary tools section (soft separator but not a footer/header) -->
+        <div class="secondary-header">
+            <i class="fas fa-th-large"></i>
+            <span>Additional tools</span>
+            <i class="fas fa-arrow-right"></i>
         </div>
         <div class="secondary-grid">
-            <a href="break_requests.html" class="sec-icon-card" target="_self">
+            <a href="break_requests.html" class="sec-card" target="_self">
                 <i class="fas fa-coffee"></i>
                 <span>Break Requests</span>
                 <small>Request / approve</small>
             </a>
-            <a href="supervisor_panel.html" class="sec-icon-card" target="_self">
+            <a href="supervisor_panel.html" class="sec-card" target="_self">
                 <i class="fas fa-user-tie"></i>
                 <span>Supervisor Panel</span>
                 <small>SOD, tasks mgmt</small>
             </a>
-            <a href="task_manager.html" class="sec-icon-card" target="_self">
+            <a href="task_manager.html" class="sec-card" target="_self">
                 <i class="fas fa-tasks"></i>
                 <span>Task Manager</span>
                 <small>Edit categories</small>
             </a>
-            <a href="staff_management.html" class="sec-icon-card" target="_self">
+            <a href="staff_management.html" class="sec-card" target="_self">
                 <i class="fas fa-users"></i>
                 <span>Staff Management</span>
                 <small>Add / remove staff</small>
             </a>
-            <a href="reports.html" class="sec-icon-card" target="_self">
+            <a href="reports.html" class="sec-card" target="_self">
                 <i class="fas fa-chart-line"></i>
                 <span>Reports</span>
-                <small>Summaries</small>
+                <small>Daily summaries</small>
             </a>
-            <a href="settings.html" class="sec-icon-card" target="_self">
+            <a href="settings.html" class="sec-card" target="_self">
                 <i class="fas fa-sliders-h"></i>
                 <span>Settings</span>
-                <small>Config & PDF</small>
+                <small>Shift config, PDF</small>
             </a>
         </div>
         <div class="spacer"></div>
-        <!-- NO FOOTER: absolutely no footer text, no bottom bar, no extra ribbon -->
+        <!-- Absolutely no footer text, no logo bar, no headers -->
     </div>
 </div>
 
 <script>
     // ============================================================
-    // PURE REDIRECT HUB — MOBILE PHONE STYLE (no header, no footer)
-    // No date, no shift, no supervisor mode, no report, no allocation sheet.
-    // Only icons that redirect to existing pages.
-    // This script ensures clean navigation and console logs (no UI elements).
+    // TABLET OPTIMIZED HUB — CLEAN REDIRECT PAGE
+    // No date picker, no shift selector, no supervisor mode toggles,
+    // no report generation buttons, no allocation sheet, no header/footer content.
+    // Designed to open in any tablet window size (responsive grid).
     // ============================================================
     (function() {
-        // Gather all links inside the phone screen (both primary and secondary)
-        const allLinks = document.querySelectorAll('.app-icon, .sec-icon-card');
+        // Gather all navigation links (primary + secondary cards)
+        const allLinks = document.querySelectorAll('.app-card, .sec-card');
         
-        // Expected page names (for dev awareness, does not block navigation)
-        const expectedModules = [
+        // List of expected page names (developer reference, non-blocking)
+        const expectedPages = [
             'checklist.html', 'allocation.html', 'showe.html', 'breifing.html',
             'handover.html', 'attendance.html', 'break_requests.html', 'supervisor_panel.html',
             'task_manager.html', 'staff_management.html', 'reports.html', 'settings.html'
         ];
         
-        // Simple logging to console for debugging (no alerts, no visible UI)
-        function logLinkStatus() {
+        // Helper to log link info (no UI alerts, only console)
+        function validateLinks() {
             for (let link of allLinks) {
                 let href = link.getAttribute('href');
                 if (href && href.includes('.html') && !href.startsWith('http')) {
-                    const clean = href.split('?')[0];
-                    if (!expectedModules.includes(clean)) {
-                        console.log(`ℹ️ Mobile Hub: "${clean}" — ensure this file exists.`);
+                    const baseFile = href.split('?')[0];
+                    if (!expectedPages.includes(baseFile)) {
+                        console.log(`📁 Tablet Hub: linked page "${baseFile}" — verify file exists.`);
                     }
                 }
             }
-            console.log("📱 Koveli Lounge (Mobile UI) — No header/footer. Icons only.");
+            console.log("✅ Koveli Lounge (Tablet mode) — No headers/footers. Fully responsive grid ready.");
         }
         
-        // Add subtle click tracking for debugging (does not interfere)
+        // Click tracking for debugging (does not alter navigation)
         allLinks.forEach(link => {
             link.addEventListener('click', (e) => {
-                const targetUrl = link.getAttribute('href');
-                if (targetUrl && targetUrl !== '#') {
-                    console.log(`📲 Redirecting to: ${targetUrl}`);
+                const destination = link.getAttribute('href');
+                if (destination && destination !== '#') {
+                    console.log(`🖱️ Tablet redirect → ${destination}`);
                 }
             });
         });
         
-        // Extra verification: ensure that any leftover header/footer elements are not present.
-        // Since we removed them from HTML, we simply confirm.
-        const possibleHeaderTags = document.querySelectorAll('.dashboard-header, .hub-header, .info-footer, .role-badge, .info-ribbon, .welcome-footer');
-        if (possibleHeaderTags.length === 0) {
-            console.log("✅ Verified: No header/footer elements detected. Pure phone icon screen.");
+        // Sanity check: ensure that no legacy header/footer elements are present in DOM
+        const legacyHeaderCheck = document.querySelectorAll('.dashboard-header, .hub-header, .info-footer, .role-badge, .info-ribbon, .welcome-footer, .dashboard-container > .dashboard-header');
+        if (legacyHeaderCheck.length === 0) {
+            console.log("✨ Verified: No header, no footer, no extra bars. Pure tablet icon dashboard.");
         } else {
-            // This shouldn't happen, but just in case log.
-            console.warn("⚠️ Unexpected: header/footer remnants found (but UI should be clean).");
+            console.warn("Legacy elements detected, but UI remains clean.");
         }
         
-        logLinkStatus();
+        validateLinks();
         
-        // Optional: ensure the viewport behaves like a phone (already set in meta)
-        // No firebase, no storage, no date management.
+        // Force proper view for tablet: ensure no unwanted overflow
+        // Also listen to resize for optional adjustments (no heavy logic, just for perfect grid)
+        function handleResize() {
+            // no action needed, CSS grid handles everything.
+            // But we can log orientation for info (optional)
+            const width = window.innerWidth;
+            if (width >= 1024 && width < 1280) {
+                // tablet landscape typical
+                document.querySelector('.tablet-dashboard')?.style.setProperty('transition', 'all 0.1s');
+            }
+        }
+        window.addEventListener('resize', handleResize);
+        handleResize();
+        
+        // Note: this page does NOT use localStorage, sessionStorage, or any global context.
+        // No date/shift/supervisor/reports nor extra print.
+        console.log("📱💻 Open on tablet: grid adjusts automatically to window size.");
     })();
 </script>
 </body>
