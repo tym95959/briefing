@@ -7,9 +7,6 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External Config (keep for compatibility) -->
-    <script src="fire.js"></script>
-    <script src="config.js"></script>
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -18,7 +15,6 @@
         body { background: linear-gradient(145deg, #eef2f9 0%, #e0e8f0 100%); padding: 20px 24px; min-height: 100vh; }
         .container { max-width: 1600px; margin: 0 auto; }
 
-        /* DASHBOARD HEADER */
         .dashboard-header {
             display: flex;
             justify-content: space-between;
@@ -48,7 +44,6 @@
         }
         .role-btn.active { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; box-shadow: 0 4px 12px rgba(29,111,143,0.25); }
 
-        /* INFO BAR */
         .info-panel {
             background: white; border-radius: 48px; padding: 10px 24px;
             display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
@@ -66,7 +61,6 @@
         .pdf-btn, .print-btn { border: none; padding: 6px 16px; border-radius: 40px; font-weight: 600; font-size: 0.7rem; cursor: pointer; background: linear-gradient(135deg, #2c6e8f, #1d5a78); color: white; display: inline-flex; align-items: center; gap: 6px; }
         .print-btn { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
 
-        /* DASHBOARD ICON GRID - POPUP STYLE */
         .dashboard-icon-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -120,7 +114,6 @@
             font-weight: 600;
         }
 
-        /* MAIN DASHBOARD WELCOME */
         .welcome-card {
             background: white;
             border-radius: 32px;
@@ -129,14 +122,9 @@
             margin-top: 12px;
             box-shadow: 0 6px 14px rgba(0,0,0,0.02);
         }
-        .welcome-icon {
-            font-size: 3rem;
-            color: #1d6f8f;
-            margin-bottom: 12px;
-        }
+        .welcome-icon { font-size: 3rem; color: #1d6f8f; margin-bottom: 12px; }
         .info-text { font-size: 0.75rem; color: #7c9ab8; margin-top: 12px; }
 
-        /* hidden elements */
         .hidden { display: none; }
         button { cursor: pointer; }
         @media (max-width: 720px) {
@@ -159,7 +147,6 @@
 </div>
 
 <div class="container" id="appContainer" style="display:none;">
-    <!-- Dashboard Header -->
     <div class="dashboard-header">
         <div class="brand">
             <h1><i class="fas fa-chalkboard-user"></i> Koveli Lounge · Command Center</h1>
@@ -171,7 +158,6 @@
         </div>
     </div>
 
-    <!-- Info Bar (Date/Shift/Status) -->
     <div class="info-panel">
         <div class="date-shift-selector">
             <input type="date" id="mainDate" value="">
@@ -184,10 +170,8 @@
         </div>
     </div>
 
-    <!-- Dynamic Dashboard Icon Grid (tabs open in popup) -->
     <div id="dashboardTabsContainer" class="dashboard-icon-grid"></div>
 
-    <!-- Dashboard welcome message (optional) -->
     <div class="welcome-card" id="welcomeMessage">
         <div class="welcome-icon"><i class="fas fa-window-restore"></i></div>
         <h3>✨ Open any module in a new window</h3>
@@ -195,26 +179,72 @@
     </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-<script src="fire.js"></script>
-<script src="config.js"></script>
 <script>
-    // ---------- FIREBASE & AUTH ----------
+    // ========== FIREBASE INITIALIZATION (avoid conflicts with external files) ==========
+    // Check if Firebase is already initialized
+    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+        // Your Firebase configuration - REPLACE WITH YOUR ACTUAL CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8qoQr0S8j5KvX8zY9wL8jF5qX8rY7tU6",
+            authDomain: "koveli-lounge.firebaseapp.com",
+            projectId: "koveli-lounge",
+            storageBucket: "koveli-lounge.firebasestorage.app",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abc123def456"
+        };
+        firebase.initializeApp(firebaseConfig);
+    }
+    
+    let db = null;
+    let firestoreReady = false;
+    try {
+        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+            db = firebase.firestore();
+            firestoreReady = true;
+            console.log("Firestore initialized successfully");
+        } else {
+            console.warn("Firebase not available");
+        }
+    } catch(e) { console.error("Firestore error:", e); }
+    
+    // ========== DEVICE AUTH ==========
     const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
-    let DEVICE_MASTER_PASSWORD = (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) ? MASTER_PASSWORD_GLOBAL : (typeof SUPERVISOR_PASSWORD !== 'undefined' ? SUPERVISOR_PASSWORD : "Admin123");
-    function isDeviceAuthorized() { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
-    function authorizeDevice(pwd) { if(pwd === DEVICE_MASTER_PASSWORD) { localStorage.setItem(DEVICE_STORAGE_KEY, "true"); return true; } return false; }
+    // Allow external config if available, otherwise use default
+    let DEVICE_MASTER_PASSWORD = "Admin123";
+    // Try to get from window if external scripts defined (but avoid redeclaration errors)
+    try {
+        if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
+            DEVICE_MASTER_PASSWORD = SUPERVISOR_PASSWORD;
+        } else if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
+            DEVICE_MASTER_PASSWORD = MASTER_PASSWORD_GLOBAL;
+        }
+    } catch(e) { console.log("Using default password"); }
     
-    let db, firestoreReady = false;
-    try { if(typeof firebase !== 'undefined' && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; } } catch(e) { console.warn(e); }
+    function isDeviceAuthorized() { 
+        try { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; } catch(e) { return false; }
+    }
+    function authorizeDevice(pwd) { 
+        if(pwd === DEVICE_MASTER_PASSWORD) { 
+            localStorage.setItem(DEVICE_STORAGE_KEY, "true"); 
+            return true; 
+        } 
+        return false; 
+    }
     
-    // Global state
-    let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", isSupervisor = false;
-    let sodStaffNames = [], staffList = [], globalTasks = [], attendanceRecords = [], supervisorList = [], currentSODRecord = null, currentTaskRecord = null;
-    let selectedStaffName = "";
+    // ========== GLOBAL STATE ==========
+    let currentRole = "staff";
+    let currentDate = new Date().toISOString().slice(0,10);
+    let currentShift = "";
+    let isSupervisor = false;
+    let sodStaffNames = [];
+    let staffList = [];
+    let globalTasks = [];
+    let attendanceRecords = [];
+    let supervisorList = [];
+    let currentSODRecord = null;
+    let currentTaskRecord = null;
     
-    // Helper firestore functions (minimal for data context)
+    // ========== FIRESTORE HELPER FUNCTIONS ==========
     function getSODStaffRecordId(date, shift) { return `sod_staff_${date}_${shift}`.replace(/\s/g, '_'); }
     function getSODRecordId(date, shift) { return `sod_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTaskRecordId(date, shift) { return `tasks_${date}_${shift}`.replace(/\s/g, '_'); }
@@ -223,35 +253,122 @@
     function getBreakRecordId(date, shift) { return `breaks_${date}_${shift}`.replace(/\s/g, '_'); }
     function getHandoverId(date, shift) { return `handover_${date}_${shift}`.replace(/\s/g, '_'); }
     
-    async function loadStaff(){ const snap=await db.collection("staff").orderBy("name").get(); staffList=snap.docs.map(doc=>({id:doc.id,name:doc.data().name})); }
-    async function loadSODStaff(){ if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODStaffRecordId(currentDate,currentShift); const doc=await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames=doc.exists?doc.data().staffNames||[]:[]; }
-    async function loadGlobalTasks(){ const doc=await db.collection("globalConfig").doc("tasks").get(); globalTasks=doc.exists?doc.data().tasks||[]:[]; }
-    async function loadTaskRecord(){ const id=getTaskRecordId(currentDate,currentShift); const doc=await db.collection("taskRecords").doc(id).get(); if(doc.exists) currentTaskRecord={id:doc.id,...doc.data()}; else currentTaskRecord={date:currentDate,shift:currentShift,status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[]}; await db.collection("taskRecords").doc(id).set(currentTaskRecord,{merge:true}); }
-    async function loadSODAllocation(){ const id=getSODRecordId(currentDate,currentShift); const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?[{id:"slot1"},{id:"slot2"},{id:"slot3"}]:[{id:"slot1"},{id:"slot2"},{id:"slot3"}]; let alloc={}; slots.forEach(slot=>{ alloc[slot.id]={}; ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"].forEach(area=>alloc[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations:alloc}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } }
-    async function loadAttendance(){ const id=getAttendanceRecordId(currentDate,currentShift); const doc=await db.collection("attendanceRecords").doc(id).get(); attendanceRecords=doc.exists?doc.data().records||[]:[]; }
-    async function loadSupervisors(){ const id=getSupervisorRecordId(currentDate,currentShift); const doc=await db.collection("supervisorRecords").doc(id).get(); supervisorList=doc.exists?doc.data().supervisors||[]:[]; }
-    async function refreshCoreData(){ if(!firestoreReady) return; await loadStaff(); await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); await loadGlobalTasks(); }
+    // ========== DATA LOADING FUNCTIONS ==========
+    async function loadStaff() { 
+        if(!firestoreReady || !db) return;
+        try {
+            const snap = await db.collection("staff").orderBy("name").get(); 
+            staffList = snap.docs.map(doc => ({id:doc.id, name:doc.data().name})); 
+        } catch(e) { console.warn("loadStaff error:", e); staffList = []; }
+    }
+    
+    async function loadSODStaff() { 
+        if(!firestoreReady || !db || !currentDate || !currentShift) return; 
+        try {
+            const id = getSODStaffRecordId(currentDate, currentShift); 
+            const doc = await db.collection("sodStaffRecords").doc(id).get(); 
+            sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; 
+        } catch(e) { console.warn("loadSODStaff error:", e); sodStaffNames = []; }
+    }
+    
+    async function loadGlobalTasks() { 
+        if(!firestoreReady || !db) return;
+        try {
+            const doc = await db.collection("globalConfig").doc("tasks").get(); 
+            globalTasks = doc.exists ? doc.data().tasks || [] : []; 
+        } catch(e) { console.warn("loadGlobalTasks error:", e); globalTasks = []; }
+    }
+    
+    async function loadTaskRecord() { 
+        if(!firestoreReady || !db || !currentDate || !currentShift) return;
+        try {
+            const id = getTaskRecordId(currentDate, currentShift); 
+            const doc = await db.collection("taskRecords").doc(id).get(); 
+            if(doc.exists) currentTaskRecord = {id:doc.id, ...doc.data()}; 
+            else currentTaskRecord = {date:currentDate, shift:currentShift, status:"open", doneTasks:{}, acknowledgedTasks:{}, dropdownSelections:[]}; 
+            await db.collection("taskRecords").doc(id).set(currentTaskRecord, {merge:true}); 
+        } catch(e) { console.warn("loadTaskRecord error:", e); }
+    }
+    
+    async function loadSODAllocation() { 
+        if(!firestoreReady || !db || !currentDate || !currentShift) return;
+        try {
+            const id = getSODRecordId(currentDate, currentShift); 
+            const doc = await db.collection("sodRecords").doc(id).get(); 
+            if(doc.exists) { currentSODRecord = {id:doc.id, ...doc.data()}; } 
+            else { 
+                const slots = currentShift === "Morning" ? ["slot1","slot2","slot3"] : ["slot1","slot2","slot3"];
+                let alloc = {}; 
+                slots.forEach(slot => { 
+                    alloc[slot] = {}; 
+                    ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"].forEach(area => alloc[slot][area] = []); 
+                }); 
+                currentSODRecord = {date:currentDate, shift:currentShift, allocations:alloc}; 
+                await db.collection("sodRecords").doc(id).set(currentSODRecord); 
+                currentSODRecord.id = id; 
+            }
+        } catch(e) { console.warn("loadSODAllocation error:", e); }
+    }
+    
+    async function loadAttendance() { 
+        if(!firestoreReady || !db || !currentDate || !currentShift) return;
+        try {
+            const id = getAttendanceRecordId(currentDate, currentShift); 
+            const doc = await db.collection("attendanceRecords").doc(id).get(); 
+            attendanceRecords = doc.exists ? doc.data().records || [] : []; 
+        } catch(e) { console.warn("loadAttendance error:", e); attendanceRecords = []; }
+    }
+    
+    async function loadSupervisors() { 
+        if(!firestoreReady || !db || !currentDate || !currentShift) return;
+        try {
+            const id = getSupervisorRecordId(currentDate, currentShift); 
+            const doc = await db.collection("supervisorRecords").doc(id).get(); 
+            supervisorList = doc.exists ? doc.data().supervisors || [] : []; 
+        } catch(e) { console.warn("loadSupervisors error:", e); supervisorList = []; }
+    }
+    
+    async function refreshCoreData() { 
+        if(!firestoreReady) return;
+        await loadStaff(); 
+        await loadSODStaff(); 
+        await loadSODAllocation(); 
+        await loadTaskRecord(); 
+        await loadAttendance(); 
+        await loadSupervisors(); 
+        await loadGlobalTasks(); 
+        updateShiftBadge();
+    }
+    
+    function updateShiftBadge() {
+        const closed = currentTaskRecord?.status === "closed";
+        const badge = document.getElementById("shiftStatusBadge");
+        if(badge) {
+            badge.innerHTML = closed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open';
+            badge.className = `status-badge ${closed ? 'status-closed' : 'status-open'}`;
+        }
+    }
     
     // ========== POPUP WINDOW GENERATOR ==========
-    // Each module will open a dedicated window with a "Back to Dashboard" button that refocuses main window.
-    // For demo, we'll build full functional HTML for each tab using current data state.
     function openModuleWindow(moduleId, moduleName) {
         if(!currentDate || !currentShift) {
             alert("Please select date and shift first before opening module.");
             return;
         }
-        // Build popup HTML content based on module & role
         const popupContent = generateModuleHTML(moduleId, moduleName);
         const win = window.open("", `koveli_${moduleId}`, "width=1100,height=800,scrollbars=yes,resizable=yes");
         if(!win) { alert("Popup blocked. Please allow popups for this site."); return; }
         win.document.write(popupContent);
         win.document.close();
-        // optional: focus after load
         win.focus();
     }
     
+    function getIconForModule(mod) {
+        const map = { tasks:"tasks", allocation:"map-marker-alt", breaks:"coffee", handover:"exchange-alt", absentees:"calendar-times", allocation_mgr:"users", attendance_mgr:"calendar-check", tasks_mgr:"cog", break_approve:"check-double" };
+        return map[mod] || "chalkboard";
+    }
+    
     function generateModuleHTML(moduleId, moduleName) {
-        // Get current data snapshot as strings to embed
         const dateStr = currentDate;
         const shiftStr = currentShift;
         const sodList = [...sodStaffNames];
@@ -262,11 +379,14 @@
         const attendanceRec = [...attendanceRecords];
         const supervisorNames = [...supervisorList];
         const role = currentRole;
+        const breakRecordId = getBreakRecordId(dateStr, shiftStr);
         
         return `<!DOCTYPE html>
         <html>
         <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
         <title>Koveli Lounge - ${moduleName}</title>
+        <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"><\/script>
+        <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"><\/script>
         <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
         <style>
@@ -288,6 +408,19 @@
             th { background:#eef3fc; }
             .info-text { font-size:0.7rem; color:#7c9ab8; margin-top:12px; text-align:center; }
         </style>
+        <script>
+            // Initialize Firebase in popup
+            const firebaseConfig = {
+                apiKey: "AIzaSyB8qoQr0S8j5KvX8zY9wL8jF5qX8rY7tU6",
+                authDomain: "koveli-lounge.firebaseapp.com",
+                projectId: "koveli-lounge",
+                storageBucket: "koveli-lounge.firebasestorage.app",
+                messagingSenderId: "123456789012",
+                appId: "1:123456789012:web:abc123def456"
+            };
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+        <\/script>
         </head>
         <body>
         <div class="popup-header">
@@ -296,34 +429,25 @@
         </div>
         <div class="content-card">
             <div class="badge-info"><i class="fas fa-calendar"></i> ${dateStr} | ${shiftStr} | Role: ${role}</div>
-            ${renderModuleContent(moduleId, { dateStr, shiftStr, sodList, staffArr, tasksList, taskRecordData, allocationData, attendanceRec, supervisorNames, role })}
+            ${renderModuleContent(moduleId, { dateStr, shiftStr, sodList, staffArr, tasksList, taskRecordData, allocationData, attendanceRec, supervisorNames, role, breakRecordId })}
         </div>
         <div class="info-text"><i class="fas fa-window-restore"></i> This window is connected to live Firestore. Click 'Back to Dashboard' to return to main panel.</div>
-        <script>
-            // minimal live updates simulation (real app would use firestore listeners but we preserve core)
-            console.log("Popup ready");
-        <\/script>
         </body>
         </html>`;
-    }
-    
-    function getIconForModule(mod) {
-        const map = { tasks:"tasks", allocation:"map-marker-alt", breaks:"coffee", handover:"exchange-alt", absentees:"calendar-times", allocation_mgr:"users", attendance_mgr:"calendar-check", tasks_mgr:"cog", break_approve:"check-double" };
-        return map[mod] || "chalkboard";
     }
     
     function renderModuleContent(moduleId, ctx) {
         if(moduleId === "tasks") {
             if(!ctx.taskRecordData) return "<div>No task data</div>";
-            const filtered = ctx.tasksList.filter(t => (t.shift||"Both")===ctx.shiftStr || t.shift==="Both");
+            const filtered = ctx.tasksList.filter(t => (t.shift||"Both") === ctx.shiftStr || t.shift === "Both");
             let html = `<h3>📋 Daily Tasks</h3>`;
             filtered.forEach(t => {
                 const done = ctx.taskRecordData.doneTasks?.[t.id];
                 const acks = ctx.taskRecordData.acknowledgedTasks?.[t.id] || [];
-                html += `<div class="task-item"><strong>${t.name}</strong> (${t.type})<br>`;
-                if(t.type==='done') html += `${done ? `✅ Completed by ${done.doneBy}` : '⏳ Pending'}`;
-                else if(t.type==='acknowledge') html += `Acknowledged by ${acks.length>0? acks.join(','):'none'}`;
-                else html += `Submissions: ${(ctx.taskRecordData.dropdownSelections||[]).filter(s=>s.taskId===t.id).length}`;
+                html += `<div class="task-item"><strong>${escapeHtml(t.name)}</strong> (${t.type})<br>`;
+                if(t.type === 'done') html += `${done ? `✅ Completed by ${done.doneBy}` : '⏳ Pending'}`;
+                else if(t.type === 'acknowledge') html += `Acknowledged by ${acks.length > 0 ? acks.join(',') : 'none'}`;
+                else html += `Submissions: ${(ctx.taskRecordData.dropdownSelections || []).filter(s => s.taskId === t.id).length}`;
                 html += `</div>`;
             });
             return html;
@@ -332,81 +456,102 @@
             if(!ctx.allocationData) return "<div>No allocation</div>";
             let html = `<h3>Staff Allocation</h3><table><tr><th>Area</th><th>Assignments</th></tr>`;
             const areas = ["Welcome/Boarding","Reception","Buffet","Floor","Pantry"];
-            const slots = ctx.shiftStr === "Morning"?["slot1","slot2","slot3"]:["slot1","slot2","slot3"];
+            const slots = ["slot1","slot2","slot3"];
             areas.forEach(area => {
-                let assignments = slots.map(slot => (ctx.allocationData[slot]?.[area]||[]).join(", ")).filter(a=>a).join(" | ");
+                let assignments = slots.map(slot => (ctx.allocationData[slot]?.[area] || []).join(", ")).filter(a => a).join(" | ");
                 html += `<tr><td>${area}</td><td>${assignments || "—"}</td></tr>`;
             });
             html += `</table>`;
             return html;
         }
         else if(moduleId === "breaks") {
-            const breakSlots = ctx.shiftStr === "Morning"? ["07:30-08:30","08:30-09:30","09:30-10:30","10:30-11:30","11:30-12:30","12:30-13:30","13:30-14:30","14:30-15:30"] : ["15:30-16:30","16:30-17:30","17:30-18:30","18:30-19:30","19:30-20:30","20:30-21:30","21:30-22:30","22:30-23:30"];
-            let html = `<h3>☕ Break Request</h3><div><select id="staffSelectPopup" style="width:100%; margin-bottom:12px;"><option value="">-- Select Name --${ctx.sodList.map(n=>`<option>${n}</option>`).join('')}</select></div><div class="flex-row" id="breakSlotContainer">${breakSlots.map(s=>`<button class="action-btn" onclick="requestBreakPopup('${s}')">${s}</button>`).join('')}</div><div id="breakMsg"></div><script>
-            let selectedStaff = "";
-            document.getElementById('staffSelectPopup')?.addEventListener('change',(e)=>selectedStaff=e.target.value);
-            window.requestBreakPopup = async (slot) => {
-                if(!selectedStaff) { alert("Select staff name"); return; }
-                const id = "${getBreakRecordId(ctx.dateStr, ctx.shiftStr)}";
-                const docRef = firebase.firestore().collection("breakRecords").doc(id);
-                const docSnap = await docRef.get();
-                let breaks = docSnap.exists ? docSnap.data().breaks || [] : [];
-                if(breaks.find(b=>b.staffName===selectedStaff && b.status==='approved')) return alert("Already approved break");
-                breaks = breaks.filter(b=>!(b.staffName===selectedStaff && b.status==='pending'));
-                breaks.push({staffName:selectedStaff, timeSlot:slot, status:'pending'});
-                await docRef.set({breaks, date:"${ctx.dateStr}", shift:"${ctx.shiftStr}"});
-                alert("Request sent");
-            };
+            const breakSlots = ctx.shiftStr === "Morning" ? 
+                ["07:30-08:30","08:30-09:30","09:30-10:30","10:30-11:30","11:30-12:30","12:30-13:30","13:30-14:30","14:30-15:30"] : 
+                ["15:30-16:30","16:30-17:30","17:30-18:30","18:30-19:30","19:30-20:30","20:30-21:30","21:30-22:30","22:30-23:30"];
+            return `<h3>☕ Break Request</h3>
+            <div><select id="staffSelectPopup" style="width:100%; margin-bottom:12px;"><option value="">-- Select Name --${ctx.sodList.map(n => `<option>${escapeHtml(n)}</option>`).join('')}</select></div>
+            <div class="flex-row" id="breakSlotContainer">${breakSlots.map(s => `<button class="action-btn" onclick="requestBreakPopup('${s}')">${s}</button>`).join('')}</div>
+            <div id="breakMsg"></div>
+            <script>
+                let selectedStaff = "";
+                document.getElementById('staffSelectPopup')?.addEventListener('change',(e)=>selectedStaff=e.target.value);
+                window.requestBreakPopup = async (slot) => {
+                    if(!selectedStaff) { alert("Select staff name"); return; }
+                    const id = "${ctx.breakRecordId}";
+                    const docRef = db.collection("breakRecords").doc(id);
+                    const docSnap = await docRef.get();
+                    let breaks = docSnap.exists ? docSnap.data().breaks || [] : [];
+                    if(breaks.find(b=>b.staffName===selectedStaff && b.status==='approved')) return alert("Already approved break");
+                    breaks = breaks.filter(b=>!(b.staffName===selectedStaff && b.status==='pending'));
+                    breaks.push({staffName:selectedStaff, timeSlot:slot, status:'pending', requestedAt:new Date().toISOString()});
+                    await docRef.set({breaks, date:"${ctx.dateStr}", shift:"${ctx.shiftStr}"});
+                    alert("Break request sent to supervisor!");
+                };
             <\/script>`;
-            return html;
         }
         else if(moduleId === "handover") {
-            return `<h3>📝 Handover Log</h3><div><i class="fas fa-exchange-alt"></i> Shift handover notes visible here. (Real-time updates from Firestore) <br> Use main dashboard to edit. This popup shows live data after refresh.</div><div class="info-text">Handover entries: Cards, Wheelchair, Complimentary, Messages.</div>`;
+            return `<h3>📝 Handover Log</h3><div><i class="fas fa-exchange-alt"></i> Shift handover notes visible here.<br><br>Handover sections: Cards, Wheelchair, Complimentary, Delay Flights, Follow-up, Important Messages.</div><div class="info-text">Use main dashboard to edit handover entries.</div>`;
         }
         else if(moduleId === "absentees") {
-            const absentList = ctx.attendanceRec.filter(r=> r.shift === ctx.shiftStr && (r.status === 'Absent' || r.status === 'SL' || r.status === 'FRL'));
-            if(absentList.length===0) return "<div>✅ No absent/leave records for this shift.</div>";
-            return `<h3>📌 Absent / Leave</h3>${absentList.map(a=>`<div><strong>${a.staffName}</strong> - ${a.status} ${a.reason ? `(${a.reason})` : ''}</div>`).join('')}`;
+            const absentList = ctx.attendanceRec.filter(r => r.shift === ctx.shiftStr && (r.status === 'Absent' || r.status === 'SL' || r.status === 'FRL'));
+            if(absentList.length === 0) return "<div>✅ No absent/leave records for this shift.</div>";
+            return `<h3>📌 Absent / Leave</h3>${absentList.map(a => `<div><strong>${escapeHtml(a.staffName)}</strong> - ${a.status} ${a.reason ? `(${a.reason})` : ''}</div>`).join('')}`;
         }
-        // Supervisor modules (simplified preview)
         else if(moduleId === "allocation_mgr") {
-            return `<h3>👥 Staff on Duty (SOD):</h3><div>${ctx.sodList.map(s=>`<span class="staff-badge">${s}</span>`).join('') || 'None'}</div><h3>Allocation Management</h3><div class="info-text">Use main dashboard for full editing. This view shows current allocation.</div>`;
+            return `<h3>👥 Staff on Duty (SOD):</h3><div>${ctx.sodList.map(s => `<span class="staff-badge">${escapeHtml(s)}</span>`).join('') || 'None'}</div><h3>Allocation Overview</h3><div class="info-text">Full allocation management available in main dashboard.</div>`;
         }
         else if(moduleId === "attendance_mgr") {
             let html = `<h3>Attendance Records (${ctx.shiftStr})</h3><table><tr><th>Staff</th><th>Status</th><th>Reason</th></tr>`;
-            ctx.attendanceRec.filter(r=>r.shift===ctx.shiftStr).forEach(r=>{ html+=`<tr><td>${r.staffName}</td><td>${r.status}</td><td>${r.reason||'—'}</td></tr>`; });
-            html+=`</table>`;
+            ctx.attendanceRec.filter(r => r.shift === ctx.shiftStr).forEach(r => { 
+                html += `<tr><td>${escapeHtml(r.staffName)}</td><td>${r.status}</td><td>${r.reason || '—'}</td></tr>`; 
+            });
+            html += `</table>`;
             return html;
         }
         else if(moduleId === "tasks_mgr") {
-            return `<h3>⚙️ Manage Tasks & Staff (supervisor)</h3><div class="info-text">Total tasks: ${ctx.tasksList.length} | Staff members: ${ctx.staffArr.length}</div><div><button class="action-btn" onclick="alert('Full management only in main dashboard.')"> Edit Tasks</button></div>`;
+            return `<h3>⚙️ Manage Tasks & Staff (supervisor)</h3><div class="info-text">Total tasks: ${ctx.tasksList.length} | Staff members: ${ctx.staffArr.length}</div><div><button class="action-btn" onclick="alert('Full management only in main dashboard. Please use the main window to edit tasks and staff.')"> Edit Tasks (Main Dashboard)</button></div>`;
         }
         else if(moduleId === "break_approve") {
-            return `<h3>⏳ Pending Break Approvals</h3><div id="pendingList">Loading...</div><script>
-            async function loadPending(){
-                const id = "${getBreakRecordId(ctx.dateStr, ctx.shiftStr)}";
-                const doc = await firebase.firestore().collection("breakRecords").doc(id).get();
-                let breaks = doc.exists ? doc.data().breaks || [] : [];
-                let pending = breaks.filter(b=>b.status==='pending');
-                const container = document.getElementById('pendingList');
-                if(container) container.innerHTML = pending.map(b=>\`<div>\${b.staffName} - \${b.timeSlot} <button onclick="approveBreak('\${b.staffName}','\${b.timeSlot}')">Approve</button></div>\`).join('') || "No pending";
-            }
-            window.approveBreak = async (name,slot)=>{
-                const id = "${getBreakRecordId(ctx.dateStr, ctx.shiftStr)}";
-                const docRef = firebase.firestore().collection("breakRecords").doc(id);
-                const snap = await docRef.get();
-                let breaks = snap.exists ? snap.data().breaks || [] : [];
-                breaks = breaks.map(b=> (b.staffName===name && b.timeSlot===slot && b.status==='pending') ? {...b, status:'approved'} : b);
-                await docRef.set({breaks});
+            return `<h3>⏳ Pending Break Approvals</h3>
+            <div id="pendingList">Loading...</div>
+            <script>
+                async function loadPending(){
+                    const id = "${ctx.breakRecordId}";
+                    const doc = await db.collection("breakRecords").doc(id).get();
+                    let breaks = doc.exists ? doc.data().breaks || [] : [];
+                    let pending = breaks.filter(b => b.status === 'pending');
+                    const container = document.getElementById('pendingList');
+                    if(container) container.innerHTML = pending.map(b => \`<div>\${b.staffName} - \${b.timeSlot} <button onclick="approveBreak('\${b.staffName}','\${b.timeSlot}')">Approve</button> <button onclick="rejectBreak('\${b.staffName}','\${b.timeSlot}')">Reject</button></div>\`).join('') || "No pending requests";
+                }
+                window.approveBreak = async (name, slot) => {
+                    const id = "${ctx.breakRecordId}";
+                    const docRef = db.collection("breakRecords").doc(id);
+                    const snap = await docRef.get();
+                    let breaks = snap.exists ? snap.data().breaks || [] : [];
+                    breaks = breaks.map(b => (b.staffName === name && b.timeSlot === slot && b.status === 'pending') ? {...b, status:'approved'} : b);
+                    await docRef.set({breaks});
+                    loadPending();
+                    alert("Approved");
+                };
+                window.rejectBreak = async (name, slot) => {
+                    const id = "${ctx.breakRecordId}";
+                    const docRef = db.collection("breakRecords").doc(id);
+                    const snap = await docRef.get();
+                    let breaks = snap.exists ? snap.data().breaks || [] : [];
+                    breaks = breaks.map(b => (b.staffName === name && b.timeSlot === slot && b.status === 'pending') ? {...b, status:'rejected'} : b);
+                    await docRef.set({breaks});
+                    loadPending();
+                    alert("Rejected");
+                };
                 loadPending();
-            };
-            loadPending();
             <\/script>`;
         }
-        return `<div>Module preview</div>`;
+        return `<div>Module preview - ${moduleId}</div>`;
     }
     
-    // BUILD DASHBOARD ICONS (each calls openModuleWindow)
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    
+    // ========== BUILD DASHBOARD CARDS ==========
     function buildDashboardCards() {
         let modules = [];
         if(currentRole === "staff") {
@@ -445,25 +590,15 @@
         });
     }
     
-    // Refresh dashboard after data changes
     async function refreshDashboardUI() {
         await refreshCoreData();
-        updateShiftBadge();
         buildDashboardCards();
     }
     
-    function updateShiftBadge() {
-        const closed = currentTaskRecord?.status === "closed";
-        const badge = document.getElementById("shiftStatusBadge");
-        if(badge) {
-            badge.innerHTML = closed ? '<i class="fas fa-lock"></i> Closed' : '<i class="fas fa-lock-open"></i> Open';
-            badge.className = `status-badge ${closed ? 'status-closed' : 'status-open'}`;
-        }
-    }
-    
-    // Events & init
+    // ========== INITIALIZATION ==========
     async function initApp() {
-        const savedDate = localStorage.getItem('selectedDate'), savedShift = localStorage.getItem('selectedShift');
+        const savedDate = localStorage.getItem('selectedDate');
+        const savedShift = localStorage.getItem('selectedShift');
         currentDate = savedDate || new Date().toISOString().slice(0,10);
         currentShift = savedShift || "";
         document.getElementById("mainDate").value = currentDate;
@@ -472,18 +607,62 @@
         buildDashboardCards();
         updateShiftBadge();
         
-        document.getElementById("mainDate").addEventListener("change", async (e) => { currentDate = e.target.value; localStorage.setItem('selectedDate',currentDate); await refreshDashboardUI(); });
-        document.getElementById("mainShift").addEventListener("change", async (e) => { currentShift = e.target.value; localStorage.setItem('selectedShift',currentShift); await refreshDashboardUI(); });
-        document.getElementById("staffRoleBtn").addEventListener("click", async () => { currentRole = "staff"; isSupervisor=false; document.getElementById("staffRoleBtn").classList.add("active"); document.getElementById("supervisorRoleBtn").classList.remove("active"); await refreshDashboardUI(); });
-        document.getElementById("supervisorRoleBtn").addEventListener("click", async () => { currentRole = "supervisor"; isSupervisor=true; document.getElementById("supervisorRoleBtn").classList.add("active"); document.getElementById("staffRoleBtn").classList.remove("active"); await refreshDashboardUI(); });
-        document.getElementById("exportFullPdfBtn").addEventListener("click",()=>alert("PDF report ready (full version)"));
-        document.getElementById("printAllocationBtn").addEventListener("click",()=>alert("Print allocation sheet"));
+        document.getElementById("mainDate").addEventListener("change", async (e) => { 
+            currentDate = e.target.value; 
+            localStorage.setItem('selectedDate', currentDate); 
+            await refreshDashboardUI(); 
+        });
+        document.getElementById("mainShift").addEventListener("change", async (e) => { 
+            currentShift = e.target.value; 
+            localStorage.setItem('selectedShift', currentShift); 
+            await refreshDashboardUI(); 
+        });
+        document.getElementById("staffRoleBtn").addEventListener("click", async () => { 
+            currentRole = "staff"; 
+            isSupervisor = false; 
+            document.getElementById("staffRoleBtn").classList.add("active"); 
+            document.getElementById("supervisorRoleBtn").classList.remove("active"); 
+            await refreshDashboardUI(); 
+        });
+        document.getElementById("supervisorRoleBtn").addEventListener("click", async () => { 
+            currentRole = "supervisor"; 
+            isSupervisor = true; 
+            document.getElementById("supervisorRoleBtn").classList.add("active"); 
+            document.getElementById("staffRoleBtn").classList.remove("active"); 
+            await refreshDashboardUI(); 
+        });
+        document.getElementById("exportFullPdfBtn").addEventListener("click", () => alert("PDF report generation ready."));
+        document.getElementById("printAllocationBtn").addEventListener("click", () => alert("Print allocation sheet ready."));
     }
     
-    // Device auth flow
-    const deviceModal = document.getElementById('deviceAuthModal'), devicePasswordInput = document.getElementById('devicePasswordInput'), authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn'), deviceAuthError = document.getElementById('deviceAuthError'), appContainer = document.getElementById('appContainer');
-    function handleDeviceAuth(){ if(authorizeDevice(devicePasswordInput.value)){ deviceModal.style.display='none'; appContainer.style.display='block'; initApp(); } else { deviceAuthError.textContent='Invalid password.'; devicePasswordInput.value=''; } }
-    if(isDeviceAuthorized()){ deviceModal.style.display='none'; appContainer.style.display='block'; initApp(); } else { deviceModal.style.display='flex'; appContainer.style.display='none'; authorizeDeviceBtn.addEventListener('click',handleDeviceAuth); devicePasswordInput.focus(); }
+    // ========== DEVICE AUTH FLOW ==========
+    const deviceModal = document.getElementById('deviceAuthModal');
+    const devicePasswordInput = document.getElementById('devicePasswordInput');
+    const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
+    const deviceAuthError = document.getElementById('deviceAuthError');
+    const appContainer = document.getElementById('appContainer');
+    
+    function handleDeviceAuth() { 
+        if(authorizeDevice(devicePasswordInput.value)) { 
+            deviceModal.style.display = 'none'; 
+            appContainer.style.display = 'block'; 
+            initApp(); 
+        } else { 
+            deviceAuthError.textContent = 'Invalid authorization password.'; 
+            devicePasswordInput.value = ''; 
+        } 
+    }
+    
+    if(isDeviceAuthorized()) { 
+        deviceModal.style.display = 'none'; 
+        appContainer.style.display = 'block'; 
+        initApp(); 
+    } else { 
+        deviceModal.style.display = 'flex'; 
+        appContainer.style.display = 'none'; 
+        authorizeDeviceBtn.addEventListener('click', handleDeviceAuth); 
+        devicePasswordInput.focus(); 
+    }
 </script>
 </body>
 </html>
