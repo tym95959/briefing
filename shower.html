@@ -44,14 +44,25 @@
     }
 
     .sync-status {
-      display: inline-block;
-      background: #1e3c4c;
-      color: white;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(30, 60, 76, 0.1);
       padding: 0.2rem 1rem;
       border-radius: 40px;
       font-size: 0.7rem;
       margin-top: 0.5rem;
     }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-dot.green { background-color: #22c55e; box-shadow: 0 0 4px #22c55e; }
+    .status-dot.red { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
 
     .rooms-board {
       display: flex;
@@ -321,7 +332,10 @@
   <div class="header">
     <h1>🚿 Shower Room Manager</h1>
     <p>⏱️ Live Timers | 🎨 Color-Coded Rooms | 🔥 Firestore Sync</p>
-    <div class="sync-status" id="syncStatus">🔄 Connecting to Firestore...</div>
+    <div class="sync-status" id="syncStatus">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Firestore</span>
+    </div>
   </div>
   
   <div class="rooms-board">
@@ -397,6 +411,19 @@
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
+  // Update connection status UI
+  function updateConnectionStatus(connected) {
+    const dot = document.getElementById("statusDot");
+    const text = document.getElementById("statusText");
+    if (connected) {
+      dot.className = "status-dot green";
+      text.textContent = "Firestore Connected";
+    } else {
+      dot.className = "status-dot red";
+      text.textContent = "Firestore Disconnected";
+    }
+  }
+
   // Populate issuer dropdown (Officers only)
   function populateIssuerDropdown() {
     const officers = getOfficers();
@@ -433,13 +460,10 @@
     const docRef = doc(db, 'showerRooms', today);
     try {
       await setDoc(docRef, { rooms: roomsData, lastUpdated: getCurrentISO() });
-      document.getElementById("syncStatus").innerHTML = "✅ Saved to Firestore";
-      setTimeout(() => {
-        document.getElementById("syncStatus").innerHTML = "🟢 Connected to Firestore";
-      }, 2000);
+      updateConnectionStatus(true);
     } catch (error) {
       console.error("Firestore save error:", error);
-      document.getElementById("syncStatus").innerHTML = "⚠️ Sync error: " + error.message;
+      updateConnectionStatus(false);
     }
   }
 
@@ -466,10 +490,10 @@
           }
         }
       }
-      document.getElementById("syncStatus").innerHTML = "🟢 Connected to Firestore";
+      updateConnectionStatus(true);
     } catch (error) {
       console.error("Firestore load error:", error);
-      document.getElementById("syncStatus").innerHTML = "⚠️ Connection error: " + error.message;
+      updateConnectionStatus(false);
     }
     renderRooms();
   }
@@ -572,7 +596,6 @@
       const returnButton = room.occupiedStatus === "occupied" 
         ? `<button class="return-btn" data-room-id="${room.id}">🔁 Return Key</button>` : '';
       
-      // Status text for color legend
       let statusText = "";
       if (room.occupiedStatus === "occupied") statusText = "🔴 OCCUPIED";
       else if (room.cleanStatus === "dirty") statusText = "🟠 DIRTY · VACANT";
