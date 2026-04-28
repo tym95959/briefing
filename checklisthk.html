@@ -835,36 +835,23 @@ async function submitDropdown(taskId, selectedValue, note, staffName) {
         return;
     }
     
+    // ✅ Allow multiple entries - NO checking for existing entries
     const selections = [...(currentTaskRecord.dropdownSelections || [])];
-    const existingIndex = selections.findIndex(s => s.taskId === taskId && s.staffName === staffName);
     
-    if(existingIndex !== -1) {
-        if(confirm(`You already submitted: "${selections[existingIndex].selectedValue}". Update to "${selectedValue}"?`)) {
-            selections[existingIndex] = {
-                ...selections[existingIndex],
-                selectedValue: selectedValue,
-                additionalText: note || "",
-                updatedAt: new Date().toISOString(),
-                edited: true
-            };
-            await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true });
-            currentTaskRecord.dropdownSelections = selections;
-            alert("✅ Submission updated successfully!");
-            renderTasks();
-        }
-    } else {
-        selections.push({ 
-            taskId, 
-            staffName, 
-            selectedValue, 
-            additionalText: note || "", 
-            submittedAt: new Date().toISOString() 
-        }); 
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
-        currentTaskRecord.dropdownSelections = selections; 
-        alert("✅ Submission saved!");
-        renderTasks();
-    }
+    // Just add a NEW entry every time
+    selections.push({ 
+        taskId, 
+        staffName, 
+        selectedValue, 
+        additionalText: note || "", 
+        submittedAt: new Date().toISOString(),
+        entryNumber: (selections.filter(s => s.taskId === taskId && s.staffName === staffName).length + 1) // Track sequence
+    }); 
+    
+    await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
+    currentTaskRecord.dropdownSelections = selections; 
+    alert(`✅ Entry #${selections.filter(s => s.taskId === taskId && s.staffName === staffName).length} saved for ${staffName}!`);
+    renderTasks();
 }
 
 
@@ -1095,20 +1082,30 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
                         '<select><option>No options</option></select>';
                     
                     const subsHtml = taskSelections.length ? 
-                        `<div class="completed-info">📋 Submissions (${taskSelections.length}):<br>
-                        ${taskSelections.map(s => `👤 ${escapeHtml(s.staffName)}: <strong>${escapeHtml(s.selectedValue)}</strong>${s.additionalText ? ` (${escapeHtml(s.additionalText)})` : ''}${s.edited ? ' ✏️' : ''}`).join('<br>')}
+                        `<div class="completed-info" style="max-height:150px; overflow-y:auto;">
+                            📋 Submissions (${taskSelections.length} total - multiple allowed):<br>
+                            ${taskSelections.map((s, idx) => `#${idx+1} 👤 ${escapeHtml(s.staffName)}: <strong>${escapeHtml(s.selectedValue)}</strong>${s.additionalText ? ` (${escapeHtml(s.additionalText)})` : ''}${s.edited ? ' ✏️' : ''}`).join('<br>')}
                         </div>` : 
                         '<div class="completed-info">No submissions yet</div>';
                     
-                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>
+                    taskDivItem.innerHTML = `<div class="task-header">
+                        <div class="task-name">
+                            📋 ${escapeHtml(task.name)}${shiftBadge} 
+                            <span style="background:#2196f3; color:white; padding:2px 8px; border-radius:12px; font-size:0.6rem; margin-left:8px;">
+                                🔁 Multiple entries allowed
+                            </span>
+                            ${adminEditBtn} 
+                            ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
+                        </div>
+                    </div>
                     ${subsHtml}
                     <div class="flex-row">
                         ${staffSelect}
                         ${optsHtml}
-                        <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (max 8 chars)" maxlength="8">
-                        <button class="do-drop action-btn" data-id="${task.id}">Submit</button>
+                        <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (optional)" maxlength="20" style="width:120px;">
+                        <button class="do-drop action-btn" data-id="${task.id}">➕ Add Entry</button>
                     </div>`; 
-                } 
+                }
             } 
             else { 
                 // Read-only view
