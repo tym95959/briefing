@@ -1230,15 +1230,15 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
                 </div>`; 
             }
                 else if(task.type === 'dropdown'){ 
-                const optsHtml = task.options ? 
-                    `<select id="dropSel_${task.id}" class="action-dropdown">
-                        <option value="">-- Select --</option>
-                        ${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
-                    </select>` : 
-                    '<select><option>No options</option></select>';
-                
-                // Group submissions by staff for better display
-                let subsHtml = '';
+                    const optsHtml = task.options ? 
+                        `<select id="dropSel_${task.id}" class="action-dropdown">
+                            <option value="">-- Select --</option>
+                            ${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
+                        </select>` :
+                        '<select><option>No options</option></select>';
+                    
+                    // Group submissions by staff for better display
+                    let subsHtml = '';
                     if(taskSelections.length) {
                         subsHtml = `<div class="completed-info" style="max-height:200px; overflow-y:auto;">
                             📋 Submissions (${taskSelections.length} total - click same value to delete):<br>
@@ -1258,41 +1258,44 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
                     } else {
                         subsHtml = '<div class="completed-info">No submissions yet</div>';
                     }
-                
-                // Show toggle button info
-                const toggleHint = `<div class="info-text" style="font-size:0.6rem; margin-top:5px; color:#666;">
-                    💡 Tip: Select same option twice to DELETE, or choose new option to ADD
-                </div>`;
-                
-                taskDivItem.innerHTML = `<div class="task-header">
-                    <div class="task-name">
-                        📋 ${escapeHtml(task.name)}${shiftBadge} 
-                        
-                        ${adminEditBtn} 
-                        ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
+                    
+                    // Show toggle button info
+                    const toggleHint = `<div class="info-text" style="font-size:0.6rem; margin-top:5px; color:#666;">
+                        💡 Tip: Select same option twice to DELETE, or choose new option to ADD
+                    </div>`;
+                    
+                    taskDivItem.innerHTML = `<div class="task-header">
+                        <div class="task-name">
+                            📋 ${escapeHtml(task.name)}${shiftBadge} 
+                            ${adminEditBtn} 
+                            ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
+                        </div>
                     </div>
-                </div>
-                ${subsHtml}
-                <div class="flex-row">
-                    <select id="staffSel_${task.id}" class="action-select">
-                        <option value="">-- Select staff --</option>
-                        ${staffList.map(s => `<option value="${escapeHtml(s.name)}" ${selectedStaffName === s.name ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
-                    </select>
-                    ${optsHtml}
-                    <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (optional)" maxlength="20" style="width:100px;">
-                    <button class="do-drop-toggle action-btn" data-id="${task.id}" style="background:#4caf50;">
-                        ➕ Add / Delete
-                    </button>
-                </div>
-                ${toggleHint}`; 
-            }
+                    ${subsHtml}
+                    <div class="flex-row">
+                        <select id="staffSel_${task.id}" class="action-select">
+                            <option value="">-- Select SOD staff --</option>
+                            ${sodStaffNames.map(s => `<option value="${escapeHtml(s)}" ${selectedStaffName === s ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+                        </select>
+                        ${optsHtml}
+                        <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (optional)" maxlength="20" style="width:100px;">
+                        <button class="do-drop-toggle action-btn" data-id="${task.id}" style="background:#4caf50;">
+                            ➕ Add / Delete
+                        </button>
+                    </div>
+                    ${toggleHint}`;
+                }
             } 
             else { 
                 // Read-only view
                 let statusHtml = ''; 
                 if(task.type === 'done'){ 
-                    statusHtml = isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:'<div class="completed-info">⏳ Pending</div>'; 
-                } 
+                    const sodStaffSelect = `<select id="staffSel_${task.id}" class="action-select">
+                        <option value="">-- Select SOD staff --</option>
+                        ${sodStaffNames.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+                    </select>`;
+                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${sodStaffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
+                }
                 else if(task.type === 'acknowledge'){ 
                     statusHtml = `<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n=>`👤 ${escapeHtml(n)}`).join(', ')}</div>`; 
                 } 
