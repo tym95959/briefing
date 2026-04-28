@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Shower Room Manager | Firebase Sync · Auto Daily Reset</title>
+  <title>Shower Room Manager | Firestore Sync · Auto Daily Reset</title>
   <style>
     * {
       margin: 0;
@@ -296,8 +296,8 @@
 <div class="app-container">
   <div class="header">
     <h1>🚿 Shower Room Manager</h1>
-    <p>⏱️ Live Timers | 🔥 Firebase Sync | 📅 Auto Reset at Midnight</p>
-    <div class="sync-status" id="syncStatus">🔄 Connecting to Firebase...</div>
+    <p>⏱️ Live Timers | 🔥 Firestore Sync | 📅 Auto Reset at Midnight</p>
+    <div class="sync-status" id="syncStatus">🔄 Connecting to Firestore...</div>
   </div>
   
   <div class="rooms-board">
@@ -310,7 +310,7 @@
       <div class="room-cards" id="femaleRoomsContainer"></div>
     </div>
   </div>
-  <footer>✅ Click room for actions | All data saved to Firebase 🔥 | Data auto-deletes at midnight (daily reset)</footer>
+  <footer>✅ Click room for actions | All data saved to Firestore 🔥 | Data auto-deletes at midnight (daily reset)</footer>
 </div>
 
 <!-- MODAL: ISSUE KEY -->
@@ -333,8 +333,8 @@
 <p class="time-hint">* Return makes room VACANT + DIRTY. Allocate housekeeper to start cleaning timer.</p></div></div>
 
 <script type="module">
-  import { database } from './firebase-config.js';
-  import { ref, set, get, child, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  import { db } from './firebase-config.js';
+  import { doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
   // ======================== HARDCODED HOUSEKEEPERS ========================
   const housekeepers = [
@@ -380,46 +380,47 @@
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
-  // Save to Firebase with date key
-  async function saveToFirebase() {
+  // Save to Firestore
+  async function saveToFirestore() {
     const today = new Date().toISOString().split('T')[0];
-    const roomsRef = ref(database, `showerRooms/${today}`);
+    const docRef = doc(db, 'showerRooms', today);
     try {
-      await set(roomsRef, roomsData);
-      document.getElementById("syncStatus").innerHTML = "✅ Saved to Firebase";
+      await setDoc(docRef, { rooms: roomsData, lastUpdated: getCurrentISO() });
+      document.getElementById("syncStatus").innerHTML = "✅ Saved to Firestore";
       setTimeout(() => {
-        document.getElementById("syncStatus").innerHTML = "🟢 Connected to Firebase";
+        document.getElementById("syncStatus").innerHTML = "🟢 Connected to Firestore";
       }, 2000);
     } catch (error) {
-      console.error("Firebase save error:", error);
-      document.getElementById("syncStatus").innerHTML = "⚠️ Sync error";
+      console.error("Firestore save error:", error);
+      document.getElementById("syncStatus").innerHTML = "⚠️ Sync error: " + error.message;
     }
   }
 
-  // Load from Firebase
-  async function loadFromFirebase() {
+  // Load from Firestore
+  async function loadFromFirestore() {
     const today = new Date().toISOString().split('T')[0];
-    const roomsRef = ref(database, `showerRooms/${today}`);
+    const docRef = doc(db, 'showerRooms', today);
     try {
-      const snapshot = await get(roomsRef);
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        if (Array.isArray(data) && data.length === 4) {
-          for (let i = 0; i < data.length; i++) {
-            roomsData[i].cleanStatus = data[i].cleanStatus;
-            roomsData[i].occupiedStatus = data[i].occupiedStatus;
-            roomsData[i].currentPassenger = data[i].currentPassenger || null;
-            roomsData[i].currentIssuer = data[i].currentIssuer || null;
-            roomsData[i].issueTimestamp = data[i].issueTimestamp || null;
-            roomsData[i].housekeeperId = data[i].housekeeperId || null;
-            roomsData[i].housekeeperName = data[i].housekeeperName || null;
-            roomsData[i].allocationTimestamp = data[i].allocationTimestamp || null;
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.rooms && Array.isArray(data.rooms) && data.rooms.length === 4) {
+          for (let i = 0; i < data.rooms.length; i++) {
+            roomsData[i].cleanStatus = data.rooms[i].cleanStatus;
+            roomsData[i].occupiedStatus = data.rooms[i].occupiedStatus;
+            roomsData[i].currentPassenger = data.rooms[i].currentPassenger || null;
+            roomsData[i].currentIssuer = data.rooms[i].currentIssuer || null;
+            roomsData[i].issueTimestamp = data.rooms[i].issueTimestamp || null;
+            roomsData[i].housekeeperId = data.rooms[i].housekeeperId || null;
+            roomsData[i].housekeeperName = data.rooms[i].housekeeperName || null;
+            roomsData[i].allocationTimestamp = data.rooms[i].allocationTimestamp || null;
           }
         }
       }
-      document.getElementById("syncStatus").innerHTML = "🟢 Connected to Firebase";
+      document.getElementById("syncStatus").innerHTML = "🟢 Connected to Firestore";
     } catch (error) {
-      console.error("Firebase load error:", error);
+      console.error("Firestore load error:", error);
+      document.getElementById("syncStatus").innerHTML = "⚠️ Connection error: " + error.message;
     }
     renderRooms();
   }
@@ -444,7 +445,7 @@
       roomsData[3].cleanStatus = "dirty";
       
       currentDate = today;
-      saveToFirebase();
+      saveToFirestore();
       renderRooms();
       alert("📅 New day! All room data has been reset for today.");
     }
@@ -592,7 +593,7 @@
       room.housekeeperId = null;
       room.housekeeperName = null;
       room.allocationTimestamp = null;
-      await saveToFirebase();
+      await saveToFirestore();
       renderRooms();
       alert(`✅ Cleaning completed! ${room.name} is now CLEAN + VACANT and ready for new guest.`);
     }
@@ -622,7 +623,7 @@
     currentIssueRoom.housekeeperId = null;
     currentIssueRoom.housekeeperName = null;
     currentIssueRoom.allocationTimestamp = null;
-    await saveToFirebase();
+    await saveToFirestore();
     renderRooms();
     alert(`🔑 KEY ISSUED\nPassenger: ${passenger}\nIssuer: ${issuer}\nTime: ${new Date(nowISO).toLocaleString()}\n⏱️ Occupancy timer started.`);
     closeIssueModal();
@@ -648,7 +649,7 @@
     currentAllocateRoom.housekeeperId = housekeeper.id;
     currentAllocateRoom.housekeeperName = housekeeper.name;
     currentAllocateRoom.allocationTimestamp = nowISO;
-    await saveToFirebase();
+    await saveToFirestore();
     renderRooms();
     const sinceTime = new Date(nowISO).toLocaleTimeString();
     alert(`🧹 HOUSEKEEPER ALLOCATED\nRoom: ${currentAllocateRoom.name}\nHousekeeper: ${housekeeper.name}\nAllocation time: ${new Date(nowISO).toLocaleString()}\n⏱️ Cleaning timer started (since ${sinceTime})!\nClick "Complete Cleaning" when finished.`);
@@ -680,7 +681,7 @@
     currentReturnRoom.housekeeperId = null;
     currentReturnRoom.housekeeperName = null;
     currentReturnRoom.allocationTimestamp = null;
-    await saveToFirebase();
+    await saveToFirestore();
     renderRooms();
     alert(`🔁 KEY RETURNED\nPassenger: ${currentReturnRoom.currentPassenger}\nReceiver: ${receiver}\nReturn time: ${new Date(returnISO).toLocaleString()}\nRoom is now VACANT + DIRTY.\nAllocate a housekeeper to start cleaning timer.`);
     closeReturnModal();
@@ -706,7 +707,7 @@
   
   async function init() {
     bindModalEvents();
-    await loadFromFirebase();
+    await loadFromFirestore();
     startGlobalTimer();
     checkDateReset();
   }
