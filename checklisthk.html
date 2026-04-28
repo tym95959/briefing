@@ -635,7 +635,57 @@
     async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); renderSupervisorSelectPanel(); }
     function renderSODPanel() { if(!sodStaffListDiv) return; if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } supervisorTabs.classList.remove('hidden'); if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; }
     
-    async function loadSODAllocation() { if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocation(); renderFullAllocation(); } catch(e){console.error(e);} }
+    async function loadSODAllocation() { 
+        if(!firestoreReady||!currentDate||!currentShift) return; 
+        const id=getSODRecordId(currentDate,currentShift);
+        const storageKey = `sodAllocation_${currentDate}_${currentShift}`;
+        
+        // Load from localStorage first (INSTANT!)
+        const cached = localStorage.getItem(storageKey);
+        if(cached) {
+            currentSODRecord = JSON.parse(cached);
+            currentSODRecord.id = id;
+            renderAllocation(); 
+            renderFullAllocation();
+        }
+        
+        // Fetch from Firebase in background
+        try{ 
+            const doc=await db.collection("sodRecords").doc(id).get(); 
+            if(doc.exists) {
+                currentSODRecord={id:doc.id,...doc.data()};
+                localStorage.setItem(storageKey, JSON.stringify(currentSODRecord));
+            } else { 
+                const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; 
+                slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); 
+                currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; 
+                await db.collection("sodRecords").doc(id).set(currentSODRecord); 
+                currentSODRecord.id=id;
+                localStorage.setItem(storageKey, JSON.stringify(currentSODRecord));
+            } 
+            renderAllocation(); 
+            renderFullAllocation(); 
+        } catch(e){
+            console.error(e);
+            if(!cached) {
+                // Handle error case
+            }
+        } 
+    }
+
+    async function saveSODAllocationToFirebase() {
+        if(!currentSODRecord) return;
+        const id = getSODRecordId(currentDate, currentShift);
+        const storageKey = `sodAllocation_${currentDate}_${currentShift}`;
+        
+        localStorage.setItem(storageKey, JSON.stringify(currentSODRecord));
+        
+        try {
+            await db.collection("sodRecords").doc(id).set(currentSODRecord, {merge: true});
+        } catch(e) {
+            console.warn("Failed to save allocation to Firebase", e);
+        }
+    }
     function renderAllocation() { 
     if(!currentSODRecord||!allocationContainer) return; 
     const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed"; 
@@ -777,9 +827,58 @@
             console.warn("Failed to save to Firebase, but localStorage is updated", e);
         }
     }
-    async function loadTaskRecord(){ const id=getTaskRecordId(currentDate,currentShift); const doc=await db.collection("taskRecords").doc(id).get(); if(doc.exists) currentTaskRecord={id:doc.id,...doc.data()}; else currentTaskRecord={date:currentDate,shift:currentShift,status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[],createdAt:new Date().toISOString()}; await db.collection("taskRecords").doc(id).set(currentTaskRecord,{merge:true}); currentTaskRecord.id=id; updateShiftStatusUI(); renderTasks(); }
+    async function loadTaskRecord(){ 
+        const id=getTaskRecordId(currentDate,currentShift);
+        const storageKey = `taskRecord_${currentDate}_${currentShift}`;
+        
+        // Try to load from localStorage first (INSTANT!)
+        const cached = localStorage.getItem(storageKey);
+        if(cached) {
+            currentTaskRecord = JSON.parse(cached);
+            currentTaskRecord.id = id;
+            updateShiftStatusUI(); 
+            renderTasks();
+        }
+        
+        // Fetch from Firebase in background and update if newer
+        try {
+            const doc = await db.collection("taskRecords").doc(id).get(); 
+            if(doc.exists) {
+                const fbRecord = {id:doc.id,...doc.data()};
+                // Only update if Firebase has newer data
+                if(!cached || new Date(fbRecord.updatedAt || 0) > new Date(currentTaskRecord.updatedAt || 0)) {
+                    currentTaskRecord = fbRecord;
+                    localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
+                    updateShiftStatusUI(); 
+                    renderTasks();
+                }
+            } else {
+                // Create new record if doesn't exist
+                if(!cached) {
+                    currentTaskRecord = {
+                        id: id,
+                        date: currentDate,
+                        shift: currentShift,
+                        status: "open",
+                        doneTasks: {},
+                        acknowledgedTasks: {},
+                        dropdownSelections: [],
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+                    localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
+                    await db.collection("taskRecords").doc(id).set(currentTaskRecord);
+                    updateShiftStatusUI(); 
+                    renderTasks();
+                }
+            }
+        } catch(e) {
+            console.warn("Firebase task record fetch failed, using cached data", e);
+        }
+    }
     function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; if(currentRole==="supervisor"){ closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); } }
-    async function completeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} const done={...currentTaskRecord.doneTasks}; if(done[taskId]){alert("Already completed");return;} done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; await db.collection("taskRecords").doc(currentTaskRecord.id).set({doneTasks:done},{merge:true}); currentTaskRecord.doneTasks=done; renderTasks(); }
+    async function completeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} const done={...currentTaskRecord.doneTasks}; if(done[taskId]){alert("Already completed");return;} done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; currentTaskRecord.doneTasks = done;
+await saveTaskRecordToFirebase(); currentTaskRecord.doneTasks=done; renderTasks(); }
     
     
     async function acknowledgeTask(taskId, staffName) { 
@@ -808,7 +907,8 @@
             } else {
                 ackTasks[taskId] = acks;
             }
-            await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
+            currentTaskRecord.acknowledgedTasks = ackTasks;
+await saveTaskRecordToFirebase(); 
             currentTaskRecord.acknowledgedTasks = ackTasks; 
             alert(`❌ ${staffName} removed acknowledgment for this task.`);
             renderTasks();
@@ -818,7 +918,8 @@
         // ADD acknowledgment (toggle on)
         acks.push(staffName); 
         ackTasks[taskId] = acks; 
-        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
+        currentTaskRecord.dropdownSelections = selections;
+await saveTaskRecordToFirebase();
         currentTaskRecord.acknowledgedTasks = ackTasks;
         alert(`✅ ${staffName} acknowledged task!`);
         renderTasks(); 
@@ -1022,8 +1123,11 @@ function closeTaskEditModal() {
 
 
    
-async function closeShift(){ if(currentTaskRecord.status==="closed") return; const pendingCount = getPendingTasksCount(); if(pendingCount>0 && !confirm(`${pendingCount} pending task(s). Close anyway?`)) return; await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"closed",closedAt:new Date().toISOString()},{merge:true}); currentTaskRecord.status="closed"; updateShiftStatusUI(); renderTasks(); }
-    async function reopenShiftFn(){ await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"open"},{merge:true}); currentTaskRecord.status="open"; updateShiftStatusUI(); renderTasks(); }
+async function closeShift(){ if(currentTaskRecord.status==="closed") return; const pendingCount = getPendingTasksCount(); if(pendingCount>0 && !confirm(`${pendingCount} pending task(s). Close anyway?`)) return;currentTaskRecord.status = "closed";
+currentTaskRecord.closedAt = new Date().toISOString();
+await saveTaskRecordToFirebase(); currentTaskRecord.status="closed"; updateShiftStatusUI(); renderTasks(); }
+    async function reopenShiftFn(){ currentTaskRecord.status = "open";
+await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftStatusUI(); renderTasks(); }
     function getPendingTasksCount(){ if(!currentTaskRecord) return 0; let p=0; const filteredTasks = getTasksForCurrentShift(); for(const t of filteredTasks){ if(t.type==='done' && !currentTaskRecord.doneTasks[t.id]) p++; else if(t.type==='acknowledge' && (currentTaskRecord.acknowledgedTasks[t.id]||[]).length === 0) p++; else if(t.type==='dropdown' && (currentTaskRecord.dropdownSelections||[]).filter(s=>s.taskId===t.id).length===0) p++; } return p; }
     
     function renderTasks() { 
