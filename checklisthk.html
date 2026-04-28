@@ -1064,13 +1064,6 @@ function hideSavingNotification() {
         return false;
     } 
     
-    // If already completed, ask for confirmation
-    if(currentTaskRecord.doneTasks[taskId]) {
-        if(!confirm("This task was already completed by " + currentTaskRecord.doneTasks[taskId].doneBy + ". Do you want to update it?")) {
-            return false;
-        }
-    }
-    
     if(buttonElement) {
         buttonElement.innerHTML = '<span class="btn-spinner"></span> Saving...';
         buttonElement.classList.add('btn-loading');
@@ -1078,6 +1071,7 @@ function hideSavingNotification() {
     
     try {
         const done = {...currentTaskRecord.doneTasks}; 
+        // REMOVED the "Already completed" check
         done[taskId] = {doneBy: staffName, doneAt: new Date().toISOString()}; 
         currentTaskRecord.doneTasks = done;
         await saveTaskRecordToFirebase(); 
