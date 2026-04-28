@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Shower Room Manager | Flight Number · Live Cleaning Status</title>
+  <title>Shower Manager | Password Protected</title>
   <style>
     * {
       margin: 0;
@@ -35,6 +35,14 @@
       background-clip: text;
       -webkit-background-clip: text;
       color: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .header h1 span {
+      font-size: 2.8rem;
     }
 
     .header p {
@@ -95,6 +103,11 @@
       text-align: center;
       padding-bottom: 0.5rem;
       margin-bottom: 1rem;
+      font-size: 1.6rem;
+    }
+    .male-section h2 span {
+      font-size: 2rem;
+      margin-right: 6px;
     }
 
     .female-section {
@@ -109,6 +122,11 @@
       text-align: center;
       padding-bottom: 0.5rem;
       margin-bottom: 1rem;
+      font-size: 1.6rem;
+    }
+    .female-section h2 span {
+      font-size: 2rem;
+      margin-right: 6px;
     }
 
     .room-cards {
@@ -140,8 +158,8 @@
     }
 
     .room-vacant-dirty {
-      background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
-      border-left: 8px solid #ea580c;
+      background: linear-gradient(135deg, #fef9c3 0%, #fde047 100%);
+      border-left: 8px solid #ca8a04;
     }
 
     .room-cleaning-progress {
@@ -165,7 +183,7 @@
     }
 
     .gender-icon {
-      font-size: 2.2rem;
+      font-size: 2rem;
       margin-bottom: 0.3rem;
     }
 
@@ -179,7 +197,7 @@
     }
 
     .clean-badge { background: #065f46; color: white; }
-    .dirty-badge { background: #9a3412; color: white; }
+    .dirty-badge { background: #854d0e; color: white; }
     .cleaning-badge { background: #4338ca; color: white; }
     .occupied-badge { background: #991b1b; color: white; }
     .vacant-badge { background: #065a60; color: white; }
@@ -273,12 +291,6 @@
       background: #f9fbfd;
     }
 
-    .optional-hint {
-      font-size: 0.65rem;
-      color: #6b7280;
-      margin-top: 0.2rem;
-    }
-
     .modal-buttons {
       display: flex;
       gap: 1rem;
@@ -333,8 +345,8 @@
 <body>
 <div class="app-container">
   <div class="header">
-    <h1>🚿 Shower Room Manager</h1>
-    <p></p>
+    <h1><span>🚿</span> Shower Manager</h1>
+    <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Protected Actions</p>
     <div class="sync-status">
       <span class="status-dot" id="statusDot"></span>
     </div>
@@ -342,60 +354,88 @@
   
   <div class="rooms-board">
     <div class="section male-section">
-      <h2>🚹 Male Shower Rooms</h2>
+      <h2><span>🚹</span> Male Shower</h2>
       <div class="room-cards" id="maleRoomsContainer"></div>
     </div>
     <div class="section female-section">
-      <h2>🚺 Female Shower Rooms</h2>
+      <h2><span>🚺</span> Female Shower</h2>
       <div class="room-cards" id="femaleRoomsContainer"></div>
     </div>
   </div>
-  <footer>✅ 🟢 Clean & Vacant | 🔵 Cleaning in Progress (HK assigned) | 🟠 Dirty & Vacant (No HK) | 🔴 Occupied | Click room → actions</footer>
+  <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning in Progress | 🔴 Occupied | Tap card → action</footer>
 </div>
 
-<!-- MODAL: ISSUE KEY (with optional flight number) -->
-<div id="issueModal" class="modal"><div class="modal-card"><h3>🔑 Issue Shower Room Key</h3><div id="issueRoomInfo" class="info-panel"></div>
+<!-- MODAL: ISSUE KEY -->
+<div id="issueModal" class="modal"><div class="modal-card"><h3>🔑 Issue Key</h3><div id="issueRoomInfo" class="info-panel"></div>
 <form id="issueForm"><div class="form-group"><label>🧑 Passenger Name *</label><input type="text" id="passengerName" placeholder="e.g., Alex Johnson" required></div>
-<div class="form-group"><label>✈️ Flight Number (optional)</label><input type="text" id="flightNumber" placeholder="e.g., AA123, BA456"></div>
-<div class="form-group"><label>👤 Issuer Name (Officer) *</label><select id="issuerSelect" required></select></div>
-<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue & Mark Occupied</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form>
-<p class="time-hint">* Timer starts NOW. Room becomes OCCUPIED (🔴 Red). Flight number shown on card.</p></div></div>
+<div class="form-group"><label>✈️ Flight Number (optional)</label><input type="text" id="flightNumber" placeholder="e.g., AA123"></div>
+<div class="form-group"><label>👤 Issuer (Officer) *</label><select id="issuerSelect" required></select></div>
+<div class="form-group"><label>🔐 Password *</label><input type="password" id="issuerPassword" placeholder="Enter your password" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue Key</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form>
+<p class="time-hint">🔴 Room becomes OCCUPIED · Timer starts</p></div></div>
 
 <!-- MODAL: ALLOCATE HOUSEKEEPER -->
-<div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Allocate Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
+<div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Assign Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
 <form id="allocateForm"><div class="form-group"><label>🧼 Select Housekeeper (HK) *</label><select id="hkSelect" required></select></div>
-<div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning Timer & Assign</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form>
-<p class="time-hint">* Cleaning timer starts NOW. Room becomes 🔵 CLEANING IN PROGRESS until cleaning completed.</p></div></div>
+<div class="form-group"><label>🔐 Your Password (Officer/HK Manager) *</label><input type="password" id="allocatorPassword" placeholder="Enter your password" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form>
+<p class="time-hint">🔵 Cleaning in Progress · Timer starts</p></div></div>
 
 <!-- MODAL: KEY RETURN -->
-<div id="returnModal" class="modal"><div class="modal-card"><h3>🔁 Key Return / Check-out</h3><div id="returnRoomInfo" class="info-panel"></div><div id="issuedDetailsDisplay" class="issued-details"></div>
-<form id="returnForm"><div class="form-group"><label>📋 Receiver Name (Officer) *</label><select id="receiverSelect" required></select></div>
-<div class="modal-buttons"><button type="submit" class="btn btn-danger">🔁 Confirm Return → Vacant & Dirty</button><button type="button" class="btn btn-secondary" id="closeReturnModal">Cancel</button></div></form>
-<p class="time-hint">* Return makes room 🟠 VACANT + DIRTY (No HK yet). Allocate HK to start cleaning.</p></div></div>
+<div id="returnModal" class="modal"><div class="modal-card"><h3>🔁 Return Key</h3><div id="returnRoomInfo" class="info-panel"></div><div id="issuedDetailsDisplay" class="issued-details"></div>
+<form id="returnForm"><div class="form-group"><label>📋 Receiver (Officer) *</label><select id="receiverSelect" required></select></div>
+<div class="form-group"><label>🔐 Password *</label><input type="password" id="receiverPassword" placeholder="Enter your password" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-danger">🔁 Confirm Return</button><button type="button" class="btn btn-secondary" id="closeReturnModal">Cancel</button></div></form>
+<p class="time-hint">🟡 Room becomes DIRTY + VACANT · Ready for HK</p></div></div>
+
+<!-- MODAL: COMPLETE CLEANING -->
+<div id="completeCleanModal" class="modal"><div class="modal-card"><h3>✅ Complete Cleaning</h3><div id="completeRoomInfo" class="info-panel"></div>
+<form id="completeCleanForm"><div class="form-group"><label>🔐 Supervisor/Officer Password *</label><input type="password" id="cleanPassword" placeholder="Enter password" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Confirm Complete</button><button type="button" class="btn btn-secondary" id="closeCompleteModal">Cancel</button></div></form>
+<p class="time-hint">Room becomes 🟢 CLEAN + VACANT</p></div></div>
 
 <script type="module">
   import { db } from './firebase-config.js';
   import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  
+  // Import staff data from staff.js - expecting these exports
   import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
+  
+  // Password verification function using the 'pass' field from staff.js
+  function verifyStaffPassword(password, staffId = null) {
+    if (staffId) {
+      // Verify specific staff member's password
+      const staff = getStaffById(staffId);
+      if (staff && staff.pass === password) {
+        return true;
+      }
+      return false;
+    } else {
+      // Check if any staff member (officer or authorized) has this password
+      // This is used for general authorization (allocating cleaning, completing cleaning)
+      return staffList.some(staff => staff.pass === password);
+    }
+  }
 
-  // Room data structure with flightNumber optional
+  // Room data - names "Shower 1", "Shower 2"
   const roomsData = [
-    { id: "M1", name: "Shower Room 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
+    { id: "M1", name: "Shower 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
-    { id: "M2", name: "Shower Room 2", gender: "male", cleanStatus: "dirty", occupiedStatus: "vacant", 
+    { id: "M2", name: "Shower 2", gender: "male", cleanStatus: "dirty", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
-    { id: "F1", name: "Shower Room 1", gender: "female", cleanStatus: "clean", occupiedStatus: "vacant", 
+    { id: "F1", name: "Shower 1", gender: "female", cleanStatus: "clean", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
-    { id: "F2", name: "Shower Room 2", gender: "female", cleanStatus: "dirty", occupiedStatus: "vacant", 
+    { id: "F2", name: "Shower 2", gender: "female", cleanStatus: "dirty", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null }
   ];
 
   let timerInterval = null;
   let currentDate = new Date().toDateString();
+  let pendingCleanRoomId = null;
 
   function getCurrentISO() { return new Date().toISOString(); }
   
@@ -417,27 +457,6 @@
   function updateConnectionStatus(connected) {
     const dot = document.getElementById("statusDot");
     dot.className = connected ? "status-dot green" : "status-dot red";
-  }
-
-  function populateIssuerDropdown() {
-    const officers = getOfficers();
-    const select = document.getElementById("issuerSelect");
-    if (select) select.innerHTML = '<option value="">Select Officer</option>' + 
-      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact})</option>`).join('');
-  }
-
-  function populateReceiverDropdown() {
-    const officers = getOfficers();
-    const select = document.getElementById("receiverSelect");
-    if (select) select.innerHTML = '<option value="">Select Officer</option>' + 
-      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact})</option>`).join('');
-  }
-
-  function populateHkDropdown() {
-    const hkStaff = getHousekeepingStaff();
-    const select = document.getElementById("hkSelect");
-    if (select) select.innerHTML = '<option value="">Select Housekeeper (HK)</option>' + 
-      hkStaff.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} 📞 ${hk.contact}</option>`).join('');
   }
 
   async function saveToFirestore() {
@@ -504,7 +523,6 @@
       currentDate = today;
       saveToFirestore();
       renderRooms();
-      alert("📅 New day! All room data has been reset for today.");
     }
   }
 
@@ -520,7 +538,7 @@
   function getStatusText(room) {
     if (room.occupiedStatus === "occupied") return "🔴 OCCUPIED";
     if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && room.allocationTimestamp) return "🔵 CLEANING IN PROGRESS";
-    if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty") return "🟠 DIRTY · VACANT";
+    if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty") return "🟡 DIRTY · VACANT";
     return "🟢 CLEAN · VACANT";
   }
 
@@ -610,21 +628,21 @@
         ${timers.cleaningTimerHtml}
         ${passengerInfo}
         <div class="room-detail">${room.gender === 'male' ? '🚹 Male' : '🚺 Female'}</div>
-        <div class="click-hint">▼ click for action</div>
+        
         ${returnButton}
         ${timers.completeCleanBtn}
       `;
       
       card.addEventListener("click", (e) => {
         if (e.target.classList?.contains("return-btn")) { e.stopPropagation(); handleReturnClick(room.id); return; }
-        if (e.target.classList?.contains("complete-clean-btn")) { e.stopPropagation(); handleCompleteCleaning(room.id); return; }
+        if (e.target.classList?.contains("complete-clean-btn")) { e.stopPropagation(); handleCompleteCleaningClick(room.id); return; }
         handleRoomClick(room.id);
       });
       
       const returnBtn = card.querySelector(".return-btn");
       if (returnBtn) returnBtn.addEventListener("click", (e) => { e.stopPropagation(); handleReturnClick(room.id); });
       const completeBtn = card.querySelector(".complete-clean-btn");
-      if (completeBtn) completeBtn.addEventListener("click", (e) => { e.stopPropagation(); handleCompleteCleaning(room.id); });
+      if (completeBtn) completeBtn.addEventListener("click", (e) => { e.stopPropagation(); handleCompleteCleaningClick(room.id); });
       
       if (room.gender === "male") maleContainer.appendChild(card);
       else femaleContainer.appendChild(card);
@@ -643,7 +661,7 @@
         openIssueModal(room);
       } else if (room.cleanStatus === "dirty") {
         if (room.allocationTimestamp && room.housekeeperName) {
-          alert(`🧹 Cleaning in progress by ${room.housekeeperName}. Click "Complete Cleaning" when done.`);
+          alert(`🧹 Cleaning in progress by ${room.housekeeperName}. Tap "Complete Cleaning" when done.`);
         } else {
           openAllocateModal(room);
         }
@@ -657,48 +675,72 @@
     openReturnModal(room);
   }
 
-  async function handleCompleteCleaning(roomId) {
+  function handleCompleteCleaningClick(roomId) {
     const room = roomsData.find(r => r.id === roomId);
     if (!room) return;
     if (!(room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp)) {
-      alert(`Room is not in cleaning progress state.`);
+      alert(`Room is not in cleaning progress.`);
       return;
     }
-    const elapsed = formatTimeSince(room.allocationTimestamp);
-    const elapsedStr = elapsed ? `${elapsed.minutes}m ${elapsed.seconds}s` : '0m';
-    if (confirm(`Complete cleaning for ${room.name}?\nCleaning took: ${elapsedStr}\nRoom will become 🟢 CLEAN + VACANT.`)) {
-      room.cleanStatus = "clean";
-      room.housekeeperId = null;
-      room.housekeeperName = null;
-      room.housekeeperContact = null;
-      room.allocationTimestamp = null;
-      await saveToFirestore();
-      renderRooms();
-      alert(`✅ Cleaning completed! ${room.name} is now 🟢 CLEAN + VACANT and ready for new guest.`);
+    pendingCleanRoomId = roomId;
+    openCompleteCleanModal(room);
+  }
+
+  async function executeCompleteCleaning(password) {
+    const room = roomsData.find(r => r.id === pendingCleanRoomId);
+    if (!room) return false;
+    
+    let verified = verifyStaffPassword(password);
+    if (!verified) {
+      alert("❌ Invalid password. Access denied.");
+      return false;
     }
+    
+    room.cleanStatus = "clean";
+    room.housekeeperId = null;
+    room.housekeeperName = null;
+    room.housekeeperContact = null;
+    room.allocationTimestamp = null;
+    await saveToFirestore();
+    renderRooms();
+    return true;
   }
 
   let currentIssueRoom = null;
   function openIssueModal(room) {
     currentIssueRoom = room;
-    populateIssuerDropdown();
-    document.getElementById("issueRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟢 Clean & Vacant — Issue key to passenger (flight optional)`;
+    const issuerSelect = document.getElementById("issuerSelect");
+    const officers = getOfficers();
+    issuerSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact || 'no contact'})</option>`).join('');
+    
+    document.getElementById("issueRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟢 Clean & Vacant — Issue key`;
     document.getElementById("passengerName").value = "";
     document.getElementById("flightNumber").value = "";
+    document.getElementById("issuerPassword").value = "";
     document.getElementById("issueModal").style.display = "flex";
   }
-  function closeIssueModal() { document.getElementById("issueModal").style.display = "none"; currentIssueRoom = null; }
+
   async function onSubmitIssue(e) {
     e.preventDefault();
     if (!currentIssueRoom) return;
     const passenger = document.getElementById("passengerName").value.trim();
     const flightNumber = document.getElementById("flightNumber").value.trim() || null;
     const issuerId = document.getElementById("issuerSelect").value;
+    const password = document.getElementById("issuerPassword").value;
+    
     if (!passenger) { alert("Passenger name required"); return; }
     if (!issuerId) { alert("Please select an officer"); return; }
+    if (!password) { alert("Password required"); return; }
     
     const issuer = getStaffById(issuerId);
     if (!issuer) { alert("Selected officer not found"); return; }
+    
+    // Verify password using the 'pass' field from staff.js
+    if (!verifyStaffPassword(password, issuerId)) {
+      alert("❌ Invalid password for this officer. Access denied.");
+      return;
+    }
     
     const nowISO = getCurrentISO();
     currentIssueRoom.occupiedStatus = "occupied";
@@ -713,41 +755,57 @@
     currentIssueRoom.allocationTimestamp = null;
     await saveToFirestore();
     renderRooms();
-    alert(`🔑 KEY ISSUED\nRoom: ${currentIssueRoom.name}\nPassenger: ${passenger}${flightNumber ? `\nFlight: ${flightNumber}` : ''}\nIssuer: ${issuer.name}\nTime: ${new Date(nowISO).toLocaleString()}\n🔴 Room is now OCCUPIED.`);
     closeIssueModal();
   }
 
   let currentAllocateRoom = null;
   function openAllocateModal(room) {
     currentAllocateRoom = room;
-    populateHkDropdown();
-    document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟠 DIRTY + VACANT — Assign housekeeper to start cleaning`;
+    const hkSelect = document.getElementById("hkSelect");
+    const hkStaff = getHousekeepingStaff();
+    hkSelect.innerHTML = '<option value="">Select Housekeeper (HK)</option>' + 
+      hkStaff.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} 📞 ${hk.contact || 'N/A'}</option>`).join('');
+    
+    document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟡 DIRTY — Assign HK to clean`;
+    document.getElementById("allocatorPassword").value = "";
     document.getElementById("allocateModal").style.display = "flex";
   }
-  function closeAllocateModal() { document.getElementById("allocateModal").style.display = "none"; currentAllocateRoom = null; }
+
   async function onSubmitAllocate(e) {
     e.preventDefault();
     if (!currentAllocateRoom) return;
     const hkId = document.getElementById("hkSelect").value;
+    const password = document.getElementById("allocatorPassword").value;
     if (!hkId) { alert("Please select a housekeeper"); return; }
+    if (!password) { alert("Password required"); return; }
+    
+    // Verify any staff password (officer can allocate)
+    if (!verifyStaffPassword(password)) {
+      alert("❌ Invalid password. Access denied.");
+      return;
+    }
+    
     const housekeeper = getStaffById(hkId);
     if (!housekeeper) { alert("Selected housekeeper not found"); return; }
     const nowISO = getCurrentISO();
     currentAllocateRoom.housekeeperId = housekeeper.id;
     currentAllocateRoom.housekeeperName = housekeeper.name;
-    currentAllocateRoom.housekeeperContact = housekeeper.contact;
+    currentAllocateRoom.housekeeperContact = housekeeper.contact || 'N/A';
     currentAllocateRoom.allocationTimestamp = nowISO;
     await saveToFirestore();
     renderRooms();
-    alert(`🧹 HOUSEKEEPER ALLOCATED\nRoom: ${currentAllocateRoom.name}\nHK: ${housekeeper.name} 📞 ${housekeeper.contact}\nAllocation time: ${new Date(nowISO).toLocaleString()}\n🔵 Room now shows CLEANING IN PROGRESS. Click "Complete Cleaning" when finished.`);
     closeAllocateModal();
   }
 
   let currentReturnRoom = null;
   function openReturnModal(room) {
     currentReturnRoom = room;
-    populateReceiverDropdown();
-    document.getElementById("returnRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔴 Currently OCCUPIED — Confirm key return`;
+    const receiverSelect = document.getElementById("receiverSelect");
+    const officers = getOfficers();
+    receiverSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact || 'no contact'})</option>`).join('');
+    
+    document.getElementById("returnRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔴 OCCUPIED — Confirm return`;
     const flightDisplay = room.flightNumber ? `<div>✈️ Flight: <strong>${escapeHtml(room.flightNumber)}</strong></div>` : '';
     document.getElementById("issuedDetailsDisplay").innerHTML = `
       <div>🧑 Passenger: <strong>${escapeHtml(room.currentPassenger || 'Unknown')}</strong></div>
@@ -755,16 +813,26 @@
       <div>👔 Issued by: <strong>${escapeHtml(room.currentIssuerName || 'Unknown')}</strong></div>
       <div>⏱️ Issued at: <strong>${room.issueTimestamp ? new Date(room.issueTimestamp).toLocaleString() : 'N/A'}</strong></div>
     `;
+    document.getElementById("receiverPassword").value = "";
     document.getElementById("returnModal").style.display = "flex";
   }
-  function closeReturnModal() { document.getElementById("returnModal").style.display = "none"; currentReturnRoom = null; }
+
   async function onSubmitReturn(e) {
     e.preventDefault();
     if (!currentReturnRoom) return;
     const receiverId = document.getElementById("receiverSelect").value;
+    const password = document.getElementById("receiverPassword").value;
     if (!receiverId) { alert("Please select a receiving officer"); return; }
+    if (!password) { alert("Password required"); return; }
+    
     const receiver = getStaffById(receiverId);
     if (!receiver) { alert("Selected officer not found"); return; }
+    
+    if (!verifyStaffPassword(password, receiverId)) {
+      alert("❌ Invalid password for this officer. Access denied.");
+      return;
+    }
+    
     currentReturnRoom.occupiedStatus = "vacant";
     currentReturnRoom.cleanStatus = "dirty";
     currentReturnRoom.housekeeperId = null;
@@ -773,9 +841,28 @@
     currentReturnRoom.allocationTimestamp = null;
     await saveToFirestore();
     renderRooms();
-    alert(`🔁 KEY RETURNED\nPassenger: ${currentReturnRoom.currentPassenger}\nReceiver: ${receiver.name}\nReturn time: ${new Date().toLocaleString()}\n🟠 Room is now VACANT + DIRTY.\nAllocate HK to start cleaning.`);
     closeReturnModal();
   }
+
+  function openCompleteCleanModal(room) {
+    document.getElementById("completeRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔵 Cleaning in progress since ${formatTimeAgoString(room.allocationTimestamp)}<br>HK: ${escapeHtml(room.housekeeperName)}`;
+    document.getElementById("cleanPassword").value = "";
+    document.getElementById("completeCleanModal").style.display = "flex";
+  }
+
+  async function onSubmitCompleteClean(e) {
+    e.preventDefault();
+    const password = document.getElementById("cleanPassword").value;
+    if (!password) { alert("Password required"); return; }
+    await executeCompleteCleaning(password);
+    closeCompleteModal();
+    pendingCleanRoomId = null;
+  }
+
+  function closeIssueModal() { document.getElementById("issueModal").style.display = "none"; currentIssueRoom = null; }
+  function closeAllocateModal() { document.getElementById("allocateModal").style.display = "none"; currentAllocateRoom = null; }
+  function closeReturnModal() { document.getElementById("returnModal").style.display = "none"; currentReturnRoom = null; }
+  function closeCompleteModal() { document.getElementById("completeCleanModal").style.display = "none"; pendingCleanRoomId = null; }
 
   function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
 
@@ -783,13 +870,16 @@
     document.getElementById("closeIssueModal")?.addEventListener("click", closeIssueModal);
     document.getElementById("closeAllocateModal")?.addEventListener("click", closeAllocateModal);
     document.getElementById("closeReturnModal")?.addEventListener("click", closeReturnModal);
+    document.getElementById("closeCompleteModal")?.addEventListener("click", closeCompleteModal);
     document.getElementById("issueForm")?.addEventListener("submit", onSubmitIssue);
     document.getElementById("allocateForm")?.addEventListener("submit", onSubmitAllocate);
     document.getElementById("returnForm")?.addEventListener("submit", onSubmitReturn);
+    document.getElementById("completeCleanForm")?.addEventListener("submit", onSubmitCompleteClean);
     window.addEventListener("click", (e) => {
       if (e.target === document.getElementById("issueModal")) closeIssueModal();
       if (e.target === document.getElementById("allocateModal")) closeAllocateModal();
       if (e.target === document.getElementById("returnModal")) closeReturnModal();
+      if (e.target === document.getElementById("completeCleanModal")) closeCompleteModal();
     });
   }
 
