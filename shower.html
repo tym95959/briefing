@@ -46,9 +46,10 @@
     .sync-status {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 0.5rem;
       background: rgba(30, 60, 76, 0.1);
-      padding: 0.2rem 1rem;
+      padding: 0.2rem 0.8rem;
       border-radius: 40px;
       font-size: 0.7rem;
       margin-top: 0.5rem;
@@ -313,12 +314,6 @@
       margin-top: 0.2rem;
     }
 
-    .contact-number {
-      font-size: 0.65rem;
-      color: #4b5563;
-      margin-top: 0.2rem;
-    }
-
     footer {
       text-align: center;
       margin-top: 2rem;
@@ -332,9 +327,8 @@
   <div class="header">
     <h1>🚿 Shower Room Manager</h1>
     <p>⏱️ Live Timers | 🎨 Color-Coded Rooms | 🔥 Firestore Sync</p>
-    <div class="sync-status" id="syncStatus">
+    <div class="sync-status">
       <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">Firestore</span>
     </div>
   </div>
   
@@ -411,16 +405,13 @@
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
-  // Update connection status UI
+  // Update connection status - only dot, no text
   function updateConnectionStatus(connected) {
     const dot = document.getElementById("statusDot");
-    const text = document.getElementById("statusText");
     if (connected) {
       dot.className = "status-dot green";
-      text.textContent = "Firestore Connected";
     } else {
       dot.className = "status-dot red";
-      text.textContent = "Firestore Disconnected";
     }
   }
 
@@ -551,7 +542,9 @@
       const timeData = formatTimeSince(room.allocationTimestamp);
       const sinceTime = formatTimeAgoString(room.allocationTimestamp);
       if (timeData) {
-        cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning since ${sinceTime}: <span class="live-counter" id="timer-clean-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span><br><span style="font-size:0.65rem;">HK: ${escapeHtml(room.housekeeperName)} 📞 ${escapeHtml(room.housekeeperContact || 'N/A')}</span></div>`;
+        // Display contact number properly - fetch from staff.js via housekeeperId if needed
+        const contactDisplay = room.housekeeperContact && room.housekeeperContact !== 'N/A' ? room.housekeeperContact : 'Not provided';
+        cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning since ${sinceTime}: <span class="live-counter" id="timer-clean-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span><br><span style="font-size:0.65rem;">HK: ${escapeHtml(room.housekeeperName)} 📞 ${escapeHtml(contactDisplay)}</span></div>`;
         completeCleanBtn = `<button class="complete-clean-btn" data-room-id="${room.id}">✅ Complete Cleaning</button>`;
       }
     }
