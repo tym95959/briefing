@@ -1097,34 +1097,26 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
                     '<select><option>No options</option></select>';
                 
                 // Group submissions by staff for better display
-                const groupedSubmissions = {};
-                taskSelections.forEach(s => {
-                    if(!groupedSubmissions[s.staffName]) groupedSubmissions[s.staffName] = [];
-                    groupedSubmissions[s.staffName].push(s);
-                });
-                
                 let subsHtml = '';
-                if(taskSelections.length) {
-                    subsHtml = `<div class="completed-info" style="max-height:200px; overflow-y:auto;">
-                        📋 Submissions (${taskSelections.length} total - click same value to delete):<br>`;
-                    
-                    for(const [staff, entries] of Object.entries(groupedSubmissions)) {
-                        subsHtml += `<div style="margin-top:8px;"><strong>👤 ${escapeHtml(staff)}:</strong> `;
-                        entries.forEach((entry, idx) => {
-                            const isCurrentStaff = (selectedStaffName === staff);
-                            subsHtml += `<span style="display:inline-block; background:${isCurrentStaff ? '#ffebee' : '#f5f5f5'}; padding:4px 8px; border-radius:15px; margin:3px; font-size:0.7rem;">
-                                ${escapeHtml(entry.selectedValue)}${entry.additionalText ? ` (${escapeHtml(entry.additionalText)})` : ''}
+                    if(taskSelections.length) {
+                        subsHtml = `<div class="completed-info" style="max-height:200px; overflow-y:auto;">
+                            📋 Submissions (${taskSelections.length} total - click same value to delete):<br>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px;">`;
+                        
+                        taskSelections.forEach((entry, idx) => {
+                            const isCurrentStaff = (selectedStaffName === entry.staffName);
+                            subsHtml += `<span style="display:inline-block; background:${isCurrentStaff ? '#ffebee' : '#f5f5f5'}; padding:4px 10px; border-radius:20px; font-size:0.7rem;">
+                                👤 ${escapeHtml(entry.staffName)}: ${escapeHtml(entry.selectedValue)}${entry.additionalText ? ` (${escapeHtml(entry.additionalText)})` : ''}
                                 ${isCurrentStaff ? 
-                                    `<button class="delete-dropdown-entry" data-task-id="${task.id}" data-staff="${escapeHtml(staff)}" data-value="${escapeHtml(entry.selectedValue)}" style="background:#f44336; color:white; border:none; border-radius:12px; padding:2px 6px; margin-left:5px; cursor:pointer; font-size:0.6rem;">✖</button>` 
+                                    `<button class="delete-dropdown-entry" data-task-id="${task.id}" data-staff="${escapeHtml(entry.staffName)}" data-value="${escapeHtml(entry.selectedValue)}" style="background:#f44336; color:white; border:none; border-radius:15px; padding:2px 8px; margin-left:6px; cursor:pointer; font-size:0.6rem;">✖</button>` 
                                     : ''}
                             </span>`;
                         });
-                        subsHtml += `</div>`;
+                        
+                        subsHtml += `</div></div>`;
+                    } else {
+                        subsHtml = '<div class="completed-info">No submissions yet</div>';
                     }
-                    subsHtml += `</div>`;
-                } else {
-                    subsHtml = '<div class="completed-info">No submissions yet</div>';
-                }
                 
                 // Show toggle button info
                 const toggleHint = `<div class="info-text" style="font-size:0.6rem; margin-top:5px; color:#666;">
