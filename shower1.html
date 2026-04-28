@@ -152,25 +152,21 @@
       box-shadow: 0 18px 28px -8px rgba(0, 0, 0, 0.2);
     }
 
-    /* OCCUPIED - Red */
     .room-occupied {
       background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
       border-left: 8px solid #dc2626;
     }
 
-    /* DIRTY + VACANT (no cleaning assigned) - YELLOW */
     .room-vacant-dirty {
       background: linear-gradient(135deg, #fef9c3 0%, #fde047 100%);
       border-left: 8px solid #ca8a04;
     }
 
-    /* CLEANING IN PROGRESS - Blue/Purple */
     .room-cleaning-progress {
       background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
       border-left: 8px solid #4f46e5;
     }
 
-    /* CLEAN + VACANT - Green */
     .room-vacant-clean {
       background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
       border-left: 8px solid #059669;
@@ -295,12 +291,6 @@
       background: #f9fbfd;
     }
 
-    .optional-hint {
-      font-size: 0.65rem;
-      color: #6b7280;
-      margin-top: 0.2rem;
-    }
-
     .modal-buttons {
       display: flex;
       gap: 1rem;
@@ -344,12 +334,6 @@
       margin-top: 0.2rem;
     }
 
-    .error-text {
-      color: #dc2626;
-      font-size: 0.7rem;
-      margin-top: 0.2rem;
-    }
-
     footer {
       text-align: center;
       margin-top: 2rem;
@@ -381,7 +365,7 @@
   <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning in Progress | 🔴 Occupied | Tap card → action</footer>
 </div>
 
-<!-- MODAL: ISSUE KEY (with password) -->
+<!-- MODAL: ISSUE KEY -->
 <div id="issueModal" class="modal"><div class="modal-card"><h3>🔑 Issue Key</h3><div id="issueRoomInfo" class="info-panel"></div>
 <form id="issueForm"><div class="form-group"><label>🧑 Passenger Name *</label><input type="text" id="passengerName" placeholder="e.g., Alex Johnson" required></div>
 <div class="form-group"><label>✈️ Flight Number (optional)</label><input type="text" id="flightNumber" placeholder="e.g., AA123"></div>
@@ -390,30 +374,63 @@
 <div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue Key</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form>
 <p class="time-hint">🔴 Room becomes OCCUPIED · Timer starts</p></div></div>
 
-<!-- MODAL: ALLOCATE HOUSEKEEPER (with password) -->
+<!-- MODAL: ALLOCATE HOUSEKEEPER -->
 <div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Assign Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
 <form id="allocateForm"><div class="form-group"><label>🧼 Select Housekeeper (HK) *</label><select id="hkSelect" required></select></div>
 <div class="form-group"><label>🔐 Your Password (Officer/HK Manager) *</label><input type="password" id="allocatorPassword" placeholder="Enter your password" required></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form>
 <p class="time-hint">🔵 Cleaning in Progress · Timer starts</p></div></div>
 
-<!-- MODAL: KEY RETURN (with password) -->
+<!-- MODAL: KEY RETURN -->
 <div id="returnModal" class="modal"><div class="modal-card"><h3>🔁 Return Key</h3><div id="returnRoomInfo" class="info-panel"></div><div id="issuedDetailsDisplay" class="issued-details"></div>
 <form id="returnForm"><div class="form-group"><label>📋 Receiver (Officer) *</label><select id="receiverSelect" required></select></div>
 <div class="form-group"><label>🔐 Password *</label><input type="password" id="receiverPassword" placeholder="Enter your password" required></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-danger">🔁 Confirm Return</button><button type="button" class="btn btn-secondary" id="closeReturnModal">Cancel</button></div></form>
 <p class="time-hint">🟡 Room becomes DIRTY + VACANT · Ready for HK</p></div></div>
 
-<!-- MODAL: COMPLETE CLEANING (with password) -->
+<!-- MODAL: COMPLETE CLEANING -->
 <div id="completeCleanModal" class="modal"><div class="modal-card"><h3>✅ Complete Cleaning</h3><div id="completeRoomInfo" class="info-panel"></div>
-<form id="completeCleanForm"><div class="form-group"><label>🔐 Supervisor Password *</label><input type="password" id="cleanPassword" placeholder="Enter supervisor/officer password" required></div>
+<form id="completeCleanForm"><div class="form-group"><label>🔐 Supervisor/Officer Password *</label><input type="password" id="cleanPassword" placeholder="Enter password" required></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Confirm Complete</button><button type="button" class="btn btn-secondary" id="closeCompleteModal">Cancel</button></div></form>
 <p class="time-hint">Room becomes 🟢 CLEAN + VACANT</p></div></div>
 
 <script type="module">
   import { db } from './firebase-config.js';
   import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-  import { staffList, getOfficers, getHousekeepingStaff, getStaffById, verifyStaffPassword } from './staff.js';
+  
+  // ==================== STAFF DATA (embedded with pass field) ====================
+  const staffList = [
+    { id: "623", name: "Mohamed", role: "officer", contact: "", pass: "1234" },
+    { id: "101", name: "Ahmed Hassan", role: "officer", contact: "+97150123456", pass: "1111" },
+    { id: "102", name: "Fatima Ali", role: "officer", contact: "+97150234567", pass: "2222" },
+    { id: "201", name: "Rajesh Kumar", role: "housekeeping", contact: "+97150345678", pass: "3333" },
+    { id: "202", name: "Sofia Mendez", role: "housekeeping", contact: "+97150456789", pass: "4444" },
+    { id: "203", name: "Carlos Rivera", role: "housekeeping", contact: "+97150567890", pass: "5555" }
+  ];
+
+  function getOfficers() {
+    return staffList.filter(staff => staff.role === "officer");
+  }
+
+  function getHousekeepingStaff() {
+    return staffList.filter(staff => staff.role === "housekeeping");
+  }
+
+  function getStaffById(id) {
+    return staffList.find(staff => staff.id === id);
+  }
+
+  function verifyStaffPassword(password, staffId = null) {
+    if (staffId) {
+      const staff = getStaffById(staffId);
+      if (staff && staff.pass === password) return true;
+      return false;
+    } else {
+      // Check if any staff member (officer or authorized) has this password
+      return staffList.some(staff => staff.pass === password);
+    }
+  }
+  // ============================================================
 
   // Room data - names "Shower 1", "Shower 2"
   const roomsData = [
@@ -709,7 +726,6 @@
     const room = roomsData.find(r => r.id === pendingCleanRoomId);
     if (!room) return false;
     
-    // Verify password against any officer or admin
     let verified = verifyStaffPassword(password);
     if (!verified) {
       alert("❌ Invalid password. Access denied.");
@@ -726,7 +742,6 @@
     return true;
   }
 
-  // MODAL handlers with password verification
   let currentIssueRoom = null;
   function openIssueModal(room) {
     currentIssueRoom = room;
@@ -753,7 +768,6 @@
     const issuer = getStaffById(issuerId);
     if (!issuer) { alert("Selected officer not found"); return; }
     
-    // Verify password for this officer
     if (!verifyStaffPassword(password, issuerId)) {
       alert("❌ Invalid password for this officer. Access denied.");
       return;
@@ -792,7 +806,6 @@
     if (!hkId) { alert("Please select a housekeeper"); return; }
     if (!password) { alert("Password required"); return; }
     
-    // Verify password (any officer can allocate cleaning)
     if (!verifyStaffPassword(password)) {
       alert("❌ Invalid password. Access denied.");
       return;
