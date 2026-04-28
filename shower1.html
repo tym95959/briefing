@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Shower Manager | Live Status · Flight Number</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, 'Segoe UI', 'Inter', 'Roboto', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(145deg, #e2e9f2 0%, #d1dfee 100%);
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 1.8rem;
+    }
+
+    .header h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #1e3c4c, #0f2b3a);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .header h1 span {
+      font-size: 2.8rem;
+    }
+
+    .header p {
+      color: #2c4f6e;
+      font-weight: 500;
+      margin-top: 0.3rem;
+    }
+
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: rgba(30, 60, 76, 0.1);
+      padding: 0.2rem 0.8rem;
+      border-radius: 40px;
+      font-size: 0.7rem;
+      margin-top: 0.5rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .status-dot.green { background-color: #22c55e; box-shadow: 0 0 4px #22c55e; }
+    .status-dot.red { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
+
+    .rooms-board {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      justify-content: center;
+    }
+
+    .section {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-radius: 2rem;
+      padding: 1.2rem 1.5rem 1.8rem;
+      box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.2);
+      flex: 1;
+      min-width: 320px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+
+    .male-section {
+      background: linear-gradient(135deg, rgba(43, 110, 158, 0.15), rgba(255, 255, 255, 0.85));
+      border-left: 5px solid #2b6e9e;
+    }
+    .male-section h2 {
+      color: #2b6e9e;
+      border-bottom: 3px solid #2b6e9e;
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 1.6rem;
+    }
+    .male-section h2 span {
+      font-size: 2rem;
+      margin-right: 6px;
+    }
+
+    .female-section {
+      background: linear-gradient(135deg, rgba(181, 71, 110, 0.15), rgba(255, 255, 255, 0.85));
+      border-left: 5px solid #b5476e;
+    }
+    .female-section h2 {
+      color: #b5476e;
+      border-bottom: 3px solid #b5476e;
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 1.6rem;
+    }
+    .female-section h2 span {
+      font-size: 2rem;
+      margin-right: 6px;
+    }
+
+    .room-cards {
+      display: flex;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .room-card {
+      border-radius: 1.5rem;
+      padding: 1rem 0.8rem;
+      width: 280px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 14px rgba(0, 0, 0, 0.08);
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      text-align: center;
+    }
+
+    .room-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 18px 28px -8px rgba(0, 0, 0, 0.2);
+    }
+
+    .room-occupied {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      border-left: 8px solid #dc2626;
+    }
+
+    .room-vacant-dirty {
+      background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+      border-left: 8px solid #ea580c;
+    }
+
+    .room-cleaning-progress {
+      background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+      border-left: 8px solid #4f46e5;
+    }
+
+    .room-vacant-clean {
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      border-left: 8px solid #059669;
+    }
+
+    .room-name {
+      font-weight: 800;
+      font-size: 1.2rem;
+      background: rgba(255, 255, 255, 0.7);
+      display: inline-block;
+      padding: 0.2rem 1rem;
+      border-radius: 30px;
+      margin-bottom: 0.7rem;
+    }
+
+    .gender-icon {
+      font-size: 2rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .status-badge {
+      margin: 0.3rem 0;
+      font-size: 0.75rem;
+      font-weight: bold;
+      padding: 0.25rem 0.8rem;
+      border-radius: 40px;
+      display: inline-block;
+    }
+
+    .clean-badge { background: #065f46; color: white; }
+    .dirty-badge { background: #9a3412; color: white; }
+    .cleaning-badge { background: #4338ca; color: white; }
+    .occupied-badge { background: #991b1b; color: white; }
+    .vacant-badge { background: #065a60; color: white; }
+
+    .timer-box {
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 1rem;
+      padding: 0.4rem;
+      margin: 0.5rem 0;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .timer-passenger { color: #991b1b; border-left: 3px solid #dc2626; background: rgba(254, 226, 226, 0.9); }
+    .timer-cleaning { color: #3730a3; border-left: 3px solid #4f46e5; background: rgba(224, 231, 255, 0.9); }
+
+    .live-counter {
+      font-family: monospace;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    .return-btn, .complete-clean-btn {
+      margin-top: 0.5rem;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      width: 90%;
+    }
+
+    .return-btn { color: #991b1b; border: 1px solid #dc2626; }
+    .return-btn:hover { background: #fee2e2; transform: scale(0.96); }
+    .complete-clean-btn { color: #1e1b4b; background: #e0e7ff; margin-top: 0.3rem; border: 1px solid #4f46e5; }
+    .complete-clean-btn:hover { background: #c7d2fe; transform: scale(0.96); }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-card {
+      background: white;
+      border-radius: 2rem;
+      width: 90%;
+      max-width: 520px;
+      padding: 1.8rem;
+      box-shadow: 0 25px 40px rgba(0, 0, 0, 0.3);
+      animation: fadeSlide 0.2s ease;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      border-left: 5px solid #2c7da0;
+      padding-left: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      font-size: 0.85rem;
+    }
+
+    .form-group input, .form-group select {
+      padding: 0.7rem;
+      border-radius: 1rem;
+      border: 1px solid #cbd5e6;
+      background: #f9fbfd;
+    }
+
+    .optional-hint {
+      font-size: 0.65rem;
+      color: #6b7280;
+      margin-top: 0.2rem;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      padding: 0.6rem 1rem;
+      border-radius: 2rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .btn-primary { background: #2c7da0; color: white; }
+    .btn-secondary { background: #e2e8f0; color: #1f3a4b; }
+    .btn-warning { background: #ea580c; color: white; }
+    .btn-danger { background: #dc2626; color: white; }
+
+    .info-panel {
+      background: #f0f6fa;
+      padding: 0.8rem;
+      border-radius: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .issued-details {
+      background: #e6f0f5;
+      padding: 0.6rem;
+      border-radius: 0.8rem;
+      margin: 0.5rem 0;
+      font-size: 0.8rem;
+      border-left: 3px solid #2c7da0;
+    }
+
+    .time-hint {
+      font-size: 0.7rem;
+      color: #5f7d9c;
+      margin-top: 0.2rem;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: #2b5c7a;
+    }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <div class="header">
+    <h1><span>🚿</span> Shower Manager</h1>
+    <p>⏱️ Live Timers | ✈️ Flight Number (optional) | 🔵 Cleaning in Progress</p>
+    <div class="sync-status">
+      <span class="status-dot" id="statusDot"></span>
+    </div>
+  </div>
+  
+  <div class="rooms-board">
+    <div class="section male-section">
+      <h2><span>🚹</span> Male Shower</h2>
+      <div class="room-cards" id="maleRoomsContainer"></div>
+    </div>
+    <div class="section female-section">
+      <h2><span>🚺</span> Female Shower</h2>
+      <div class="room-cards" id="femaleRoomsContainer"></div>
+    </div>
+  </div>
+  <footer>✅ 🟢 Clean & Vacant | 🔵 Cleaning in Progress | 🟠 Dirty & Vacant | 🔴 Occupied | Tap card → action</footer>
+</div>
+
+<!-- MODAL: ISSUE KEY -->
+<div id="issueModal" class="modal"><div class="modal-card"><h3>🔑 Issue Key</h3><div id="issueRoomInfo" class="info-panel"></div>
+<form id="issueForm"><div class="form-group"><label>🧑 Passenger Name *</label><input type="text" id="passengerName" placeholder="e.g., Alex Johnson" required></div>
+<div class="form-group"><label>✈️ Flight Number (optional)</label><input type="text" id="flightNumber" placeholder="e.g., AA123, BA456"></div>
+<div class="form-group"><label>👤 Issuer (Officer) *</label><select id="issuerSelect" required></select></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue Key</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form>
+<p class="time-hint">🔴 Room becomes OCCUPIED · Timer starts</p></div></div>
+
+<!-- MODAL: ALLOCATE HOUSEKEEPER -->
+<div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Assign Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
+<form id="allocateForm"><div class="form-group"><label>🧼 Select Housekeeper (HK) *</label><select id="hkSelect" required></select></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form>
+<p class="time-hint">🔵 Cleaning in Progress · Timer starts</p></div></div>
+
+<!-- MODAL: KEY RETURN -->
+<div id="returnModal" class="modal"><div class="modal-card"><h3>🔁 Return Key</h3><div id="returnRoomInfo" class="info-panel"></div><div id="issuedDetailsDisplay" class="issued-details"></div>
+<form id="returnForm"><div class="form-group"><label>📋 Receiver (Officer) *</label><select id="receiverSelect" required></select></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-danger">🔁 Confirm Return</button><button type="button" class="btn btn-secondary" id="closeReturnModal">Cancel</button></div></form>
+<p class="time-hint">🟠 Room becomes DIRTY + VACANT · Ready for HK</p></div></div>
+
+<script type="module">
+  import { db } from './firebase-config.js';
+  import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
+
+  // Room data - updated names to "Shower 1", "Shower 2"
+  const roomsData = [
+    { id: "M1", name: "Shower 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
+      currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
+    { id: "M2", name: "Shower 2", gender: "male", cleanStatus: "dirty", occupiedStatus: "vacant", 
+      currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
+    { id: "F1", name: "Shower 1", gender: "female", cleanStatus: "clean", occupiedStatus: "vacant", 
+      currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
+    { id: "F2", name: "Shower 2", gender: "female", cleanStatus: "dirty", occupiedStatus: "vacant", 
+      currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null }
+  ];
+
+  let timerInterval = null;
+  let currentDate = new Date().toDateString();
+
+  function getCurrentISO() { return new Date().toISOString(); }
+  
+  function formatTimeSince(timestampISO) {
+    if (!timestampISO) return null;
+    const now = new Date();
+    const past = new Date(timestampISO);
+    const diffMs = now - past;
+    if (diffMs < 0) return { minutes: 0, seconds: 0 };
+    return { minutes: Math.floor(diffMs / 60000), seconds: Math.floor((diffMs % 60000) / 1000) };
+  }
+
+  function formatTimeAgoString(timestampISO) {
+    if (!timestampISO) return "";
+    const d = new Date(timestampISO);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function updateConnectionStatus(connected) {
+    const dot = document.getElementById("statusDot");
+    dot.className = connected ? "status-dot green" : "status-dot red";
+  }
+
+  function populateIssuerDropdown() {
+    const officers = getOfficers();
+    const select = document.getElementById("issuerSelect");
+    if (select) select.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact})</option>`).join('');
+  }
+
+  function populateReceiverDropdown() {
+    const officers = getOfficers();
+    const select = document.getElementById("receiverSelect");
+    if (select) select.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact})</option>`).join('');
+  }
+
+  function populateHkDropdown() {
+    const hkStaff = getHousekeepingStaff();
+    const select = document.getElementById("hkSelect");
+    if (select) select.innerHTML = '<option value="">Select Housekeeper (HK)</option>' + 
+      hkStaff.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} 📞 ${hk.contact}</option>`).join('');
+  }
+
+  async function saveToFirestore() {
+    const today = new Date().toISOString().split('T')[0];
+    const docRef = doc(db, 'showerRooms', today);
+    try {
+      await setDoc(docRef, { rooms: roomsData, lastUpdated: getCurrentISO() });
+      updateConnectionStatus(true);
+    } catch (error) {
+      console.error("Firestore save error:", error);
+      updateConnectionStatus(false);
+    }
+  }
+
+  async function loadFromFirestore() {
+    const today = new Date().toISOString().split('T')[0];
+    const docRef = doc(db, 'showerRooms', today);
+    try {
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.rooms && Array.isArray(data.rooms) && data.rooms.length === 4) {
+          for (let i = 0; i < data.rooms.length; i++) {
+            roomsData[i].cleanStatus = data.rooms[i].cleanStatus;
+            roomsData[i].occupiedStatus = data.rooms[i].occupiedStatus;
+            roomsData[i].currentPassenger = data.rooms[i].currentPassenger || null;
+            roomsData[i].flightNumber = data.rooms[i].flightNumber || null;
+            roomsData[i].currentIssuerId = data.rooms[i].currentIssuerId || null;
+            roomsData[i].currentIssuerName = data.rooms[i].currentIssuerName || null;
+            roomsData[i].issueTimestamp = data.rooms[i].issueTimestamp || null;
+            roomsData[i].housekeeperId = data.rooms[i].housekeeperId || null;
+            roomsData[i].housekeeperName = data.rooms[i].housekeeperName || null;
+            roomsData[i].housekeeperContact = data.rooms[i].housekeeperContact || null;
+            roomsData[i].allocationTimestamp = data.rooms[i].allocationTimestamp || null;
+          }
+        }
+      }
+      updateConnectionStatus(true);
+    } catch (error) {
+      console.error("Firestore load error:", error);
+      updateConnectionStatus(false);
+    }
+    renderRooms();
+  }
+
+  function checkDateReset() {
+    const today = new Date().toDateString();
+    if (today !== currentDate) {
+      roomsData.forEach(room => {
+        room.cleanStatus = "clean";
+        room.occupiedStatus = "vacant";
+        room.currentPassenger = null;
+        room.flightNumber = null;
+        room.currentIssuerId = null;
+        room.currentIssuerName = null;
+        room.issueTimestamp = null;
+        room.housekeeperId = null;
+        room.housekeeperName = null;
+        room.housekeeperContact = null;
+        room.allocationTimestamp = null;
+      });
+      roomsData[1].cleanStatus = "dirty";
+      roomsData[3].cleanStatus = "dirty";
+      currentDate = today;
+      saveToFirestore();
+      renderRooms();
+      // Silent reset — no alert popup to avoid disturbance, just update UI
+    }
+  }
+
+  setInterval(checkDateReset, 60000);
+
+  function getRoomCardClass(room) {
+    if (room.occupiedStatus === "occupied") return "room-occupied";
+    if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && !room.allocationTimestamp) return "room-vacant-dirty";
+    if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && room.allocationTimestamp) return "room-cleaning-progress";
+    return "room-vacant-clean";
+  }
+
+  function getStatusText(room) {
+    if (room.occupiedStatus === "occupied") return "🔴 OCCUPIED";
+    if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && room.allocationTimestamp) return "🔵 CLEANING IN PROGRESS";
+    if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty") return "🟠 DIRTY · VACANT";
+    return "🟢 CLEAN · VACANT";
+  }
+
+  function getCleanBadgeClass(room) {
+    if (room.occupiedStatus === "occupied") return "dirty-badge";
+    if (room.cleanStatus === "clean") return "clean-badge";
+    if (room.allocationTimestamp && room.cleanStatus === "dirty") return "cleaning-badge";
+    return "dirty-badge";
+  }
+
+  function getCleanLabel(room) {
+    if (room.occupiedStatus === "occupied") return "In Use";
+    if (room.cleanStatus === "clean") return "Clean ✓";
+    if (room.allocationTimestamp) return "Cleaning 🧼";
+    return "Dirty 🧹";
+  }
+
+  function renderTimerDisplay(room) {
+    let passengerTimerHtml = '';
+    let cleaningTimerHtml = '';
+    let completeCleanBtn = '';
+
+    if (room.occupiedStatus === 'occupied' && room.issueTimestamp) {
+      const timeData = formatTimeSince(room.issueTimestamp);
+      if (timeData) passengerTimerHtml = `<div class="timer-box timer-passenger">🧑 Occupied: <span class="live-counter" id="timer-pass-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span></div>`;
+    }
+
+    if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName) {
+      const timeData = formatTimeSince(room.allocationTimestamp);
+      const sinceTime = formatTimeAgoString(room.allocationTimestamp);
+      if (timeData) {
+        const contactDisplay = room.housekeeperContact && room.housekeeperContact !== 'N/A' ? room.housekeeperContact : 'Not provided';
+        cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning since ${sinceTime}: <span class="live-counter" id="timer-clean-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span><br><span style="font-size:0.65rem;">HK: ${escapeHtml(room.housekeeperName)} 📞 ${escapeHtml(contactDisplay)}</span></div>`;
+        completeCleanBtn = `<button class="complete-clean-btn" data-room-id="${room.id}">✅ Complete Cleaning</button>`;
+      }
+    }
+    return { passengerTimerHtml, cleaningTimerHtml, completeCleanBtn };
+  }
+
+  function updateLiveTimers() {
+    roomsData.forEach(room => {
+      if (room.occupiedStatus === 'occupied' && room.issueTimestamp) {
+        const span = document.getElementById(`timer-pass-${room.id}`);
+        if (span) { const td = formatTimeSince(room.issueTimestamp); if (td) span.innerText = `${td.minutes}m ${td.seconds}s`; }
+      }
+      if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName) {
+        const span = document.getElementById(`timer-clean-${room.id}`);
+        if (span) { const td = formatTimeSince(room.allocationTimestamp); if (td) span.innerText = `${td.minutes}m ${td.seconds}s`; }
+      }
+    });
+  }
+
+  function renderRooms() {
+    const maleContainer = document.getElementById("maleRoomsContainer");
+    const femaleContainer = document.getElementById("femaleRoomsContainer");
+    if (!maleContainer || !femaleContainer) return;
+    maleContainer.innerHTML = ""; femaleContainer.innerHTML = "";
+
+    roomsData.forEach(room => {
+      const card = document.createElement("div");
+      card.className = `room-card ${getRoomCardClass(room)}`;
+      
+      const genderIcon = room.gender === 'male' ? '🚹' : '🚺';
+      const cleanLabel = getCleanLabel(room);
+      const cleanBadge = getCleanBadgeClass(room);
+      const occupiedLabel = room.occupiedStatus === "occupied" ? "Occupied 👤" : "Vacant 🚪";
+      const occupiedBadge = room.occupiedStatus === "occupied" ? "occupied-badge" : "vacant-badge";
+      const timers = renderTimerDisplay(room);
+      const statusText = getStatusText(room);
+      
+      let passengerInfo = "";
+      if (room.occupiedStatus === "occupied" && room.currentPassenger) {
+        const flightHtml = room.flightNumber ? `<div style="font-size:0.65rem;">✈️ ${escapeHtml(room.flightNumber)}</div>` : '';
+        passengerInfo = `<div style="font-size:0.7rem; margin-top:5px; color:#991b1b; background:rgba(255,255,255,0.6); border-radius:20px; padding:3px;">
+          👤 ${escapeHtml(room.currentPassenger.substring(0,18))}${flightHtml}<br>👔 ${escapeHtml(room.currentIssuerName || '')}</div>`;
+      }
+      
+      const returnButton = room.occupiedStatus === "occupied" 
+        ? `<button class="return-btn" data-room-id="${room.id}">🔁 Return Key</button>` : '';
+      
+      card.innerHTML = `
+        <div class="gender-icon">${genderIcon}</div>
+        <div class="room-name">${room.name}</div>
+        <div style="font-size:0.7rem; font-weight:600; margin-bottom:0.3rem;">${statusText}</div>
+        <div><span class="status-badge ${cleanBadge}">${cleanLabel}</span> <span class="status-badge ${occupiedBadge}">${occupiedLabel}</span></div>
+        ${timers.passengerTimerHtml}
+        ${timers.cleaningTimerHtml}
+        ${passengerInfo}
+        <div class="room-detail">${room.gender === 'male' ? '🚹 Male' : '🚺 Female'}</div>
+        <div class="click-hint">▼ tap</div>
+        ${returnButton}
+        ${timers.completeCleanBtn}
+      `;
+      
+      card.addEventListener("click", (e) => {
+        if (e.target.classList?.contains("return-btn")) { e.stopPropagation(); handleReturnClick(room.id); return; }
+        if (e.target.classList?.contains("complete-clean-btn")) { e.stopPropagation(); handleCompleteCleaning(room.id); return; }
+        handleRoomClick(room.id);
+      });
+      
+      const returnBtn = card.querySelector(".return-btn");
+      if (returnBtn) returnBtn.addEventListener("click", (e) => { e.stopPropagation(); handleReturnClick(room.id); });
+      const completeBtn = card.querySelector(".complete-clean-btn");
+      if (completeBtn) completeBtn.addEventListener("click", (e) => { e.stopPropagation(); handleCompleteCleaning(room.id); });
+      
+      if (room.gender === "male") maleContainer.appendChild(card);
+      else femaleContainer.appendChild(card);
+    });
+  }
+
+  function handleRoomClick(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room) return;
+    if (room.occupiedStatus === "occupied") {
+      alert(`🔴 ${room.name} is OCCUPIED.\nUse "Return Key" button to check-out.`);
+      return;
+    }
+    if (room.occupiedStatus === "vacant") {
+      if (room.cleanStatus === "clean") {
+        openIssueModal(room);
+      } else if (room.cleanStatus === "dirty") {
+        if (room.allocationTimestamp && room.housekeeperName) {
+          alert(`🧹 Cleaning in progress by ${room.housekeeperName}. Tap "Complete Cleaning" when done.`);
+        } else {
+          openAllocateModal(room);
+        }
+      }
+    }
+  }
+
+  function handleReturnClick(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room || room.occupiedStatus !== "occupied") { alert(`❌ Room not occupied.`); return; }
+    openReturnModal(room);
+  }
+
+  async function handleCompleteCleaning(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room) return;
+    if (!(room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp)) {
+      alert(`Room is not in cleaning progress.`);
+      return;
+    }
+    // No confirmation, just complete
+    room.cleanStatus = "clean";
+    room.housekeeperId = null;
+    room.housekeeperName = null;
+    room.housekeeperContact = null;
+    room.allocationTimestamp = null;
+    await saveToFirestore();
+    renderRooms();
+    // No alert message — silent status update
+  }
+
+  let currentIssueRoom = null;
+  function openIssueModal(room) {
+    currentIssueRoom = room;
+    populateIssuerDropdown();
+    document.getElementById("issueRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟢 Clean & Vacant — Issue key`;
+    document.getElementById("passengerName").value = "";
+    document.getElementById("flightNumber").value = "";
+    document.getElementById("issueModal").style.display = "flex";
+  }
+  function closeIssueModal() { document.getElementById("issueModal").style.display = "none"; currentIssueRoom = null; }
+  async function onSubmitIssue(e) {
+    e.preventDefault();
+    if (!currentIssueRoom) return;
+    const passenger = document.getElementById("passengerName").value.trim();
+    const flightNumber = document.getElementById("flightNumber").value.trim() || null;
+    const issuerId = document.getElementById("issuerSelect").value;
+    if (!passenger) { alert("Passenger name required"); return; }
+    if (!issuerId) { alert("Please select an officer"); return; }
+    
+    const issuer = getStaffById(issuerId);
+    if (!issuer) { alert("Selected officer not found"); return; }
+    
+    const nowISO = getCurrentISO();
+    currentIssueRoom.occupiedStatus = "occupied";
+    currentIssueRoom.currentPassenger = passenger;
+    currentIssueRoom.flightNumber = flightNumber;
+    currentIssueRoom.currentIssuerId = issuer.id;
+    currentIssueRoom.currentIssuerName = issuer.name;
+    currentIssueRoom.issueTimestamp = nowISO;
+    currentIssueRoom.housekeeperId = null;
+    currentIssueRoom.housekeeperName = null;
+    currentIssueRoom.housekeeperContact = null;
+    currentIssueRoom.allocationTimestamp = null;
+    await saveToFirestore();
+    renderRooms();
+    closeIssueModal();
+  }
+
+  let currentAllocateRoom = null;
+  function openAllocateModal(room) {
+    currentAllocateRoom = room;
+    populateHkDropdown();
+    document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟠 DIRTY — Assign HK to clean`;
+    document.getElementById("allocateModal").style.display = "flex";
+  }
+  function closeAllocateModal() { document.getElementById("allocateModal").style.display = "none"; currentAllocateRoom = null; }
+  async function onSubmitAllocate(e) {
+    e.preventDefault();
+    if (!currentAllocateRoom) return;
+    const hkId = document.getElementById("hkSelect").value;
+    if (!hkId) { alert("Please select a housekeeper"); return; }
+    const housekeeper = getStaffById(hkId);
+    if (!housekeeper) { alert("Selected housekeeper not found"); return; }
+    const nowISO = getCurrentISO();
+    currentAllocateRoom.housekeeperId = housekeeper.id;
+    currentAllocateRoom.housekeeperName = housekeeper.name;
+    currentAllocateRoom.housekeeperContact = housekeeper.contact;
+    currentAllocateRoom.allocationTimestamp = nowISO;
+    await saveToFirestore();
+    renderRooms();
+    closeAllocateModal();
+  }
+
+  let currentReturnRoom = null;
+  function openReturnModal(room) {
+    currentReturnRoom = room;
+    populateReceiverDropdown();
+    document.getElementById("returnRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔴 OCCUPIED — Confirm return`;
+    const flightDisplay = room.flightNumber ? `<div>✈️ Flight: <strong>${escapeHtml(room.flightNumber)}</strong></div>` : '';
+    document.getElementById("issuedDetailsDisplay").innerHTML = `
+      <div>🧑 Passenger: <strong>${escapeHtml(room.currentPassenger || 'Unknown')}</strong></div>
+      ${flightDisplay}
+      <div>👔 Issued by: <strong>${escapeHtml(room.currentIssuerName || 'Unknown')}</strong></div>
+      <div>⏱️ Issued at: <strong>${room.issueTimestamp ? new Date(room.issueTimestamp).toLocaleString() : 'N/A'}</strong></div>
+    `;
+    document.getElementById("returnModal").style.display = "flex";
+  }
+  function closeReturnModal() { document.getElementById("returnModal").style.display = "none"; currentReturnRoom = null; }
+  async function onSubmitReturn(e) {
+    e.preventDefault();
+    if (!currentReturnRoom) return;
+    const receiverId = document.getElementById("receiverSelect").value;
+    if (!receiverId) { alert("Please select a receiving officer"); return; }
+    const receiver = getStaffById(receiverId);
+    if (!receiver) { alert("Selected officer not found"); return; }
+    currentReturnRoom.occupiedStatus = "vacant";
+    currentReturnRoom.cleanStatus = "dirty";
+    currentReturnRoom.housekeeperId = null;
+    currentReturnRoom.housekeeperName = null;
+    currentReturnRoom.housekeeperContact = null;
+    currentReturnRoom.allocationTimestamp = null;
+    await saveToFirestore();
+    renderRooms();
+    closeReturnModal();
+  }
+
+  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+
+  function bindModalEvents() {
+    document.getElementById("closeIssueModal")?.addEventListener("click", closeIssueModal);
+    document.getElementById("closeAllocateModal")?.addEventListener("click", closeAllocateModal);
+    document.getElementById("closeReturnModal")?.addEventListener("click", closeReturnModal);
+    document.getElementById("issueForm")?.addEventListener("submit", onSubmitIssue);
+    document.getElementById("allocateForm")?.addEventListener("submit", onSubmitAllocate);
+    document.getElementById("returnForm")?.addEventListener("submit", onSubmitReturn);
+    window.addEventListener("click", (e) => {
+      if (e.target === document.getElementById("issueModal")) closeIssueModal();
+      if (e.target === document.getElementById("allocateModal")) closeAllocateModal();
+      if (e.target === document.getElementById("returnModal")) closeReturnModal();
+    });
+  }
+
+  function startGlobalTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = setInterval(() => { updateLiveTimers(); }, 1000); }
+  
+  async function init() {
+    bindModalEvents();
+    await loadFromFirestore();
+    startGlobalTimer();
+    checkDateReset();
+  }
+  
+  init();
+</script>
+</body>
+</html>
