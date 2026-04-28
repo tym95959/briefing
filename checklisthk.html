@@ -631,8 +631,62 @@
         staffAttendanceView.innerHTML = html;
     }
     
-    async function loadSODStaff() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSODStaffRecordId(currentDate, currentShift); try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; } renderSODPanel(); renderBreakUI(); renderSupervisorSelectPanel(); }
-    async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); renderSupervisorSelectPanel(); }
+    async function loadSODStaff() { 
+    if(!firestoreReady || !currentDate || !currentShift) return; 
+    const id = getSODStaffRecordId(currentDate, currentShift);
+    const storageKey = `sodStaff_${currentDate}_${currentShift}`;
+    
+    // Load from localStorage first (INSTANT!)
+    const cached = localStorage.getItem(storageKey);
+    if(cached) {
+        sodStaffNames = JSON.parse(cached);
+        renderSODPanel(); 
+        renderBreakUI(); 
+        renderSupervisorSelectPanel();
+        renderTasks(); // Re-render tasks with cached SOD names
+    }
+    
+    // Fetch from Firebase in background
+    try { 
+        const doc = await db.collection("sodStaffRecords").doc(id).get(); 
+        if(doc.exists) {
+            sodStaffNames = doc.data().staffNames || [];
+        } else { 
+            sodStaffNames = [];
+        }
+        localStorage.setItem(storageKey, JSON.stringify(sodStaffNames));
+        renderSODPanel(); 
+        renderBreakUI(); 
+        renderSupervisorSelectPanel();
+        renderTasks(); // Re-render tasks with updated SOD names
+    } catch(e) { 
+        sodStaffNames = []; 
+        console.warn("Firebase SOD staff fetch failed", e);
+    } 
+}
+    async function saveSODStaff(staffNames) { 
+    const id = getSODStaffRecordId(currentDate, currentShift);
+    const storageKey = `sodStaff_${currentDate}_${currentShift}`;
+    
+    // Save to localStorage immediately
+    localStorage.setItem(storageKey, JSON.stringify(staffNames));
+    sodStaffNames = staffNames;
+    
+    // Save to Firebase in background
+    await db.collection("sodStaffRecords").doc(id).set({ 
+        staffNames, 
+        date: currentDate, 
+        shift: currentShift, 
+        updatedAt: new Date().toISOString() 
+    }, { merge: true });
+    
+    renderSODPanel(); 
+    renderAllocation(); 
+    renderFullAllocation(); 
+    renderBreakUI(); 
+    renderSupervisorSelectPanel();
+    renderTasks(); // Re-render tasks with updated SOD names
+}
     function renderSODPanel() { if(!sodStaffListDiv) return; if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } supervisorTabs.classList.remove('hidden'); if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; }
     
     async function loadSODAllocation() { 
@@ -1131,7 +1185,12 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
     if(!currentTaskRecord || !globalTasks.length){ 
         tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>'; 
         return; 
-    } 
+    }
+
+    if(sodStaffNames.length === 0 && currentRole === "staff") {
+        tasksContainer.innerHTML = '<div class="empty-msg">⚠️ No Staff on Duty (SOD) selected for this shift. Please contact supervisor.</div>';
+        return;
+    }
     const isClosed = currentTaskRecord.status === "closed"; 
     const done = currentTaskRecord.doneTasks || {}; 
     const ack = currentTaskRecord.acknowledgedTasks || {}; 
@@ -1182,7 +1241,11 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
                 const staffSelect = `<select id="staffSel_${task.id}" class="action-select">${staffOptionsHtml}</select>`; 
                 
                 if(task.type === 'done'){ 
-                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${staffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
+                    const sodStaffSelect = `<select id="staffSel_${task.id}" class="action-select">
+                        <option value="">-- Select SOD staff --</option>
+                        ${sodStaffNames.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+                    </select>`;
+                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${sodStaffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
                 } 
                 else if(task.type === 'acknowledge'){ 
                 // Build acknowledgment HTML - show who has acknowledged
