@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Shower Room Manager | Firestore Sync · Auto Daily Reset</title>
+  <title>Shower Room Manager | Staff Management · Firestore Sync</title>
   <style>
     * {
       margin: 0;
@@ -19,7 +19,7 @@
     }
 
     .app-container {
-      max-width: 1400px;
+      max-width: 1500px;
       margin: 0 auto;
     }
 
@@ -53,6 +53,22 @@
       margin-top: 0.5rem;
     }
 
+    .main-layout {
+      display: flex;
+      gap: 1.8rem;
+      flex-wrap: wrap;
+    }
+
+    .rooms-section {
+      flex: 2;
+      min-width: 550px;
+    }
+
+    .staff-section {
+      flex: 1;
+      min-width: 280px;
+    }
+
     .rooms-board {
       display: flex;
       flex-wrap: wrap;
@@ -67,7 +83,7 @@
       padding: 1.2rem 1.5rem 1.8rem;
       box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.2);
       flex: 1;
-      min-width: 300px;
+      min-width: 280px;
       border: 1px solid rgba(255, 255, 255, 0.6);
     }
 
@@ -188,6 +204,78 @@
     .complete-clean-btn { color: #0b5e2e; background: #d1fae5; margin-top: 0.3rem; }
     .complete-clean-btn:hover { background: #a7f3d0; transform: scale(0.96); }
 
+    /* Staff Panel */
+    .staff-panel {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .staff-panel h3 {
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+      color: #1e3c4c;
+      border-left: 4px solid #2c7da0;
+      padding-left: 0.8rem;
+    }
+
+    .staff-category {
+      margin-bottom: 1.2rem;
+    }
+
+    .staff-category h4 {
+      font-size: 0.9rem;
+      color: #5f7d9c;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .staff-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .staff-item {
+      background: #f8fafc;
+      padding: 0.5rem;
+      border-radius: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .staff-avatar {
+      font-size: 1.2rem;
+    }
+
+    .staff-info {
+      flex: 1;
+    }
+
+    .staff-name {
+      font-weight: 600;
+      color: #1e3c4c;
+      font-size: 0.8rem;
+    }
+
+    .staff-contact {
+      font-size: 0.65rem;
+      color: #5f7d9c;
+    }
+
+    .staff-role-badge {
+      font-size: 0.6rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 20px;
+      background: #e2e8f0;
+    }
+
+    .role-officer { background: #2c7da0; color: white; }
+    .role-hk { background: #dc7f2c; color: white; }
+
     .modal {
       display: none;
       position: fixed;
@@ -296,67 +384,78 @@
 <div class="app-container">
   <div class="header">
     <h1>🚿 Shower Room Manager</h1>
-    <p>⏱️ Live Timers | 🔥 Firestore Sync | 📅 Auto Reset at Midnight</p>
+    <p>⏱️ Live Timers | 👥 Staff Management (Officers & HK) | 🔥 Firestore Sync</p>
     <div class="sync-status" id="syncStatus">🔄 Connecting to Firestore...</div>
   </div>
   
-  <div class="rooms-board">
-    <div class="section male-section">
-      <h2>🚹 Male Shower Rooms</h2>
-      <div class="room-cards" id="maleRoomsContainer"></div>
+  <div class="main-layout">
+    <div class="rooms-section">
+      <div class="rooms-board">
+        <div class="section male-section">
+          <h2>🚹 Male Shower Rooms</h2>
+          <div class="room-cards" id="maleRoomsContainer"></div>
+        </div>
+        <div class="section female-section">
+          <h2>🚺 Female Shower Rooms</h2>
+          <div class="room-cards" id="femaleRoomsContainer"></div>
+        </div>
+      </div>
     </div>
-    <div class="section female-section">
-      <h2>🚺 Female Shower Rooms</h2>
-      <div class="room-cards" id="femaleRoomsContainer"></div>
+
+    <div class="staff-section">
+      <div class="staff-panel">
+        <h3>👥 Staff Directory</h3>
+        <div class="staff-category">
+          <h4>👔 Officers (Key Issuers)</h4>
+          <div class="staff-list" id="officersList"></div>
+        </div>
+        <div class="staff-category">
+          <h4>🧹 Housekeeping Staff</h4>
+          <div class="staff-list" id="hkList"></div>
+        </div>
+      </div>
     </div>
   </div>
-  <footer>✅ Click room for actions | All data saved to Firestore 🔥 | Data auto-deletes at midnight (daily reset)</footer>
+  <footer>✅ Click room for actions | Officers issue keys | HK staff assigned for cleaning</footer>
 </div>
 
 <!-- MODAL: ISSUE KEY -->
 <div id="issueModal" class="modal"><div class="modal-card"><h3>🔑 Issue Shower Room Key</h3><div id="issueRoomInfo" class="info-panel"></div>
 <form id="issueForm"><div class="form-group"><label>🧑 Passenger Name *</label><input type="text" id="passengerName" placeholder="e.g., Alex Johnson" required></div>
-<div class="form-group"><label>👤 Issuer Name (staff)</label><input type="text" id="issuerName" placeholder="Staff name" required></div>
+<div class="form-group"><label>👤 Issuer Name (Officer) *</label><select id="issuerSelect" required></select></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue & Mark Occupied</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form>
 <p class="time-hint">* Timer starts NOW. Room becomes OCCUPIED.</p></div></div>
 
 <!-- MODAL: ALLOCATE HOUSEKEEPER -->
 <div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Allocate Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
-<form id="allocateForm"><div class="form-group"><label>🧼 Select Housekeeper *</label><select id="hkSelect" required></select></div>
+<form id="allocateForm"><div class="form-group"><label>🧼 Select Housekeeper (HK) *</label><select id="hkSelect" required></select></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning Timer & Assign</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form>
 <p class="time-hint">* Cleaning timer starts NOW with current system time.</p></div></div>
 
 <!-- MODAL: KEY RETURN -->
 <div id="returnModal" class="modal"><div class="modal-card"><h3>🔁 Key Return / Check-out</h3><div id="returnRoomInfo" class="info-panel"></div><div id="issuedDetailsDisplay" class="issued-details"></div>
-<form id="returnForm"><div class="form-group"><label>📋 Receiver Name (staff) *</label><input type="text" id="receiverName" placeholder="Staff name" required></div>
+<form id="returnForm"><div class="form-group"><label>📋 Receiver Name (Officer) *</label><select id="receiverSelect" required></select></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-danger">🔁 Confirm Return → Vacant & Dirty</button><button type="button" class="btn btn-secondary" id="closeReturnModal">Cancel</button></div></form>
-<p class="time-hint">* Return makes room VACANT + DIRTY. Allocate housekeeper to start cleaning timer.</p></div></div>
+<p class="time-hint">* Return makes room VACANT + DIRTY. Allocate HK to start cleaning timer.</p></div></div>
 
 <script type="module">
   import { db } from './firebase-config.js';
-  import { doc, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-  // ======================== HARDCODED HOUSEKEEPERS ========================
-  const housekeepers = [
-    { id: "hk1", name: "Nasrulla", contact: "+971 50 123 4567" },
-    { id: "hk2", name: "Maria Gonzales", contact: "+971 55 987 6543" },
-    { id: "hk3", name: "James Wilson", contact: "+971 52 334 5566" },
-    { id: "hk4", name: "Priya Sharma", contact: "+971 56 778 9900" }
-  ];
+  import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
 
   // Room data structure
   const roomsData = [
     { id: "M1", name: "Shower Room 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
-      currentPassenger: null, currentIssuer: null, issueTimestamp: null,
+      currentPassenger: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, allocationTimestamp: null },
     { id: "M2", name: "Shower Room 2", gender: "male", cleanStatus: "dirty", occupiedStatus: "vacant", 
-      currentPassenger: null, currentIssuer: null, issueTimestamp: null,
+      currentPassenger: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, allocationTimestamp: null },
     { id: "F1", name: "Shower Room 1", gender: "female", cleanStatus: "clean", occupiedStatus: "vacant", 
-      currentPassenger: null, currentIssuer: null, issueTimestamp: null,
+      currentPassenger: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, allocationTimestamp: null },
     { id: "F2", name: "Shower Room 2", gender: "female", cleanStatus: "dirty", occupiedStatus: "vacant", 
-      currentPassenger: null, currentIssuer: null, issueTimestamp: null,
+      currentPassenger: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, allocationTimestamp: null }
   ];
 
@@ -378,6 +477,71 @@
     if (!timestampISO) return "";
     const d = new Date(timestampISO);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  // Render staff lists
+  function renderStaffLists() {
+    const officers = getOfficers();
+    const hkStaff = getHousekeepingStaff();
+    
+    const officersList = document.getElementById("officersList");
+    const hkList = document.getElementById("hkList");
+    
+    if (officersList) {
+      officersList.innerHTML = officers.map(officer => `
+        <div class="staff-item">
+          <div class="staff-avatar">👔</div>
+          <div class="staff-info">
+            <div class="staff-name">${escapeHtml(officer.name)}</div>
+            <div class="staff-contact">📞 ${escapeHtml(officer.contact)}</div>
+          </div>
+          <span class="staff-role-badge role-officer">Officer</span>
+        </div>
+      `).join('');
+    }
+    
+    if (hkList) {
+      hkList.innerHTML = hkStaff.map(hk => `
+        <div class="staff-item">
+          <div class="staff-avatar">🧹</div>
+          <div class="staff-info">
+            <div class="staff-name">${escapeHtml(hk.name)}</div>
+            <div class="staff-contact">📞 ${escapeHtml(hk.contact)}</div>
+          </div>
+          <span class="staff-role-badge role-hk">HK</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  // Populate issuer dropdown (Officers only)
+  function populateIssuerDropdown() {
+    const officers = getOfficers();
+    const select = document.getElementById("issuerSelect");
+    if (select) {
+      select.innerHTML = '<option value="">Select Officer</option>' + 
+        officers.map(officer => `<option value="${officer.id}">${escapeHtml(officer.name)} (${officer.contact})</option>`).join('');
+    }
+  }
+
+  // Populate receiver dropdown (Officers only)
+  function populateReceiverDropdown() {
+    const officers = getOfficers();
+    const select = document.getElementById("receiverSelect");
+    if (select) {
+      select.innerHTML = '<option value="">Select Officer</option>' + 
+        officers.map(officer => `<option value="${officer.id}">${escapeHtml(officer.name)} (${officer.contact})</option>`).join('');
+    }
+  }
+
+  // Populate HK dropdown
+  function populateHkDropdown() {
+    const hkStaff = getHousekeepingStaff();
+    const select = document.getElementById("hkSelect");
+    if (select) {
+      select.innerHTML = '<option value="">Select Housekeeper (HK)</option>' + 
+        hkStaff.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} (${hk.contact})</option>`).join('');
+    }
   }
 
   // Save to Firestore
@@ -409,7 +573,8 @@
             roomsData[i].cleanStatus = data.rooms[i].cleanStatus;
             roomsData[i].occupiedStatus = data.rooms[i].occupiedStatus;
             roomsData[i].currentPassenger = data.rooms[i].currentPassenger || null;
-            roomsData[i].currentIssuer = data.rooms[i].currentIssuer || null;
+            roomsData[i].currentIssuerId = data.rooms[i].currentIssuerId || null;
+            roomsData[i].currentIssuerName = data.rooms[i].currentIssuerName || null;
             roomsData[i].issueTimestamp = data.rooms[i].issueTimestamp || null;
             roomsData[i].housekeeperId = data.rooms[i].housekeeperId || null;
             roomsData[i].housekeeperName = data.rooms[i].housekeeperName || null;
@@ -429,18 +594,17 @@
   function checkDateReset() {
     const today = new Date().toDateString();
     if (today !== currentDate) {
-      // Reset all rooms to default state
       roomsData.forEach(room => {
         room.cleanStatus = "clean";
         room.occupiedStatus = "vacant";
         room.currentPassenger = null;
-        room.currentIssuer = null;
+        room.currentIssuerId = null;
+        room.currentIssuerName = null;
         room.issueTimestamp = null;
         room.housekeeperId = null;
         room.housekeeperName = null;
         room.allocationTimestamp = null;
       });
-      // Make M2 and F2 dirty for demo purposes
       roomsData[1].cleanStatus = "dirty";
       roomsData[3].cleanStatus = "dirty";
       
@@ -451,16 +615,7 @@
     }
   }
 
-  // Check date every minute
   setInterval(checkDateReset, 60000);
-
-  function refreshHkSelect() {
-    const select = document.getElementById("hkSelect");
-    if (select) {
-      select.innerHTML = '<option value="">Select Housekeeper</option>' + 
-        housekeepers.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} (${hk.contact})</option>`).join('');
-    }
-  }
 
   function renderTimerDisplay(room) {
     let passengerTimerHtml = '';
@@ -476,7 +631,7 @@
       const timeData = formatTimeSince(room.allocationTimestamp);
       const sinceTime = formatTimeAgoString(room.allocationTimestamp);
       if (timeData) {
-        cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning since ${sinceTime}: <span class="live-counter" id="timer-clean-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span><br><span style="font-size:0.65rem;">Housekeeper: ${escapeHtml(room.housekeeperName)}</span></div>`;
+        cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning since ${sinceTime}: <span class="live-counter" id="timer-clean-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span><br><span style="font-size:0.65rem;">HK: ${escapeHtml(room.housekeeperName)}</span></div>`;
         completeCleanBtn = `<button class="complete-clean-btn" data-room-id="${room.id}">✅ Complete Cleaning</button>`;
       }
     }
@@ -513,7 +668,7 @@
       const timers = renderTimerDisplay(room);
       
       const passengerHint = (room.occupiedStatus === "occupied" && room.currentPassenger) 
-        ? `<div style="font-size:0.65rem; margin-top:4px; color:#2c5282;">👤 ${escapeHtml(room.currentPassenger.substring(0,15))}</div>` : '';
+        ? `<div style="font-size:0.65rem; margin-top:4px; color:#2c5282;">👤 ${escapeHtml(room.currentPassenger.substring(0,15))}<br>👔 ${escapeHtml(room.currentIssuerName || '')}</div>` : '';
       
       const returnButton = room.occupiedStatus === "occupied" 
         ? `<button class="return-btn" data-room-id="${room.id}">🔁 Return Key</button>` : '';
@@ -603,9 +758,9 @@
   let currentIssueRoom = null;
   function openIssueModal(room) {
     currentIssueRoom = room;
-    document.getElementById("issueRoomInfo").innerHTML = `<strong>${room.name}</strong><br>✅ Clean & Vacant — Issue key at current system time`;
+    populateIssuerDropdown();
+    document.getElementById("issueRoomInfo").innerHTML = `<strong>${room.name}</strong><br>✅ Clean & Vacant — Select Officer to issue key`;
     document.getElementById("passengerName").value = "";
-    document.getElementById("issuerName").value = "";
     document.getElementById("issueModal").style.display = "flex";
   }
   function closeIssueModal() { document.getElementById("issueModal").style.display = "none"; currentIssueRoom = null; }
@@ -613,19 +768,25 @@
     e.preventDefault();
     if (!currentIssueRoom) return;
     const passenger = document.getElementById("passengerName").value.trim();
-    const issuer = document.getElementById("issuerName").value.trim();
-    if (!passenger || !issuer) { alert("Passenger and Issuer required"); return; }
+    const issuerId = document.getElementById("issuerSelect").value;
+    if (!passenger) { alert("Passenger name required"); return; }
+    if (!issuerId) { alert("Please select an officer"); return; }
+    
+    const issuer = getStaffById(issuerId);
+    if (!issuer) { alert("Selected officer not found"); return; }
+    
     const nowISO = getCurrentISO();
     currentIssueRoom.occupiedStatus = "occupied";
     currentIssueRoom.currentPassenger = passenger;
-    currentIssueRoom.currentIssuer = issuer;
+    currentIssueRoom.currentIssuerId = issuer.id;
+    currentIssueRoom.currentIssuerName = issuer.name;
     currentIssueRoom.issueTimestamp = nowISO;
     currentIssueRoom.housekeeperId = null;
     currentIssueRoom.housekeeperName = null;
     currentIssueRoom.allocationTimestamp = null;
     await saveToFirestore();
     renderRooms();
-    alert(`🔑 KEY ISSUED\nPassenger: ${passenger}\nIssuer: ${issuer}\nTime: ${new Date(nowISO).toLocaleString()}\n⏱️ Occupancy timer started.`);
+    alert(`🔑 KEY ISSUED\nRoom: ${currentIssueRoom.name}\nPassenger: ${passenger}\nIssuer: ${issuer.name}\nTime: ${new Date(nowISO).toLocaleString()}\n⏱️ Occupancy timer started.`);
     closeIssueModal();
   }
 
@@ -633,8 +794,8 @@
   let currentAllocateRoom = null;
   function openAllocateModal(room) {
     currentAllocateRoom = room;
-    refreshHkSelect();
-    document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🧹 DIRTY + VACANT — Select housekeeper to start cleaning timer`;
+    populateHkDropdown();
+    document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🧹 DIRTY + VACANT — Select HK to start cleaning timer`;
     document.getElementById("allocateModal").style.display = "flex";
   }
   function closeAllocateModal() { document.getElementById("allocateModal").style.display = "none"; currentAllocateRoom = null; }
@@ -643,7 +804,7 @@
     if (!currentAllocateRoom) return;
     const hkId = document.getElementById("hkSelect").value;
     if (!hkId) { alert("Please select a housekeeper"); return; }
-    const housekeeper = housekeepers.find(h => h.id === hkId);
+    const housekeeper = getStaffById(hkId);
     if (!housekeeper) { alert("Selected housekeeper not found"); return; }
     const nowISO = getCurrentISO();
     currentAllocateRoom.housekeeperId = housekeeper.id;
@@ -652,7 +813,7 @@
     await saveToFirestore();
     renderRooms();
     const sinceTime = new Date(nowISO).toLocaleTimeString();
-    alert(`🧹 HOUSEKEEPER ALLOCATED\nRoom: ${currentAllocateRoom.name}\nHousekeeper: ${housekeeper.name}\nAllocation time: ${new Date(nowISO).toLocaleString()}\n⏱️ Cleaning timer started (since ${sinceTime})!\nClick "Complete Cleaning" when finished.`);
+    alert(`🧹 HOUSEKEEPER ALLOCATED\nRoom: ${currentAllocateRoom.name}\nHK: ${housekeeper.name}\nAllocation time: ${new Date(nowISO).toLocaleString()}\n⏱️ Cleaning timer started (since ${sinceTime})!\nClick "Complete Cleaning" when finished.`);
     closeAllocateModal();
   }
 
@@ -660,21 +821,23 @@
   let currentReturnRoom = null;
   function openReturnModal(room) {
     currentReturnRoom = room;
-    document.getElementById("returnRoomInfo").innerHTML = `<strong>${room.name}</strong><br>👤 Currently OCCUPIED — Return at current system time`;
+    populateReceiverDropdown();
+    document.getElementById("returnRoomInfo").innerHTML = `<strong>${room.name}</strong><br>👤 Currently OCCUPIED — Select officer to receive key`;
     document.getElementById("issuedDetailsDisplay").innerHTML = `
       <div>🧑 Passenger: <strong>${escapeHtml(room.currentPassenger || 'Unknown')}</strong></div>
-      <div>👤 Issued by: <strong>${escapeHtml(room.currentIssuer || 'Unknown')}</strong></div>
+      <div>👔 Issued by: <strong>${escapeHtml(room.currentIssuerName || 'Unknown')}</strong></div>
       <div>⏱️ Issued at: <strong>${new Date(room.issueTimestamp).toLocaleString()}</strong></div>
     `;
-    document.getElementById("receiverName").value = "";
     document.getElementById("returnModal").style.display = "flex";
   }
   function closeReturnModal() { document.getElementById("returnModal").style.display = "none"; currentReturnRoom = null; }
   async function onSubmitReturn(e) {
     e.preventDefault();
     if (!currentReturnRoom) return;
-    const receiver = document.getElementById("receiverName").value.trim();
-    if (!receiver) { alert("Receiver name required"); return; }
+    const receiverId = document.getElementById("receiverSelect").value;
+    if (!receiverId) { alert("Please select a receiving officer"); return; }
+    const receiver = getStaffById(receiverId);
+    if (!receiver) { alert("Selected officer not found"); return; }
     const returnISO = getCurrentISO();
     currentReturnRoom.occupiedStatus = "vacant";
     currentReturnRoom.cleanStatus = "dirty";
@@ -683,7 +846,7 @@
     currentReturnRoom.allocationTimestamp = null;
     await saveToFirestore();
     renderRooms();
-    alert(`🔁 KEY RETURNED\nPassenger: ${currentReturnRoom.currentPassenger}\nReceiver: ${receiver}\nReturn time: ${new Date(returnISO).toLocaleString()}\nRoom is now VACANT + DIRTY.\nAllocate a housekeeper to start cleaning timer.`);
+    alert(`🔁 KEY RETURNED\nPassenger: ${currentReturnRoom.currentPassenger}\nReceiver: ${receiver.name}\nReturn time: ${new Date(returnISO).toLocaleString()}\nRoom is now VACANT + DIRTY.\nAllocate HK to start cleaning timer.`);
     closeReturnModal();
   }
 
@@ -706,6 +869,7 @@
   function startGlobalTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = setInterval(() => { updateLiveTimers(); }, 1000); }
   
   async function init() {
+    renderStaffLists();
     bindModalEvents();
     await loadFromFirestore();
     startGlobalTimer();
