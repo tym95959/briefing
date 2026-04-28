@@ -66,24 +66,3 @@ export function getStaffById(id) {
 export function getStaffByName(name) {
   return staffList.find(staff => staff.name === name);
 }
-
-// Add new staff (optional - can be extended)
-export function addStaff(staff) {
-  staffList.push(staff);
-}
-
-// Update staff (optional)
-export function updateStaff(id, updatedData) {
-  const index = staffList.findIndex(s => s.id === id);
-  if (index !== -1) {
-    staffList[index] = { ...staffList[index], ...updatedData };
-  }
-}
-
-// Delete staff (optional)
-export function deleteStaff(id) {
-  const index = staffList.findIndex(s => s.id === id);
-  if (index !== -1) {
-    staffList.splice(index, 1);
-  }
-}
