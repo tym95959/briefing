@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Shower Manager | Password Protected</title>
+  <title>Shower Manager | Password Protected Key Actions</title>
   <style>
     * {
       margin: 0;
@@ -346,7 +346,7 @@
 <div class="app-container">
   <div class="header">
     <h1><span>🚿</span> Shower Manager</h1>
-    <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Protected Actions</p>
+    <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Required for Key Actions Only</p>
     <div class="sync-status">
       <span class="status-dot" id="statusDot"></span>
     </div>
@@ -365,7 +365,7 @@
   <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning in Progress | 🔴 Occupied | Tap card → action</footer>
 </div>
 
-<!-- MODAL: ISSUE KEY -->
+<!-- MODAL: ISSUE KEY (Password Required) -->
 <div id="issueModal" class="modal"><div class="modal-card"><h3>🔑 Issue Key</h3><div id="issueRoomInfo" class="info-panel"></div>
 <form id="issueForm"><div class="form-group"><label>🧑 Passenger Name *</label><input type="text" id="passengerName" placeholder="e.g., Alex Johnson" required></div>
 <div class="form-group"><label>✈️ Flight Number (optional)</label><input type="text" id="flightNumber" placeholder="e.g., AA123"></div>
@@ -374,45 +374,40 @@
 <div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue Key</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form>
 <p class="time-hint">🔴 Room becomes OCCUPIED · Timer starts</p></div></div>
 
-<!-- MODAL: ALLOCATE HOUSEKEEPER -->
+<!-- MODAL: ALLOCATE HOUSEKEEPER (No Password) -->
 <div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Assign Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
 <form id="allocateForm"><div class="form-group"><label>🧼 Select Housekeeper (HK) *</label><select id="hkSelect" required></select></div>
-<div class="form-group"><label>🔐 Your Password (Officer/HK Manager) *</label><input type="password" id="allocatorPassword" placeholder="Enter your password" required></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form>
-<p class="time-hint">🔵 Cleaning in Progress · Timer starts</p></div></div>
+<p class="time-hint">🔵 Cleaning in Progress · Timer starts · No password required</p></div></div>
 
-<!-- MODAL: KEY RETURN -->
+<!-- MODAL: KEY RETURN (Password Required) -->
 <div id="returnModal" class="modal"><div class="modal-card"><h3>🔁 Return Key</h3><div id="returnRoomInfo" class="info-panel"></div><div id="issuedDetailsDisplay" class="issued-details"></div>
 <form id="returnForm"><div class="form-group"><label>📋 Receiver (Officer) *</label><select id="receiverSelect" required></select></div>
 <div class="form-group"><label>🔐 Password *</label><input type="password" id="receiverPassword" placeholder="Enter your password" required></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-danger">🔁 Confirm Return</button><button type="button" class="btn btn-secondary" id="closeReturnModal">Cancel</button></div></form>
 <p class="time-hint">🟡 Room becomes DIRTY + VACANT · Ready for HK</p></div></div>
 
-<!-- MODAL: COMPLETE CLEANING -->
+<!-- MODAL: COMPLETE CLEANING (No Password) -->
 <div id="completeCleanModal" class="modal"><div class="modal-card"><h3>✅ Complete Cleaning</h3><div id="completeRoomInfo" class="info-panel"></div>
-<form id="completeCleanForm"><div class="form-group"><label>🔐 Supervisor/Officer Password *</label><input type="password" id="cleanPassword" placeholder="Enter password" required></div>
-<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Confirm Complete</button><button type="button" class="btn btn-secondary" id="closeCompleteModal">Cancel</button></div></form>
-<p class="time-hint">Room becomes 🟢 CLEAN + VACANT</p></div></div>
+<form id="completeCleanForm"><div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Confirm Complete</button><button type="button" class="btn btn-secondary" id="closeCompleteModal">Cancel</button></div></form>
+<p class="time-hint">Room becomes 🟢 CLEAN + VACANT · No password required</p></div></div>
 
 <script type="module">
   import { db } from './firebase-config.js';
   import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
   
-  // Import staff data from staff.js - expecting these exports
+  // Import staff data from staff.js
   import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
   
   // Password verification function using the 'pass' field from staff.js
   function verifyStaffPassword(password, staffId = null) {
     if (staffId) {
-      // Verify specific staff member's password
       const staff = getStaffById(staffId);
       if (staff && staff.pass === password) {
         return true;
       }
       return false;
     } else {
-      // Check if any staff member (officer or authorized) has this password
-      // This is used for general authorization (allocating cleaning, completing cleaning)
       return staffList.some(staff => staff.pass === password);
     }
   }
@@ -628,7 +623,7 @@
         ${timers.cleaningTimerHtml}
         ${passengerInfo}
         <div class="room-detail">${room.gender === 'male' ? '🚹 Male' : '🚺 Female'}</div>
-        
+        <div class="click-hint">▼ tap</div>
         ${returnButton}
         ${timers.completeCleanBtn}
       `;
@@ -686,15 +681,9 @@
     openCompleteCleanModal(room);
   }
 
-  async function executeCompleteCleaning(password) {
+  async function executeCompleteCleaning() {
     const room = roomsData.find(r => r.id === pendingCleanRoomId);
     if (!room) return false;
-    
-    let verified = verifyStaffPassword(password);
-    if (!verified) {
-      alert("❌ Invalid password. Access denied.");
-      return false;
-    }
     
     room.cleanStatus = "clean";
     room.housekeeperId = null;
@@ -736,7 +725,6 @@
     const issuer = getStaffById(issuerId);
     if (!issuer) { alert("Selected officer not found"); return; }
     
-    // Verify password using the 'pass' field from staff.js
     if (!verifyStaffPassword(password, issuerId)) {
       alert("❌ Invalid password for this officer. Access denied.");
       return;
@@ -767,7 +755,6 @@
       hkStaff.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} 📞 ${hk.contact || 'N/A'}</option>`).join('');
     
     document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟡 DIRTY — Assign HK to clean`;
-    document.getElementById("allocatorPassword").value = "";
     document.getElementById("allocateModal").style.display = "flex";
   }
 
@@ -775,15 +762,7 @@
     e.preventDefault();
     if (!currentAllocateRoom) return;
     const hkId = document.getElementById("hkSelect").value;
-    const password = document.getElementById("allocatorPassword").value;
     if (!hkId) { alert("Please select a housekeeper"); return; }
-    if (!password) { alert("Password required"); return; }
-    
-    // Verify any staff password (officer can allocate)
-    if (!verifyStaffPassword(password)) {
-      alert("❌ Invalid password. Access denied.");
-      return;
-    }
     
     const housekeeper = getStaffById(hkId);
     if (!housekeeper) { alert("Selected housekeeper not found"); return; }
@@ -846,15 +825,12 @@
 
   function openCompleteCleanModal(room) {
     document.getElementById("completeRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔵 Cleaning in progress since ${formatTimeAgoString(room.allocationTimestamp)}<br>HK: ${escapeHtml(room.housekeeperName)}`;
-    document.getElementById("cleanPassword").value = "";
     document.getElementById("completeCleanModal").style.display = "flex";
   }
 
   async function onSubmitCompleteClean(e) {
     e.preventDefault();
-    const password = document.getElementById("cleanPassword").value;
-    if (!password) { alert("Password required"); return; }
-    await executeCompleteCleaning(password);
+    await executeCompleteCleaning();
     closeCompleteModal();
     pendingCleanRoomId = null;
   }
