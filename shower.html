@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Shower Room Manager | Firebase Sync · Auto Daily Reset</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: system-ui, 'Segoe UI', 'Inter', 'Roboto', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(145deg, #e2e9f2 0%, #d1dfee 100%);
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 1.8rem;
+    }
+
+    .header h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #1e3c4c, #0f2b3a);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .header p {
+      color: #2c4f6e;
+      font-weight: 500;
+      margin-top: 0.3rem;
+    }
+
+    .sync-status {
+      display: inline-block;
+      background: #1e3c4c;
+      color: white;
+      padding: 0.2rem 1rem;
+      border-radius: 40px;
+      font-size: 0.7rem;
+      margin-top: 0.5rem;
+    }
+
+    .rooms-board {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      justify-content: center;
+    }
+
+    .section {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-radius: 2rem;
+      padding: 1.2rem 1.5rem 1.8rem;
+      box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.2);
+      flex: 1;
+      min-width: 300px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+
+    .male-section {
+      background: linear-gradient(135deg, rgba(43, 110, 158, 0.15), rgba(255, 255, 255, 0.85));
+      border-left: 5px solid #2b6e9e;
+    }
+    .male-section h2 {
+      color: #2b6e9e;
+      border-bottom: 3px solid #2b6e9e;
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .female-section {
+      background: linear-gradient(135deg, rgba(181, 71, 110, 0.15), rgba(255, 255, 255, 0.85));
+      border-left: 5px solid #b5476e;
+    }
+    .female-section h2 {
+      color: #b5476e;
+      border-bottom: 3px solid #b5476e;
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .room-cards {
+      display: flex;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .room-card {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1rem 0.8rem;
+      width: 260px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 14px rgba(0, 0, 0, 0.08);
+      border: 1px solid #e9edf2;
+      text-align: center;
+    }
+
+    .room-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 18px 28px -8px rgba(0, 0, 0, 0.2);
+    }
+
+    .room-name {
+      font-weight: 800;
+      font-size: 1.2rem;
+      background: #f0f4fa;
+      display: inline-block;
+      padding: 0.2rem 1rem;
+      border-radius: 30px;
+      margin-bottom: 0.7rem;
+    }
+
+    .gender-icon {
+      font-size: 2.2rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .status-badge {
+      margin: 0.3rem 0;
+      font-size: 0.75rem;
+      font-weight: bold;
+      padding: 0.25rem 0.8rem;
+      border-radius: 40px;
+      display: inline-block;
+    }
+
+    .clean-badge { background: #d1fae5; color: #0b5e2e; }
+    .dirty-badge { background: #ffded9; color: #b91c1c; }
+    .occupied-badge { background: #fff3bf; color: #b45309; }
+    .vacant-badge { background: #dbeafe; color: #1e40af; }
+
+    .timer-box {
+      background: #f8fafc;
+      border-radius: 1rem;
+      padding: 0.4rem;
+      margin: 0.5rem 0;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .timer-passenger { color: #2c7da0; border-left: 3px solid #2c7da0; background: #eef2ff; }
+    .timer-cleaning { color: #b45309; border-left: 3px solid #dc7f2c; background: #fff7ed; }
+
+    .live-counter {
+      font-family: monospace;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    .return-btn, .complete-clean-btn {
+      margin-top: 0.5rem;
+      background: #f3f4f6;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      width: 90%;
+    }
+
+    .return-btn { color: #92400e; }
+    .return-btn:hover { background: #ffe4e2; transform: scale(0.96); }
+    .complete-clean-btn { color: #0b5e2e; background: #d1fae5; margin-top: 0.3rem; }
+    .complete-clean-btn:hover { background: #a7f3d0; transform: scale(0.96); }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-card {
+      background: white;
+      border-radius: 2rem;
+      width: 90%;
+      max-width: 500px;
+      padding: 1.8rem;
+      box-shadow: 0 25px 40px rgba(0, 0, 0, 0.3);
+      animation: fadeSlide 0.2s ease;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      border-left: 5px solid #2c7da0;
+      padding-left: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      font-size: 0.85rem;
+    }
+
+    .form-group input, .form-group select {
+      padding: 0.7rem;
+      border-radius: 1rem;
+      border: 1px solid #cbd5e6;
+      background: #f9fbfd;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      padding: 0.6rem 1rem;
+      border-radius: 2rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .btn-primary { background: #2c7da0; color: white; }
+    .btn-secondary { background: #e2e8f0; color: #1f3a4b; }
+    .btn-warning { background: #dc7f2c; color: white; }
+    .btn-danger { background: #b91c1c; color: white; }
+
+    .info-panel {
+      background: #f0f6fa;
+      padding: 0.8rem;
+      border-radius: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .issued-details {
+      background: #e6f0f5;
+      padding: 0.6rem;
+      border-radius: 0.8rem;
+      margin: 0.5rem 0;
+      font-size: 0.8rem;
+      border-left: 3px solid #2c7da0;
+    }
+
+    .time-hint {
+      font-size: 0.7rem;
+      color: #5f7d9c;
+      margin-top: 0.2rem;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: #2b5c7a;
+    }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <div class="header">
+    <h1>🚿 Shower Room Manager</h1>
+    <p>⏱️ Live Timers | 🔥 Firebase Sync | 📅 Auto Reset at Midnight</p>
+    <div class="sync-status" id="syncStatus">🔄 Connecting to Firebase...</div>
+  </div>
+  
+  <div class="rooms-board">
+    <div class="section male-section">
+      <h2>🚹 Male Shower Rooms</h2>
+      <div class="room-cards" id="maleRoomsContainer"></div>
+    </div>
+    <div class="section female-section">
+      <h2>🚺 Female Shower Rooms</h2>
+      <div class="room-cards" id="femaleRoomsContainer"></div>
+    </div>
+  </div>
+  <footer>✅ Click room for actions | All data saved to Firebase 🔥 | Data auto-deletes at midnight (daily reset)</footer>
+</div>
+
+<!-- MODAL: ISSUE KEY -->
+<div id="issueModal" class="modal"><div class="modal-card"><h3>🔑 Issue Shower Room Key</h3><div id="issueRoomInfo" class="info-panel"></div>
+<form id="issueForm"><div class="form-group"><label>🧑 Passenger Name *</label><input type="text" id="passengerName" placeholder="e.g., Alex Johnson" required></div>
+<div class="form-group"><label>👤 Issuer Name (staff)</label><input type="text" id="issuerName" placeholder="Staff name" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue & Mark Occupied</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form>
+<p class="time-hint">* Timer starts NOW. Room becomes OCCUPIED.</p></div></div>
+
+<!-- MODAL: ALLOCATE HOUSEKEEPER -->
+<div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Allocate Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
+<form id="allocateForm"><div class="form-group"><label>🧼 Select Housekeeper *</label><select id="hkSelect" required></select></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning Timer & Assign</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form>
+<p class="time-hint">* Cleaning timer starts NOW with current system time.</p></div></div>
+
+<!-- MODAL: KEY RETURN -->
+<div id="returnModal" class="modal"><div class="modal-card"><h3>🔁 Key Return / Check-out</h3><div id="returnRoomInfo" class="info-panel"></div><div id="issuedDetailsDisplay" class="issued-details"></div>
+<form id="returnForm"><div class="form-group"><label>📋 Receiver Name (staff) *</label><input type="text" id="receiverName" placeholder="Staff name" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-danger">🔁 Confirm Return → Vacant & Dirty</button><button type="button" class="btn btn-secondary" id="closeReturnModal">Cancel</button></div></form>
+<p class="time-hint">* Return makes room VACANT + DIRTY. Allocate housekeeper to start cleaning timer.</p></div></div>
+
+<script type="module">
+  import { database } from './firebase-config.js';
+  import { ref, set, get, child, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+  // ======================== HARDCODED HOUSEKEEPERS ========================
+  const housekeepers = [
+    { id: "hk1", name: "Nasrulla", contact: "+971 50 123 4567" },
+    { id: "hk2", name: "Maria Gonzales", contact: "+971 55 987 6543" },
+    { id: "hk3", name: "James Wilson", contact: "+971 52 334 5566" },
+    { id: "hk4", name: "Priya Sharma", contact: "+971 56 778 9900" }
+  ];
+
+  // Room data structure
+  const roomsData = [
+    { id: "M1", name: "Shower Room 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
+      currentPassenger: null, currentIssuer: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, allocationTimestamp: null },
+    { id: "M2", name: "Shower Room 2", gender: "male", cleanStatus: "dirty", occupiedStatus: "vacant", 
+      currentPassenger: null, currentIssuer: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, allocationTimestamp: null },
+    { id: "F1", name: "Shower Room 1", gender: "female", cleanStatus: "clean", occupiedStatus: "vacant", 
+      currentPassenger: null, currentIssuer: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, allocationTimestamp: null },
+    { id: "F2", name: "Shower Room 2", gender: "female", cleanStatus: "dirty", occupiedStatus: "vacant", 
+      currentPassenger: null, currentIssuer: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, allocationTimestamp: null }
+  ];
+
+  let timerInterval = null;
+  let currentDate = new Date().toDateString();
+
+  function getCurrentISO() { return new Date().toISOString(); }
+  
+  function formatTimeSince(timestampISO) {
+    if (!timestampISO) return null;
+    const now = new Date();
+    const past = new Date(timestampISO);
+    const diffMs = now - past;
+    if (diffMs < 0) return { minutes: 0, seconds: 0 };
+    return { minutes: Math.floor(diffMs / 60000), seconds: Math.floor((diffMs % 60000) / 1000) };
+  }
+
+  function formatTimeAgoString(timestampISO) {
+    if (!timestampISO) return "";
+    const d = new Date(timestampISO);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  // Save to Firebase with date key
+  async function saveToFirebase() {
+    const today = new Date().toISOString().split('T')[0];
+    const roomsRef = ref(database, `showerRooms/${today}`);
+    try {
+      await set(roomsRef, roomsData);
+      document.getElementById("syncStatus").innerHTML = "✅ Saved to Firebase";
+      setTimeout(() => {
+        document.getElementById("syncStatus").innerHTML = "🟢 Connected to Firebase";
+      }, 2000);
+    } catch (error) {
+      console.error("Firebase save error:", error);
+      document.getElementById("syncStatus").innerHTML = "⚠️ Sync error";
+    }
+  }
+
+  // Load from Firebase
+  async function loadFromFirebase() {
+    const today = new Date().toISOString().split('T')[0];
+    const roomsRef = ref(database, `showerRooms/${today}`);
+    try {
+      const snapshot = await get(roomsRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        if (Array.isArray(data) && data.length === 4) {
+          for (let i = 0; i < data.length; i++) {
+            roomsData[i].cleanStatus = data[i].cleanStatus;
+            roomsData[i].occupiedStatus = data[i].occupiedStatus;
+            roomsData[i].currentPassenger = data[i].currentPassenger || null;
+            roomsData[i].currentIssuer = data[i].currentIssuer || null;
+            roomsData[i].issueTimestamp = data[i].issueTimestamp || null;
+            roomsData[i].housekeeperId = data[i].housekeeperId || null;
+            roomsData[i].housekeeperName = data[i].housekeeperName || null;
+            roomsData[i].allocationTimestamp = data[i].allocationTimestamp || null;
+          }
+        }
+      }
+      document.getElementById("syncStatus").innerHTML = "🟢 Connected to Firebase";
+    } catch (error) {
+      console.error("Firebase load error:", error);
+    }
+    renderRooms();
+  }
+
+  // Check for date change and reset if needed
+  function checkDateReset() {
+    const today = new Date().toDateString();
+    if (today !== currentDate) {
+      // Reset all rooms to default state
+      roomsData.forEach(room => {
+        room.cleanStatus = "clean";
+        room.occupiedStatus = "vacant";
+        room.currentPassenger = null;
+        room.currentIssuer = null;
+        room.issueTimestamp = null;
+        room.housekeeperId = null;
+        room.housekeeperName = null;
+        room.allocationTimestamp = null;
+      });
+      // Make M2 and F2 dirty for demo purposes
+      roomsData[1].cleanStatus = "dirty";
+      roomsData[3].cleanStatus = "dirty";
+      
+      currentDate = today;
+      saveToFirebase();
+      renderRooms();
+      alert("📅 New day! All room data has been reset for today.");
+    }
+  }
+
+  // Check date every minute
+  setInterval(checkDateReset, 60000);
+
+  function refreshHkSelect() {
+    const select = document.getElementById("hkSelect");
+    if (select) {
+      select.innerHTML = '<option value="">Select Housekeeper</option>' + 
+        housekeepers.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} (${hk.contact})</option>`).join('');
+    }
+  }
+
+  function renderTimerDisplay(room) {
+    let passengerTimerHtml = '';
+    let cleaningTimerHtml = '';
+    let completeCleanBtn = '';
+
+    if (room.occupiedStatus === 'occupied' && room.issueTimestamp) {
+      const timeData = formatTimeSince(room.issueTimestamp);
+      if (timeData) passengerTimerHtml = `<div class="timer-box timer-passenger">🧑 Occupied: <span class="live-counter" id="timer-pass-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span></div>`;
+    }
+
+    if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName) {
+      const timeData = formatTimeSince(room.allocationTimestamp);
+      const sinceTime = formatTimeAgoString(room.allocationTimestamp);
+      if (timeData) {
+        cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning since ${sinceTime}: <span class="live-counter" id="timer-clean-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span><br><span style="font-size:0.65rem;">Housekeeper: ${escapeHtml(room.housekeeperName)}</span></div>`;
+        completeCleanBtn = `<button class="complete-clean-btn" data-room-id="${room.id}">✅ Complete Cleaning</button>`;
+      }
+    }
+
+    return { passengerTimerHtml, cleaningTimerHtml, completeCleanBtn };
+  }
+
+  function updateLiveTimers() {
+    roomsData.forEach(room => {
+      if (room.occupiedStatus === 'occupied' && room.issueTimestamp) {
+        const span = document.getElementById(`timer-pass-${room.id}`);
+        if (span) { const td = formatTimeSince(room.issueTimestamp); if (td) span.innerText = `${td.minutes}m ${td.seconds}s`; }
+      }
+      if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName) {
+        const span = document.getElementById(`timer-clean-${room.id}`);
+        if (span) { const td = formatTimeSince(room.allocationTimestamp); if (td) span.innerText = `${td.minutes}m ${td.seconds}s`; }
+      }
+    });
+  }
+
+  function renderRooms() {
+    const maleContainer = document.getElementById("maleRoomsContainer");
+    const femaleContainer = document.getElementById("femaleRoomsContainer");
+    if (!maleContainer || !femaleContainer) return;
+    maleContainer.innerHTML = ""; femaleContainer.innerHTML = "";
+
+    roomsData.forEach(room => {
+      const card = document.createElement("div"); card.className = "room-card";
+      const genderIcon = room.gender === 'male' ? '🚹' : '🚺';
+      const cleanLabel = room.cleanStatus === "clean" ? "Clean ✓" : "Dirty 🧹";
+      const cleanBadge = room.cleanStatus === "clean" ? "clean-badge" : "dirty-badge";
+      const occupiedLabel = room.occupiedStatus === "occupied" ? "Occupied 👤" : "Vacant 🚪";
+      const occupiedBadge = room.occupiedStatus === "occupied" ? "occupied-badge" : "vacant-badge";
+      const timers = renderTimerDisplay(room);
+      
+      const passengerHint = (room.occupiedStatus === "occupied" && room.currentPassenger) 
+        ? `<div style="font-size:0.65rem; margin-top:4px; color:#2c5282;">👤 ${escapeHtml(room.currentPassenger.substring(0,15))}</div>` : '';
+      
+      const returnButton = room.occupiedStatus === "occupied" 
+        ? `<button class="return-btn" data-room-id="${room.id}">🔁 Return Key</button>` : '';
+      
+      card.innerHTML = `
+        <div class="gender-icon">${genderIcon}</div>
+        <div class="room-name">${room.name}</div>
+        <div><span class="status-badge ${cleanBadge}">${cleanLabel}</span></div>
+        <div><span class="status-badge ${occupiedBadge}">${occupiedLabel}</span></div>
+        ${timers.passengerTimerHtml}
+        ${timers.cleaningTimerHtml}
+        ${passengerHint}
+        <div class="room-detail">${room.gender === 'male' ? '🚹 Male' : '🚺 Female'}</div>
+        <div class="click-hint">▼ click for action</div>
+        ${returnButton}
+        ${timers.completeCleanBtn}
+      `;
+      
+      card.addEventListener("click", (e) => {
+        if (e.target.classList?.contains("return-btn")) { e.stopPropagation(); handleReturnClick(room.id); return; }
+        if (e.target.classList?.contains("complete-clean-btn")) { e.stopPropagation(); handleCompleteCleaning(room.id); return; }
+        handleRoomClick(room.id);
+      });
+      
+      const returnBtn = card.querySelector(".return-btn");
+      if (returnBtn) returnBtn.addEventListener("click", (e) => { e.stopPropagation(); handleReturnClick(room.id); });
+      
+      const completeBtn = card.querySelector(".complete-clean-btn");
+      if (completeBtn) completeBtn.addEventListener("click", (e) => { e.stopPropagation(); handleCompleteCleaning(room.id); });
+      
+      if (room.gender === "male") maleContainer.appendChild(card);
+      else femaleContainer.appendChild(card);
+    });
+  }
+
+  function handleRoomClick(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room) return;
+    if (room.occupiedStatus === "occupied") {
+      alert(`⚠️ ${room.name} is OCCUPIED.\nUse "Return Key" button to check-out.`);
+      return;
+    }
+    if (room.occupiedStatus === "vacant") {
+      if (room.cleanStatus === "clean") {
+        openIssueModal(room);
+      } else if (room.cleanStatus === "dirty") {
+        if (room.housekeeperName && room.allocationTimestamp) {
+          alert(`🧹 Housekeeper ${room.housekeeperName} is already assigned.\nCleaning timer is running. Click "Complete Cleaning" when done.`);
+        } else {
+          openAllocateModal(room);
+        }
+      }
+    }
+  }
+
+  function handleReturnClick(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room || room.occupiedStatus !== "occupied") { alert(`❌ Room not occupied.`); return; }
+    openReturnModal(room);
+  }
+
+  async function handleCompleteCleaning(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room) return;
+    if (room.cleanStatus !== 'dirty' || room.occupiedStatus !== 'vacant') {
+      alert(`Room is not in cleaning state.`);
+      return;
+    }
+    if (!room.housekeeperName || !room.allocationTimestamp) {
+      alert(`No active cleaning allocation found.`);
+      return;
+    }
+    const elapsed = formatTimeSince(room.allocationTimestamp);
+    const elapsedStr = elapsed ? `${elapsed.minutes}m ${elapsed.seconds}s` : '0m';
+    if (confirm(`Complete cleaning for ${room.name}?\nCleaning took: ${elapsedStr}\nRoom will become CLEAN + VACANT.`)) {
+      room.cleanStatus = "clean";
+      room.housekeeperId = null;
+      room.housekeeperName = null;
+      room.allocationTimestamp = null;
+      await saveToFirebase();
+      renderRooms();
+      alert(`✅ Cleaning completed! ${room.name} is now CLEAN + VACANT and ready for new guest.`);
+    }
+  }
+
+  // ISSUE KEY
+  let currentIssueRoom = null;
+  function openIssueModal(room) {
+    currentIssueRoom = room;
+    document.getElementById("issueRoomInfo").innerHTML = `<strong>${room.name}</strong><br>✅ Clean & Vacant — Issue key at current system time`;
+    document.getElementById("passengerName").value = "";
+    document.getElementById("issuerName").value = "";
+    document.getElementById("issueModal").style.display = "flex";
+  }
+  function closeIssueModal() { document.getElementById("issueModal").style.display = "none"; currentIssueRoom = null; }
+  async function onSubmitIssue(e) {
+    e.preventDefault();
+    if (!currentIssueRoom) return;
+    const passenger = document.getElementById("passengerName").value.trim();
+    const issuer = document.getElementById("issuerName").value.trim();
+    if (!passenger || !issuer) { alert("Passenger and Issuer required"); return; }
+    const nowISO = getCurrentISO();
+    currentIssueRoom.occupiedStatus = "occupied";
+    currentIssueRoom.currentPassenger = passenger;
+    currentIssueRoom.currentIssuer = issuer;
+    currentIssueRoom.issueTimestamp = nowISO;
+    currentIssueRoom.housekeeperId = null;
+    currentIssueRoom.housekeeperName = null;
+    currentIssueRoom.allocationTimestamp = null;
+    await saveToFirebase();
+    renderRooms();
+    alert(`🔑 KEY ISSUED\nPassenger: ${passenger}\nIssuer: ${issuer}\nTime: ${new Date(nowISO).toLocaleString()}\n⏱️ Occupancy timer started.`);
+    closeIssueModal();
+  }
+
+  // ALLOCATE HOUSEKEEPER
+  let currentAllocateRoom = null;
+  function openAllocateModal(room) {
+    currentAllocateRoom = room;
+    refreshHkSelect();
+    document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🧹 DIRTY + VACANT — Select housekeeper to start cleaning timer`;
+    document.getElementById("allocateModal").style.display = "flex";
+  }
+  function closeAllocateModal() { document.getElementById("allocateModal").style.display = "none"; currentAllocateRoom = null; }
+  async function onSubmitAllocate(e) {
+    e.preventDefault();
+    if (!currentAllocateRoom) return;
+    const hkId = document.getElementById("hkSelect").value;
+    if (!hkId) { alert("Please select a housekeeper"); return; }
+    const housekeeper = housekeepers.find(h => h.id === hkId);
+    if (!housekeeper) { alert("Selected housekeeper not found"); return; }
+    const nowISO = getCurrentISO();
+    currentAllocateRoom.housekeeperId = housekeeper.id;
+    currentAllocateRoom.housekeeperName = housekeeper.name;
+    currentAllocateRoom.allocationTimestamp = nowISO;
+    await saveToFirebase();
+    renderRooms();
+    const sinceTime = new Date(nowISO).toLocaleTimeString();
+    alert(`🧹 HOUSEKEEPER ALLOCATED\nRoom: ${currentAllocateRoom.name}\nHousekeeper: ${housekeeper.name}\nAllocation time: ${new Date(nowISO).toLocaleString()}\n⏱️ Cleaning timer started (since ${sinceTime})!\nClick "Complete Cleaning" when finished.`);
+    closeAllocateModal();
+  }
+
+  // KEY RETURN
+  let currentReturnRoom = null;
+  function openReturnModal(room) {
+    currentReturnRoom = room;
+    document.getElementById("returnRoomInfo").innerHTML = `<strong>${room.name}</strong><br>👤 Currently OCCUPIED — Return at current system time`;
+    document.getElementById("issuedDetailsDisplay").innerHTML = `
+      <div>🧑 Passenger: <strong>${escapeHtml(room.currentPassenger || 'Unknown')}</strong></div>
+      <div>👤 Issued by: <strong>${escapeHtml(room.currentIssuer || 'Unknown')}</strong></div>
+      <div>⏱️ Issued at: <strong>${new Date(room.issueTimestamp).toLocaleString()}</strong></div>
+    `;
+    document.getElementById("receiverName").value = "";
+    document.getElementById("returnModal").style.display = "flex";
+  }
+  function closeReturnModal() { document.getElementById("returnModal").style.display = "none"; currentReturnRoom = null; }
+  async function onSubmitReturn(e) {
+    e.preventDefault();
+    if (!currentReturnRoom) return;
+    const receiver = document.getElementById("receiverName").value.trim();
+    if (!receiver) { alert("Receiver name required"); return; }
+    const returnISO = getCurrentISO();
+    currentReturnRoom.occupiedStatus = "vacant";
+    currentReturnRoom.cleanStatus = "dirty";
+    currentReturnRoom.housekeeperId = null;
+    currentReturnRoom.housekeeperName = null;
+    currentReturnRoom.allocationTimestamp = null;
+    await saveToFirebase();
+    renderRooms();
+    alert(`🔁 KEY RETURNED\nPassenger: ${currentReturnRoom.currentPassenger}\nReceiver: ${receiver}\nReturn time: ${new Date(returnISO).toLocaleString()}\nRoom is now VACANT + DIRTY.\nAllocate a housekeeper to start cleaning timer.`);
+    closeReturnModal();
+  }
+
+  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+
+  function bindModalEvents() {
+    document.getElementById("closeIssueModal")?.addEventListener("click", closeIssueModal);
+    document.getElementById("closeAllocateModal")?.addEventListener("click", closeAllocateModal);
+    document.getElementById("closeReturnModal")?.addEventListener("click", closeReturnModal);
+    document.getElementById("issueForm")?.addEventListener("submit", onSubmitIssue);
+    document.getElementById("allocateForm")?.addEventListener("submit", onSubmitAllocate);
+    document.getElementById("returnForm")?.addEventListener("submit", onSubmitReturn);
+    window.addEventListener("click", (e) => {
+      if (e.target === document.getElementById("issueModal")) closeIssueModal();
+      if (e.target === document.getElementById("allocateModal")) closeAllocateModal();
+      if (e.target === document.getElementById("returnModal")) closeReturnModal();
+    });
+  }
+
+  function startGlobalTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = setInterval(() => { updateLiveTimers(); }, 1000); }
+  
+  async function init() {
+    bindModalEvents();
+    await loadFromFirebase();
+    startGlobalTimer();
+    checkDateReset();
+  }
+  
+  init();
+</script>
+</body>
+</html>
