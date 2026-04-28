@@ -813,23 +813,37 @@ async function submitDropdown(taskId, selectedValue, note, staffName) {
         return;
     }
     
-    // ✅ Allow multiple entries - NO checking for existing entries
     const selections = [...(currentTaskRecord.dropdownSelections || [])];
     
-    // Just add a NEW entry every time
-    selections.push({ 
-        taskId, 
-        staffName, 
-        selectedValue, 
-        additionalText: note || "", 
-        submittedAt: new Date().toISOString(),
-        entryNumber: (selections.filter(s => s.taskId === taskId && s.staffName === staffName).length + 1) // Track sequence
-    }); 
+    // Check if this EXACT same entry exists (same staff, same task, same value)
+    const existingIndex = selections.findIndex(s => 
+        s.taskId === taskId && 
+        s.staffName === staffName && 
+        s.selectedValue === selectedValue
+    );
     
-    await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
-    currentTaskRecord.dropdownSelections = selections; 
-    alert(`✅ Entry #${selections.filter(s => s.taskId === taskId && s.staffName === staffName).length} saved for ${staffName}!`);
-    renderTasks();
+    if(existingIndex !== -1) {
+        // DELETE the existing entry (toggle off)
+        selections.splice(existingIndex, 1);
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
+        currentTaskRecord.dropdownSelections = selections; 
+        alert(`❌ Removed "${selectedValue}" entry for ${staffName}`);
+        renderTasks();
+    } else {
+        // ADD new entry (toggle on)
+        selections.push({ 
+            taskId, 
+            staffName, 
+            selectedValue, 
+            additionalText: note || "", 
+            submittedAt: new Date().toISOString(),
+            entryId: Date.now() + Math.random() // Unique ID for each entry
+        }); 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
+        currentTaskRecord.dropdownSelections = selections; 
+        alert(`✅ Added "${selectedValue}" for ${staffName}`);
+        renderTasks();
+    }
 }
 
 
@@ -1075,38 +1089,72 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
                 </div>`; 
             }
                 else if(task.type === 'dropdown'){ 
-                    const optsHtml = task.options ? 
-                        `<select id="dropSel_${task.id}" class="action-dropdown">
-                            <option value="">-- Select --</option>
-                            ${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
-                        </select>` : 
-                        '<select><option>No options</option></select>';
+                const optsHtml = task.options ? 
+                    `<select id="dropSel_${task.id}" class="action-dropdown">
+                        <option value="">-- Select --</option>
+                        ${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
+                    </select>` : 
+                    '<select><option>No options</option></select>';
+                
+                // Group submissions by staff for better display
+                const groupedSubmissions = {};
+                taskSelections.forEach(s => {
+                    if(!groupedSubmissions[s.staffName]) groupedSubmissions[s.staffName] = [];
+                    groupedSubmissions[s.staffName].push(s);
+                });
+                
+                let subsHtml = '';
+                if(taskSelections.length) {
+                    subsHtml = `<div class="completed-info" style="max-height:200px; overflow-y:auto;">
+                        📋 Submissions (${taskSelections.length} total - click same value to delete):<br>`;
                     
-                    const subsHtml = taskSelections.length ? 
-                        `<div class="completed-info" style="max-height:150px; overflow-y:auto;">
-                            📋 Submissions (${taskSelections.length} total - multiple allowed):<br>
-                            ${taskSelections.map((s, idx) => `#${idx+1} 👤 ${escapeHtml(s.staffName)}: <strong>${escapeHtml(s.selectedValue)}</strong>${s.additionalText ? ` (${escapeHtml(s.additionalText)})` : ''}${s.edited ? ' ✏️' : ''}`).join('<br>')}
-                        </div>` : 
-                        '<div class="completed-info">No submissions yet</div>';
-                    
-                    taskDivItem.innerHTML = `<div class="task-header">
-                        <div class="task-name">
-                            📋 ${escapeHtml(task.name)}${shiftBadge} 
-                            <span style="background:#2196f3; color:white; padding:2px 8px; border-radius:12px; font-size:0.6rem; margin-left:8px;">
-                                🔁 Multiple entries allowed
-                            </span>
-                            ${adminEditBtn} 
-                            ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
-                        </div>
-                    </div>
-                    ${subsHtml}
-                    <div class="flex-row">
-                        ${staffSelect}
-                        ${optsHtml}
-                        <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (optional)" maxlength="20" style="width:120px;">
-                        <button class="do-drop action-btn" data-id="${task.id}">➕ Add Entry</button>
-                    </div>`; 
+                    for(const [staff, entries] of Object.entries(groupedSubmissions)) {
+                        subsHtml += `<div style="margin-top:8px;"><strong>👤 ${escapeHtml(staff)}:</strong><br>`;
+                        entries.forEach((entry, idx) => {
+                            const isCurrentStaff = (selectedStaffName === staff);
+                            subsHtml += `<span style="display:inline-block; background:${isCurrentStaff ? '#ffebee' : '#f5f5f5'}; padding:4px 8px; border-radius:15px; margin:3px; font-size:0.7rem;">
+                                ${escapeHtml(entry.selectedValue)}${entry.additionalText ? ` (${escapeHtml(entry.additionalText)})` : ''}
+                                ${isCurrentStaff ? 
+                                    `<button class="delete-dropdown-entry" data-task-id="${task.id}" data-staff="${escapeHtml(staff)}" data-value="${escapeHtml(entry.selectedValue)}" style="background:#f44336; color:white; border:none; border-radius:12px; padding:2px 6px; margin-left:5px; cursor:pointer; font-size:0.6rem;">✖</button>` 
+                                    : ''}
+                            </span>`;
+                        });
+                        subsHtml += `</div>`;
+                    }
+                    subsHtml += `</div>`;
+                } else {
+                    subsHtml = '<div class="completed-info">No submissions yet</div>';
                 }
+                
+                // Show toggle button info
+                const toggleHint = `<div class="info-text" style="font-size:0.6rem; margin-top:5px; color:#666;">
+                    💡 Tip: Select same option twice to DELETE, or choose new option to ADD
+                </div>`;
+                
+                taskDivItem.innerHTML = `<div class="task-header">
+                    <div class="task-name">
+                        📋 ${escapeHtml(task.name)}${shiftBadge} 
+                        <span style="background:#2196f3; color:white; padding:2px 8px; border-radius:12px; font-size:0.6rem; margin-left:8px;">
+                            🔄 Toggle (add/delete)
+                        </span>
+                        ${adminEditBtn} 
+                        ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
+                    </div>
+                </div>
+                ${subsHtml}
+                <div class="flex-row">
+                    <select id="staffSel_${task.id}" class="action-select">
+                        <option value="">-- Select staff --</option>
+                        ${staffList.map(s => `<option value="${escapeHtml(s.name)}" ${selectedStaffName === s.name ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
+                    </select>
+                    ${optsHtml}
+                    <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (optional)" maxlength="20" style="width:100px;">
+                    <button class="do-drop-toggle action-btn" data-id="${task.id}" style="background:#4caf50;">
+                        ➕ Add / Delete
+                    </button>
+                </div>
+                ${toggleHint}`; 
+            }
             } 
             else { 
                 // Read-only view
@@ -1163,15 +1211,33 @@ async function closeShift(){ if(currentTaskRecord.status==="closed") return; con
         });
     });
     
-    document.querySelectorAll('.do-drop').forEach(btn=>btn.addEventListener('click',async()=>{ 
-        const id=btn.getAttribute('data-id'); 
-        const staffSel=document.getElementById(`staffSel_${id}`); 
-        const dropSel=document.getElementById(`dropSel_${id}`); 
-        const addText=document.getElementById(`addText_${id}`); 
-        if(staffSel && dropSel) {
-            await submitDropdown(id, dropSel.value, addText?.value, staffSel.value);
+        document.querySelectorAll('.do-drop-toggle').forEach(btn=>{
+            btn.removeEventListener('click', handleDropdownToggle);
+            btn.addEventListener('click', handleDropdownToggle);
+        });
+
+        async function handleDropdownToggle(e) {
+            const btn = e.currentTarget;
+            const taskId = btn.getAttribute('data-id');
+            const staffSel = document.getElementById(`staffSel_${taskId}`);
+            const dropSel = document.getElementById(`dropSel_${taskId}`);
+            const addText = document.getElementById(`addText_${taskId}`);
+            
+            if(!staffSel || !staffSel.value) {
+                alert("Please select a staff member");
+                return;
+            }
+            if(!dropSel || !dropSel.value) {
+                alert("Please select a value from dropdown");
+                return;
+            }
+            
+            await submitDropdown(taskId, dropSel.value, addText?.value || "", staffSel.value);
+            
+            // Clear the dropdown selection after submit (but keep staff selected)
+            if(dropSel) dropSel.value = "";
+            if(addText) addText.value = "";
         }
-    })); 
     
     // Admin edit buttons for tasks
     document.querySelectorAll('.edit-task-admin-btn').forEach(btn => {
