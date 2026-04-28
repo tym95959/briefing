@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Shower Manager | Password Protected · Live Status</title>
+  <title>Shower Manager | Password Protected</title>
   <style>
     * {
       margin: 0;
@@ -398,39 +398,24 @@
   import { db } from './firebase-config.js';
   import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
   
-  // ==================== STAFF DATA (embedded with pass field) ====================
-  const staffList = [
-    { id: "623", name: "Mohamed", role: "officer", contact: "", pass: "1234" },
-    { id: "101", name: "Ahmed Hassan", role: "officer", contact: "+97150123456", pass: "1111" },
-    { id: "102", name: "Fatima Ali", role: "officer", contact: "+97150234567", pass: "2222" },
-    { id: "201", name: "Rajesh Kumar", role: "housekeeping", contact: "+97150345678", pass: "3333" },
-    { id: "202", name: "Sofia Mendez", role: "housekeeping", contact: "+97150456789", pass: "4444" },
-    { id: "203", name: "Carlos Rivera", role: "housekeeping", contact: "+97150567890", pass: "5555" }
-  ];
-
-  function getOfficers() {
-    return staffList.filter(staff => staff.role === "officer");
-  }
-
-  function getHousekeepingStaff() {
-    return staffList.filter(staff => staff.role === "housekeeping");
-  }
-
-  function getStaffById(id) {
-    return staffList.find(staff => staff.id === id);
-  }
-
+  // Import staff data from staff.js - expecting these exports
+  import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
+  
+  // Password verification function using the 'pass' field from staff.js
   function verifyStaffPassword(password, staffId = null) {
     if (staffId) {
+      // Verify specific staff member's password
       const staff = getStaffById(staffId);
-      if (staff && staff.pass === password) return true;
+      if (staff && staff.pass === password) {
+        return true;
+      }
       return false;
     } else {
       // Check if any staff member (officer or authorized) has this password
+      // This is used for general authorization (allocating cleaning, completing cleaning)
       return staffList.some(staff => staff.pass === password);
     }
   }
-  // ============================================================
 
   // Room data - names "Shower 1", "Shower 2"
   const roomsData = [
@@ -472,27 +457,6 @@
   function updateConnectionStatus(connected) {
     const dot = document.getElementById("statusDot");
     dot.className = connected ? "status-dot green" : "status-dot red";
-  }
-
-  function populateIssuerDropdown() {
-    const officers = getOfficers();
-    const select = document.getElementById("issuerSelect");
-    if (select) select.innerHTML = '<option value="">Select Officer</option>' + 
-      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact || 'no contact'})</option>`).join('');
-  }
-
-  function populateReceiverDropdown() {
-    const officers = getOfficers();
-    const select = document.getElementById("receiverSelect");
-    if (select) select.innerHTML = '<option value="">Select Officer</option>' + 
-      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact || 'no contact'})</option>`).join('');
-  }
-
-  function populateHkDropdown() {
-    const hkStaff = getHousekeepingStaff();
-    const select = document.getElementById("hkSelect");
-    if (select) select.innerHTML = '<option value="">Select Housekeeper (HK)</option>' + 
-      hkStaff.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} 📞 ${hk.contact || 'N/A'}</option>`).join('');
   }
 
   async function saveToFirestore() {
@@ -745,7 +709,11 @@
   let currentIssueRoom = null;
   function openIssueModal(room) {
     currentIssueRoom = room;
-    populateIssuerDropdown();
+    const issuerSelect = document.getElementById("issuerSelect");
+    const officers = getOfficers();
+    issuerSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact || 'no contact'})</option>`).join('');
+    
     document.getElementById("issueRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟢 Clean & Vacant — Issue key`;
     document.getElementById("passengerName").value = "";
     document.getElementById("flightNumber").value = "";
@@ -768,6 +736,7 @@
     const issuer = getStaffById(issuerId);
     if (!issuer) { alert("Selected officer not found"); return; }
     
+    // Verify password using the 'pass' field from staff.js
     if (!verifyStaffPassword(password, issuerId)) {
       alert("❌ Invalid password for this officer. Access denied.");
       return;
@@ -792,7 +761,11 @@
   let currentAllocateRoom = null;
   function openAllocateModal(room) {
     currentAllocateRoom = room;
-    populateHkDropdown();
+    const hkSelect = document.getElementById("hkSelect");
+    const hkStaff = getHousekeepingStaff();
+    hkSelect.innerHTML = '<option value="">Select Housekeeper (HK)</option>' + 
+      hkStaff.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} 📞 ${hk.contact || 'N/A'}</option>`).join('');
+    
     document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟡 DIRTY — Assign HK to clean`;
     document.getElementById("allocatorPassword").value = "";
     document.getElementById("allocateModal").style.display = "flex";
@@ -806,6 +779,7 @@
     if (!hkId) { alert("Please select a housekeeper"); return; }
     if (!password) { alert("Password required"); return; }
     
+    // Verify any staff password (officer can allocate)
     if (!verifyStaffPassword(password)) {
       alert("❌ Invalid password. Access denied.");
       return;
@@ -826,7 +800,11 @@
   let currentReturnRoom = null;
   function openReturnModal(room) {
     currentReturnRoom = room;
-    populateReceiverDropdown();
+    const receiverSelect = document.getElementById("receiverSelect");
+    const officers = getOfficers();
+    receiverSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact || 'no contact'})</option>`).join('');
+    
     document.getElementById("returnRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔴 OCCUPIED — Confirm return`;
     const flightDisplay = room.flightNumber ? `<div>✈️ Flight: <strong>${escapeHtml(room.flightNumber)}</strong></div>` : '';
     document.getElementById("issuedDetailsDisplay").innerHTML = `
