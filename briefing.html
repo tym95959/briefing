@@ -599,21 +599,51 @@
         location.reload();
     };
     
-    // ========== FIREBASE INITIALIZATION ==========
+    // ========== FIREBASE INITIALIZATION (FIXED) ==========
     let db, firestoreReady = false;
     
-    if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+    // Function to initialize Firestore after Firebase is ready
+    function initializeFirestore() {
         try {
-            db = firebase.firestore();
-            firestoreReady = true;
-            console.log("🔥 Firebase ready");
+            if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+                db = firebase.firestore();
+                firestoreReady = true;
+                console.log("✅ Firestore initialized successfully");
+                return true;
+            } else {
+                console.warn("⚠️ Firebase not yet available");
+                return false;
+            }
         } catch (err) {
-            console.error("Firestore init error:", err);
+            console.error("❌ Firestore init error:", err);
             firestoreReady = false;
+            return false;
         }
-    } else {
-        console.error("Firebase not initialized.");
-        firestoreReady = false;
+    }
+    
+    // Try to initialize immediately, if not, wait for Firebase
+    if (!initializeFirestore()) {
+        console.log("Waiting for Firebase to be ready...");
+        // Check again after a short delay
+        setTimeout(() => {
+            if (!initializeFirestore()) {
+                console.error("Firebase failed to initialize");
+                // Show error to user
+                const errorDiv = document.createElement('div');
+                errorDiv.style.position = 'fixed';
+                errorDiv.style.top = '20px';
+                errorDiv.style.left = '50%';
+                errorDiv.style.transform = 'translateX(-50%)';
+                errorDiv.style.backgroundColor = '#ff4444';
+                errorDiv.style.color = 'white';
+                errorDiv.style.padding = '15px';
+                errorDiv.style.borderRadius = '8px';
+                errorDiv.style.zIndex = '10000';
+                errorDiv.innerHTML = '⚠️ Firebase connection failed. Please refresh the page.';
+                document.body.appendChild(errorDiv);
+                setTimeout(() => errorDiv.remove(), 5000);
+            }
+        }, 1000);
     }
     
     // Global state
@@ -654,8 +684,8 @@
     
     // Staff View: Load all briefings for selected date
     async function loadStaffBriefings() {
-        if (!firestoreReady) {
-            staffBriefingsContainer.innerHTML = '<div class="empty-state">⚠️ Firebase not connected.</div>';
+        if (!firestoreReady || !db) {
+            staffBriefingsContainer.innerHTML = '<div class="empty-state">⚠️ Firebase not connected. Please refresh.</div>';
             staffFeedback.innerHTML = "❌ Firebase connection error";
             staffFeedback.className = 'status-msg warning-msg';
             return;
@@ -709,9 +739,9 @@
             staffFeedback.className = 'status-msg success-msg';
             
         } catch (err) {
-            console.error(err);
+            console.error("Load staff briefings error:", err);
             staffBriefingsContainer.innerHTML = '<div class="empty-state">❌ Error loading briefing notes.</div>';
-            staffFeedback.innerHTML = "⚠️ Error loading data";
+            staffFeedback.innerHTML = "⚠️ Error loading data: " + err.message;
             staffFeedback.className = 'status-msg warning-msg';
         }
         
@@ -725,7 +755,7 @@
     
     // Supervisor View: Load briefings for selected date
     async function loadSupervisorBriefings() {
-        if (!firestoreReady) {
+        if (!firestoreReady || !db) {
             supervisorBriefingsList.innerHTML = '<div class="empty-state">⚠️ Firebase not connected.</div>';
             return;
         }
@@ -756,8 +786,8 @@
             renderSupervisorBriefingsList();
             
         } catch (err) {
-            console.error(err);
-            supervisorBriefingsList.innerHTML = '<div class="empty-state">❌ Error loading briefings</div>';
+            console.error("Load supervisor briefings error:", err);
+            supervisorBriefingsList.innerHTML = '<div class="empty-state">❌ Error loading briefings: ' + err.message + '</div>';
         }
     }
     
@@ -772,8 +802,10 @@
             const safeSupervisor = escapeHtml(briefing.supervisor);
             const safeShift = escapeHtml(briefing.shift);
             const previewText = (briefing.pointsText || '').substring(0, 80);
+            // Escape the points text for data attribute
+            const escapedPoints = escapeHtml(briefing.pointsText || '');
             html += `
-                <div class="supervisor-briefing-card" data-id="${briefing.id}" data-supervisor="${safeSupervisor}" data-shift="${safeShift}" data-points="${escapeHtml(briefing.pointsText || '')}">
+                <div class="supervisor-briefing-card" data-id="${briefing.id}" data-supervisor="${safeSupervisor}" data-shift="${safeShift}" data-points="${escapedPoints.replace(/"/g, '&quot;')}">
                     <div class="supervisor-briefing-header">
                         <span class="supervisor-badge"><i class="fas fa-user-tie"></i> ${safeSupervisor}</span>
                         <span class="supervisor-badge"><i class="fas fa-clock"></i> ${safeShift}</span>
@@ -829,9 +861,12 @@
     }
     
     async function saveBriefing() {
-        if (!firestoreReady) {
-            formFeedback.innerHTML = "❌ Firebase not connected";
+        console.log("Save function called - firestoreReady:", firestoreReady, "db:", !!db);
+        
+        if (!firestoreReady || !db) {
+            formFeedback.innerHTML = "❌ Firebase not connected. Please refresh the page.";
             formFeedback.className = 'status-msg warning-msg';
+            console.error("Firebase not ready for save");
             return;
         }
         
@@ -839,6 +874,8 @@
         const supervisor = supervisorSelect.value;
         const shift = shiftSelect.value;
         const pointsVal = pointsTextarea.value.trim();
+        
+        console.log("Saving:", { dateVal, supervisor, shift, pointsLength: pointsVal.length, isEdit: !!currentEditId });
         
         if (!dateVal) {
             formFeedback.innerHTML = "❌ Please select a date";
@@ -870,16 +907,23 @@
         };
         
         try {
+            formFeedback.innerHTML = "💾 Saving...";
+            formFeedback.className = 'status-msg info-msg';
+            
             if (currentEditId) {
+                console.log("Updating document:", currentEditId);
                 await db.collection("briefingMinutes").doc(currentEditId).update(entryData);
                 formFeedback.innerHTML = `✅ Updated briefing for ${supervisor} (${shift})`;
             } else {
+                console.log("Creating new document");
                 entryData.createdAt = new Date().toISOString();
-                await db.collection("briefingMinutes").add(entryData);
+                const docRef = await db.collection("briefingMinutes").add(entryData);
+                console.log("Document created with ID:", docRef.id);
                 formFeedback.innerHTML = `✅ New briefing created for ${supervisor} (${shift})`;
             }
             formFeedback.className = 'status-msg success-msg';
             
+            // Reload data
             await loadSupervisorBriefings();
             if (staffDate.value === dateVal) {
                 await loadStaffBriefings();
@@ -890,10 +934,20 @@
                 if (formFeedback.innerHTML.includes('✅')) {
                     formFeedback.innerHTML = '';
                 }
-            }, 2000);
+            }, 3000);
         } catch (err) {
-            console.error(err);
-            formFeedback.innerHTML = "⚠️ Error saving: " + err.message;
+            console.error("Save error details:", err);
+            console.error("Error code:", err.code);
+            console.error("Error message:", err.message);
+            
+            let errorMsg = err.message;
+            if (err.code === 'permission-denied') {
+                errorMsg = "Permission denied. Check Firestore security rules.";
+            } else if (err.code === 'failed-precondition') {
+                errorMsg = "Missing Firestore index. Check Firebase Console.";
+            }
+            
+            formFeedback.innerHTML = `⚠️ Error saving: ${errorMsg}`;
             formFeedback.className = 'status-msg warning-msg';
         }
     }
@@ -919,6 +973,7 @@
                 }
             }, 2000);
         } catch (err) {
+            console.error("Delete error:", err);
             formFeedback.innerHTML = "Error: " + err.message;
             formFeedback.className = 'status-msg warning-msg';
         }
@@ -956,6 +1011,10 @@
             if (m === '&') return '&amp;';
             if (m === '<') return '&lt;';
             if (m === '>') return '&gt;';
+            return m;
+        }).replace(/["']/g, function(m) {
+            if (m === '"') return '&quot;';
+            if (m === "'") return '&#39;';
             return m;
         });
     }
@@ -1023,12 +1082,22 @@
     }
     
     async function initApp() {
+        console.log("Initializing app...");
         const todayStr = getTodayDate();
         staffDate.value = todayStr;
         supervisorDate.value = todayStr;
         
+        // Double-check Firebase is ready
+        if (!firestoreReady) {
+            initializeFirestore();
+        }
+        
         if (firestoreReady) {
             await loadStaffBriefings();
+            console.log("App initialized successfully");
+        } else {
+            console.warn("App initialized but Firebase not ready");
+            staffBriefingsContainer.innerHTML = '<div class="empty-state">⚠️ Waiting for Firebase connection...</div>';
         }
         
         setSupervisorMode(false);
