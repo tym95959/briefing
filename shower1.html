@@ -438,8 +438,9 @@
 
 <!-- MODAL: ALLOCATE HOUSEKEEPER -->
 <div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Assign Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
-<form id="allocateForm"><div class="form-group"><label>🧼 Select Housekeeper (HK) *</label><select id="hkSelect" required></select></div>
-<div class="form-group"><label>🔐 Your Password (Officer/HK Manager) *</label><input type="password" id="allocatorPassword" placeholder="Enter your password" required></div>
+<form id="allocateForm"><div class="form-group"><label>👤 Officer Name *</label><select id="officerSelect" required></select></div>
+<div class="form-group"><label>🔐 Officer Password *</label><input type="password" id="officerPassword" placeholder="Enter your password" required></div>
+<div class="form-group"><label>🧼 Select Housekeeper (HK) *</label><select id="hkSelect" required></select></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form>
 <p class="time-hint">🔵 Cleaning in Progress · Timer starts</p></div></div>
 
@@ -452,7 +453,8 @@
 
 <!-- MODAL: COMPLETE CLEANING -->
 <div id="completeCleanModal" class="modal"><div class="modal-card"><h3>✅ Complete Cleaning</h3><div id="completeRoomInfo" class="info-panel"></div>
-<form id="completeCleanForm"><div class="form-group"><label>🔐 Supervisor/Officer Password *</label><input type="password" id="cleanPassword" placeholder="Enter password" required></div>
+<form id="completeCleanForm"><div class="form-group"><label>👤 Officer Name *</label><select id="supervisorSelect" required></select></div>
+<div class="form-group"><label>🔐 Officer Password *</label><input type="password" id="supervisorPassword" placeholder="Enter your password" required></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Confirm Complete</button><button type="button" class="btn btn-secondary" id="closeCompleteModal">Cancel</button></div></form>
 <p class="time-hint">Room becomes 🟢 CLEAN + VACANT</p></div></div>
 
@@ -480,16 +482,20 @@
   const roomsData = [
     { id: "M1", name: "Shower 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
-      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null,
+      allocatedByOfficerId: null, allocatedByOfficerName: null },
     { id: "M2", name: "Shower 2", gender: "male", cleanStatus: "dirty", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
-      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null,
+      allocatedByOfficerId: null, allocatedByOfficerName: null },
     { id: "F1", name: "Shower 1", gender: "female", cleanStatus: "clean", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
-      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null,
+      allocatedByOfficerId: null, allocatedByOfficerName: null },
     { id: "F2", name: "Shower 2", gender: "female", cleanStatus: "dirty", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
-      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null }
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null,
+      allocatedByOfficerId: null, allocatedByOfficerName: null }
   ];
 
   // Transaction history (only last transaction per type)
@@ -608,6 +614,8 @@
             roomsData[i].housekeeperName = data.rooms[i].housekeeperName || null;
             roomsData[i].housekeeperContact = data.rooms[i].housekeeperContact || null;
             roomsData[i].allocationTimestamp = data.rooms[i].allocationTimestamp || null;
+            roomsData[i].allocatedByOfficerId = data.rooms[i].allocatedByOfficerId || null;
+            roomsData[i].allocatedByOfficerName = data.rooms[i].allocatedByOfficerName || null;
           }
         }
       }
@@ -645,14 +653,14 @@
     renderHistory();
   }
   
-  function setLastCleaningStart(hkName, roomName, allocatorName, roomGender) {
-    transactionHistory.lastCleaningStart = { hkName, roomName, allocatorName, roomGender, timestamp: getCurrentISO() };
+  function setLastCleaningStart(hkName, roomName, officerName, roomGender) {
+    transactionHistory.lastCleaningStart = { hkName, roomName, officerName, roomGender, timestamp: getCurrentISO() };
     persistState();
     renderHistory();
   }
   
-  function setLastCleaningComplete(supervisorName, roomName, roomGender) {
-    transactionHistory.lastCleaningComplete = { supervisorName, roomName, roomGender, timestamp: getCurrentISO() };
+  function setLastCleaningComplete(officerName, roomName, roomGender) {
+    transactionHistory.lastCleaningComplete = { officerName, roomName, roomGender, timestamp: getCurrentISO() };
     persistState();
     renderHistory();
   }
@@ -678,13 +686,13 @@
     if (transactionHistory.lastCleaningStart) {
       const h = transactionHistory.lastCleaningStart;
       const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
-      html += `<div class="history-card"><h4>🧹 Last Cleaning Started</h4><div class="history-detail">HK ${escapeHtml(h.hkName)} assigned by ${escapeHtml(h.allocatorName)} | ${genderIcon} ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+      html += `<div class="history-card"><h4>🧹 Last Cleaning Started</h4><div class="history-detail">HK ${escapeHtml(h.hkName)} assigned by 👔 ${escapeHtml(h.officerName)} | ${genderIcon} ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
     }
     
     if (transactionHistory.lastCleaningComplete) {
       const h = transactionHistory.lastCleaningComplete;
       const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
-      html += `<div class="history-card"><h4>✅ Last Cleaning Completed</h4><div class="history-detail">Supervisor ${escapeHtml(h.supervisorName)} | ${genderIcon} ${escapeHtml(h.roomName)} now CLEAN</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+      html += `<div class="history-card"><h4>✅ Last Cleaning Completed</h4><div class="history-detail">Supervisor 👔 ${escapeHtml(h.officerName)} | ${genderIcon} ${escapeHtml(h.roomName)} now CLEAN</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
     }
     
     if (!transactionHistory.lastKeyIssue && !transactionHistory.lastKeyReturn && !transactionHistory.lastCleaningStart && !transactionHistory.lastCleaningComplete) {
@@ -709,6 +717,8 @@
         room.housekeeperName = null;
         room.housekeeperContact = null;
         room.allocationTimestamp = null;
+        room.allocatedByOfficerId = null;
+        room.allocatedByOfficerName = null;
       });
       roomsData[1].cleanStatus = "dirty";
       roomsData[3].cleanStatus = "dirty";
@@ -763,7 +773,8 @@
       const sinceTime = formatTimeAgoString(room.allocationTimestamp);
       if (timeData) {
         const contactDisplay = room.housekeeperContact && room.housekeeperContact !== 'N/A' ? room.housekeeperContact : 'Not provided';
-        cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning since ${sinceTime}: <span class="live-counter" id="timer-clean-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span><br><span style="font-size:0.65rem;">HK: ${escapeHtml(room.housekeeperName)} 📞 ${escapeHtml(contactDisplay)}</span></div>`;
+        const allocatedBy = room.allocatedByOfficerName ? ` | Assigned by: ${escapeHtml(room.allocatedByOfficerName)}` : '';
+        cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning since ${sinceTime}: <span class="live-counter" id="timer-clean-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span><br><span style="font-size:0.65rem;">HK: ${escapeHtml(room.housekeeperName)} 📞 ${escapeHtml(contactDisplay)}${allocatedBy}</span></div>`;
         completeCleanBtn = `<button class="complete-clean-btn" data-room-id="${room.id}">✅ Complete Cleaning</button>`;
       }
     }
@@ -879,26 +890,25 @@
     openCompleteCleanModal(room);
   }
 
-  async function executeCompleteCleaning(password) {
+  async function executeCompleteCleaning(officerId, password) {
     const room = roomsData.find(r => r.id === pendingCleanRoomId);
     if (!room) return false;
     
-    let verified = verifyStaffPassword(password);
-    if (!verified) {
-      alert("❌ Invalid password. Access denied.");
+    const officer = getStaffById(officerId);
+    if (!officer || !verifyStaffPassword(password, officerId)) {
+      alert("❌ Invalid officer credentials. Access denied.");
       return false;
     }
-    
-    const supervisor = staffList.find(s => s.pass === password);
-    const supervisorName = supervisor ? supervisor.name : "Authorized Staff";
     
     room.cleanStatus = "clean";
     room.housekeeperId = null;
     room.housekeeperName = null;
     room.housekeeperContact = null;
     room.allocationTimestamp = null;
+    room.allocatedByOfficerId = null;
+    room.allocatedByOfficerName = null;
     
-    setLastCleaningComplete(supervisorName, room.name, room.gender);
+    setLastCleaningComplete(officer.name, room.name, room.gender);
     persistState();
     renderRooms();
     return true;
@@ -965,37 +975,47 @@
     hkSelect.innerHTML = '<option value="">Select Housekeeper (HK)</option>' + 
       hkStaff.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} 📞 ${hk.contact || 'N/A'}</option>`).join('');
     
+    const officerSelect = document.getElementById("officerSelect");
+    const officers = getOfficers();
+    officerSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+    
     document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟡 DIRTY — Assign HK to clean`;
-    document.getElementById("allocatorPassword").value = "";
+    document.getElementById("officerPassword").value = "";
     document.getElementById("allocateModal").style.display = "flex";
   }
 
   async function onSubmitAllocate(e) {
     e.preventDefault();
     if (!currentAllocateRoom) return;
+    const officerId = document.getElementById("officerSelect").value;
+    const officerPassword = document.getElementById("officerPassword").value;
     const hkId = document.getElementById("hkSelect").value;
-    const password = document.getElementById("allocatorPassword").value;
-    if (!hkId) { alert("Please select a housekeeper"); return; }
-    if (!password) { alert("Password required"); return; }
     
-    if (!verifyStaffPassword(password)) {
-      alert("❌ Invalid password. Access denied.");
+    if (!officerId) { alert("Please select an officer"); return; }
+    if (!officerPassword) { alert("Officer password required"); return; }
+    if (!hkId) { alert("Please select a housekeeper"); return; }
+    
+    const officer = getStaffById(officerId);
+    if (!officer) { alert("Selected officer not found"); return; }
+    
+    if (!verifyStaffPassword(officerPassword, officerId)) {
+      alert("❌ Invalid officer password. Access denied.");
       return;
     }
     
     const housekeeper = getStaffById(hkId);
     if (!housekeeper) { alert("Selected housekeeper not found"); return; }
     
-    const allocator = staffList.find(s => s.pass === password);
-    const allocatorName = allocator ? allocator.name : "Authorized Staff";
-    
     const nowISO = getCurrentISO();
     currentAllocateRoom.housekeeperId = housekeeper.id;
     currentAllocateRoom.housekeeperName = housekeeper.name;
     currentAllocateRoom.housekeeperContact = housekeeper.contact || 'N/A';
     currentAllocateRoom.allocationTimestamp = nowISO;
+    currentAllocateRoom.allocatedByOfficerId = officer.id;
+    currentAllocateRoom.allocatedByOfficerName = officer.name;
     
-    setLastCleaningStart(housekeeper.name, currentAllocateRoom.name, allocatorName, currentAllocateRoom.gender);
+    setLastCleaningStart(housekeeper.name, currentAllocateRoom.name, officer.name, currentAllocateRoom.gender);
     persistState();
     renderRooms();
     closeAllocateModal();
@@ -1046,6 +1066,8 @@
     currentReturnRoom.housekeeperName = null;
     currentReturnRoom.housekeeperContact = null;
     currentReturnRoom.allocationTimestamp = null;
+    currentReturnRoom.allocatedByOfficerId = null;
+    currentReturnRoom.allocatedByOfficerName = null;
     
     persistState();
     renderRooms();
@@ -1053,16 +1075,23 @@
   }
 
   function openCompleteCleanModal(room) {
-    document.getElementById("completeRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔵 Cleaning in progress since ${formatTimeAgoString(room.allocationTimestamp)}<br>HK: ${escapeHtml(room.housekeeperName)}`;
-    document.getElementById("cleanPassword").value = "";
+    const supervisorSelect = document.getElementById("supervisorSelect");
+    const officers = getOfficers();
+    supervisorSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+    
+    document.getElementById("completeRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔵 Cleaning in progress since ${formatTimeAgoString(room.allocationTimestamp)}<br>HK: ${escapeHtml(room.housekeeperName)}<br>Assigned by: ${escapeHtml(room.allocatedByOfficerName || 'Unknown')}`;
+    document.getElementById("supervisorPassword").value = "";
     document.getElementById("completeCleanModal").style.display = "flex";
   }
 
   async function onSubmitCompleteClean(e) {
     e.preventDefault();
-    const password = document.getElementById("cleanPassword").value;
+    const officerId = document.getElementById("supervisorSelect").value;
+    const password = document.getElementById("supervisorPassword").value;
+    if (!officerId) { alert("Please select an officer"); return; }
     if (!password) { alert("Password required"); return; }
-    await executeCompleteCleaning(password);
+    await executeCompleteCleaning(officerId, password);
     closeCompleteModal();
     pendingCleanRoomId = null;
   }
