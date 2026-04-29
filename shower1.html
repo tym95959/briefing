@@ -72,6 +72,35 @@
 
     .status-dot.green { background-color: #22c55e; box-shadow: 0 0 4px #22c55e; }
     .status-dot.red { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
+    .status-dot.yellow { background-color: #eab308; box-shadow: 0 0 4px #eab308; }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin: 1rem 0 1.5rem;
+    }
+    .tab-btn {
+      background: rgba(255,255,255,0.7);
+      border: none;
+      padding: 0.5rem 1.2rem;
+      border-radius: 40px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 0.85rem;
+    }
+    .tab-btn.active {
+      background: #2c7da0;
+      color: white;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
 
     .rooms-board {
       display: flex;
@@ -238,6 +267,25 @@
     .complete-clean-btn { color: #1e1b4b; background: #e0e7ff; margin-top: 0.3rem; border: 1px solid #4f46e5; }
     .complete-clean-btn:hover { background: #c7d2fe; transform: scale(0.96); }
 
+    /* History Panel */
+    .history-panel {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1.2rem;
+      margin-top: 0.5rem;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+    .history-card {
+      background: #f8fafc;
+      border-radius: 1rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-left: 5px solid #2c7da0;
+    }
+    .history-card h4 { margin-bottom: 0.5rem; color: #1e3c4c; }
+    .history-detail { font-size: 0.85rem; color: #334155; margin-top: 0.3rem; display: flex; flex-wrap: wrap; gap: 0.8rem; }
+    .badge-history { background: #e2e8f0; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem; }
+
     .modal {
       display: none;
       position: fixed;
@@ -349,17 +397,31 @@
     <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Protected Actions</p>
     <div class="sync-status">
       <span class="status-dot" id="statusDot"></span>
+      <span id="syncText">Synced</span>
     </div>
   </div>
   
-  <div class="rooms-board">
-    <div class="section male-section">
-      <h2><span>🚹</span> Male Shower</h2>
-      <div class="room-cards" id="maleRoomsContainer"></div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="rooms">🚪 Rooms & Keys</button>
+    <button class="tab-btn" data-tab="history">📜 Last Transaction</button>
+  </div>
+
+  <div id="roomsTab" class="tab-content active">
+    <div class="rooms-board">
+      <div class="section male-section">
+        <h2><span>🚹</span> Male Shower</h2>
+        <div class="room-cards" id="maleRoomsContainer"></div>
+      </div>
+      <div class="section female-section">
+        <h2><span>🚺</span> Female Shower</h2>
+        <div class="room-cards" id="femaleRoomsContainer"></div>
+      </div>
     </div>
-    <div class="section female-section">
-      <h2><span>🚺</span> Female Shower</h2>
-      <div class="room-cards" id="femaleRoomsContainer"></div>
+  </div>
+
+  <div id="historyTab" class="tab-content">
+    <div class="history-panel" id="historyContainer">
+      <p style="text-align:center; color:#5f7d9c;">Loading latest transaction...</p>
     </div>
   </div>
   <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning in Progress | 🔴 Occupied | Tap card → action</footer>
@@ -404,15 +466,12 @@
   // Password verification function using the 'pass' field from staff.js
   function verifyStaffPassword(password, staffId = null) {
     if (staffId) {
-      // Verify specific staff member's password
       const staff = getStaffById(staffId);
       if (staff && staff.pass === password) {
         return true;
       }
       return false;
     } else {
-      // Check if any staff member (officer or authorized) has this password
-      // This is used for general authorization (allocating cleaning, completing cleaning)
       return staffList.some(staff => staff.pass === password);
     }
   }
@@ -433,9 +492,20 @@
       housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null }
   ];
 
+  // Transaction history (only last transaction per type)
+  let transactionHistory = {
+    lastKeyIssue: null,
+    lastKeyReturn: null,
+    lastCleaningStart: null,
+    lastCleaningComplete: null
+  };
+
   let timerInterval = null;
   let currentDate = new Date().toDateString();
   let pendingCleanRoomId = null;
+  let syncInProgress = false;
+
+  const STORAGE_KEY = 'shower_manager_data_v2';
 
   function getCurrentISO() { return new Date().toISOString(); }
   
@@ -456,28 +526,75 @@
 
   function updateConnectionStatus(connected) {
     const dot = document.getElementById("statusDot");
-    dot.className = connected ? "status-dot green" : "status-dot red";
-  }
-
-  async function saveToFirestore() {
-    const today = new Date().toISOString().split('T')[0];
-    const docRef = doc(db, 'showerRooms', today);
-    try {
-      await setDoc(docRef, { rooms: roomsData, lastUpdated: getCurrentISO() });
-      updateConnectionStatus(true);
-    } catch (error) {
-      console.error("Firestore save error:", error);
-      updateConnectionStatus(false);
+    const textSpan = document.getElementById("syncText");
+    if (connected) {
+      dot.className = "status-dot green";
+      textSpan.innerText = "Live Sync";
+    } else {
+      dot.className = "status-dot red";
+      textSpan.innerText = "Offline (local)";
     }
   }
 
-  async function loadFromFirestore() {
-    const today = new Date().toISOString().split('T')[0];
-    const docRef = doc(db, 'showerRooms', today);
+  // Save to localStorage (fast, non-blocking)
+  function saveToLocalStorage() {
+    const data = {
+      rooms: roomsData,
+      transactionHistory: transactionHistory,
+      lastUpdated: getCurrentISO()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  // Load from localStorage
+  function loadFromLocalStorage() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
     try {
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+      const data = JSON.parse(raw);
+      if (data.rooms && Array.isArray(data.rooms) && data.rooms.length === 4) {
+        for (let i = 0; i < data.rooms.length; i++) {
+          Object.assign(roomsData[i], data.rooms[i]);
+        }
+      }
+      if (data.transactionHistory) {
+        transactionHistory = data.transactionHistory;
+      }
+      return true;
+    } catch(e) { return false; }
+  }
+
+  // Background sync to Firebase (non-blocking)
+  async function syncToFirebase() {
+    if (syncInProgress) return;
+    syncInProgress = true;
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const docRef = doc(db, 'showerRooms', today);
+      const historyRef = doc(db, 'showerHistory', 'latest');
+      await Promise.all([
+        setDoc(docRef, { rooms: roomsData, lastUpdated: getCurrentISO() }, { merge: true }),
+        setDoc(historyRef, { transactionHistory, updatedAt: getCurrentISO() }, { merge: true })
+      ]);
+      updateConnectionStatus(true);
+    } catch (error) {
+      console.warn("Firebase sync error:", error);
+      updateConnectionStatus(false);
+    } finally {
+      syncInProgress = false;
+    }
+  }
+
+  // Load from Firebase in background
+  async function loadFromFirestore() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const docRef = doc(db, 'showerRooms', today);
+      const historyRef = doc(db, 'showerHistory', 'latest');
+      const [roomSnap, histSnap] = await Promise.all([getDoc(docRef), getDoc(historyRef)]);
+      
+      if (roomSnap.exists()) {
+        const data = roomSnap.data();
         if (data.rooms && Array.isArray(data.rooms) && data.rooms.length === 4) {
           for (let i = 0; i < data.rooms.length; i++) {
             roomsData[i].cleanStatus = data.rooms[i].cleanStatus;
@@ -494,12 +611,83 @@
           }
         }
       }
+      
+      if (histSnap.exists() && histSnap.data().transactionHistory) {
+        transactionHistory = histSnap.data().transactionHistory;
+      }
+      
+      saveToLocalStorage();
       updateConnectionStatus(true);
     } catch (error) {
-      console.error("Firestore load error:", error);
+      console.warn("Firestore load error:", error);
       updateConnectionStatus(false);
     }
     renderRooms();
+    renderHistory();
+  }
+
+  // Persist: save to localStorage + background Firebase
+  function persistState() {
+    saveToLocalStorage();
+    syncToFirebase().catch(e => console.warn("bg sync error", e));
+  }
+
+  // Update transaction history and persist
+  function setLastKeyIssue(passenger, flight, issuerName, roomName) {
+    transactionHistory.lastKeyIssue = { passenger, flight: flight || '', issuerName, roomName, timestamp: getCurrentISO() };
+    persistState();
+    renderHistory();
+  }
+  
+  function setLastKeyReturn(receiverName, passenger, roomName) {
+    transactionHistory.lastKeyReturn = { receiverName, passenger, roomName, timestamp: getCurrentISO() };
+    persistState();
+    renderHistory();
+  }
+  
+  function setLastCleaningStart(hkName, roomName, allocatorName) {
+    transactionHistory.lastCleaningStart = { hkName, roomName, allocatorName, timestamp: getCurrentISO() };
+    persistState();
+    renderHistory();
+  }
+  
+  function setLastCleaningComplete(supervisorName, roomName) {
+    transactionHistory.lastCleaningComplete = { supervisorName, roomName, timestamp: getCurrentISO() };
+    persistState();
+    renderHistory();
+  }
+
+  // Render history tab
+    function renderHistory() {
+    const container = document.getElementById("historyContainer");
+    if (!container) return;
+    let html = '<div style="display:flex; flex-direction:column; gap:1rem;">';
+    
+    if (transactionHistory.lastKeyIssue) {
+        const h = transactionHistory.lastKeyIssue;
+        const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+        html += `<div class="history-card"><h4>🔑 Last Key Issued</h4><div class="history-detail">🧑 ${escapeHtml(h.passenger)} ✈️ ${escapeHtml(h.flight) || '—'} | 👔 ${escapeHtml(h.issuerName)} | ${genderIcon} ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+    }
+    
+    if (transactionHistory.lastKeyReturn) {
+        const h = transactionHistory.lastKeyReturn;
+        const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+        html += `<div class="history-card"><h4>🔁 Last Key Return</h4><div class="history-detail">📋 ${escapeHtml(h.receiverName)} received from 🧑 ${escapeHtml(h.passenger)} | ${genderIcon} ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+    }
+    
+    if (transactionHistory.lastCleaningStart) {
+        const h = transactionHistory.lastCleaningStart;
+        const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+        html += `<div class="history-card"><h4>🧹 Last Cleaning Started</h4><div class="history-detail">HK ${escapeHtml(h.hkName)} assigned by ${escapeHtml(h.allocatorName)} | ${genderIcon} ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+    }
+    
+    if (transactionHistory.lastCleaningComplete) {
+        const h = transactionHistory.lastCleaningComplete;
+        const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+        html += `<div class="history-card"><h4>✅ Last Cleaning Completed</h4><div class="history-detail">Supervisor ${escapeHtml(h.supervisorName)} | ${genderIcon} ${escapeHtml(h.roomName)} now CLEAN</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
   }
 
   function checkDateReset() {
@@ -521,7 +709,7 @@
       roomsData[1].cleanStatus = "dirty";
       roomsData[3].cleanStatus = "dirty";
       currentDate = today;
-      saveToFirestore();
+      persistState();
       renderRooms();
     }
   }
@@ -595,7 +783,8 @@
     const maleContainer = document.getElementById("maleRoomsContainer");
     const femaleContainer = document.getElementById("femaleRoomsContainer");
     if (!maleContainer || !femaleContainer) return;
-    maleContainer.innerHTML = ""; femaleContainer.innerHTML = "";
+    maleContainer.innerHTML = "";
+    femaleContainer.innerHTML = "";
 
     roomsData.forEach(room => {
       const card = document.createElement("div");
@@ -628,7 +817,7 @@
         ${timers.cleaningTimerHtml}
         ${passengerInfo}
         <div class="room-detail">${room.gender === 'male' ? '🚹 Male' : '🚺 Female'}</div>
-        <div class="click-hint">▼ tap</div>
+        
         ${returnButton}
         ${timers.completeCleanBtn}
       `;
@@ -696,12 +885,17 @@
       return false;
     }
     
+    const supervisor = staffList.find(s => s.pass === password);
+    const supervisorName = supervisor ? supervisor.name : "Authorized Staff";
+    
     room.cleanStatus = "clean";
     room.housekeeperId = null;
     room.housekeeperName = null;
     room.housekeeperContact = null;
     room.allocationTimestamp = null;
-    await saveToFirestore();
+    
+    setLastCleaningComplete(supervisorName, room.name, room.gender);
+    persistState();
     renderRooms();
     return true;
   }
@@ -736,7 +930,6 @@
     const issuer = getStaffById(issuerId);
     if (!issuer) { alert("Selected officer not found"); return; }
     
-    // Verify password using the 'pass' field from staff.js
     if (!verifyStaffPassword(password, issuerId)) {
       alert("❌ Invalid password for this officer. Access denied.");
       return;
@@ -753,7 +946,9 @@
     currentIssueRoom.housekeeperName = null;
     currentIssueRoom.housekeeperContact = null;
     currentIssueRoom.allocationTimestamp = null;
-    await saveToFirestore();
+    
+    setLastKeyIssue(passenger, flightNumber, issuer.name, currentIssueRoom.name, currentIssueRoom.gender);
+    persistState();
     renderRooms();
     closeIssueModal();
   }
@@ -779,7 +974,6 @@
     if (!hkId) { alert("Please select a housekeeper"); return; }
     if (!password) { alert("Password required"); return; }
     
-    // Verify any staff password (officer can allocate)
     if (!verifyStaffPassword(password)) {
       alert("❌ Invalid password. Access denied.");
       return;
@@ -787,12 +981,18 @@
     
     const housekeeper = getStaffById(hkId);
     if (!housekeeper) { alert("Selected housekeeper not found"); return; }
+    
+    const allocator = staffList.find(s => s.pass === password);
+    const allocatorName = allocator ? allocator.name : "Authorized Staff";
+    
     const nowISO = getCurrentISO();
     currentAllocateRoom.housekeeperId = housekeeper.id;
     currentAllocateRoom.housekeeperName = housekeeper.name;
     currentAllocateRoom.housekeeperContact = housekeeper.contact || 'N/A';
     currentAllocateRoom.allocationTimestamp = nowISO;
-    await saveToFirestore();
+    
+    setLastCleaningStart(housekeeper.name, currentAllocateRoom.name, allocatorName, currentAllocateRoom.gender);
+    persistState();
     renderRooms();
     closeAllocateModal();
   }
@@ -833,13 +1033,17 @@
       return;
     }
     
+    const passengerName = currentReturnRoom.currentPassenger || "Unknown";
+    setLastKeyReturn(receiver.name, passengerName, currentReturnRoom.name, currentReturnRoom.gender);
+    
     currentReturnRoom.occupiedStatus = "vacant";
     currentReturnRoom.cleanStatus = "dirty";
     currentReturnRoom.housekeeperId = null;
     currentReturnRoom.housekeeperName = null;
     currentReturnRoom.housekeeperContact = null;
     currentReturnRoom.allocationTimestamp = null;
-    await saveToFirestore();
+    
+    persistState();
     renderRooms();
     closeReturnModal();
   }
@@ -875,6 +1079,18 @@
     document.getElementById("allocateForm")?.addEventListener("submit", onSubmitAllocate);
     document.getElementById("returnForm")?.addEventListener("submit", onSubmitReturn);
     document.getElementById("completeCleanForm")?.addEventListener("submit", onSubmitCompleteClean);
+    
+    // Tab switching
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("roomsTab").classList.toggle("active", btn.dataset.tab === "rooms");
+        document.getElementById("historyTab").classList.toggle("active", btn.dataset.tab === "history");
+        if (btn.dataset.tab === "history") renderHistory();
+      });
+    });
+    
     window.addEventListener("click", (e) => {
       if (e.target === document.getElementById("issueModal")) closeIssueModal();
       if (e.target === document.getElementById("allocateModal")) closeAllocateModal();
@@ -886,10 +1102,17 @@
   function startGlobalTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = setInterval(() => { updateLiveTimers(); }, 1000); }
   
   async function init() {
+    // Load from localStorage first (instant)
+    loadFromLocalStorage();
+    renderRooms();
+    renderHistory();
+    
     bindModalEvents();
-    await loadFromFirestore();
     startGlobalTimer();
     checkDateReset();
+    
+    // Then load from Firebase in background
+    await loadFromFirestore();
   }
   
   init();
