@@ -505,7 +505,7 @@
 <div class="app-container">
   <div class="header">
     <h1><span>🚿</span> Shower Manager</h1>
-    <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Protected Actions | Realtime DB</p>
+    <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Protected Actions | No Auto-Reset</p>
     <div class="sync-status">
       <span class="status-dot" id="statusDot"></span>
       <span id="syncText">Connected</span>
@@ -539,7 +539,7 @@
       <p style="text-align:center; color:#5f7d9c;">Loading room transactions...</p>
     </div>
   </div>
-  <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning | 🔴 Occupied | ⚫ Out of Service | Click room for action</footer>
+  <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning | 🔴 Occupied | ⚫ Out of Service | Click room for action | Status NEVER changes automatically</footer>
 </div>
 
 <div class="loading-overlay" id="loadingOverlay">
@@ -587,11 +587,9 @@
 <div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Confirm</button><button type="button" class="btn btn-secondary" id="closeCompleteModal">Cancel</button></div></form></div></div>
 
 <script type="module">
-  // Import Firebase Realtime Database
   import { db } from './firebase-config.js';
   import { ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
   
-  // Import staff data from staff.js
   import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
   
   function verifyStaffPassword(password, staffId = null) {
@@ -604,6 +602,7 @@
     }
   }
 
+  // Room data - NO AUTO-RESET, status only changes when user performs an action
   const roomsData = [
     { id: "M1", name: "Shower 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
@@ -636,10 +635,9 @@
   ];
 
   let timerInterval = null;
-  let currentDate = new Date().toDateString();
   let pendingCleanRoomId = null;
 
-  const STORAGE_KEY = 'shower_manager_data_v8';
+  const STORAGE_KEY = 'shower_manager_data_v9';
 
   function getCurrentISO() { return new Date().toISOString(); }
   
@@ -679,8 +677,7 @@
   function saveToLocalStorage() {
     const data = { 
       rooms: roomsData.map(room => ({ ...room })), 
-      lastUpdated: getCurrentISO(),
-      date: currentDate
+      lastUpdated: getCurrentISO()
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     console.log("Saved to localStorage");
@@ -696,21 +693,17 @@
           roomsData[i] = { ...roomsData[i], ...data.rooms[i] };
         }
       }
-      if (data.date) currentDate = data.date;
       console.log("Loaded from localStorage");
       return true;
     } catch(e) { return false; }
   }
 
-  // Save to Realtime Database
   async function syncToRealtimeDB() {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const dbRef = ref(db, `showerRooms/${today}`);
+      const dbRef = ref(db, `showerRooms`);
       await set(dbRef, {
         rooms: roomsData,
-        lastUpdated: getCurrentISO(),
-        date: currentDate
+        lastUpdated: getCurrentISO()
       });
       updateConnectionStatus(true);
       console.log("Synced to Realtime DB");
@@ -722,11 +715,9 @@
     }
   }
 
-  // Load from Realtime Database
   async function loadFromRealtimeDB() {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const dbRef = ref(db, `showerRooms/${today}`);
+      const dbRef = ref(db, `showerRooms`);
       const snapshot = await get(dbRef);
       
       if (snapshot.exists()) {
@@ -736,7 +727,6 @@
             roomsData[i] = { ...roomsData[i], ...data.rooms[i] };
           }
         }
-        if (data.date) currentDate = data.date;
         console.log("Loaded from Realtime DB");
       }
       saveToLocalStorage();
@@ -749,10 +739,8 @@
     renderPerRoomHistory();
   }
 
-  // Setup realtime listener
   function setupRealtimeListener() {
-    const today = new Date().toISOString().split('T')[0];
-    const dbRef = ref(db, `showerRooms/${today}`);
+    const dbRef = ref(db, `showerRooms`);
     
     onValue(dbRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -762,7 +750,6 @@
             roomsData[i] = { ...roomsData[i], ...data.rooms[i] };
           }
         }
-        if (data.date) currentDate = data.date;
         saveToLocalStorage();
         renderRooms();
         renderPerRoomHistory();
@@ -906,36 +893,7 @@
     container.innerHTML = html;
   }
 
-  function checkDateReset() {
-    const today = new Date().toDateString();
-    if (today !== currentDate) {
-      console.log("Date reset - new day, preserving occupied rooms");
-      roomsData.forEach(room => {
-        if (!room.outOfService && room.occupiedStatus !== "occupied") {
-          room.cleanStatus = "clean";
-          room.occupiedStatus = "vacant";
-          room.currentPassenger = null;
-          room.flightNumber = null;
-          room.currentIssuerId = null;
-          room.currentIssuerName = null;
-          room.issueTimestamp = null;
-          room.housekeeperId = null;
-          room.housekeeperName = null;
-          room.housekeeperContact = null;
-          room.allocationTimestamp = null;
-          room.allocatedByOfficerId = null;
-          room.allocatedByOfficerName = null;
-        }
-      });
-      if (!roomsData[1].outOfService && roomsData[1].occupiedStatus !== "occupied") roomsData[1].cleanStatus = "dirty";
-      if (!roomsData[3].outOfService && roomsData[3].occupiedStatus !== "occupied") roomsData[3].cleanStatus = "dirty";
-      currentDate = today;
-      persistState();
-      renderRooms();
-    }
-  }
-
-  setInterval(checkDateReset, 60000);
+  // NO AUTO-RESET FUNCTION - Removed completely!
 
   function getRoomCardClass(room) {
     if (room.outOfService) return "room-out-of-service";
@@ -1520,7 +1478,6 @@
     renderPerRoomHistory();
     bindModalEvents();
     startGlobalTimer();
-    checkDateReset();
     await loadFromRealtimeDB();
     setupRealtimeListener();
   }
