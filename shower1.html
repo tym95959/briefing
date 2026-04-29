@@ -201,6 +201,12 @@
       border-left: 8px solid #059669;
     }
 
+    .room-out-of-service {
+      background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+      border-left: 8px solid #4b5563;
+      opacity: 0.8;
+    }
+
     .room-name {
       font-weight: 800;
       font-size: 1.2rem;
@@ -230,6 +236,7 @@
     .cleaning-badge { background: #4338ca; color: white; }
     .occupied-badge { background: #991b1b; color: white; }
     .vacant-badge { background: #065a60; color: white; }
+    .outofservice-badge { background: #4b5563; color: white; }
 
     .timer-box {
       background: rgba(255, 255, 255, 0.8);
@@ -249,7 +256,7 @@
       font-weight: 800;
     }
 
-    .return-btn, .complete-clean-btn {
+    .return-btn, .complete-clean-btn, .outofservice-btn, .remove-outofservice-btn {
       margin-top: 0.5rem;
       background: rgba(255, 255, 255, 0.9);
       border: none;
@@ -266,6 +273,10 @@
     .return-btn:hover { background: #fee2e2; transform: scale(0.96); }
     .complete-clean-btn { color: #1e1b4b; background: #e0e7ff; margin-top: 0.3rem; border: 1px solid #4f46e5; }
     .complete-clean-btn:hover { background: #c7d2fe; transform: scale(0.96); }
+    .outofservice-btn { color: #4b5563; background: #f3f4f6; border: 1px solid #6b7280; }
+    .outofservice-btn:hover { background: #e5e7eb; transform: scale(0.96); }
+    .remove-outofservice-btn { color: #059669; background: #d1fae5; border: 1px solid #059669; }
+    .remove-outofservice-btn:hover { background: #a7f3d0; transform: scale(0.96); }
 
     /* History Panel */
     .history-panel {
@@ -332,11 +343,16 @@
       font-size: 0.85rem;
     }
 
-    .form-group input, .form-group select {
+    .form-group input, .form-group select, .form-group textarea {
       padding: 0.7rem;
       border-radius: 1rem;
       border: 1px solid #cbd5e6;
       background: #f9fbfd;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      font-family: inherit;
     }
 
     .modal-buttons {
@@ -358,6 +374,7 @@
     .btn-secondary { background: #e2e8f0; color: #1f3a4b; }
     .btn-warning { background: #ea580c; color: white; }
     .btn-danger { background: #dc2626; color: white; }
+    .btn-gray { background: #6b7280; color: white; }
 
     .info-panel {
       background: #f0f6fa;
@@ -424,7 +441,7 @@
       <p style="text-align:center; color:#5f7d9c;">Loading latest transaction...</p>
     </div>
   </div>
-  <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning in Progress | 🔴 Occupied | Tap card → action</footer>
+  <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning | 🔴 Occupied | ⚫ Out of Service | Tap card → action</footer>
 </div>
 
 <!-- MODAL: ISSUE KEY -->
@@ -435,6 +452,22 @@
 <div class="form-group"><label>🔐 Password *</label><input type="password" id="issuerPassword" placeholder="Enter your password" required></div>
 <div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue Key</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form>
 <p class="time-hint">🔴 Room becomes OCCUPIED · Timer starts</p></div></div>
+
+<!-- MODAL: OUT OF SERVICE -->
+<div id="outOfServiceModal" class="modal"><div class="modal-card"><h3>⚠️ Out of Service</h3><div id="oosRoomInfo" class="info-panel"></div>
+<form id="oosForm"><div class="form-group"><label>👤 Officer Name *</label><select id="oosOfficerSelect" required></select></div>
+<div class="form-group"><label>🔐 Officer Password *</label><input type="password" id="oosOfficerPassword" placeholder="Enter your password" required></div>
+<div class="form-group"><label>📝 Reason for Out of Service *</label><textarea id="oosReason" rows="3" placeholder="e.g., Broken shower head, clogged drain, maintenance required..." required></textarea></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-gray">⚠️ Mark Out of Service</button><button type="button" class="btn btn-secondary" id="closeOosModal">Cancel</button></div></form>
+<p class="time-hint">⚫ Room becomes UNAVAILABLE · Cannot issue keys until restored</p></div></div>
+
+<!-- MODAL: REMOVE OUT OF SERVICE -->
+<div id="removeOosModal" class="modal"><div class="modal-card"><h3>✅ Restore to Service</h3><div id="removeOosRoomInfo" class="info-panel"></div>
+<form id="removeOosForm"><div class="form-group"><label>👤 Officer Name *</label><select id="removeOosOfficerSelect" required></select></div>
+<div class="form-group"><label>🔐 Officer Password *</label><input type="password" id="removeOosOfficerPassword" placeholder="Enter your password" required></div>
+<div class="form-group"><label>📝 Restoration Notes (optional)</label><textarea id="removeOosNotes" rows="2" placeholder="e.g., Repaired and ready for use"></textarea></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Restore to Service</button><button type="button" class="btn btn-secondary" id="closeRemoveOosModal">Cancel</button></div></form>
+<p class="time-hint">🟢 Room becomes available again based on its clean/dirty status</p></div></div>
 
 <!-- MODAL: ALLOCATE HOUSEKEEPER -->
 <div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Assign Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
@@ -462,48 +495,49 @@
   import { db } from './firebase-config.js';
   import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
   
-  // Import staff data from staff.js - expecting these exports
   import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
   
-  // Password verification function using the 'pass' field from staff.js
   function verifyStaffPassword(password, staffId = null) {
     if (staffId) {
       const staff = getStaffById(staffId);
-      if (staff && staff.pass === password) {
-        return true;
-      }
+      if (staff && staff.pass === password) return true;
       return false;
     } else {
       return staffList.some(staff => staff.pass === password);
     }
   }
 
-  // Room data - names "Shower 1", "Shower 2"
+  // Room data with Out of Service flag
   const roomsData = [
     { id: "M1", name: "Shower 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null,
-      allocatedByOfficerId: null, allocatedByOfficerName: null },
+      allocatedByOfficerId: null, allocatedByOfficerName: null,
+      outOfService: false, outOfServiceReason: null, outOfServiceOfficerName: null, outOfServiceTimestamp: null },
     { id: "M2", name: "Shower 2", gender: "male", cleanStatus: "dirty", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null,
-      allocatedByOfficerId: null, allocatedByOfficerName: null },
+      allocatedByOfficerId: null, allocatedByOfficerName: null,
+      outOfService: false, outOfServiceReason: null, outOfServiceOfficerName: null, outOfServiceTimestamp: null },
     { id: "F1", name: "Shower 1", gender: "female", cleanStatus: "clean", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null,
-      allocatedByOfficerId: null, allocatedByOfficerName: null },
+      allocatedByOfficerId: null, allocatedByOfficerName: null,
+      outOfService: false, outOfServiceReason: null, outOfServiceOfficerName: null, outOfServiceTimestamp: null },
     { id: "F2", name: "Shower 2", gender: "female", cleanStatus: "dirty", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
       housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null,
-      allocatedByOfficerId: null, allocatedByOfficerName: null }
+      allocatedByOfficerId: null, allocatedByOfficerName: null,
+      outOfService: false, outOfServiceReason: null, outOfServiceOfficerName: null, outOfServiceTimestamp: null }
   ];
 
-  // Transaction history (only last transaction per type)
   let transactionHistory = {
     lastKeyIssue: null,
     lastKeyReturn: null,
     lastCleaningStart: null,
-    lastCleaningComplete: null
+    lastCleaningComplete: null,
+    lastOutOfService: null,
+    lastRestoredToService: null
   };
 
   let timerInterval = null;
@@ -511,15 +545,13 @@
   let pendingCleanRoomId = null;
   let syncInProgress = false;
 
-  const STORAGE_KEY = 'shower_manager_data_v2';
+  const STORAGE_KEY = 'shower_manager_data_v3';
 
   function getCurrentISO() { return new Date().toISOString(); }
   
   function formatTimeSince(timestampISO) {
     if (!timestampISO) return null;
-    const now = new Date();
-    const past = new Date(timestampISO);
-    const diffMs = now - past;
+    const diffMs = Date.now() - new Date(timestampISO).getTime();
     if (diffMs < 0) return { minutes: 0, seconds: 0 };
     return { minutes: Math.floor(diffMs / 60000), seconds: Math.floor((diffMs % 60000) / 1000) };
   }
@@ -542,17 +574,11 @@
     }
   }
 
-  // Save to localStorage (fast, non-blocking)
   function saveToLocalStorage() {
-    const data = {
-      rooms: roomsData,
-      transactionHistory: transactionHistory,
-      lastUpdated: getCurrentISO()
-    };
+    const data = { rooms: roomsData, transactionHistory: transactionHistory, lastUpdated: getCurrentISO() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
-  // Load from localStorage
   function loadFromLocalStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
@@ -563,14 +589,11 @@
           Object.assign(roomsData[i], data.rooms[i]);
         }
       }
-      if (data.transactionHistory) {
-        transactionHistory = data.transactionHistory;
-      }
+      if (data.transactionHistory) transactionHistory = data.transactionHistory;
       return true;
     } catch(e) { return false; }
   }
 
-  // Background sync to Firebase (non-blocking)
   async function syncToFirebase() {
     if (syncInProgress) return;
     syncInProgress = true;
@@ -591,7 +614,6 @@
     }
   }
 
-  // Load from Firebase in background
   async function loadFromFirestore() {
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -603,27 +625,13 @@
         const data = roomSnap.data();
         if (data.rooms && Array.isArray(data.rooms) && data.rooms.length === 4) {
           for (let i = 0; i < data.rooms.length; i++) {
-            roomsData[i].cleanStatus = data.rooms[i].cleanStatus;
-            roomsData[i].occupiedStatus = data.rooms[i].occupiedStatus;
-            roomsData[i].currentPassenger = data.rooms[i].currentPassenger || null;
-            roomsData[i].flightNumber = data.rooms[i].flightNumber || null;
-            roomsData[i].currentIssuerId = data.rooms[i].currentIssuerId || null;
-            roomsData[i].currentIssuerName = data.rooms[i].currentIssuerName || null;
-            roomsData[i].issueTimestamp = data.rooms[i].issueTimestamp || null;
-            roomsData[i].housekeeperId = data.rooms[i].housekeeperId || null;
-            roomsData[i].housekeeperName = data.rooms[i].housekeeperName || null;
-            roomsData[i].housekeeperContact = data.rooms[i].housekeeperContact || null;
-            roomsData[i].allocationTimestamp = data.rooms[i].allocationTimestamp || null;
-            roomsData[i].allocatedByOfficerId = data.rooms[i].allocatedByOfficerId || null;
-            roomsData[i].allocatedByOfficerName = data.rooms[i].allocatedByOfficerName || null;
+            Object.assign(roomsData[i], data.rooms[i]);
           }
         }
       }
-      
       if (histSnap.exists() && histSnap.data().transactionHistory) {
         transactionHistory = histSnap.data().transactionHistory;
       }
-      
       saveToLocalStorage();
       updateConnectionStatus(true);
     } catch (error) {
@@ -634,13 +642,12 @@
     renderHistory();
   }
 
-  // Persist: save to localStorage + background Firebase
   function persistState() {
     saveToLocalStorage();
     syncToFirebase().catch(e => console.warn("bg sync error", e));
   }
 
-  // Update transaction history with gender
+  // Transaction history functions
   function setLastKeyIssue(passenger, flight, issuerName, roomName, roomGender) {
     transactionHistory.lastKeyIssue = { passenger, flight: flight || '', issuerName, roomName, roomGender, timestamp: getCurrentISO() };
     persistState();
@@ -665,7 +672,18 @@
     renderHistory();
   }
 
-  // Render history tab with gender icons
+  function setLastOutOfService(roomName, roomGender, officerName, reason) {
+    transactionHistory.lastOutOfService = { roomName, roomGender, officerName, reason, timestamp: getCurrentISO() };
+    persistState();
+    renderHistory();
+  }
+
+  function setLastRestoredToService(roomName, roomGender, officerName, notes) {
+    transactionHistory.lastRestoredToService = { roomName, roomGender, officerName, notes, timestamp: getCurrentISO() };
+    persistState();
+    renderHistory();
+  }
+
   function renderHistory() {
     const container = document.getElementById("historyContainer");
     if (!container) return;
@@ -694,6 +712,18 @@
       const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
       html += `<div class="history-card"><h4>✅ Last Cleaning Completed</h4><div class="history-detail">Supervisor 👔 ${escapeHtml(h.officerName)} | ${genderIcon} ${escapeHtml(h.roomName)} now CLEAN</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
     }
+
+    if (transactionHistory.lastOutOfService) {
+      const h = transactionHistory.lastOutOfService;
+      const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+      html += `<div class="history-card"><h4>⚠️ Last Out of Service</h4><div class="history-detail">⚫ ${genderIcon} ${escapeHtml(h.roomName)} marked by 👔 ${escapeHtml(h.officerName)}<br>📝 Reason: ${escapeHtml(h.reason)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+    }
+
+    if (transactionHistory.lastRestoredToService) {
+      const h = transactionHistory.lastRestoredToService;
+      const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+      html += `<div class="history-card"><h4>✅ Last Restored to Service</h4><div class="history-detail">🟢 ${genderIcon} ${escapeHtml(h.roomName)} restored by 👔 ${escapeHtml(h.officerName)}${h.notes ? `<br>📝 Notes: ${escapeHtml(h.notes)}` : ''}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+    }
     
     if (!transactionHistory.lastKeyIssue && !transactionHistory.lastKeyReturn && !transactionHistory.lastCleaningStart && !transactionHistory.lastCleaningComplete) {
       html += '<p style="text-align:center;">No transactions recorded yet.</p>';
@@ -706,19 +736,21 @@
     const today = new Date().toDateString();
     if (today !== currentDate) {
       roomsData.forEach(room => {
-        room.cleanStatus = "clean";
-        room.occupiedStatus = "vacant";
-        room.currentPassenger = null;
-        room.flightNumber = null;
-        room.currentIssuerId = null;
-        room.currentIssuerName = null;
-        room.issueTimestamp = null;
-        room.housekeeperId = null;
-        room.housekeeperName = null;
-        room.housekeeperContact = null;
-        room.allocationTimestamp = null;
-        room.allocatedByOfficerId = null;
-        room.allocatedByOfficerName = null;
+        if (!room.outOfService) {
+          room.cleanStatus = "clean";
+          room.occupiedStatus = "vacant";
+          room.currentPassenger = null;
+          room.flightNumber = null;
+          room.currentIssuerId = null;
+          room.currentIssuerName = null;
+          room.issueTimestamp = null;
+          room.housekeeperId = null;
+          room.housekeeperName = null;
+          room.housekeeperContact = null;
+          room.allocationTimestamp = null;
+          room.allocatedByOfficerId = null;
+          room.allocatedByOfficerName = null;
+        }
       });
       roomsData[1].cleanStatus = "dirty";
       roomsData[3].cleanStatus = "dirty";
@@ -731,6 +763,7 @@
   setInterval(checkDateReset, 60000);
 
   function getRoomCardClass(room) {
+    if (room.outOfService) return "room-out-of-service";
     if (room.occupiedStatus === "occupied") return "room-occupied";
     if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && !room.allocationTimestamp) return "room-vacant-dirty";
     if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && room.allocationTimestamp) return "room-cleaning-progress";
@@ -738,6 +771,7 @@
   }
 
   function getStatusText(room) {
+    if (room.outOfService) return "⚫ OUT OF SERVICE";
     if (room.occupiedStatus === "occupied") return "🔴 OCCUPIED";
     if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && room.allocationTimestamp) return "🔵 CLEANING IN PROGRESS";
     if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty") return "🟡 DIRTY · VACANT";
@@ -745,6 +779,7 @@
   }
 
   function getCleanBadgeClass(room) {
+    if (room.outOfService) return "outofservice-badge";
     if (room.occupiedStatus === "occupied") return "dirty-badge";
     if (room.cleanStatus === "clean") return "clean-badge";
     if (room.allocationTimestamp && room.cleanStatus === "dirty") return "cleaning-badge";
@@ -752,6 +787,7 @@
   }
 
   function getCleanLabel(room) {
+    if (room.outOfService) return "Out of Service";
     if (room.occupiedStatus === "occupied") return "In Use";
     if (room.cleanStatus === "clean") return "Clean ✓";
     if (room.allocationTimestamp) return "Cleaning 🧼";
@@ -763,12 +799,12 @@
     let cleaningTimerHtml = '';
     let completeCleanBtn = '';
 
-    if (room.occupiedStatus === 'occupied' && room.issueTimestamp) {
+    if (room.occupiedStatus === 'occupied' && room.issueTimestamp && !room.outOfService) {
       const timeData = formatTimeSince(room.issueTimestamp);
       if (timeData) passengerTimerHtml = `<div class="timer-box timer-passenger">🧑 Occupied: <span class="live-counter" id="timer-pass-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span></div>`;
     }
 
-    if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName) {
+    if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName && !room.outOfService) {
       const timeData = formatTimeSince(room.allocationTimestamp);
       const sinceTime = formatTimeAgoString(room.allocationTimestamp);
       if (timeData) {
@@ -783,11 +819,11 @@
 
   function updateLiveTimers() {
     roomsData.forEach(room => {
-      if (room.occupiedStatus === 'occupied' && room.issueTimestamp) {
+      if (room.occupiedStatus === 'occupied' && room.issueTimestamp && !room.outOfService) {
         const span = document.getElementById(`timer-pass-${room.id}`);
         if (span) { const td = formatTimeSince(room.issueTimestamp); if (td) span.innerText = `${td.minutes}m ${td.seconds}s`; }
       }
-      if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName) {
+      if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName && !room.outOfService) {
         const span = document.getElementById(`timer-clean-${room.id}`);
         if (span) { const td = formatTimeSince(room.allocationTimestamp); if (td) span.innerText = `${td.minutes}m ${td.seconds}s`; }
       }
@@ -814,14 +850,27 @@
       const statusText = getStatusText(room);
       
       let passengerInfo = "";
-      if (room.occupiedStatus === "occupied" && room.currentPassenger) {
+      if (room.occupiedStatus === "occupied" && room.currentPassenger && !room.outOfService) {
         const flightHtml = room.flightNumber ? `<div style="font-size:0.65rem;">✈️ ${escapeHtml(room.flightNumber)}</div>` : '';
         passengerInfo = `<div style="font-size:0.7rem; margin-top:5px; color:#991b1b; background:rgba(255,255,255,0.6); border-radius:20px; padding:3px;">
           👤 ${escapeHtml(room.currentPassenger.substring(0,18))}${flightHtml}<br>👔 ${escapeHtml(room.currentIssuerName || '')}</div>`;
       }
       
-      const returnButton = room.occupiedStatus === "occupied" 
+      let outOfServiceInfo = "";
+      if (room.outOfService) {
+        outOfServiceInfo = `<div style="font-size:0.65rem; margin-top:5px; color:#4b5563; background:rgba(255,255,255,0.6); border-radius:20px; padding:3px;">
+          ⚠️ ${escapeHtml(room.outOfServiceReason || 'No reason provided')}<br>👔 ${escapeHtml(room.outOfServiceOfficerName || 'Unknown')}
+        </div>`;
+      }
+      
+      const returnButton = room.occupiedStatus === "occupied" && !room.outOfService
         ? `<button class="return-btn" data-room-id="${room.id}">🔁 Return Key</button>` : '';
+      
+      const outOfServiceButton = !room.outOfService && room.occupiedStatus !== "occupied"
+        ? `<button class="outofservice-btn" data-room-id="${room.id}">⚠️ Mark Out of Service</button>` : '';
+      
+      const removeOutOfServiceButton = room.outOfService
+        ? `<button class="remove-outofservice-btn" data-room-id="${room.id}">✅ Restore to Service</button>` : '';
       
       card.innerHTML = `
         <div class="gender-icon">${genderIcon}</div>
@@ -831,15 +880,19 @@
         ${timers.passengerTimerHtml}
         ${timers.cleaningTimerHtml}
         ${passengerInfo}
+        ${outOfServiceInfo}
         <div class="room-detail">${room.gender === 'male' ? '🚹 Male' : '🚺 Female'}</div>
-        
         ${returnButton}
+        ${outOfServiceButton}
+        ${removeOutOfServiceButton}
         ${timers.completeCleanBtn}
       `;
       
       card.addEventListener("click", (e) => {
         if (e.target.classList?.contains("return-btn")) { e.stopPropagation(); handleReturnClick(room.id); return; }
         if (e.target.classList?.contains("complete-clean-btn")) { e.stopPropagation(); handleCompleteCleaningClick(room.id); return; }
+        if (e.target.classList?.contains("outofservice-btn")) { e.stopPropagation(); handleOutOfServiceClick(room.id); return; }
+        if (e.target.classList?.contains("remove-outofservice-btn")) { e.stopPropagation(); handleRemoveOutOfServiceClick(room.id); return; }
         handleRoomClick(room.id);
       });
       
@@ -847,6 +900,10 @@
       if (returnBtn) returnBtn.addEventListener("click", (e) => { e.stopPropagation(); handleReturnClick(room.id); });
       const completeBtn = card.querySelector(".complete-clean-btn");
       if (completeBtn) completeBtn.addEventListener("click", (e) => { e.stopPropagation(); handleCompleteCleaningClick(room.id); });
+      const oosBtn = card.querySelector(".outofservice-btn");
+      if (oosBtn) oosBtn.addEventListener("click", (e) => { e.stopPropagation(); handleOutOfServiceClick(room.id); });
+      const removeOosBtn = card.querySelector(".remove-outofservice-btn");
+      if (removeOosBtn) removeOosBtn.addEventListener("click", (e) => { e.stopPropagation(); handleRemoveOutOfServiceClick(room.id); });
       
       if (room.gender === "male") maleContainer.appendChild(card);
       else femaleContainer.appendChild(card);
@@ -856,10 +913,17 @@
   function handleRoomClick(roomId) {
     const room = roomsData.find(r => r.id === roomId);
     if (!room) return;
+    
+    if (room.outOfService) {
+      alert(`⚠️ ${room.name} is OUT OF SERVICE.\nReason: ${room.outOfServiceReason || 'No reason provided'}\nPlease restore to service before using.`);
+      return;
+    }
+    
     if (room.occupiedStatus === "occupied") {
       alert(`🔴 ${room.name} is OCCUPIED.\nUse "Return Key" button to check-out.`);
       return;
     }
+    
     if (room.occupiedStatus === "vacant") {
       if (room.cleanStatus === "clean") {
         openIssueModal(room);
@@ -876,12 +940,14 @@
   function handleReturnClick(roomId) {
     const room = roomsData.find(r => r.id === roomId);
     if (!room || room.occupiedStatus !== "occupied") { alert(`❌ Room not occupied.`); return; }
+    if (room.outOfService) { alert(`⚠️ Room is out of service. Please restore first.`); return; }
     openReturnModal(room);
   }
 
   function handleCompleteCleaningClick(roomId) {
     const room = roomsData.find(r => r.id === roomId);
     if (!room) return;
+    if (room.outOfService) { alert(`⚠️ Room is out of service. Cannot clean.`); return; }
     if (!(room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp)) {
       alert(`Room is not in cleaning progress.`);
       return;
@@ -890,9 +956,30 @@
     openCompleteCleanModal(room);
   }
 
+  function handleOutOfServiceClick(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room) return;
+    if (room.outOfService) {
+      alert(`Room is already out of service.`);
+      return;
+    }
+    if (room.occupiedStatus === "occupied") {
+      alert(`Cannot mark as out of service while occupied. Please return key first.`);
+      return;
+    }
+    openOutOfServiceModal(room);
+  }
+
+  function handleRemoveOutOfServiceClick(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room || !room.outOfService) return;
+    openRemoveOutOfServiceModal(room);
+  }
+
   async function executeCompleteCleaning(officerId, password) {
     const room = roomsData.find(r => r.id === pendingCleanRoomId);
     if (!room) return false;
+    if (room.outOfService) { alert(`⚠️ Room is out of service.`); return false; }
     
     const officer = getStaffById(officerId);
     if (!officer || !verifyStaffPassword(password, officerId)) {
@@ -916,6 +1003,10 @@
 
   let currentIssueRoom = null;
   function openIssueModal(room) {
+    if (room.outOfService) {
+      alert(`⚠️ Cannot issue key. ${room.name} is out of service.`);
+      return;
+    }
     currentIssueRoom = room;
     const issuerSelect = document.getElementById("issuerSelect");
     const officers = getOfficers();
@@ -932,6 +1023,12 @@
   async function onSubmitIssue(e) {
     e.preventDefault();
     if (!currentIssueRoom) return;
+    if (currentIssueRoom.outOfService) {
+      alert(`⚠️ Cannot issue key. Room is out of service.`);
+      closeIssueModal();
+      return;
+    }
+    
     const passenger = document.getElementById("passengerName").value.trim();
     const flightNumber = document.getElementById("flightNumber").value.trim() || null;
     const issuerId = document.getElementById("issuerSelect").value;
@@ -969,6 +1066,10 @@
 
   let currentAllocateRoom = null;
   function openAllocateModal(room) {
+    if (room.outOfService) {
+      alert(`⚠️ Cannot assign cleaning. Room is out of service.`);
+      return;
+    }
     currentAllocateRoom = room;
     const hkSelect = document.getElementById("hkSelect");
     const hkStaff = getHousekeepingStaff();
@@ -988,6 +1089,12 @@
   async function onSubmitAllocate(e) {
     e.preventDefault();
     if (!currentAllocateRoom) return;
+    if (currentAllocateRoom.outOfService) {
+      alert(`⚠️ Cannot assign cleaning. Room is out of service.`);
+      closeAllocateModal();
+      return;
+    }
+    
     const officerId = document.getElementById("officerSelect").value;
     const officerPassword = document.getElementById("officerPassword").value;
     const hkId = document.getElementById("hkSelect").value;
@@ -1023,6 +1130,10 @@
 
   let currentReturnRoom = null;
   function openReturnModal(room) {
+    if (room.outOfService) {
+      alert(`⚠️ Room is out of service. Cannot return key.`);
+      return;
+    }
     currentReturnRoom = room;
     const receiverSelect = document.getElementById("receiverSelect");
     const officers = getOfficers();
@@ -1044,6 +1155,12 @@
   async function onSubmitReturn(e) {
     e.preventDefault();
     if (!currentReturnRoom) return;
+    if (currentReturnRoom.outOfService) {
+      alert(`⚠️ Room is out of service.`);
+      closeReturnModal();
+      return;
+    }
+    
     const receiverId = document.getElementById("receiverSelect").value;
     const password = document.getElementById("receiverPassword").value;
     if (!receiverId) { alert("Please select a receiving officer"); return; }
@@ -1074,6 +1191,96 @@
     closeReturnModal();
   }
 
+  // Out of Service Modals
+  let currentOosRoom = null;
+  function openOutOfServiceModal(room) {
+    currentOosRoom = room;
+    const officerSelect = document.getElementById("oosOfficerSelect");
+    const officers = getOfficers();
+    officerSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+    
+    document.getElementById("oosRoomInfo").innerHTML = `<strong>${room.name}</strong><br>⚠️ Mark as Out of Service`;
+    document.getElementById("oosOfficerPassword").value = "";
+    document.getElementById("oosReason").value = "";
+    document.getElementById("outOfServiceModal").style.display = "flex";
+  }
+
+  async function onSubmitOutOfService(e) {
+    e.preventDefault();
+    if (!currentOosRoom) return;
+    
+    const officerId = document.getElementById("oosOfficerSelect").value;
+    const password = document.getElementById("oosOfficerPassword").value;
+    const reason = document.getElementById("oosReason").value.trim();
+    
+    if (!officerId) { alert("Please select an officer"); return; }
+    if (!password) { alert("Password required"); return; }
+    if (!reason) { alert("Please provide a reason for Out of Service"); return; }
+    
+    const officer = getStaffById(officerId);
+    if (!officer) { alert("Selected officer not found"); return; }
+    
+    if (!verifyStaffPassword(password, officerId)) {
+      alert("❌ Invalid officer password. Access denied.");
+      return;
+    }
+    
+    currentOosRoom.outOfService = true;
+    currentOosRoom.outOfServiceReason = reason;
+    currentOosRoom.outOfServiceOfficerName = officer.name;
+    currentOosRoom.outOfServiceTimestamp = getCurrentISO();
+    
+    setLastOutOfService(currentOosRoom.name, currentOosRoom.gender, officer.name, reason);
+    persistState();
+    renderRooms();
+    closeOutOfServiceModal();
+  }
+
+  let currentRemoveOosRoom = null;
+  function openRemoveOutOfServiceModal(room) {
+    currentRemoveOosRoom = room;
+    const officerSelect = document.getElementById("removeOosOfficerSelect");
+    const officers = getOfficers();
+    officerSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join('');
+    
+    document.getElementById("removeOosRoomInfo").innerHTML = `<strong>${room.name}</strong><br>⚫ Currently Out of Service<br>Reason: ${escapeHtml(room.outOfServiceReason || 'N/A')}<br>Marked by: ${escapeHtml(room.outOfServiceOfficerName || 'Unknown')}`;
+    document.getElementById("removeOosOfficerPassword").value = "";
+    document.getElementById("removeOosNotes").value = "";
+    document.getElementById("removeOosModal").style.display = "flex";
+  }
+
+  async function onSubmitRemoveOutOfService(e) {
+    e.preventDefault();
+    if (!currentRemoveOosRoom) return;
+    
+    const officerId = document.getElementById("removeOosOfficerSelect").value;
+    const password = document.getElementById("removeOosOfficerPassword").value;
+    const notes = document.getElementById("removeOosNotes").value.trim();
+    
+    if (!officerId) { alert("Please select an officer"); return; }
+    if (!password) { alert("Password required"); return; }
+    
+    const officer = getStaffById(officerId);
+    if (!officer) { alert("Selected officer not found"); return; }
+    
+    if (!verifyStaffPassword(password, officerId)) {
+      alert("❌ Invalid officer password. Access denied.");
+      return;
+    }
+    
+    currentRemoveOosRoom.outOfService = false;
+    currentRemoveOosRoom.outOfServiceReason = null;
+    currentRemoveOosRoom.outOfServiceOfficerName = null;
+    currentRemoveOosRoom.outOfServiceTimestamp = null;
+    
+    setLastRestoredToService(currentRemoveOosRoom.name, currentRemoveOosRoom.gender, officer.name, notes);
+    persistState();
+    renderRooms();
+    closeRemoveOutOfServiceModal();
+  }
+
   function openCompleteCleanModal(room) {
     const supervisorSelect = document.getElementById("supervisorSelect");
     const officers = getOfficers();
@@ -1100,6 +1307,8 @@
   function closeAllocateModal() { document.getElementById("allocateModal").style.display = "none"; currentAllocateRoom = null; }
   function closeReturnModal() { document.getElementById("returnModal").style.display = "none"; currentReturnRoom = null; }
   function closeCompleteModal() { document.getElementById("completeCleanModal").style.display = "none"; pendingCleanRoomId = null; }
+  function closeOutOfServiceModal() { document.getElementById("outOfServiceModal").style.display = "none"; currentOosRoom = null; }
+  function closeRemoveOutOfServiceModal() { document.getElementById("removeOosModal").style.display = "none"; currentRemoveOosRoom = null; }
 
   function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
 
@@ -1108,12 +1317,16 @@
     document.getElementById("closeAllocateModal")?.addEventListener("click", closeAllocateModal);
     document.getElementById("closeReturnModal")?.addEventListener("click", closeReturnModal);
     document.getElementById("closeCompleteModal")?.addEventListener("click", closeCompleteModal);
+    document.getElementById("closeOosModal")?.addEventListener("click", closeOutOfServiceModal);
+    document.getElementById("closeRemoveOosModal")?.addEventListener("click", closeRemoveOutOfServiceModal);
+    
     document.getElementById("issueForm")?.addEventListener("submit", onSubmitIssue);
     document.getElementById("allocateForm")?.addEventListener("submit", onSubmitAllocate);
     document.getElementById("returnForm")?.addEventListener("submit", onSubmitReturn);
     document.getElementById("completeCleanForm")?.addEventListener("submit", onSubmitCompleteClean);
+    document.getElementById("oosForm")?.addEventListener("submit", onSubmitOutOfService);
+    document.getElementById("removeOosForm")?.addEventListener("submit", onSubmitRemoveOutOfService);
     
-    // Tab switching
     document.querySelectorAll(".tab-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -1129,22 +1342,20 @@
       if (e.target === document.getElementById("allocateModal")) closeAllocateModal();
       if (e.target === document.getElementById("returnModal")) closeReturnModal();
       if (e.target === document.getElementById("completeCleanModal")) closeCompleteModal();
+      if (e.target === document.getElementById("outOfServiceModal")) closeOutOfServiceModal();
+      if (e.target === document.getElementById("removeOosModal")) closeRemoveOutOfServiceModal();
     });
   }
 
   function startGlobalTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = setInterval(() => { updateLiveTimers(); }, 1000); }
   
   async function init() {
-    // Load from localStorage first (instant)
     loadFromLocalStorage();
     renderRooms();
     renderHistory();
-    
     bindModalEvents();
     startGlobalTimer();
     checkDateReset();
-    
-    // Then load from Firebase in background
     await loadFromFirestore();
   }
   
