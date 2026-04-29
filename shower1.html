@@ -505,7 +505,7 @@
 <div class="app-container">
   <div class="header">
     <h1><span>🚿</span> Shower Manager</h1>
-    <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Protected Actions</p>
+    <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Protected Actions | Realtime DB</p>
     <div class="sync-status">
       <span class="status-dot" id="statusDot"></span>
       <span id="syncText">Connected</span>
@@ -588,20 +588,11 @@
 
 <script type="module">
   // Import Firebase Realtime Database
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, set, get, child, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  import { db } from './firebase-config.js';
+  import { ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
   
   // Import staff data from staff.js
   import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
-  
-  // Your Firebase config (keep as is)
-  const firebaseConfig = {
-    // Your Firebase config here - keep the existing one
-  };
-  
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const database = getDatabase(app);
   
   function verifyStaffPassword(password, staffId = null) {
     if (staffId) {
@@ -647,7 +638,6 @@
   let timerInterval = null;
   let currentDate = new Date().toDateString();
   let pendingCleanRoomId = null;
-  let isRealtimeConnected = false;
 
   const STORAGE_KEY = 'shower_manager_data_v8';
 
@@ -667,7 +657,6 @@
   }
 
   function updateConnectionStatus(connected) {
-    isRealtimeConnected = connected;
     const dot = document.getElementById("statusDot");
     const textSpan = document.getElementById("syncText");
     if (connected) {
@@ -694,6 +683,7 @@
       date: currentDate
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    console.log("Saved to localStorage");
   }
 
   function loadFromLocalStorage() {
@@ -707,6 +697,7 @@
         }
       }
       if (data.date) currentDate = data.date;
+      console.log("Loaded from localStorage");
       return true;
     } catch(e) { return false; }
   }
@@ -715,13 +706,14 @@
   async function syncToRealtimeDB() {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const dbRef = ref(database, `showerRooms/${today}`);
+      const dbRef = ref(db, `showerRooms/${today}`);
       await set(dbRef, {
         rooms: roomsData,
         lastUpdated: getCurrentISO(),
         date: currentDate
       });
       updateConnectionStatus(true);
+      console.log("Synced to Realtime DB");
       return true;
     } catch (error) {
       console.warn("Realtime DB sync error:", error);
@@ -734,7 +726,7 @@
   async function loadFromRealtimeDB() {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const dbRef = ref(database, `showerRooms/${today}`);
+      const dbRef = ref(db, `showerRooms/${today}`);
       const snapshot = await get(dbRef);
       
       if (snapshot.exists()) {
@@ -745,6 +737,7 @@
           }
         }
         if (data.date) currentDate = data.date;
+        console.log("Loaded from Realtime DB");
       }
       saveToLocalStorage();
       updateConnectionStatus(true);
@@ -759,7 +752,7 @@
   // Setup realtime listener
   function setupRealtimeListener() {
     const today = new Date().toISOString().split('T')[0];
-    const dbRef = ref(database, `showerRooms/${today}`);
+    const dbRef = ref(db, `showerRooms/${today}`);
     
     onValue(dbRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -774,6 +767,7 @@
         renderRooms();
         renderPerRoomHistory();
         updateConnectionStatus(true);
+        console.log("Realtime update received");
       }
     }, (error) => {
       console.warn("Realtime listener error:", error);
@@ -915,6 +909,7 @@
   function checkDateReset() {
     const today = new Date().toDateString();
     if (today !== currentDate) {
+      console.log("Date reset - new day, preserving occupied rooms");
       roomsData.forEach(room => {
         if (!room.outOfService && room.occupiedStatus !== "occupied") {
           room.cleanStatus = "clean";
