@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Shower Manager | Password Protected</title>
+  <title>Shower Manager | Realtime Database</title>
   <style>
     * {
       margin: 0;
@@ -477,6 +477,28 @@
       font-size: 0.75rem;
       color: #2b5c7a;
     }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.3);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .loading-spinner {
+      background: white;
+      padding: 1rem 2rem;
+      border-radius: 2rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -486,7 +508,7 @@
     <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Protected Actions</p>
     <div class="sync-status">
       <span class="status-dot" id="statusDot"></span>
-      <span id="syncText">Synced</span>
+      <span id="syncText">Connected</span>
     </div>
   </div>
   
@@ -518,6 +540,10 @@
     </div>
   </div>
   <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning | 🔴 Occupied | ⚫ Out of Service | Click room for action</footer>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner">⏳ Saving to database...</div>
 </div>
 
 <!-- MODALS -->
@@ -561,10 +587,21 @@
 <div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Confirm</button><button type="button" class="btn btn-secondary" id="closeCompleteModal">Cancel</button></div></form></div></div>
 
 <script type="module">
-  import { db } from './firebase-config.js';
-  import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  // Import Firebase Realtime Database
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, set, get, child, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
   
+  // Import staff data from staff.js
   import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
+  
+  // Your Firebase config (keep as is)
+  const firebaseConfig = {
+    // Your Firebase config here - keep the existing one
+  };
+  
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
   
   function verifyStaffPassword(password, staffId = null) {
     if (staffId) {
@@ -576,7 +613,6 @@
     }
   }
 
-  // Room data with per-room transaction history
   const roomsData = [
     { id: "M1", name: "Shower 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
       currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
@@ -611,8 +647,9 @@
   let timerInterval = null;
   let currentDate = new Date().toDateString();
   let pendingCleanRoomId = null;
+  let isRealtimeConnected = false;
 
-  const STORAGE_KEY = 'shower_manager_data_v6';
+  const STORAGE_KEY = 'shower_manager_data_v8';
 
   function getCurrentISO() { return new Date().toISOString(); }
   
@@ -630,6 +667,7 @@
   }
 
   function updateConnectionStatus(connected) {
+    isRealtimeConnected = connected;
     const dot = document.getElementById("statusDot");
     const textSpan = document.getElementById("syncText");
     if (connected) {
@@ -637,8 +675,16 @@
       textSpan.innerText = "Live Sync";
     } else {
       dot.className = "status-dot yellow";
-      textSpan.innerText = "Saving locally...";
+      textSpan.innerText = "Offline (local)";
     }
+  }
+
+  function showLoading() {
+    document.getElementById("loadingOverlay").style.display = "flex";
+  }
+
+  function hideLoading() {
+    document.getElementById("loadingOverlay").style.display = "none";
   }
 
   function saveToLocalStorage() {
@@ -665,30 +711,34 @@
     } catch(e) { return false; }
   }
 
-  async function syncToFirebase() {
+  // Save to Realtime Database
+  async function syncToRealtimeDB() {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const docRef = doc(db, 'showerRooms', today);
-      await setDoc(docRef, { 
-        rooms: roomsData, 
+      const dbRef = ref(database, `showerRooms/${today}`);
+      await set(dbRef, {
+        rooms: roomsData,
         lastUpdated: getCurrentISO(),
-        date: currentDate 
-      }, { merge: true });
+        date: currentDate
+      });
       updateConnectionStatus(true);
+      return true;
     } catch (error) {
-      console.warn("Firebase sync error:", error);
+      console.warn("Realtime DB sync error:", error);
       updateConnectionStatus(false);
+      return false;
     }
   }
 
-  async function loadFromFirestore() {
+  // Load from Realtime Database
+  async function loadFromRealtimeDB() {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const docRef = doc(db, 'showerRooms', today);
-      const roomSnap = await getDoc(docRef);
+      const dbRef = ref(database, `showerRooms/${today}`);
+      const snapshot = await get(dbRef);
       
-      if (roomSnap.exists()) {
-        const data = roomSnap.data();
+      if (snapshot.exists()) {
+        const data = snapshot.val();
         if (data.rooms && Array.isArray(data.rooms) && data.rooms.length === 4) {
           for (let i = 0; i < data.rooms.length; i++) {
             roomsData[i] = { ...roomsData[i], ...data.rooms[i] };
@@ -699,56 +749,75 @@
       saveToLocalStorage();
       updateConnectionStatus(true);
     } catch (error) {
-      console.warn("Firestore load error:", error);
+      console.warn("Realtime DB load error:", error);
       updateConnectionStatus(false);
     }
     renderRooms();
     renderPerRoomHistory();
   }
 
-  async function persistState() {
-    saveToLocalStorage();
-    await syncToFirebase();
+  // Setup realtime listener
+  function setupRealtimeListener() {
+    const today = new Date().toISOString().split('T')[0];
+    const dbRef = ref(database, `showerRooms/${today}`);
+    
+    onValue(dbRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        if (data.rooms && Array.isArray(data.rooms) && data.rooms.length === 4) {
+          for (let i = 0; i < data.rooms.length; i++) {
+            roomsData[i] = { ...roomsData[i], ...data.rooms[i] };
+          }
+        }
+        if (data.date) currentDate = data.date;
+        saveToLocalStorage();
+        renderRooms();
+        renderPerRoomHistory();
+        updateConnectionStatus(true);
+      }
+    }, (error) => {
+      console.warn("Realtime listener error:", error);
+      updateConnectionStatus(false);
+    });
   }
 
-  // Per-room transaction update functions
+  async function persistState(showLoader = true) {
+    if (showLoader) showLoading();
+    saveToLocalStorage();
+    await syncToRealtimeDB();
+    if (showLoader) hideLoading();
+  }
+
   function updateRoomKeyIssue(room, passenger, flight, issuerName) {
     room.lastKeyIssue = { passenger, flight: flight || '', issuerName, timestamp: getCurrentISO() };
-    persistState();
     renderPerRoomHistory();
   }
   
   function updateRoomKeyReturn(room, receiverName, passenger) {
     room.lastKeyReturn = { receiverName, passenger, timestamp: getCurrentISO() };
-    persistState();
     renderPerRoomHistory();
   }
   
   function updateRoomCleaningStart(room, hkName, officerName) {
     room.lastCleaningStart = { hkName, officerName, timestamp: getCurrentISO() };
-    persistState();
     renderPerRoomHistory();
   }
   
   function updateRoomCleaningComplete(room, officerName) {
     room.lastCleaningComplete = { officerName, timestamp: getCurrentISO() };
-    persistState();
     renderPerRoomHistory();
   }
 
   function updateRoomOutOfService(room, officerName, reason) {
     room.lastOutOfService = { officerName, reason, timestamp: getCurrentISO() };
-    persistState();
     renderPerRoomHistory();
   }
 
   function updateRoomRestoredToService(room, officerName, notes) {
     room.lastRestoredToService = { officerName, notes, timestamp: getCurrentISO() };
-    persistState();
     renderPerRoomHistory();
   }
 
-  // Render per-room transaction history
   function renderPerRoomHistory() {
     const container = document.getElementById("perRoomHistoryContainer");
     if (!container) return;
@@ -843,13 +912,10 @@
     container.innerHTML = html;
   }
 
-  // FIXED: Date reset function - NEVER reset occupied rooms
   function checkDateReset() {
     const today = new Date().toDateString();
     if (today !== currentDate) {
-      console.log("Date reset triggered - new day. Preserving occupied rooms.");
       roomsData.forEach(room => {
-        // ONLY reset rooms that are NOT occupied and NOT out of service
         if (!room.outOfService && room.occupiedStatus !== "occupied") {
           room.cleanStatus = "clean";
           room.occupiedStatus = "vacant";
@@ -866,7 +932,6 @@
           room.allocatedByOfficerName = null;
         }
       });
-      // Set initial dirty status only for rooms that are not occupied and not out of service
       if (!roomsData[1].outOfService && roomsData[1].occupiedStatus !== "occupied") roomsData[1].cleanStatus = "dirty";
       if (!roomsData[3].outOfService && roomsData[3].occupiedStatus !== "occupied") roomsData[3].cleanStatus = "dirty";
       currentDate = today;
@@ -1237,7 +1302,6 @@
     closeReturnModal();
   }
 
-  // Out of Service functions
   let selectedOosRoom = null;
   
   function openOosSelectionModal() {
@@ -1309,7 +1373,6 @@
     selectedOosRoom = null;
   }
 
-  // Restore functions
   let currentRemoveOosRoom = null;
   
   function openRemoveOosSelectionModal() {
@@ -1463,7 +1526,8 @@
     bindModalEvents();
     startGlobalTimer();
     checkDateReset();
-    await loadFromFirestore();
+    await loadFromRealtimeDB();
+    setupRealtimeListener();
   }
   
   init();
