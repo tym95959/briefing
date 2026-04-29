@@ -1,13 +1,14 @@
 // firebase-config.js
-// Firebase configuration for FIRESTORE
+// Firebase configuration for REALTIME DATABASE
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBJe4nvC4Q2p-lBSth8a4LOSkWIwW8Zs2g",
   authDomain: "housekeeping-791a4.firebaseapp.com",
+  databaseURL: "https://housekeeping-791a4-default-rtdb.firebaseio.com", // ADD THIS LINE for Realtime Database
   projectId: "housekeeping-791a4",
   storageBucket: "housekeeping-791a4.firebasestorage.app",
   messagingSenderId: "451334815894",
@@ -17,6 +18,6 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = getDatabase(app);
 
 export { db };
