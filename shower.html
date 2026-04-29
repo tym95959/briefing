@@ -658,29 +658,33 @@
   }
 
   // Render history tab
-  function renderHistory() {
+    function renderHistory() {
     const container = document.getElementById("historyContainer");
     if (!container) return;
     let html = '<div style="display:flex; flex-direction:column; gap:1rem;">';
     
     if (transactionHistory.lastKeyIssue) {
-      const h = transactionHistory.lastKeyIssue;
-      html += `<div class="history-card"><h4>🔑 Last Key Issued</h4><div class="history-detail">🧑 ${escapeHtml(h.passenger)} ✈️ ${escapeHtml(h.flight) || '—'} | 👔 ${escapeHtml(h.issuerName)} | 🚪 ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+        const h = transactionHistory.lastKeyIssue;
+        const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+        html += `<div class="history-card"><h4>🔑 Last Key Issued</h4><div class="history-detail">🧑 ${escapeHtml(h.passenger)} ✈️ ${escapeHtml(h.flight) || '—'} | 👔 ${escapeHtml(h.issuerName)} | ${genderIcon} ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
     }
+    
     if (transactionHistory.lastKeyReturn) {
-      const h = transactionHistory.lastKeyReturn;
-      html += `<div class="history-card"><h4>🔁 Last Key Return</h4><div class="history-detail">📋 ${escapeHtml(h.receiverName)} received from 🧑 ${escapeHtml(h.passenger)} | 🚪 ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+        const h = transactionHistory.lastKeyReturn;
+        const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+        html += `<div class="history-card"><h4>🔁 Last Key Return</h4><div class="history-detail">📋 ${escapeHtml(h.receiverName)} received from 🧑 ${escapeHtml(h.passenger)} | ${genderIcon} ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
     }
+    
     if (transactionHistory.lastCleaningStart) {
-      const h = transactionHistory.lastCleaningStart;
-      html += `<div class="history-card"><h4>🧹 Last Cleaning Started</h4><div class="history-detail">HK ${escapeHtml(h.hkName)} assigned by ${escapeHtml(h.allocatorName)} | 🚪 ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+        const h = transactionHistory.lastCleaningStart;
+        const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+        html += `<div class="history-card"><h4>🧹 Last Cleaning Started</h4><div class="history-detail">HK ${escapeHtml(h.hkName)} assigned by ${escapeHtml(h.allocatorName)} | ${genderIcon} ${escapeHtml(h.roomName)}</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
     }
+    
     if (transactionHistory.lastCleaningComplete) {
-      const h = transactionHistory.lastCleaningComplete;
-      html += `<div class="history-card"><h4>✅ Last Cleaning Completed</h4><div class="history-detail">Supervisor ${escapeHtml(h.supervisorName)} | 🚪 ${escapeHtml(h.roomName)} now CLEAN</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
-    }
-    if (!transactionHistory.lastKeyIssue && !transactionHistory.lastKeyReturn && !transactionHistory.lastCleaningStart && !transactionHistory.lastCleaningComplete) {
-      html += '<p style="text-align:center;">No transactions recorded yet.</p>';
+        const h = transactionHistory.lastCleaningComplete;
+        const genderIcon = h.roomGender === 'male' ? '🚹' : '🚺';
+        html += `<div class="history-card"><h4>✅ Last Cleaning Completed</h4><div class="history-detail">Supervisor ${escapeHtml(h.supervisorName)} | ${genderIcon} ${escapeHtml(h.roomName)} now CLEAN</div><div class="badge-history">🕒 ${new Date(h.timestamp).toLocaleString()}</div></div>`;
     }
     html += '</div>';
     container.innerHTML = html;
@@ -890,7 +894,7 @@
     room.housekeeperContact = null;
     room.allocationTimestamp = null;
     
-    setLastCleaningComplete(supervisorName, room.name);
+    setLastCleaningComplete(supervisorName, room.name, room.gender);
     persistState();
     renderRooms();
     return true;
@@ -943,7 +947,7 @@
     currentIssueRoom.housekeeperContact = null;
     currentIssueRoom.allocationTimestamp = null;
     
-    setLastKeyIssue(passenger, flightNumber, issuer.name, currentIssueRoom.name);
+    setLastKeyIssue(passenger, flightNumber, issuer.name, currentIssueRoom.name, currentIssueRoom.gender);
     persistState();
     renderRooms();
     closeIssueModal();
@@ -987,7 +991,7 @@
     currentAllocateRoom.housekeeperContact = housekeeper.contact || 'N/A';
     currentAllocateRoom.allocationTimestamp = nowISO;
     
-    setLastCleaningStart(housekeeper.name, currentAllocateRoom.name, allocatorName);
+    setLastCleaningStart(housekeeper.name, currentAllocateRoom.name, allocatorName, currentAllocateRoom.gender);
     persistState();
     renderRooms();
     closeAllocateModal();
@@ -1030,7 +1034,7 @@
     }
     
     const passengerName = currentReturnRoom.currentPassenger || "Unknown";
-    setLastKeyReturn(receiver.name, passengerName, currentReturnRoom.name);
+    setLastKeyReturn(receiver.name, passengerName, currentReturnRoom.name, currentReturnRoom.gender);
     
     currentReturnRoom.occupiedStatus = "vacant";
     currentReturnRoom.cleanStatus = "dirty";
