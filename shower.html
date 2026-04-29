@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Shower Manager | Local-First + Sync</title>
+  <title>Shower Manager | Password Protected</title>
   <style>
     * {
       margin: 0;
@@ -15,7 +15,7 @@
     body {
       background: linear-gradient(145deg, #e2e9f2 0%, #d1dfee 100%);
       min-height: 100vh;
-      padding: 1.2rem 1rem;
+      padding: 2rem 1.5rem;
     }
 
     .app-container {
@@ -25,11 +25,11 @@
 
     .header {
       text-align: center;
-      margin-bottom: 1.2rem;
+      margin-bottom: 1.8rem;
     }
 
     .header h1 {
-      font-size: 1.8rem;
+      font-size: 2.2rem;
       font-weight: 800;
       background: linear-gradient(135deg, #1e3c4c, #0f2b3a);
       background-clip: text;
@@ -38,23 +38,29 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 10px;
+    }
+
+    .header h1 span {
+      font-size: 2.8rem;
     }
 
     .header p {
       color: #2c4f6e;
       font-weight: 500;
-      font-size: 0.8rem;
+      margin-top: 0.3rem;
     }
 
     .sync-status {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      justify-content: center;
+      gap: 0.5rem;
       background: rgba(30, 60, 76, 0.1);
       padding: 0.2rem 0.8rem;
       border-radius: 40px;
       font-size: 0.7rem;
+      margin-top: 0.5rem;
     }
 
     .status-dot {
@@ -72,7 +78,7 @@
       display: flex;
       gap: 0.5rem;
       justify-content: center;
-      margin: 1rem 0 1.2rem;
+      margin: 1rem 0 1.5rem;
     }
     .tab-btn {
       background: rgba(255,255,255,0.7);
@@ -99,61 +105,167 @@
     .rooms-board {
       display: flex;
       flex-wrap: wrap;
-      gap: 1.2rem;
+      gap: 1.5rem;
       justify-content: center;
     }
 
     .section {
       background: rgba(255, 255, 255, 0.85);
       backdrop-filter: blur(8px);
-      border-radius: 1.5rem;
-      padding: 1rem 1.2rem 1.5rem;
-      box-shadow: 0 12px 24px -12px rgba(0, 0, 0, 0.2);
+      border-radius: 2rem;
+      padding: 1.2rem 1.5rem 1.8rem;
+      box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.2);
       flex: 1;
-      min-width: 300px;
+      min-width: 320px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
     }
 
-    .male-section { background: linear-gradient(135deg, rgba(43, 110, 158, 0.15), rgba(255, 255, 255, 0.85)); border-left: 5px solid #2b6e9e; }
-    .male-section h2 { color: #2b6e9e; border-bottom: 3px solid #2b6e9e; text-align: center; font-size: 1.4rem; margin-bottom: 1rem; }
-    .female-section { background: linear-gradient(135deg, rgba(181, 71, 110, 0.15), rgba(255, 255, 255, 0.85)); border-left: 5px solid #b5476e; }
-    .female-section h2 { color: #b5476e; border-bottom: 3px solid #b5476e; text-align: center; font-size: 1.4rem; margin-bottom: 1rem; }
+    .male-section {
+      background: linear-gradient(135deg, rgba(43, 110, 158, 0.15), rgba(255, 255, 255, 0.85));
+      border-left: 5px solid #2b6e9e;
+    }
+    .male-section h2 {
+      color: #2b6e9e;
+      border-bottom: 3px solid #2b6e9e;
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 1.6rem;
+    }
+    .male-section h2 span {
+      font-size: 2rem;
+      margin-right: 6px;
+    }
+
+    .female-section {
+      background: linear-gradient(135deg, rgba(181, 71, 110, 0.15), rgba(255, 255, 255, 0.85));
+      border-left: 5px solid #b5476e;
+    }
+    .female-section h2 {
+      color: #b5476e;
+      border-bottom: 3px solid #b5476e;
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 1.6rem;
+    }
+    .female-section h2 span {
+      font-size: 2rem;
+      margin-right: 6px;
+    }
 
     .room-cards {
       display: flex;
-      gap: 1rem;
+      gap: 1.2rem;
       flex-wrap: wrap;
       justify-content: center;
     }
 
     .room-card {
-      border-radius: 1.2rem;
-      padding: 0.8rem 0.6rem;
-      width: 260px;
+      border-radius: 1.5rem;
+      padding: 1rem 0.8rem;
+      width: 280px;
       cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 8px 14px rgba(0, 0, 0, 0.08);
+      border: 2px solid rgba(255, 255, 255, 0.5);
       text-align: center;
     }
-    .room-card:hover { transform: translateY(-4px); box-shadow: 0 14px 22px -8px rgba(0, 0, 0, 0.2); }
-    .room-occupied { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); border-left: 6px solid #dc2626; }
-    .room-vacant-dirty { background: linear-gradient(135deg, #fef9c3 0%, #fde047 100%); border-left: 6px solid #ca8a04; }
-    .room-cleaning-progress { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border-left: 6px solid #4f46e5; }
-    .room-vacant-clean { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 6px solid #059669; }
 
-    .room-name { font-weight: 800; font-size: 1.1rem; background: rgba(255,255,255,0.6); display: inline-block; padding: 0.1rem 0.8rem; border-radius: 30px; margin-bottom: 0.5rem; }
-    .status-badge { margin: 0.2rem 0; font-size: 0.7rem; font-weight: bold; padding: 0.2rem 0.6rem; border-radius: 40px; display: inline-block; }
+    .room-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 18px 28px -8px rgba(0, 0, 0, 0.2);
+    }
+
+    .room-occupied {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      border-left: 8px solid #dc2626;
+    }
+
+    .room-vacant-dirty {
+      background: linear-gradient(135deg, #fef9c3 0%, #fde047 100%);
+      border-left: 8px solid #ca8a04;
+    }
+
+    .room-cleaning-progress {
+      background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+      border-left: 8px solid #4f46e5;
+    }
+
+    .room-vacant-clean {
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      border-left: 8px solid #059669;
+    }
+
+    .room-name {
+      font-weight: 800;
+      font-size: 1.2rem;
+      background: rgba(255, 255, 255, 0.7);
+      display: inline-block;
+      padding: 0.2rem 1rem;
+      border-radius: 30px;
+      margin-bottom: 0.7rem;
+    }
+
+    .gender-icon {
+      font-size: 2rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .status-badge {
+      margin: 0.3rem 0;
+      font-size: 0.75rem;
+      font-weight: bold;
+      padding: 0.25rem 0.8rem;
+      border-radius: 40px;
+      display: inline-block;
+    }
+
     .clean-badge { background: #065f46; color: white; }
     .dirty-badge { background: #854d0e; color: white; }
     .cleaning-badge { background: #4338ca; color: white; }
     .occupied-badge { background: #991b1b; color: white; }
     .vacant-badge { background: #065a60; color: white; }
 
-    .timer-box { background: rgba(255,255,255,0.8); border-radius: 1rem; padding: 0.3rem; margin: 0.4rem 0; font-size: 0.7rem; font-weight: 600; }
-    .timer-passenger { color: #991b1b; border-left: 3px solid #dc2626; background: rgba(254,226,226,0.9); }
-    .timer-cleaning { color: #3730a3; border-left: 3px solid #4f46e5; background: rgba(224,231,255,0.9); }
-    .return-btn, .complete-clean-btn { margin-top: 0.4rem; background: rgba(255,255,255,0.9); border: none; padding: 0.25rem 0.5rem; border-radius: 30px; font-size: 0.65rem; font-weight: 600; cursor: pointer; width: 90%; }
-    .return-btn:hover { background: #fee2e2; }
-    .complete-clean-btn:hover { background: #c7d2fe; }
+    .timer-box {
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 1rem;
+      padding: 0.4rem;
+      margin: 0.5rem 0;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .timer-passenger { color: #991b1b; border-left: 3px solid #dc2626; background: rgba(254, 226, 226, 0.9); }
+    .timer-cleaning { color: #3730a3; border-left: 3px solid #4f46e5; background: rgba(224, 231, 255, 0.9); }
+
+    .live-counter {
+      font-family: monospace;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    .return-btn, .complete-clean-btn {
+      margin-top: 0.5rem;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 30px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      width: 90%;
+    }
+
+    .return-btn { color: #991b1b; border: 1px solid #dc2626; }
+    .return-btn:hover { background: #fee2e2; transform: scale(0.96); }
+    .complete-clean-btn { color: #1e1b4b; background: #e0e7ff; margin-top: 0.3rem; border: 1px solid #4f46e5; }
+    .complete-clean-btn:hover { background: #c7d2fe; transform: scale(0.96); }
 
     /* History Panel */
     .history-panel {
@@ -174,29 +286,119 @@
     .history-detail { font-size: 0.85rem; color: #334155; margin-top: 0.3rem; display: flex; flex-wrap: wrap; gap: 0.8rem; }
     .badge-history { background: #e2e8f0; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem; }
 
-    .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 1000; }
-    .modal-card { background: white; border-radius: 1.5rem; width: 90%; max-width: 480px; padding: 1.5rem; animation: fadeSlide 0.2s ease; }
-    @keyframes fadeSlide { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
-    .form-group { margin-bottom: 0.8rem; display: flex; flex-direction: column; }
-    .form-group label { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.2rem; }
-    .form-group input, .form-group select { padding: 0.6rem; border-radius: 1rem; border: 1px solid #cbd5e6; }
-    .modal-buttons { display: flex; gap: 0.8rem; margin-top: 1rem; }
-    .btn { padding: 0.5rem 1rem; border-radius: 2rem; font-weight: 600; border: none; cursor: pointer; flex:1; }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-card {
+      background: white;
+      border-radius: 2rem;
+      width: 90%;
+      max-width: 520px;
+      padding: 1.8rem;
+      box-shadow: 0 25px 40px rgba(0, 0, 0, 0.3);
+      animation: fadeSlide 0.2s ease;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      border-left: 5px solid #2c7da0;
+      padding-left: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      font-size: 0.85rem;
+    }
+
+    .form-group input, .form-group select {
+      padding: 0.7rem;
+      border-radius: 1rem;
+      border: 1px solid #cbd5e6;
+      background: #f9fbfd;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      padding: 0.6rem 1rem;
+      border-radius: 2rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      flex: 1;
+    }
+
     .btn-primary { background: #2c7da0; color: white; }
     .btn-secondary { background: #e2e8f0; color: #1f3a4b; }
     .btn-warning { background: #ea580c; color: white; }
     .btn-danger { background: #dc2626; color: white; }
-    .info-panel { background: #f0f6fa; padding: 0.6rem; border-radius: 1rem; margin-bottom: 0.8rem; font-size: 0.8rem; }
 
-    footer { text-align: center; margin-top: 1.5rem; font-size: 0.7rem; color: #2b5c7a; }
+    .info-panel {
+      background: #f0f6fa;
+      padding: 0.8rem;
+      border-radius: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+    }
+
+    .issued-details {
+      background: #e6f0f5;
+      padding: 0.6rem;
+      border-radius: 0.8rem;
+      margin: 0.5rem 0;
+      font-size: 0.8rem;
+      border-left: 3px solid #2c7da0;
+    }
+
+    .time-hint {
+      font-size: 0.7rem;
+      color: #5f7d9c;
+      margin-top: 0.2rem;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: #2b5c7a;
+    }
   </style>
 </head>
 <body>
 <div class="app-container">
   <div class="header">
-    <h1>🚿 Shower Manager</h1>
-    <p>⚡ Local-first | Auto-sync to Firebase</p>
-    <div class="sync-status"><span class="status-dot" id="statusDot"></span><span id="syncText">Synced</span></div>
+    <h1><span>🚿</span> Shower Manager</h1>
+    <p>⏱️ Live Timers | ✈️ Flight Number | 🔐 Password Protected Actions</p>
+    <div class="sync-status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="syncText">Synced</span>
+    </div>
   </div>
   
   <div class="tabs">
@@ -206,8 +408,14 @@
 
   <div id="roomsTab" class="tab-content active">
     <div class="rooms-board">
-      <div class="section male-section"><h2>🚹 Male Shower</h2><div class="room-cards" id="maleRoomsContainer"></div></div>
-      <div class="section female-section"><h2>🚺 Female Shower</h2><div class="room-cards" id="femaleRoomsContainer"></div></div>
+      <div class="section male-section">
+        <h2><span>🚹</span> Male Shower</h2>
+        <div class="room-cards" id="maleRoomsContainer"></div>
+      </div>
+      <div class="section female-section">
+        <h2><span>🚺</span> Female Shower</h2>
+        <div class="room-cards" id="femaleRoomsContainer"></div>
+      </div>
     </div>
   </div>
 
@@ -216,79 +424,119 @@
       <p style="text-align:center; color:#5f7d9c;">Loading latest transaction...</p>
     </div>
   </div>
-  <footer>🟢 Clean Vacant | 🟡 Dirty Vacant | 🔵 Cleaning | 🔴 Occupied · Tap card → action</footer>
+  <footer>🟢 Clean & Vacant | 🟡 Dirty & Vacant | 🔵 Cleaning in Progress | 🔴 Occupied | Tap card → action</footer>
 </div>
 
-<!-- MODALS -->
+<!-- MODAL: ISSUE KEY -->
 <div id="issueModal" class="modal"><div class="modal-card"><h3>🔑 Issue Key</h3><div id="issueRoomInfo" class="info-panel"></div>
-<form id="issueForm"><div class="form-group"><label>🧑 Passenger Name *</label><input type="text" id="passengerName" required></div>
-<div class="form-group"><label>✈️ Flight Number</label><input type="text" id="flightNumber"></div>
+<form id="issueForm"><div class="form-group"><label>🧑 Passenger Name *</label><input type="text" id="passengerName" placeholder="e.g., Alex Johnson" required></div>
+<div class="form-group"><label>✈️ Flight Number (optional)</label><input type="text" id="flightNumber" placeholder="e.g., AA123"></div>
 <div class="form-group"><label>👤 Issuer (Officer) *</label><select id="issuerSelect" required></select></div>
-<div class="form-group"><label>🔐 Password *</label><input type="password" id="issuerPassword" required></div>
-<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue Key</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form></div></div>
+<div class="form-group"><label>🔐 Password *</label><input type="password" id="issuerPassword" placeholder="Enter your password" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Issue Key</button><button type="button" class="btn btn-secondary" id="closeIssueModal">Cancel</button></div></form>
+<p class="time-hint">🔴 Room becomes OCCUPIED · Timer starts</p></div></div>
 
+<!-- MODAL: ALLOCATE HOUSEKEEPER -->
 <div id="allocateModal" class="modal"><div class="modal-card"><h3>🧹 Assign Housekeeper</h3><div id="allocateRoomInfo" class="info-panel"></div>
-<form id="allocateForm"><div class="form-group"><label>🧼 Housekeeper *</label><select id="hkSelect" required></select></div>
-<div class="form-group"><label>🔐 Your Password *</label><input type="password" id="allocatorPassword" required></div>
-<div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form></div></div>
+<form id="allocateForm"><div class="form-group"><label>🧼 Select Housekeeper (HK) *</label><select id="hkSelect" required></select></div>
+<div class="form-group"><label>🔐 Your Password (Officer/HK Manager) *</label><input type="password" id="allocatorPassword" placeholder="Enter your password" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-warning">⏱️ Start Cleaning</button><button type="button" class="btn btn-secondary" id="closeAllocateModal">Cancel</button></div></form>
+<p class="time-hint">🔵 Cleaning in Progress · Timer starts</p></div></div>
 
-<div id="returnModal" class="modal"><div class="modal-card"><h3>🔁 Return Key</h3><div id="returnRoomInfo" class="info-panel"></div><div id="issuedDetailsDisplay" class="info-panel"></div>
+<!-- MODAL: KEY RETURN -->
+<div id="returnModal" class="modal"><div class="modal-card"><h3>🔁 Return Key</h3><div id="returnRoomInfo" class="info-panel"></div><div id="issuedDetailsDisplay" class="issued-details"></div>
 <form id="returnForm"><div class="form-group"><label>📋 Receiver (Officer) *</label><select id="receiverSelect" required></select></div>
-<div class="form-group"><label>🔐 Password *</label><input type="password" id="receiverPassword" required></div>
-<div class="modal-buttons"><button type="submit" class="btn btn-danger">Confirm Return</button><button type="button" class="btn btn-secondary" id="closeReturnModal">Cancel</button></div></form></div></div>
+<div class="form-group"><label>🔐 Password *</label><input type="password" id="receiverPassword" placeholder="Enter your password" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-danger">🔁 Confirm Return</button><button type="button" class="btn btn-secondary" id="closeReturnModal">Cancel</button></div></form>
+<p class="time-hint">🟡 Room becomes DIRTY + VACANT · Ready for HK</p></div></div>
 
+<!-- MODAL: COMPLETE CLEANING -->
 <div id="completeCleanModal" class="modal"><div class="modal-card"><h3>✅ Complete Cleaning</h3><div id="completeRoomInfo" class="info-panel"></div>
-<form id="completeCleanForm"><div class="form-group"><label>🔐 Password *</label><input type="password" id="cleanPassword" required></div>
-<div class="modal-buttons"><button type="submit" class="btn btn-primary">Confirm Complete</button><button type="button" class="btn btn-secondary" id="closeCompleteModal">Cancel</button></div></form></div></div>
+<form id="completeCleanForm"><div class="form-group"><label>🔐 Supervisor/Officer Password *</label><input type="password" id="cleanPassword" placeholder="Enter password" required></div>
+<div class="modal-buttons"><button type="submit" class="btn btn-primary">✅ Confirm Complete</button><button type="button" class="btn btn-secondary" id="closeCompleteModal">Cancel</button></div></form>
+<p class="time-hint">Room becomes 🟢 CLEAN + VACANT</p></div></div>
 
 <script type="module">
-  // ======================== STAFF DATA (Embedded for demo) ========================
-  const staffList = [
-    { id: "off1", name: "Captain Smith", role: "officer", pass: "capt123", contact: "+1 555 1010" },
-    { id: "off2", name: "Lt. Davis", role: "officer", pass: "lt456", contact: "+1 555 1011" },
-    { id: "hk1", name: "Maria G.", role: "housekeeping", pass: "hkpass1", contact: "+1 555 2020" },
-    { id: "hk2", name: "John K.", role: "housekeeping", pass: "hkpass2", contact: "+1 555 2021" }
-  ];
-  function getOfficers() { return staffList.filter(s => s.role === 'officer'); }
-  function getHousekeepingStaff() { return staffList.filter(s => s.role === 'housekeeping'); }
-  function getStaffById(id) { return staffList.find(s => s.id === id); }
+  import { db } from './firebase-config.js';
+  import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  
+  // Import staff data from staff.js - expecting these exports
+  import { staffList, getOfficers, getHousekeepingStaff, getStaffById } from './staff.js';
+  
+  // Password verification function using the 'pass' field from staff.js
   function verifyStaffPassword(password, staffId = null) {
-    if (staffId) { const s = getStaffById(staffId); return s && s.pass === password; }
-    return staffList.some(s => s.pass === password);
+    if (staffId) {
+      const staff = getStaffById(staffId);
+      if (staff && staff.pass === password) {
+        return true;
+      }
+      return false;
+    } else {
+      return staffList.some(staff => staff.pass === password);
+    }
   }
 
-  // ======================== ROOMS DATA (Initial) ========================
+  // Room data - names "Shower 1", "Shower 2"
   const roomsData = [
-    { id: "M1", name: "Shower 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null, housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
-    { id: "M2", name: "Shower 2", gender: "male", cleanStatus: "dirty", occupiedStatus: "vacant", currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null, housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
-    { id: "F1", name: "Shower 1", gender: "female", cleanStatus: "clean", occupiedStatus: "vacant", currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null, housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
-    { id: "F2", name: "Shower 2", gender: "female", cleanStatus: "dirty", occupiedStatus: "vacant", currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null, housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null }
+    { id: "M1", name: "Shower 1", gender: "male", cleanStatus: "clean", occupiedStatus: "vacant", 
+      currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
+    { id: "M2", name: "Shower 2", gender: "male", cleanStatus: "dirty", occupiedStatus: "vacant", 
+      currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
+    { id: "F1", name: "Shower 1", gender: "female", cleanStatus: "clean", occupiedStatus: "vacant", 
+      currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null },
+    { id: "F2", name: "Shower 2", gender: "female", cleanStatus: "dirty", occupiedStatus: "vacant", 
+      currentPassenger: null, flightNumber: null, currentIssuerId: null, currentIssuerName: null, issueTimestamp: null,
+      housekeeperId: null, housekeeperName: null, housekeeperContact: null, allocationTimestamp: null }
   ];
 
-  // Transaction history (only latest per type: key_issue, key_return, cleaning_start, cleaning_complete)
+  // Transaction history (only last transaction per type)
   let transactionHistory = {
-    lastKeyIssue: null,      // { passenger, flight, issuerName, roomName, timestamp }
-    lastKeyReturn: null,     // { receiverName, passenger, roomName, timestamp }
-    lastCleaningStart: null, // { hkName, roomName, allocatorName, timestamp }
-    lastCleaningComplete: null // { supervisorName, roomName, timestamp }
+    lastKeyIssue: null,
+    lastKeyReturn: null,
+    lastCleaningStart: null,
+    lastCleaningComplete: null
   };
 
-  let timerInterval = null, currentDate = new Date().toDateString();
-  let pendingCleanRoomId = null, syncQueue = false;
+  let timerInterval = null;
+  let currentDate = new Date().toDateString();
+  let pendingCleanRoomId = null;
+  let syncInProgress = false;
 
-  // Helper functions
+  const STORAGE_KEY = 'shower_manager_data_v2';
+
   function getCurrentISO() { return new Date().toISOString(); }
+  
   function formatTimeSince(timestampISO) {
     if (!timestampISO) return null;
-    const diffMs = Date.now() - new Date(timestampISO).getTime();
+    const now = new Date();
+    const past = new Date(timestampISO);
+    const diffMs = now - past;
     if (diffMs < 0) return { minutes: 0, seconds: 0 };
     return { minutes: Math.floor(diffMs / 60000), seconds: Math.floor((diffMs % 60000) / 1000) };
   }
-  function formatTimeAgoString(timestampISO) { return timestampISO ? new Date(timestampISO).toLocaleTimeString() : ""; }
-  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
 
-  // ---------- LOCALSTORAGE ----------
-  const STORAGE_KEY = 'shower_manager_data_v2';
+  function formatTimeAgoString(timestampISO) {
+    if (!timestampISO) return "";
+    const d = new Date(timestampISO);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function updateConnectionStatus(connected) {
+    const dot = document.getElementById("statusDot");
+    const textSpan = document.getElementById("syncText");
+    if (connected) {
+      dot.className = "status-dot green";
+      textSpan.innerText = "Live Sync";
+    } else {
+      dot.className = "status-dot red";
+      textSpan.innerText = "Offline (local)";
+    }
+  }
+
+  // Save to localStorage (fast, non-blocking)
   function saveToLocalStorage() {
     const data = {
       rooms: roomsData,
@@ -298,6 +546,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
+  // Load from localStorage
   function loadFromLocalStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
@@ -308,84 +557,104 @@
           Object.assign(roomsData[i], data.rooms[i]);
         }
       }
-      if (data.transactionHistory) transactionHistory = data.transactionHistory;
+      if (data.transactionHistory) {
+        transactionHistory = data.transactionHistory;
+      }
       return true;
     } catch(e) { return false; }
   }
 
-  // ---------- FIREBASE (background sync) ----------
-  import { db } from './firebase-config.js';
-  import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-  let firestoreEnabled = true;
-  function updateConnectionStatus(connected) {
-    const dot = document.getElementById("statusDot");
-    const textSpan = document.getElementById("syncText");
-    if (connected) { dot.className = "status-dot green"; textSpan.innerText = "Live Sync"; }
-    else { dot.className = "status-dot red"; textSpan.innerText = "Offline (local)"; }
-  }
-
+  // Background sync to Firebase (non-blocking)
   async function syncToFirebase() {
-    if (!firestoreEnabled) return;
-    const today = new Date().toISOString().split('T')[0];
-    const docRef = doc(db, 'showerRooms', today);
-    const historyRef = doc(db, 'showerHistory', 'latest');
+    if (syncInProgress) return;
+    syncInProgress = true;
     try {
-      await setDoc(docRef, { rooms: roomsData, lastUpdated: getCurrentISO() }, { merge: true });
-      await setDoc(historyRef, { transactionHistory, updatedAt: getCurrentISO() }, { merge: true });
+      const today = new Date().toISOString().split('T')[0];
+      const docRef = doc(db, 'showerRooms', today);
+      const historyRef = doc(db, 'showerHistory', 'latest');
+      await Promise.all([
+        setDoc(docRef, { rooms: roomsData, lastUpdated: getCurrentISO() }, { merge: true }),
+        setDoc(historyRef, { transactionHistory, updatedAt: getCurrentISO() }, { merge: true })
+      ]);
       updateConnectionStatus(true);
     } catch (error) {
-      console.warn("Firebase sync error (background):", error);
+      console.warn("Firebase sync error:", error);
       updateConnectionStatus(false);
-      firestoreEnabled = false;
-      setTimeout(() => { firestoreEnabled = true; syncToFirebase(); }, 15000);
+    } finally {
+      syncInProgress = false;
     }
   }
 
-  async function loadFromFirebaseBackground() {
-    const today = new Date().toISOString().split('T')[0];
-    const docRef = doc(db, 'showerRooms', today);
-    const historyRef = doc(db, 'showerHistory', 'latest');
+  // Load from Firebase in background
+  async function loadFromFirestore() {
     try {
+      const today = new Date().toISOString().split('T')[0];
+      const docRef = doc(db, 'showerRooms', today);
+      const historyRef = doc(db, 'showerHistory', 'latest');
       const [roomSnap, histSnap] = await Promise.all([getDoc(docRef), getDoc(historyRef)]);
+      
       if (roomSnap.exists()) {
-        const fbRooms = roomSnap.data().rooms;
-        if (fbRooms && fbRooms.length === 4) {
-          for (let i=0; i<4; i++) Object.assign(roomsData[i], fbRooms[i]);
+        const data = roomSnap.data();
+        if (data.rooms && Array.isArray(data.rooms) && data.rooms.length === 4) {
+          for (let i = 0; i < data.rooms.length; i++) {
+            roomsData[i].cleanStatus = data.rooms[i].cleanStatus;
+            roomsData[i].occupiedStatus = data.rooms[i].occupiedStatus;
+            roomsData[i].currentPassenger = data.rooms[i].currentPassenger || null;
+            roomsData[i].flightNumber = data.rooms[i].flightNumber || null;
+            roomsData[i].currentIssuerId = data.rooms[i].currentIssuerId || null;
+            roomsData[i].currentIssuerName = data.rooms[i].currentIssuerName || null;
+            roomsData[i].issueTimestamp = data.rooms[i].issueTimestamp || null;
+            roomsData[i].housekeeperId = data.rooms[i].housekeeperId || null;
+            roomsData[i].housekeeperName = data.rooms[i].housekeeperName || null;
+            roomsData[i].housekeeperContact = data.rooms[i].housekeeperContact || null;
+            roomsData[i].allocationTimestamp = data.rooms[i].allocationTimestamp || null;
+          }
         }
       }
+      
       if (histSnap.exists() && histSnap.data().transactionHistory) {
         transactionHistory = histSnap.data().transactionHistory;
       }
-      saveToLocalStorage(); // persist after load
-      renderRooms();
-      renderHistory();
+      
+      saveToLocalStorage();
       updateConnectionStatus(true);
-    } catch(e) { console.warn("Firebase initial load failed, using local", e); updateConnectionStatus(false); }
+    } catch (error) {
+      console.warn("Firestore load error:", error);
+      updateConnectionStatus(false);
+    }
+    renderRooms();
+    renderHistory();
   }
 
-  // Save both localStorage + background firebase (non-blocking)
+  // Persist: save to localStorage + background Firebase
   function persistState() {
     saveToLocalStorage();
     syncToFirebase().catch(e => console.warn("bg sync error", e));
   }
 
-  // Update transaction helpers
+  // Update transaction history and persist
   function setLastKeyIssue(passenger, flight, issuerName, roomName) {
     transactionHistory.lastKeyIssue = { passenger, flight: flight || '', issuerName, roomName, timestamp: getCurrentISO() };
-    persistState(); renderHistory();
+    persistState();
+    renderHistory();
   }
+  
   function setLastKeyReturn(receiverName, passenger, roomName) {
     transactionHistory.lastKeyReturn = { receiverName, passenger, roomName, timestamp: getCurrentISO() };
-    persistState(); renderHistory();
+    persistState();
+    renderHistory();
   }
+  
   function setLastCleaningStart(hkName, roomName, allocatorName) {
     transactionHistory.lastCleaningStart = { hkName, roomName, allocatorName, timestamp: getCurrentISO() };
-    persistState(); renderHistory();
+    persistState();
+    renderHistory();
   }
+  
   function setLastCleaningComplete(supervisorName, roomName) {
     transactionHistory.lastCleaningComplete = { supervisorName, roomName, timestamp: getCurrentISO() };
-    persistState(); renderHistory();
+    persistState();
+    renderHistory();
   }
 
   // Render history tab
@@ -417,39 +686,89 @@
     container.innerHTML = html;
   }
 
-  // Render rooms (UI identical to original but with timer updates)
+  function checkDateReset() {
+    const today = new Date().toDateString();
+    if (today !== currentDate) {
+      roomsData.forEach(room => {
+        room.cleanStatus = "clean";
+        room.occupiedStatus = "vacant";
+        room.currentPassenger = null;
+        room.flightNumber = null;
+        room.currentIssuerId = null;
+        room.currentIssuerName = null;
+        room.issueTimestamp = null;
+        room.housekeeperId = null;
+        room.housekeeperName = null;
+        room.housekeeperContact = null;
+        room.allocationTimestamp = null;
+      });
+      roomsData[1].cleanStatus = "dirty";
+      roomsData[3].cleanStatus = "dirty";
+      currentDate = today;
+      persistState();
+      renderRooms();
+    }
+  }
+
+  setInterval(checkDateReset, 60000);
+
   function getRoomCardClass(room) {
     if (room.occupiedStatus === "occupied") return "room-occupied";
     if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && !room.allocationTimestamp) return "room-vacant-dirty";
     if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && room.allocationTimestamp) return "room-cleaning-progress";
     return "room-vacant-clean";
   }
+
   function getStatusText(room) {
     if (room.occupiedStatus === "occupied") return "🔴 OCCUPIED";
     if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty" && room.allocationTimestamp) return "🔵 CLEANING IN PROGRESS";
     if (room.occupiedStatus === "vacant" && room.cleanStatus === "dirty") return "🟡 DIRTY · VACANT";
     return "🟢 CLEAN · VACANT";
   }
+
+  function getCleanBadgeClass(room) {
+    if (room.occupiedStatus === "occupied") return "dirty-badge";
+    if (room.cleanStatus === "clean") return "clean-badge";
+    if (room.allocationTimestamp && room.cleanStatus === "dirty") return "cleaning-badge";
+    return "dirty-badge";
+  }
+
+  function getCleanLabel(room) {
+    if (room.occupiedStatus === "occupied") return "In Use";
+    if (room.cleanStatus === "clean") return "Clean ✓";
+    if (room.allocationTimestamp) return "Cleaning 🧼";
+    return "Dirty 🧹";
+  }
+
   function renderTimerDisplay(room) {
-    let passengerTimerHtml = '', cleaningTimerHtml = '', completeCleanBtn = '';
+    let passengerTimerHtml = '';
+    let cleaningTimerHtml = '';
+    let completeCleanBtn = '';
+
     if (room.occupiedStatus === 'occupied' && room.issueTimestamp) {
-      const td = formatTimeSince(room.issueTimestamp);
-      if (td) passengerTimerHtml = `<div class="timer-box timer-passenger">🧑 Occupied: <span id="timer-pass-${room.id}">${td.minutes}m ${td.seconds}s</span></div>`;
+      const timeData = formatTimeSince(room.issueTimestamp);
+      if (timeData) passengerTimerHtml = `<div class="timer-box timer-passenger">🧑 Occupied: <span class="live-counter" id="timer-pass-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span></div>`;
     }
+
     if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName) {
-      const td = formatTimeSince(room.allocationTimestamp);
-      if (td) cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning: <span id="timer-clean-${room.id}">${td.minutes}m ${td.seconds}s</span><br><span style="font-size:0.6rem;">HK: ${escapeHtml(room.housekeeperName)}</span></div>`;
-      completeCleanBtn = `<button class="complete-clean-btn" data-room-id="${room.id}">✅ Complete Cleaning</button>`;
+      const timeData = formatTimeSince(room.allocationTimestamp);
+      const sinceTime = formatTimeAgoString(room.allocationTimestamp);
+      if (timeData) {
+        const contactDisplay = room.housekeeperContact && room.housekeeperContact !== 'N/A' ? room.housekeeperContact : 'Not provided';
+        cleaningTimerHtml = `<div class="timer-box timer-cleaning">🧹 Cleaning since ${sinceTime}: <span class="live-counter" id="timer-clean-${room.id}">${timeData.minutes}m ${timeData.seconds}s</span><br><span style="font-size:0.65rem;">HK: ${escapeHtml(room.housekeeperName)} 📞 ${escapeHtml(contactDisplay)}</span></div>`;
+        completeCleanBtn = `<button class="complete-clean-btn" data-room-id="${room.id}">✅ Complete Cleaning</button>`;
+      }
     }
     return { passengerTimerHtml, cleaningTimerHtml, completeCleanBtn };
   }
+
   function updateLiveTimers() {
     roomsData.forEach(room => {
       if (room.occupiedStatus === 'occupied' && room.issueTimestamp) {
         const span = document.getElementById(`timer-pass-${room.id}`);
         if (span) { const td = formatTimeSince(room.issueTimestamp); if (td) span.innerText = `${td.minutes}m ${td.seconds}s`; }
       }
-      if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp) {
+      if (room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp && room.housekeeperName) {
         const span = document.getElementById(`timer-clean-${room.id}`);
         if (span) { const td = formatTimeSince(room.allocationTimestamp); if (td) span.innerText = `${td.minutes}m ${td.seconds}s`; }
       }
@@ -459,89 +778,188 @@
   function renderRooms() {
     const maleContainer = document.getElementById("maleRoomsContainer");
     const femaleContainer = document.getElementById("femaleRoomsContainer");
-    if (!maleContainer) return;
-    maleContainer.innerHTML = ""; femaleContainer.innerHTML = "";
+    if (!maleContainer || !femaleContainer) return;
+    maleContainer.innerHTML = "";
+    femaleContainer.innerHTML = "";
+
     roomsData.forEach(room => {
       const card = document.createElement("div");
       card.className = `room-card ${getRoomCardClass(room)}`;
+      
+      const genderIcon = room.gender === 'male' ? '🚹' : '🚺';
+      const cleanLabel = getCleanLabel(room);
+      const cleanBadge = getCleanBadgeClass(room);
+      const occupiedLabel = room.occupiedStatus === "occupied" ? "Occupied 👤" : "Vacant 🚪";
+      const occupiedBadge = room.occupiedStatus === "occupied" ? "occupied-badge" : "vacant-badge";
       const timers = renderTimerDisplay(room);
+      const statusText = getStatusText(room);
+      
       let passengerInfo = "";
       if (room.occupiedStatus === "occupied" && room.currentPassenger) {
-        passengerInfo = `<div style="font-size:0.65rem; margin-top:4px;">👤 ${escapeHtml(room.currentPassenger)} ${room.flightNumber ? `✈️ ${escapeHtml(room.flightNumber)}` : ''}<br>👔 ${escapeHtml(room.currentIssuerName || '')}</div>`;
+        const flightHtml = room.flightNumber ? `<div style="font-size:0.65rem;">✈️ ${escapeHtml(room.flightNumber)}</div>` : '';
+        passengerInfo = `<div style="font-size:0.7rem; margin-top:5px; color:#991b1b; background:rgba(255,255,255,0.6); border-radius:20px; padding:3px;">
+          👤 ${escapeHtml(room.currentPassenger.substring(0,18))}${flightHtml}<br>👔 ${escapeHtml(room.currentIssuerName || '')}</div>`;
       }
+      
+      const returnButton = room.occupiedStatus === "occupied" 
+        ? `<button class="return-btn" data-room-id="${room.id}">🔁 Return Key</button>` : '';
+      
       card.innerHTML = `
+        <div class="gender-icon">${genderIcon}</div>
         <div class="room-name">${room.name}</div>
-        <div style="font-size:0.7rem; font-weight:600;">${getStatusText(room)}</div>
-        <div><span class="status-badge ${room.cleanStatus === 'clean' ? 'clean-badge' : (room.allocationTimestamp ? 'cleaning-badge' : 'dirty-badge')}">${room.cleanStatus === 'clean' ? 'Clean' : (room.allocationTimestamp ? 'Cleaning' : 'Dirty')}</span>
-        <span class="status-badge ${room.occupiedStatus === 'occupied' ? 'occupied-badge' : 'vacant-badge'}">${room.occupiedStatus === 'occupied' ? 'Occupied' : 'Vacant'}</span></div>
+        <div style="font-size:0.7rem; font-weight:600; margin-bottom:0.3rem;">${statusText}</div>
+        <div><span class="status-badge ${cleanBadge}">${cleanLabel}</span> <span class="status-badge ${occupiedBadge}">${occupiedLabel}</span></div>
         ${timers.passengerTimerHtml}
         ${timers.cleaningTimerHtml}
         ${passengerInfo}
-        ${room.occupiedStatus === "occupied" ? `<button class="return-btn" data-room-id="${room.id}">🔁 Return Key</button>` : ''}
+        <div class="room-detail">${room.gender === 'male' ? '🚹 Male' : '🚺 Female'}</div>
+        <div class="click-hint">▼ tap</div>
+        ${returnButton}
         ${timers.completeCleanBtn}
       `;
+      
       card.addEventListener("click", (e) => {
-        if (e.target.classList?.contains("return-btn") || e.target.classList?.contains("complete-clean-btn")) return;
+        if (e.target.classList?.contains("return-btn")) { e.stopPropagation(); handleReturnClick(room.id); return; }
+        if (e.target.classList?.contains("complete-clean-btn")) { e.stopPropagation(); handleCompleteCleaningClick(room.id); return; }
         handleRoomClick(room.id);
       });
-      const retBtn = card.querySelector(".return-btn");
-      if (retBtn) retBtn.addEventListener("click", (e) => { e.stopPropagation(); handleReturnClick(room.id); });
-      const compBtn = card.querySelector(".complete-clean-btn");
-      if (compBtn) compBtn.addEventListener("click", (e) => { e.stopPropagation(); handleCompleteCleaningClick(room.id); });
-      (room.gender === "male" ? maleContainer : femaleContainer).appendChild(card);
+      
+      const returnBtn = card.querySelector(".return-btn");
+      if (returnBtn) returnBtn.addEventListener("click", (e) => { e.stopPropagation(); handleReturnClick(room.id); });
+      const completeBtn = card.querySelector(".complete-clean-btn");
+      if (completeBtn) completeBtn.addEventListener("click", (e) => { e.stopPropagation(); handleCompleteCleaningClick(room.id); });
+      
+      if (room.gender === "male") maleContainer.appendChild(card);
+      else femaleContainer.appendChild(card);
     });
   }
 
-  // Handlers (core logic with history update)
-  let currentIssueRoom, currentAllocateRoom, currentReturnRoom;
   function handleRoomClick(roomId) {
     const room = roomsData.find(r => r.id === roomId);
     if (!room) return;
-    if (room.occupiedStatus === "occupied") { alert(`🔴 ${room.name} is OCCUPIED. Use Return Key.`); return; }
+    if (room.occupiedStatus === "occupied") {
+      alert(`🔴 ${room.name} is OCCUPIED.\nUse "Return Key" button to check-out.`);
+      return;
+    }
     if (room.occupiedStatus === "vacant") {
-      if (room.cleanStatus === "clean") openIssueModal(room);
-      else if (room.cleanStatus === "dirty") {
-        if (room.allocationTimestamp) alert(`🧹 Cleaning in progress by ${room.housekeeperName}.`);
-        else openAllocateModal(room);
+      if (room.cleanStatus === "clean") {
+        openIssueModal(room);
+      } else if (room.cleanStatus === "dirty") {
+        if (room.allocationTimestamp && room.housekeeperName) {
+          alert(`🧹 Cleaning in progress by ${room.housekeeperName}. Tap "Complete Cleaning" when done.`);
+        } else {
+          openAllocateModal(room);
+        }
       }
     }
   }
-  function handleReturnClick(roomId) { const room = roomsData.find(r => r.id === roomId); if (room?.occupiedStatus === "occupied") openReturnModal(room); else alert("Room not occupied"); }
-  function handleCompleteCleaningClick(roomId) { const room = roomsData.find(r => r.id === roomId); if (room?.allocationTimestamp && room.cleanStatus === 'dirty') { pendingCleanRoomId = roomId; openCompleteCleanModal(room); } else alert("Not in cleaning progress"); }
+
+  function handleReturnClick(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room || room.occupiedStatus !== "occupied") { alert(`❌ Room not occupied.`); return; }
+    openReturnModal(room);
+  }
+
+  function handleCompleteCleaningClick(roomId) {
+    const room = roomsData.find(r => r.id === roomId);
+    if (!room) return;
+    if (!(room.cleanStatus === 'dirty' && room.occupiedStatus === 'vacant' && room.allocationTimestamp)) {
+      alert(`Room is not in cleaning progress.`);
+      return;
+    }
+    pendingCleanRoomId = roomId;
+    openCompleteCleanModal(room);
+  }
 
   async function executeCompleteCleaning(password) {
     const room = roomsData.find(r => r.id === pendingCleanRoomId);
     if (!room) return false;
-    if (!verifyStaffPassword(password)) { alert("❌ Invalid password."); return false; }
+    
+    let verified = verifyStaffPassword(password);
+    if (!verified) {
+      alert("❌ Invalid password. Access denied.");
+      return false;
+    }
+    
     const supervisor = staffList.find(s => s.pass === password);
     const supervisorName = supervisor ? supervisor.name : "Authorized Staff";
+    
     room.cleanStatus = "clean";
-    room.housekeeperId = null; room.housekeeperName = null; room.housekeeperContact = null; room.allocationTimestamp = null;
+    room.housekeeperId = null;
+    room.housekeeperName = null;
+    room.housekeeperContact = null;
+    room.allocationTimestamp = null;
+    
     setLastCleaningComplete(supervisorName, room.name);
-    persistState(); renderRooms();
+    persistState();
+    renderRooms();
     return true;
+  }
+
+  let currentIssueRoom = null;
+  function openIssueModal(room) {
+    currentIssueRoom = room;
+    const issuerSelect = document.getElementById("issuerSelect");
+    const officers = getOfficers();
+    issuerSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact || 'no contact'})</option>`).join('');
+    
+    document.getElementById("issueRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟢 Clean & Vacant — Issue key`;
+    document.getElementById("passengerName").value = "";
+    document.getElementById("flightNumber").value = "";
+    document.getElementById("issuerPassword").value = "";
+    document.getElementById("issueModal").style.display = "flex";
   }
 
   async function onSubmitIssue(e) {
     e.preventDefault();
     if (!currentIssueRoom) return;
     const passenger = document.getElementById("passengerName").value.trim();
-    const flight = document.getElementById("flightNumber").value.trim() || null;
+    const flightNumber = document.getElementById("flightNumber").value.trim() || null;
     const issuerId = document.getElementById("issuerSelect").value;
     const password = document.getElementById("issuerPassword").value;
-    if (!passenger || !issuerId || !password) { alert("All fields required"); return; }
+    
+    if (!passenger) { alert("Passenger name required"); return; }
+    if (!issuerId) { alert("Please select an officer"); return; }
+    if (!password) { alert("Password required"); return; }
+    
     const issuer = getStaffById(issuerId);
-    if (!issuer || !verifyStaffPassword(password, issuerId)) { alert("Invalid issuer password"); return; }
-    const now = getCurrentISO();
+    if (!issuer) { alert("Selected officer not found"); return; }
+    
+    if (!verifyStaffPassword(password, issuerId)) {
+      alert("❌ Invalid password for this officer. Access denied.");
+      return;
+    }
+    
+    const nowISO = getCurrentISO();
     currentIssueRoom.occupiedStatus = "occupied";
     currentIssueRoom.currentPassenger = passenger;
-    currentIssueRoom.flightNumber = flight;
+    currentIssueRoom.flightNumber = flightNumber;
     currentIssueRoom.currentIssuerId = issuer.id;
     currentIssueRoom.currentIssuerName = issuer.name;
-    currentIssueRoom.issueTimestamp = now;
-    currentIssueRoom.housekeeperId = null; currentIssueRoom.allocationTimestamp = null;
-    setLastKeyIssue(passenger, flight, issuer.name, currentIssueRoom.name);
-    persistState(); renderRooms(); closeIssueModal();
+    currentIssueRoom.issueTimestamp = nowISO;
+    currentIssueRoom.housekeeperId = null;
+    currentIssueRoom.housekeeperName = null;
+    currentIssueRoom.housekeeperContact = null;
+    currentIssueRoom.allocationTimestamp = null;
+    
+    setLastKeyIssue(passenger, flightNumber, issuer.name, currentIssueRoom.name);
+    persistState();
+    renderRooms();
+    closeIssueModal();
+  }
+
+  let currentAllocateRoom = null;
+  function openAllocateModal(room) {
+    currentAllocateRoom = room;
+    const hkSelect = document.getElementById("hkSelect");
+    const hkStaff = getHousekeepingStaff();
+    hkSelect.innerHTML = '<option value="">Select Housekeeper (HK)</option>' + 
+      hkStaff.map(hk => `<option value="${hk.id}">${escapeHtml(hk.name)} 📞 ${hk.contact || 'N/A'}</option>`).join('');
+    
+    document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🟡 DIRTY — Assign HK to clean`;
+    document.getElementById("allocatorPassword").value = "";
+    document.getElementById("allocateModal").style.display = "flex";
   }
 
   async function onSubmitAllocate(e) {
@@ -549,17 +967,50 @@
     if (!currentAllocateRoom) return;
     const hkId = document.getElementById("hkSelect").value;
     const password = document.getElementById("allocatorPassword").value;
-    if (!hkId || !password || !verifyStaffPassword(password)) { alert("Invalid password or HK missing"); return; }
-    const hk = getStaffById(hkId);
-    if (!hk) return;
+    if (!hkId) { alert("Please select a housekeeper"); return; }
+    if (!password) { alert("Password required"); return; }
+    
+    if (!verifyStaffPassword(password)) {
+      alert("❌ Invalid password. Access denied.");
+      return;
+    }
+    
+    const housekeeper = getStaffById(hkId);
+    if (!housekeeper) { alert("Selected housekeeper not found"); return; }
+    
     const allocator = staffList.find(s => s.pass === password);
-    const allocName = allocator ? allocator.name : "Authorized";
-    currentAllocateRoom.housekeeperId = hk.id;
-    currentAllocateRoom.housekeeperName = hk.name;
-    currentAllocateRoom.housekeeperContact = hk.contact || '';
-    currentAllocateRoom.allocationTimestamp = getCurrentISO();
-    setLastCleaningStart(hk.name, currentAllocateRoom.name, allocName);
-    persistState(); renderRooms(); closeAllocateModal();
+    const allocatorName = allocator ? allocator.name : "Authorized Staff";
+    
+    const nowISO = getCurrentISO();
+    currentAllocateRoom.housekeeperId = housekeeper.id;
+    currentAllocateRoom.housekeeperName = housekeeper.name;
+    currentAllocateRoom.housekeeperContact = housekeeper.contact || 'N/A';
+    currentAllocateRoom.allocationTimestamp = nowISO;
+    
+    setLastCleaningStart(housekeeper.name, currentAllocateRoom.name, allocatorName);
+    persistState();
+    renderRooms();
+    closeAllocateModal();
+  }
+
+  let currentReturnRoom = null;
+  function openReturnModal(room) {
+    currentReturnRoom = room;
+    const receiverSelect = document.getElementById("receiverSelect");
+    const officers = getOfficers();
+    receiverSelect.innerHTML = '<option value="">Select Officer</option>' + 
+      officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)} (${o.contact || 'no contact'})</option>`).join('');
+    
+    document.getElementById("returnRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔴 OCCUPIED — Confirm return`;
+    const flightDisplay = room.flightNumber ? `<div>✈️ Flight: <strong>${escapeHtml(room.flightNumber)}</strong></div>` : '';
+    document.getElementById("issuedDetailsDisplay").innerHTML = `
+      <div>🧑 Passenger: <strong>${escapeHtml(room.currentPassenger || 'Unknown')}</strong></div>
+      ${flightDisplay}
+      <div>👔 Issued by: <strong>${escapeHtml(room.currentIssuerName || 'Unknown')}</strong></div>
+      <div>⏱️ Issued at: <strong>${room.issueTimestamp ? new Date(room.issueTimestamp).toLocaleString() : 'N/A'}</strong></div>
+    `;
+    document.getElementById("receiverPassword").value = "";
+    document.getElementById("returnModal").style.display = "flex";
   }
 
   async function onSubmitReturn(e) {
@@ -567,31 +1018,55 @@
     if (!currentReturnRoom) return;
     const receiverId = document.getElementById("receiverSelect").value;
     const password = document.getElementById("receiverPassword").value;
-    if (!receiverId || !password) return;
+    if (!receiverId) { alert("Please select a receiving officer"); return; }
+    if (!password) { alert("Password required"); return; }
+    
     const receiver = getStaffById(receiverId);
-    if (!receiver || !verifyStaffPassword(password, receiverId)) { alert("Invalid officer password"); return; }
+    if (!receiver) { alert("Selected officer not found"); return; }
+    
+    if (!verifyStaffPassword(password, receiverId)) {
+      alert("❌ Invalid password for this officer. Access denied.");
+      return;
+    }
+    
     const passengerName = currentReturnRoom.currentPassenger || "Unknown";
     setLastKeyReturn(receiver.name, passengerName, currentReturnRoom.name);
+    
     currentReturnRoom.occupiedStatus = "vacant";
     currentReturnRoom.cleanStatus = "dirty";
-    currentReturnRoom.currentPassenger = null; currentReturnRoom.flightNumber = null;
-    currentReturnRoom.currentIssuerId = null; currentReturnRoom.currentIssuerName = null;
-    currentReturnRoom.issueTimestamp = null;
-    currentReturnRoom.housekeeperId = null; currentReturnRoom.allocationTimestamp = null;
-    persistState(); renderRooms(); closeReturnModal();
+    currentReturnRoom.housekeeperId = null;
+    currentReturnRoom.housekeeperName = null;
+    currentReturnRoom.housekeeperContact = null;
+    currentReturnRoom.allocationTimestamp = null;
+    
+    persistState();
+    renderRooms();
+    closeReturnModal();
   }
 
-  // Modal open & close helpers
-  function openIssueModal(room) { currentIssueRoom = room; const officers = getOfficers(); document.getElementById("issuerSelect").innerHTML = officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join(''); document.getElementById("issueRoomInfo").innerHTML = `<strong>${room.name}</strong> · Issue key`; document.getElementById("issueModal").style.display = "flex"; }
-  function openAllocateModal(room) { currentAllocateRoom = room; const hks = getHousekeepingStaff(); document.getElementById("hkSelect").innerHTML = hks.map(h => `<option value="${h.id}">${escapeHtml(h.name)} 📞 ${h.contact}</option>`).join(''); document.getElementById("allocateRoomInfo").innerHTML = `<strong>${room.name}</strong> · Assign cleaning`; document.getElementById("allocateModal").style.display = "flex"; }
-  function openReturnModal(room) { currentReturnRoom = room; const officers = getOfficers(); document.getElementById("receiverSelect").innerHTML = officers.map(o => `<option value="${o.id}">${escapeHtml(o.name)}</option>`).join(''); document.getElementById("returnRoomInfo").innerHTML = `<strong>${room.name}</strong> · Return key`; document.getElementById("issuedDetailsDisplay").innerHTML = `🧑 Passenger: ${escapeHtml(room.currentPassenger)} ${room.flightNumber ? `✈️ ${room.flightNumber}` : ''}<br>Issued by: ${escapeHtml(room.currentIssuerName)}`; document.getElementById("returnModal").style.display = "flex"; }
-  function openCompleteCleanModal(room) { document.getElementById("completeRoomInfo").innerHTML = `<strong>${room.name}</strong> cleaning by ${escapeHtml(room.housekeeperName)}`; document.getElementById("completeCleanModal").style.display = "flex"; }
-  function closeIssueModal() { document.getElementById("issueModal").style.display = "none"; currentIssueRoom=null; }
-  function closeAllocateModal() { document.getElementById("allocateModal").style.display = "none"; currentAllocateRoom=null; }
-  function closeReturnModal() { document.getElementById("returnModal").style.display = "none"; currentReturnRoom=null; }
-  function closeCompleteModal() { document.getElementById("completeCleanModal").style.display = "none"; pendingCleanRoomId=null; }
+  function openCompleteCleanModal(room) {
+    document.getElementById("completeRoomInfo").innerHTML = `<strong>${room.name}</strong><br>🔵 Cleaning in progress since ${formatTimeAgoString(room.allocationTimestamp)}<br>HK: ${escapeHtml(room.housekeeperName)}`;
+    document.getElementById("cleanPassword").value = "";
+    document.getElementById("completeCleanModal").style.display = "flex";
+  }
 
-  function bindEvents() {
+  async function onSubmitCompleteClean(e) {
+    e.preventDefault();
+    const password = document.getElementById("cleanPassword").value;
+    if (!password) { alert("Password required"); return; }
+    await executeCompleteCleaning(password);
+    closeCompleteModal();
+    pendingCleanRoomId = null;
+  }
+
+  function closeIssueModal() { document.getElementById("issueModal").style.display = "none"; currentIssueRoom = null; }
+  function closeAllocateModal() { document.getElementById("allocateModal").style.display = "none"; currentAllocateRoom = null; }
+  function closeReturnModal() { document.getElementById("returnModal").style.display = "none"; currentReturnRoom = null; }
+  function closeCompleteModal() { document.getElementById("completeCleanModal").style.display = "none"; pendingCleanRoomId = null; }
+
+  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+
+  function bindModalEvents() {
     document.getElementById("closeIssueModal")?.addEventListener("click", closeIssueModal);
     document.getElementById("closeAllocateModal")?.addEventListener("click", closeAllocateModal);
     document.getElementById("closeReturnModal")?.addEventListener("click", closeReturnModal);
@@ -599,23 +1074,43 @@
     document.getElementById("issueForm")?.addEventListener("submit", onSubmitIssue);
     document.getElementById("allocateForm")?.addEventListener("submit", onSubmitAllocate);
     document.getElementById("returnForm")?.addEventListener("submit", onSubmitReturn);
-    document.getElementById("completeCleanForm")?.addEventListener("submit", async (e) => { e.preventDefault(); const pwd = document.getElementById("cleanPassword").value; if (await executeCompleteCleaning(pwd)) closeCompleteModal(); });
-    document.querySelectorAll(".tab-btn").forEach(btn => { btn.addEventListener("click", () => { document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active")); btn.classList.add("active"); document.getElementById("roomsTab").classList.toggle("active", btn.dataset.tab === "rooms"); document.getElementById("historyTab").classList.toggle("active", btn.dataset.tab === "history"); if(btn.dataset.tab === "history") renderHistory(); }); });
-    window.addEventListener("click", (e) => { if(e.target.classList.contains("modal")) closeIssueModal(); if(e.target===document.getElementById("allocateModal")) closeAllocateModal(); if(e.target===document.getElementById("returnModal")) closeReturnModal(); if(e.target===document.getElementById("completeCleanModal")) closeCompleteModal(); });
+    document.getElementById("completeCleanForm")?.addEventListener("submit", onSubmitCompleteClean);
+    
+    // Tab switching
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("roomsTab").classList.toggle("active", btn.dataset.tab === "rooms");
+        document.getElementById("historyTab").classList.toggle("active", btn.dataset.tab === "history");
+        if (btn.dataset.tab === "history") renderHistory();
+      });
+    });
+    
+    window.addEventListener("click", (e) => {
+      if (e.target === document.getElementById("issueModal")) closeIssueModal();
+      if (e.target === document.getElementById("allocateModal")) closeAllocateModal();
+      if (e.target === document.getElementById("returnModal")) closeReturnModal();
+      if (e.target === document.getElementById("completeCleanModal")) closeCompleteModal();
+    });
   }
 
-  function startTimer() { if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(() => { updateLiveTimers(); }, 1000); }
-
+  function startGlobalTimer() { if (timerInterval) clearInterval(timerInterval); timerInterval = setInterval(() => { updateLiveTimers(); }, 1000); }
+  
   async function init() {
+    // Load from localStorage first (instant)
     loadFromLocalStorage();
-    await loadFromFirebaseBackground(); // non-blocking
-    bindEvents();
-    startTimer();
     renderRooms();
     renderHistory();
-    setInterval(() => { checkDateReset(); }, 60000);
+    
+    bindModalEvents();
+    startGlobalTimer();
+    checkDateReset();
+    
+    // Then load from Firebase in background
+    await loadFromFirestore();
   }
-  function checkDateReset() { const today = new Date().toDateString(); if(today !== currentDate) { roomsData.forEach(r => { if(r.occupiedStatus !== "occupied") { r.cleanStatus = "clean"; r.occupiedStatus = "vacant"; r.currentPassenger=null; r.flightNumber=null; r.issueTimestamp=null; r.allocationTimestamp=null; r.housekeeperId=null; } }); roomsData[1].cleanStatus = "dirty"; roomsData[3].cleanStatus = "dirty"; currentDate = today; persistState(); renderRooms(); } }
+  
   init();
 </script>
 </body>
