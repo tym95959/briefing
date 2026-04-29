@@ -73,7 +73,7 @@
     </div>
     <div class="info-alert">
         <i class="fas fa-save" style="font-size: 1.2rem;"></i>
-        <span><strong>Real‑time auto‑save:</strong> All changes are saved instantly to Firestore + local cache. This log is separated from daily reports but fully functional.</span>
+        <span><strong>Real‑time auto‑save:</strong> All changes are saved instantly to Firestore + local cache. Your selected date & shift are remembered after reload.</span>
     </div>
     <div id="handoverDynamicContainer" class="handover-main">
         <!-- dynamic handover UI will be injected here -->
@@ -88,7 +88,7 @@
 </div>
 
 <script>
-    // ======================= FIREBASE + DEVICE AUTH (same as original standalone) =======================
+    // ======================= FIREBASE + DEVICE AUTH =======================
     const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
     let DEVICE_MASTER_PASSWORD = (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) ? MASTER_PASSWORD_GLOBAL : (typeof SUPERVISOR_PASSWORD !== 'undefined' ? SUPERVISOR_PASSWORD : "Admin123");
     function isDeviceAuthorized() { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
@@ -97,7 +97,10 @@
     let db, firestoreReady = false;
     try { if(typeof firebase !== 'undefined' && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; } } catch(err) { console.warn(err); }
     
-    // Helper to get handover doc id
+    // Keys for persistence
+    const STORAGE_SELECTED_DATE = "handover_selected_date";
+    const STORAGE_SELECTED_SHIFT = "handover_selected_shift";
+    
     function getHandoverId(date, shift) {
         if(!date || !shift) return null;
         return `handover_${date}_${shift}`.replace(/\s/g, '_');
@@ -107,7 +110,7 @@
     let currentHandoverData = {
         cards: [], wheelchair: [], complimentary: [], delayFlights: [], followup: [], importantMsg: ""
     };
-    let currentDate = new Date().toISOString().slice(0,10);
+    let currentDate = "";
     let currentShift = "";
     
     // DOM elements
@@ -116,22 +119,36 @@
     const shiftRefBadge = document.getElementById('shiftRefBadge');
     const dynamicContainer = document.getElementById('handoverDynamicContainer');
     
-    // ======================= LOAD & SAVE HANDOVER (with localStorage + Firestore) =======================
+    // ======================= PERSISTENCE: remember date & shift across reloads =======================
+    function saveSelectedDateShift() {
+        if(currentDate) localStorage.setItem(STORAGE_SELECTED_DATE, currentDate);
+        if(currentShift) localStorage.setItem(STORAGE_SELECTED_SHIFT, currentShift);
+    }
+    
+    function loadSavedDateShift() {
+        const savedDate = localStorage.getItem(STORAGE_SELECTED_DATE);
+        const savedShift = localStorage.getItem(STORAGE_SELECTED_SHIFT);
+        if(savedDate) handoverDateInput.value = savedDate;
+        else handoverDateInput.value = new Date().toISOString().slice(0,10);
+        if(savedShift && (savedShift === "Morning" || savedShift === "Evening")) handoverShiftSelect.value = savedShift;
+        else handoverShiftSelect.value = "";
+        currentDate = handoverDateInput.value;
+        currentShift = handoverShiftSelect.value;
+    }
+    
+    // ======================= SAVE / LOAD HANDOVER =======================
     async function saveHandoverToFirebase() {
         if(!firestoreReady || !currentDate || !currentShift) return;
         const id = getHandoverId(currentDate, currentShift);
         if(!id) return;
         const dataToSave = { ...currentHandoverData, updatedAt: new Date().toISOString() };
-        // local cache
         const cacheKey = `handover_${currentDate}_${currentShift}`;
         localStorage.setItem(cacheKey, JSON.stringify(dataToSave));
-        // firestore background
         try {
             await db.collection("handoverLogs").doc(id).set(dataToSave, { merge: true });
         } catch(e) { console.warn("Firestore handover save failed", e); }
     }
     
-    // Internal update + auto-save + re-render
     function updateHandoverAndSave(newData) {
         currentHandoverData = { ...newData };
         renderHandoverUI();
@@ -151,7 +168,6 @@
                 renderHandoverUI();
             } catch(e) { console.warn(e); }
         }
-        // fetch fresh from backend
         try {
             const doc = await db.collection("handoverLogs").doc(id).get();
             if(doc.exists) {
@@ -167,7 +183,6 @@
                 localStorage.setItem(cacheKey, JSON.stringify(currentHandoverData));
                 renderHandoverUI();
             } else {
-                // initialize empty structure
                 currentHandoverData = { cards: [], wheelchair: [], complimentary: [], delayFlights: [], followup: [], importantMsg: "" };
                 localStorage.setItem(cacheKey, JSON.stringify(currentHandoverData));
                 await db.collection("handoverLogs").doc(id).set(currentHandoverData);
@@ -183,7 +198,7 @@
         return true;
     }
     
-    // ======================= EVENT HANDLERS (global for row actions) =======================
+    // ======================= GLOBAL ROW HANDLERS =======================
     window.updateRowField = function(section, idx, field, value) {
         if(!currentHandoverData[section] || !currentHandoverData[section][idx]) return;
         const newData = { ...currentHandoverData };
@@ -212,7 +227,7 @@
     
     function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
     
-    // ======================= RENDER FULL HANDOVER UI =======================
+    // ======================= RENDER FULL UI =======================
     function renderHandoverUI() {
         if(!dynamicContainer) return;
         if(!currentDate || !currentShift) {
@@ -222,7 +237,6 @@
         }
         shiftRefBadge.innerHTML = `<i class="fas fa-check-circle"></i> ${currentShift} · ${currentDate}`;
         
-        // ensure arrays exist
         const data = currentHandoverData;
         data.cards = data.cards || [];
         data.wheelchair = data.wheelchair || [];
@@ -232,7 +246,7 @@
         data.importantMsg = data.importantMsg || "";
         
         let html = `
-            <!-- 1. CARDS (blue theme) -->
+            <!-- CARDS -->
             <div class="handover-card" style="border-left: 6px solid #1976d2;">
                 <div class="section-header"><i class="fas fa-ticket-alt" style="color:#1976d2;"></i><h2>✈️ Cards / FQTV No</h2></div>
                 <table class="handover-table">
@@ -252,7 +266,7 @@
                 <button class="add-row-btn" onclick="addRow('cards',{flight:'',seat:'',needCards:'',contact:'',remarks:'',done:false})"><i class="fas fa-plus-circle"></i> Add Card Entry</button>
             </div>
             
-            <!-- 2. WHEELCHAIR REQUEST (orange) -->
+            <!-- WHEELCHAIR -->
             <div class="handover-card" style="border-left: 6px solid #f57c00;">
                 <div class="section-header"><i class="fas fa-wheelchair" style="color:#f57c00;"></i><h2>🦽 Wheel Chair Request</h2></div>
                 <table class="handover-table">
@@ -273,7 +287,7 @@
                 <button class="add-row-btn" onclick="addRow('wheelchair',{paxName:'',flightNo:'',wcNo:'',flightTime:'',contact:'',remarks:'',done:false})"><i class="fas fa-plus-circle"></i> Add Wheelchair Request</button>
             </div>
             
-            <!-- 3. COMPLIMENTARY SERVICES (green) -->
+            <!-- COMPLIMENTARY -->
             <div class="handover-card" style="border-left: 6px solid #388e3c;">
                 <div class="section-header"><i class="fas fa-gift" style="color:#388e3c;"></i><h2>🎁 Complimentary Services</h2></div>
                 <table class="handover-table">
@@ -294,7 +308,7 @@
                 <button class="add-row-btn" onclick="addRow('complimentary',{name:'',flightNo:'',noOfPax:'',authBy:'',flightTime:'',remarks:'',done:false})"><i class="fas fa-plus-circle"></i> Add Complimentary Entry</button>
             </div>
             
-            <!-- 4. DELAY FLIGHTS (red) -->
+            <!-- DELAY FLIGHTS -->
             <div class="handover-card" style="border-left: 6px solid #d32f2f;">
                 <div class="section-header"><i class="fas fa-clock" style="color:#d32f2f;"></i><h2>⏱️ DELAY FLIGHTS</h2></div>
                 <table class="handover-table">
@@ -312,7 +326,7 @@
                 <button class="add-row-btn" onclick="addRow('delayFlights',{flight:'',eta:'',remarks:'',done:false})"><i class="fas fa-plus-circle"></i> Add Delay Flight</button>
             </div>
             
-            <!-- 5. FOLLOWUP PASSENGERS (purple) -->
+            <!-- FOLLOWUP -->
             <div class="handover-card" style="border-left: 6px solid #7b1fa2;">
                 <div class="section-header"><i class="fas fa-user-follow" style="color:#7b1fa2;"></i><h2>📌 PASSENGERS TO FOLLOWUP</h2></div>
                 <table class="handover-table">
@@ -331,35 +345,20 @@
                 <button class="add-row-btn" onclick="addRow('followup',{flight:'',pax:'',desc:'',remarks:'',done:false})"><i class="fas fa-plus-circle"></i> Add Follow-up Passenger</button>
             </div>
             
-            <!-- 6. IMPORTANT MESSAGES -->
+            <!-- IMPORTANT MESSAGES -->
             <div class="handover-card" style="border-left: 6px solid #616161;">
                 <div class="section-header"><i class="fas fa-envelope-open-text" style="color:#616161;"></i><h2>📝 IMPORTANT MESSAGES / OTHERS</h2></div>
-                <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes, reminders or messages for next shift..." onchange="updateImportantMsg(this.value)">${escapeHtml(data.importantMsg)}</textarea>
+                <textarea class="handover-msg-area" rows="3" placeholder="Type any important notes, reminders or messages for next shift..." oninput="updateImportantMsg(this.value)">${escapeHtml(data.importantMsg)}</textarea>
             </div>
         `;
         dynamicContainer.innerHTML = html;
-        
-        // attach realtime textarea onchange persistence
-        const msgArea = document.querySelector('.handover-msg-area');
-        if(msgArea) {
-            // ensure event
-            msgArea.removeEventListener('input', handleMsgInput);
-            msgArea.addEventListener('input', function(e) {
-                const newData = { ...currentHandoverData, importantMsg: e.target.value };
-                updateHandoverAndSave(newData);
-            });
-        }
     }
     
-    function handleMsgInput(e) {
-        const newData = { ...currentHandoverData, importantMsg: e.target.value };
-        updateHandoverAndSave(newData);
-    }
-    
-    // ======================= LOAD & SWITCH DATE/SHIFT =======================
+    // ======================= DATE/SHIFT CHANGE HANDLER (with persistence) =======================
     async function onDateShiftChange() {
         currentDate = handoverDateInput.value;
         currentShift = handoverShiftSelect.value;
+        saveSelectedDateShift();   // persist immediately
         if(!currentDate || !currentShift) {
             dynamicContainer.innerHTML = `<div class="handover-card" style="text-align:center;"><i class="fas fa-calendar-times" style="font-size:2rem;"></i><p>Please choose both date and shift to continue.</p></div>`;
             shiftRefBadge.innerHTML = `<i class="fas fa-ban"></i> Incomplete selection`;
@@ -368,7 +367,7 @@
         await loadHandoverFromFirebase(currentDate, currentShift);
     }
     
-    // ======================= EXPORT PDF (Separate handover) =======================
+    // ======================= EXPORT PDF & PRINT =======================
     function exportHandoverPDF() {
         if(!currentDate || !currentShift) { alert("Select date and shift first."); return; }
         const printWindow = window.open('', '_blank');
@@ -392,7 +391,6 @@
         <p><strong>Date:</strong> ${currentDate} &nbsp;|&nbsp; <strong>Shift:</strong> ${currentShift}</p>`;
         
         const data = currentHandoverData;
-        // CARDS
         if(data.cards && data.cards.length) {
             htmlContent += `<div class="section-title">✈️ Cards / FQTV No</div><table class="handover-table"><thead><tr><th>Flight</th><th>Seat</th><th>Need Cards</th><th>Contact</th><th>Remarks</th><th>Done</th></tr></thead><tbody>`;
             data.cards.forEach(c => { htmlContent += `<tr><td>${escapeHtml(c.flight||'')}</td><td>${escapeHtml(c.seat||'')}</td><td>${escapeHtml(c.needCards||'')}</td><td>${escapeHtml(c.contact||'')}</td><td>${escapeHtml(c.remarks||'')}</td><td>${c.done ? '✓' : ''}</td></tr>`; });
@@ -415,7 +413,7 @@
         }
         if(data.followup && data.followup.length) {
             htmlContent += `<div class="section-title">📌 Follow-up Passengers</div><table class="handover-table"><thead><th>Flight</th><th>Pax</th><th>Description</th><th>Remarks</th><th>Done</th></thead><tbody>`;
-            data.followup.forEach(f => { htmlContent += `<tr><td>${escapeHtml(f.flight||'')}</td><td>${escapeHtml(f.pax||'')}</td><td>${escapeHtml(f.desc||'')}</td><td>${escapeHtml(f.remarks||'')}</td><td>${f.done ? '✓' : ''}</td></tr>`; });
+            data.followup.forEach(f => { htmlContent += `<tr><table>${escapeHtml(f.flight||'')}</td><td>${escapeHtml(f.pax||'')}</td><td>${escapeHtml(f.desc||'')}</td><td>${escapeHtml(f.remarks||'')}</td><td>${f.done ? '✓' : ''}</td></tr>`; });
             htmlContent += `</tbody></table>`;
         }
         if(data.importantMsg) {
@@ -429,24 +427,29 @@
     
     function printHandover() { exportHandoverPDF(); }
     
-    // ======================= INIT =======================
-    function initHandoverApp() {
-        handoverDateInput.value = new Date().toISOString().slice(0,10);
-        handoverShiftSelect.value = "";
-        currentDate = handoverDateInput.value;
-        currentShift = "";
-        shiftRefBadge.innerHTML = `<i class="fas fa-info-circle"></i> Select shift`;
-        dynamicContainer.innerHTML = `<div class="handover-card" style="text-align:center;"><i class="fas fa-exchange-alt" style="font-size:2.5rem; color:#aaa;"></i><p>Ready. Choose date + shift to start handover log.</p></div>`;
+    // ======================= INITIALIZE & RESTORE STATE =======================
+    async function initHandoverApp() {
+        loadSavedDateShift();      // restore date+shift from localStorage
+        // set input values
+        handoverDateInput.value = currentDate;
+        handoverShiftSelect.value = currentShift;
+        // attach event listeners
         handoverDateInput.addEventListener('change', onDateShiftChange);
         handoverShiftSelect.addEventListener('change', onDateShiftChange);
         document.getElementById('exportHandoverPdf').addEventListener('click', exportHandoverPDF);
         document.getElementById('printHandoverBtn').addEventListener('click', printHandover);
+        // if both date and shift are valid, load handover data automatically
+        if(currentDate && currentShift) {
+            await loadHandoverFromFirebase(currentDate, currentShift);
+        } else {
+            dynamicContainer.innerHTML = `<div class="handover-card" style="text-align:center;"><i class="fas fa-exchange-alt" style="font-size:2.5rem; color:#aaa;"></i><p>Ready. Choose date + shift to start handover log.</p></div>`;
+            shiftRefBadge.innerHTML = `<i class="fas fa-info-circle"></i> Select shift`;
+        }
     }
     
-    // device auth wrapper (same logic)
+    // device auth wrapper
     if(isDeviceAuthorized()) {
         initHandoverApp();
-        if(firestoreReady && currentDate) console.log("Handover standalone ready");
     } else {
         const authModal = document.createElement('div');
         authModal.className = 'device-auth-overlay';
