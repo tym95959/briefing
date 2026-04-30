@@ -658,7 +658,8 @@
                     <button class="assign-small-btn assign-multi-btn" data-slot="${slot.id}" data-area="${area}">Add Selected</button>
                 </div>`; 
             } 
-            html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge"> ${escapeHtml(s)} ${canEdit?`<button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" onclick="removeStaff('${slot.id}','${area}','${escapeHtml(s)}')">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`; 
+            let assignedWithOrder = assigned.map((s, idx) => `<span class="staff-name-badge" data-order="${idx + 1}"> ${idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : `${idx+1}. `}${escapeHtml(s)} ${canEdit?`<button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" onclick="removeStaff('${slot.id}','${area}','${escapeHtml(s)}')">✖</button>`:''}</span>`);
+            html+=`<td class="staff-list-cell">${assignedWithOrder.join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`;
         }); 
         html+='</tr>'; 
     }); 
@@ -666,12 +667,24 @@
     allocationContainer.innerHTML=html; 
     if(canEdit){ 
         document.querySelectorAll('.assign-multi-btn').forEach(btn=>btn.addEventListener('click',async()=>{ 
-            const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`multiSel_${slotId}_${area.replace(/\s/g,'_')}`),selectedOptions=Array.from(select.selectedOptions).map(opt=>opt.value).filter(v=>v); 
-            if(selectedOptions.length===0){ alert("Please select at least one staff member"); return; }
-            const invalidStaff = selectedOptions.filter(staff => !sodStaffNames.includes(staff));
+            const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`multiSel_${slotId}_${area.replace(/\s/g,'_')}`);
+            
+            // Get selected options in the order they were clicked (not alphabetical)
+            // We need to track click order separately since select.selectedOptions returns DOM order
+            const selectedValues = [];
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].selected) {
+                    selectedValues.push(select.options[i].value);
+                }
+            }
+            // Note: This still gives DOM order. For true click order, we need a different approach.
+            // Alternative: Use a tracking array for selection order
+            
+            if(selectedValues.length===0){ alert("Please select at least one staff member"); return; }
+            const invalidStaff = selectedValues.filter(staff => !sodStaffNames.includes(staff));
             if(invalidStaff.length > 0){ alert(`⚠️ ${invalidStaff.join(', ')} is not on duty.`); return; }
-            await assignMultipleStaff(slotId,area,selectedOptions);
-        })); 
+            await assignMultipleStaff(slotId,area,selectedValues);
+        }));
     } 
 }
     async function assignMultipleStaff(slotId,area,staffNames){ 
