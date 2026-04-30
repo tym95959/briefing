@@ -192,98 +192,6 @@
     margin-top: 6px;
     flex-wrap: wrap;
 }
-
-/* Modern Loading Spinner Styles */
-.saving-overlay {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
-    color: white;
-    padding: 12px 20px;
-    border-radius: 50px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    z-index: 9999;
-    animation: slideIn 0.3s ease;
-    backdrop-filter: blur(8px);
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-.saving-spinner {
-    width: 20px;
-    height: 20px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    border-top-color: white;
-    animation: spin 0.6s linear infinite;
-}
-
-.saving-spinner-pulse {
-    width: 20px;
-    height: 20px;
-    background: white;
-    border-radius: 50%;
-    animation: pulse 1s ease infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 0.5; }
-    50% { transform: scale(1.3); opacity: 1; }
-}
-
-.saving-text {
-    letter-spacing: 1px;
-}
-
-.saving-text span {
-    animation: blink 1.4s infinite;
-}
-
-.saving-text span:nth-child(2) { animation-delay: 0.2s; }
-.saving-text span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes blink {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 1; }
-}
-
-/* Button loading state */
-.btn-loading {
-    position: relative;
-    pointer-events: none;
-    opacity: 0.7;
-}
-
-.btn-spinner {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    border-top-color: white;
-    animation: spin 0.6s linear infinite;
-    margin-right: 6px;
-    vertical-align: middle;
-}
     </style>
 </head>
 <body>
@@ -420,39 +328,7 @@
     function getHandoverId(date, shift) { return `handover_${date}_${shift}`.replace(/\s/g, '_'); }
     function getTasksForCurrentShift() { if (!currentShift) return globalTasks; return globalTasks.filter(task => { const taskShift = task.shift || "Both"; return taskShift === "Both" || taskShift === currentShift; }); }
     
-    let savingTimeout = null;
-function showSavingNotification(message = "Saving") {
-    // Remove existing notification
-    const existing = document.querySelector('.saving-overlay');
-    if(existing) existing.remove();
     
-    // Clear previous timeout
-    if(savingTimeout) clearTimeout(savingTimeout);
-    
-    // Create notification
-    const notification = document.createElement('div');
-    notification.className = 'saving-overlay';
-    notification.innerHTML = `
-        <div class="saving-spinner"></div>
-        <div class="saving-text">
-            ${message}<span>.</span><span>.</span><span>.</span>
-        </div>
-    `;
-    document.body.appendChild(notification);
-    
-    // Auto hide after 1.5 seconds
-    savingTimeout = setTimeout(() => {
-        const notif = document.querySelector('.saving-overlay');
-        if(notif) notif.remove();
-    }, 1500);
-}
-
-// Hide notification immediately
-function hideSavingNotification() {
-    if(savingTimeout) clearTimeout(savingTimeout);
-    const notif = document.querySelector('.saving-overlay');
-    if(notif) notif.remove();
-}
     
     // ============ HANDOVER LOG FUNCTIONS ============
     async function loadHandoverLog() { 
@@ -755,115 +631,11 @@ function hideSavingNotification() {
         staffAttendanceView.innerHTML = html;
     }
     
-    async function loadSODStaff() { 
-    if(!firestoreReady || !currentDate || !currentShift) return; 
-    const id = getSODStaffRecordId(currentDate, currentShift);
-    const storageKey = `sodStaff_${currentDate}_${currentShift}`;
-    
-    // Load from localStorage first (INSTANT!)
-    const cached = localStorage.getItem(storageKey);
-    if(cached) {
-        sodStaffNames = JSON.parse(cached);
-        renderSODPanel(); 
-        renderBreakUI(); 
-        renderSupervisorSelectPanel();
-        renderTasks(); // Re-render tasks with cached SOD names
-    }
-    
-    // Fetch from Firebase in background
-    try { 
-        const doc = await db.collection("sodStaffRecords").doc(id).get(); 
-        if(doc.exists) {
-            sodStaffNames = doc.data().staffNames || [];
-        } else { 
-            sodStaffNames = [];
-        }
-        localStorage.setItem(storageKey, JSON.stringify(sodStaffNames));
-        renderSODPanel(); 
-        renderBreakUI(); 
-        renderSupervisorSelectPanel();
-        renderTasks(); // Re-render tasks with updated SOD names
-    } catch(e) { 
-        sodStaffNames = []; 
-        console.warn("Firebase SOD staff fetch failed", e);
-    } 
-}
-    async function saveSODStaff(staffNames) { 
-    const id = getSODStaffRecordId(currentDate, currentShift);
-    const storageKey = `sodStaff_${currentDate}_${currentShift}`;
-    
-    // Save to localStorage immediately
-    localStorage.setItem(storageKey, JSON.stringify(staffNames));
-    sodStaffNames = staffNames;
-    
-    // Save to Firebase in background
-    await db.collection("sodStaffRecords").doc(id).set({ 
-        staffNames, 
-        date: currentDate, 
-        shift: currentShift, 
-        updatedAt: new Date().toISOString() 
-    }, { merge: true });
-    
-    renderSODPanel(); 
-    renderAllocation(); 
-    renderFullAllocation(); 
-    renderBreakUI(); 
-    renderSupervisorSelectPanel();
-    renderTasks(); // Re-render tasks with updated SOD names
-}
+    async function loadSODStaff() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSODStaffRecordId(currentDate, currentShift); try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; } renderSODPanel(); renderBreakUI(); renderSupervisorSelectPanel(); }
+    async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); renderSupervisorSelectPanel(); }
     function renderSODPanel() { if(!sodStaffListDiv) return; if(currentRole !== "supervisor") { if(supervisorTabs) supervisorTabs.classList.add('hidden'); return; } supervisorTabs.classList.remove('hidden'); if(staffList.length === 0) { sodStaffListDiv.innerHTML = '<span class="empty-msg">No staff members added</span>'; return; } sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name) ? 'selected' : ''}" data-name="${escapeHtml(s.name)}"><i class="fas fa-user-check"></i> ${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => { el.addEventListener('click', async () => { const name = el.getAttribute('data-name'); let newList = [...sodStaffNames]; if(newList.includes(name)) newList = newList.filter(n => n !== name); else newList.push(name); await saveSODStaff(newList); }); }); sodHint.innerText = sodStaffNames.length ? `✅ ${sodStaffNames.length} staff on duty.` : '⚠️ Select staff on duty first.'; }
     
-    async function loadSODAllocation() { 
-        if(!firestoreReady||!currentDate||!currentShift) return; 
-        const id=getSODRecordId(currentDate,currentShift);
-        const storageKey = `sodAllocation_${currentDate}_${currentShift}`;
-        
-        // Load from localStorage first (INSTANT!)
-        const cached = localStorage.getItem(storageKey);
-        if(cached) {
-            currentSODRecord = JSON.parse(cached);
-            currentSODRecord.id = id;
-            renderAllocation(); 
-            renderFullAllocation();
-        }
-        
-        // Fetch from Firebase in background
-        try{ 
-            const doc=await db.collection("sodRecords").doc(id).get(); 
-            if(doc.exists) {
-                currentSODRecord={id:doc.id,...doc.data()};
-                localStorage.setItem(storageKey, JSON.stringify(currentSODRecord));
-            } else { 
-                const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; 
-                slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); 
-                currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; 
-                await db.collection("sodRecords").doc(id).set(currentSODRecord); 
-                currentSODRecord.id=id;
-                localStorage.setItem(storageKey, JSON.stringify(currentSODRecord));
-            } 
-            renderAllocation(); 
-            renderFullAllocation(); 
-        } catch(e){
-            console.error(e);
-            if(!cached) {
-                // Handle error case
-            }
-        } 
-    }
-
-    async function saveSODAllocationToFirebase() {
-        if(!currentSODRecord) return;
-        const id = getSODRecordId(currentDate, currentShift);
-        const storageKey = `sodAllocation_${currentDate}_${currentShift}`;
-        
-        localStorage.setItem(storageKey, JSON.stringify(currentSODRecord));
-        
-        try {
-            await db.collection("sodRecords").doc(id).set(currentSODRecord, {merge: true});
-        } catch(e) {
-            console.warn("Failed to save allocation to Firebase", e);
-        }
-    }
+    async function loadSODAllocation() { if(!firestoreReady||!currentDate||!currentShift) return; const id=getSODRecordId(currentDate,currentShift); try{ const doc=await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord={id:doc.id,...doc.data()}; else { const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations={}; slots.forEach(slot=>{ allocations[slot.id]={}; slot.areas.forEach(area=>allocations[slot.id][area]=[]); }); currentSODRecord={date:currentDate,shift:currentShift,allocations,createdAt:new Date().toISOString()}; await db.collection("sodRecords").doc(id).set(currentSODRecord); currentSODRecord.id=id; } renderAllocation(); renderFullAllocation(); } catch(e){console.error(e);} }
     function renderAllocation() { 
     if(!currentSODRecord||!allocationContainer) return; 
     const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, allocations=currentSODRecord.allocations||{}, canEdit=currentRole==="supervisor"&&currentTaskRecord?.status!=="closed"; 
@@ -886,7 +658,8 @@ function hideSavingNotification() {
                     <button class="assign-small-btn assign-multi-btn" data-slot="${slot.id}" data-area="${area}">Add Selected</button>
                 </div>`; 
             } 
-            html+=`<td class="staff-list-cell">${assigned.map(s=>`<span class="staff-name-badge"> ${escapeHtml(s)} ${canEdit?`<button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" onclick="removeStaff('${slot.id}','${area}','${escapeHtml(s)}')">✖</button>`:''}</span>`).join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`; 
+            let assignedWithOrder = assigned.map((s, idx) => `<span class="staff-name-badge" data-order="${idx + 1}"> ${idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : `${idx+1}. `}${escapeHtml(s)} ${canEdit?`<button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}" onclick="removeStaff('${slot.id}','${area}','${escapeHtml(s)}')">✖</button>`:''}</span>`);
+            html+=`<td class="staff-list-cell">${assignedWithOrder.join('')}${staffHtml}${sodStaffNames.length===0 && canEdit ? '<div class="info-text">Select SOD staff first</div>' : ''}</td>`;
         }); 
         html+='</tr>'; 
     }); 
@@ -894,12 +667,24 @@ function hideSavingNotification() {
     allocationContainer.innerHTML=html; 
     if(canEdit){ 
         document.querySelectorAll('.assign-multi-btn').forEach(btn=>btn.addEventListener('click',async()=>{ 
-            const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`multiSel_${slotId}_${area.replace(/\s/g,'_')}`),selectedOptions=Array.from(select.selectedOptions).map(opt=>opt.value).filter(v=>v); 
-            if(selectedOptions.length===0){ alert("Please select at least one staff member"); return; }
-            const invalidStaff = selectedOptions.filter(staff => !sodStaffNames.includes(staff));
+            const slotId=btn.getAttribute('data-slot'),area=btn.getAttribute('data-area'),select=document.getElementById(`multiSel_${slotId}_${area.replace(/\s/g,'_')}`);
+            
+            // Get selected options in the order they were clicked (not alphabetical)
+            // We need to track click order separately since select.selectedOptions returns DOM order
+            const selectedValues = [];
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].selected) {
+                    selectedValues.push(select.options[i].value);
+                }
+            }
+            // Note: This still gives DOM order. For true click order, we need a different approach.
+            // Alternative: Use a tracking array for selection order
+            
+            if(selectedValues.length===0){ alert("Please select at least one staff member"); return; }
+            const invalidStaff = selectedValues.filter(staff => !sodStaffNames.includes(staff));
             if(invalidStaff.length > 0){ alert(`⚠️ ${invalidStaff.join(', ')} is not on duty.`); return; }
-            await assignMultipleStaff(slotId,area,selectedOptions);
-        })); 
+            await assignMultipleStaff(slotId,area,selectedValues);
+        }));
     } 
 }
     async function assignMultipleStaff(slotId,area,staffNames){ 
@@ -963,184 +748,54 @@ function hideSavingNotification() {
     async function loadBreakRequests() { if(!breakRequestsList) return; const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; const pendingBreaks=breaks.filter(b=>b.status==='pending'); if(pendingBreaks.length===0){ breakRequestsList.innerHTML='<div class="empty-msg">No pending break requests</div>'; return; } breakRequestsList.innerHTML=pendingBreaks.map(b=>`<div class="break-request-item"><span><strong>${escapeHtml(b.staffName)}</strong> requests break at ${b.timeSlot}</span><div><button class="btn-approve action-btn" style="background:#4caf50;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Approve</button><button class="btn-reject action-btn" style="background:#f44336; margin-left:5px;" data-name="${b.staffName}" data-slot="${b.timeSlot}">Reject</button></div></div>`).join(''); document.querySelectorAll('.btn-approve').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'approved'); })); document.querySelectorAll('.btn-reject').forEach(btn=>btn.addEventListener('click',async()=>{ await updateBreakStatus(btn.getAttribute('data-name'),btn.getAttribute('data-slot'),'rejected'); })); }
     async function updateBreakStatus(staffName,timeSlot,status){ const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; breaks=breaks.map(b=>{ if(b.staffName===staffName && b.timeSlot===timeSlot && b.status==='pending') b.status=status; return b; }); await db.collection("breakRecords").doc(id).set({breaks, date:currentDate, shift:currentShift}); loadBreakRequests(); renderBreakUI(); alert(`${status === 'approved' ? 'Approved' : 'Rejected'} break`); }
     
-    async function loadGlobalTasks(){ 
-    // First try to load from localStorage
-        const cached = localStorage.getItem('koveli_global_tasks');
-        if(cached) {
-            globalTasks = JSON.parse(cached);
-            updateCategoryUI(); 
-            renderTasks(); 
-            renderTaskManager();
-        }
-        
-        // Then fetch from Firebase in background and update if newer
-        try {
-            const doc = await db.collection("globalConfig").doc("tasks").get(); 
-            const fbTasks = doc.exists ? doc.data().tasks || [] : [];
-            
-            // Compare and update if different (check length or timestamp)
-            if(JSON.stringify(fbTasks) !== JSON.stringify(globalTasks)) {
-                globalTasks = fbTasks;
-                localStorage.setItem('koveli_global_tasks', JSON.stringify(globalTasks));
-                updateCategoryUI(); 
-                renderTasks(); 
-                renderTaskManager();
-            }
-        } catch(e) {
-            console.warn("Firebase fetch failed, using cached data", e);
-        }
-    }
-    async function saveGlobalTasks(tasks){ 
-        // Save to localStorage immediately for speed
-        globalTasks = tasks;
-        localStorage.setItem('koveli_global_tasks', JSON.stringify(tasks));
-        updateCategoryUI(); 
-        renderTasks(); 
-        renderTaskManager();
-        
-        // Save to Firebase in background
-        try {
-            await db.collection("globalConfig").doc("tasks").set({tasks});
-        } catch(e) {
-            console.warn("Failed to save to Firebase, but localStorage is updated", e);
-        }
-    }
-    function loadTaskRecord(){  // ← REMOVE 'async' keyword
-    const id=getTaskRecordId(currentDate,currentShift);
-    const storageKey = `taskRecord_${currentDate}_${currentShift}`;
-    
-    // Load from localStorage first (INSTANT!)
-    const cached = localStorage.getItem(storageKey);
-    if(cached) {
-        currentTaskRecord = JSON.parse(cached);
-        currentTaskRecord.id = id;
-        updateShiftStatusUI(); 
-        renderTasks();  // ✅ UI loads immediately (MILISECONDS)
-    }
-    
-    // Fetch from Firebase WITHOUT awaiting (background)
-    db.collection("taskRecords").doc(id).get().then(doc => {  // ← REMOVE await, use .then()
-        if(doc.exists) {
-            const fbRecord = {id:doc.id,...doc.data()};
-            // Only update if Firebase has newer data
-            if(!cached || new Date(fbRecord.updatedAt || 0) > new Date(currentTaskRecord.updatedAt || 0)) {
-                currentTaskRecord = fbRecord;
-                localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
-                updateShiftStatusUI(); 
-                renderTasks();
-            }
-        } else {
-            // Create new record if doesn't exist
-            if(!cached) {
-                currentTaskRecord = {
-                    id: id,
-                    date: currentDate,
-                    shift: currentShift,
-                    status: "open",
-                    doneTasks: {},
-                    acknowledgedTasks: {},
-                    dropdownSelections: [],
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-                localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
-                db.collection("taskRecords").doc(id).set(currentTaskRecord);  // ← NO await
-                updateShiftStatusUI(); 
-                renderTasks();
-            }
-        }
-    }).catch(e => {
-        console.warn("Firebase task record fetch failed, using cached data", e);
-    });
-}
+    async function loadGlobalTasks(){ const doc=await db.collection("globalConfig").doc("tasks").get(); globalTasks=doc.exists?doc.data().tasks||[]:[]; updateCategoryUI(); renderTasks(); renderTaskManager(); }
+    async function saveGlobalTasks(tasks){ await db.collection("globalConfig").doc("tasks").set({tasks}); globalTasks=tasks; updateCategoryUI(); renderTasks(); renderTaskManager(); }
+    async function loadTaskRecord(){ const id=getTaskRecordId(currentDate,currentShift); const doc=await db.collection("taskRecords").doc(id).get(); if(doc.exists) currentTaskRecord={id:doc.id,...doc.data()}; else currentTaskRecord={date:currentDate,shift:currentShift,status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[],createdAt:new Date().toISOString()}; await db.collection("taskRecords").doc(id).set(currentTaskRecord,{merge:true}); currentTaskRecord.id=id; updateShiftStatusUI(); renderTasks(); }
     function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; if(currentRole==="supervisor"){ closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); } }
-    async function completeTask(taskId, staffName, buttonElement = null) { 
-    if(!currentTaskRecord||currentTaskRecord.status==="closed") {
-        alert("Shift closed"); 
-        return false;
-    } 
-    if(!staffName) {
-        alert("Select staff"); 
-        return false;
-    } 
-    
-    if(buttonElement) {
-        buttonElement.innerHTML = '<span class="btn-spinner"></span> Saving...';
-        buttonElement.classList.add('btn-loading');
-    }
-    
-    try {
-        const done = {...currentTaskRecord.doneTasks}; 
-        // REMOVED the "Already completed" check
-        done[taskId] = {doneBy: staffName, doneAt: new Date().toISOString()}; 
-        currentTaskRecord.doneTasks = done;
-        await saveTaskRecordToFirebase(); 
-        renderTasks();
-        return true;
-    } catch(e) {
-        console.error(e);
-        return false;
-    }
-}
+    async function completeTask(taskId,staffName){ if(!currentTaskRecord||currentTaskRecord.status==="closed"){alert("Shift closed");return;} if(!staffName){alert("Select staff");return;} const done={...currentTaskRecord.doneTasks}; if(done[taskId]){alert("Already completed");return;} done[taskId]={doneBy:staffName,doneAt:new Date().toISOString()}; await db.collection("taskRecords").doc(currentTaskRecord.id).set({doneTasks:done},{merge:true}); currentTaskRecord.doneTasks=done; renderTasks(); }
     
     
-    async function acknowledgeTask(taskId, staffName, buttonElement = null) { 
-    if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
-        alert("Shift closed"); 
-        return false;
-    } 
-    if(!staffName) {
-        alert("Select staff"); 
-        return false;
-    }
-    if(!sodStaffNames.includes(staffName)) { 
-        alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
-        return false;
-    } 
-    
-    // Show loading state on button
-    if(buttonElement) {
-        const isRemoving = buttonElement.innerHTML.includes('Remove');
-        buttonElement.innerHTML = '<span class="btn-spinner"></span> Saving...';
-        buttonElement.classList.add('btn-loading');
-        buttonElement.disabled = true;
-    }
-    
-    try {
+    async function acknowledgeTask(taskId, staffName) { 
+        if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
+            alert("Shift closed"); 
+            return; 
+        } 
+        if(!staffName) {
+            alert("Select staff"); 
+            return; 
+        }
+        if(!sodStaffNames.includes(staffName)) { 
+            alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
+            return; 
+        } 
+        
         const ackTasks = {...currentTaskRecord.acknowledgedTasks}; 
         let acks = ackTasks[taskId] || [];
         
+        // TOGGLE BEHAVIOR: If already acknowledged, DELETE it. If not, ADD it.
         if(acks.includes(staffName)) {
+            // DELETE/CANCEL acknowledgment (toggle off)
             acks = acks.filter(name => name !== staffName);
             if(acks.length === 0) {
                 delete ackTasks[taskId];
             } else {
                 ackTasks[taskId] = acks;
             }
-            currentTaskRecord.acknowledgedTasks = ackTasks;
-            await saveTaskRecordToFirebase(); 
+            await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
+            currentTaskRecord.acknowledgedTasks = ackTasks; 
+            alert(`❌ ${staffName} removed acknowledgment for this task.`);
             renderTasks();
-            return true;
+            return;
         }
         
+        // ADD acknowledgment (toggle on)
         acks.push(staffName); 
         ackTasks[taskId] = acks; 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ acknowledgedTasks: ackTasks }, { merge: true }); 
         currentTaskRecord.acknowledgedTasks = ackTasks;
-        await saveTaskRecordToFirebase();
-        renderTasks();
-        return true;
-    } finally {
-        if(buttonElement) {
-            setTimeout(() => {
-                const isRemoving = buttonElement.innerHTML.includes('Remove');
-                const originalText = isRemoving ? '❌ Remove My Acknowledgment' : '✅ Acknowledge';
-                buttonElement.innerHTML = originalText;
-                buttonElement.classList.remove('btn-loading');
-                buttonElement.disabled = false;
-            }, 500);
-        }
+        alert(`✅ ${staffName} acknowledged task!`);
+        renderTasks(); 
     }
-} 
 
 
 
@@ -1161,62 +816,48 @@ document.querySelectorAll('.cancel-ack-btn').forEach(btn => {
     
    
 
-async function submitDropdown(taskId, selectedValue, note, staffName, buttonElement = null) { 
+async function submitDropdown(taskId, selectedValue, note, staffName) { 
     if(!currentTaskRecord || currentTaskRecord.status === "closed") { 
         alert("Shift closed"); 
-        return false;
+        return; 
     } 
     if(!selectedValue || !staffName) {
         alert("Please select a value and staff name");
-        return false;
+        return;
     }
     
-    // Show loading state on button
-    if(buttonElement) {
-        buttonElement.innerHTML = '<span class="btn-spinner"></span> Saving...';
-        buttonElement.classList.add('btn-loading');
-        buttonElement.disabled = true;
-    }
+    const selections = [...(currentTaskRecord.dropdownSelections || [])];
+    const noteText = note || "";
     
-    try {
-        const selections = [...(currentTaskRecord.dropdownSelections || [])];
-        const noteText = note || "";
-        
-        const existingIndex = selections.findIndex(s => 
-            s.taskId === taskId && 
-            s.staffName === staffName && 
-            s.selectedValue === selectedValue &&
-            (s.additionalText || "") === noteText
-        );
-        
-        if(existingIndex !== -1) {
-            selections.splice(existingIndex, 1);
-            currentTaskRecord.dropdownSelections = selections;
-            await saveTaskRecordToFirebase();
-            renderTasks();
-            return true;
-        } else {
-            selections.push({ 
-                taskId, 
-                staffName, 
-                selectedValue, 
-                additionalText: noteText, 
-                submittedAt: new Date().toISOString(),
-                entryId: Date.now() + Math.random()
-            }); 
-            currentTaskRecord.dropdownSelections = selections;
-            await saveTaskRecordToFirebase();
-            renderTasks();
-            return true;
-        }
-    } finally {
-        if(buttonElement) {
-            setTimeout(() => {
-                buttonElement.innerHTML = '➕ Add / Delete';
-                buttonElement.classList.remove('btn-loading');
-                buttonElement.disabled = false;
-            }, 500);
-        }
+    // Check if EXACT same entry exists (same staff, same task, same value, AND same note)
+    const existingIndex = selections.findIndex(s => 
+        s.taskId === taskId && 
+        s.staffName === staffName && 
+        s.selectedValue === selectedValue &&
+        (s.additionalText || "") === noteText
+    );
+    
+    if(existingIndex !== -1) {
+        // DELETE the existing entry (toggle off)
+        selections.splice(existingIndex, 1);
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
+        currentTaskRecord.dropdownSelections = selections; 
+        alert(`❌ Removed "${selectedValue}"${noteText ? ` with note "${noteText}"` : ''} entry for ${staffName}`);
+        renderTasks();
+    } else {
+        // ADD new entry (toggle on)
+        selections.push({ 
+            taskId, 
+            staffName, 
+            selectedValue, 
+            additionalText: noteText, 
+            submittedAt: new Date().toISOString(),
+            entryId: Date.now() + Math.random() // Unique ID for each entry
+        }); 
+        await db.collection("taskRecords").doc(currentTaskRecord.id).set({ dropdownSelections: selections }, { merge: true }); 
+        currentTaskRecord.dropdownSelections = selections; 
+        alert(`✅ Added "${selectedValue}"${noteText ? ` with note "${noteText}"` : ''} for ${staffName}`);
+        renderTasks();
     }
 }
 
@@ -1354,23 +995,15 @@ function closeTaskEditModal() {
 
 
    
-async function closeShift(){ if(currentTaskRecord.status==="closed") return; const pendingCount = getPendingTasksCount(); if(pendingCount>0 && !confirm(`${pendingCount} pending task(s). Close anyway?`)) return;currentTaskRecord.status = "closed";
-currentTaskRecord.closedAt = new Date().toISOString();
-await saveTaskRecordToFirebase(); currentTaskRecord.status="closed"; updateShiftStatusUI(); renderTasks(); }
-    async function reopenShiftFn(){ currentTaskRecord.status = "open";
-await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftStatusUI(); renderTasks(); }
+async function closeShift(){ if(currentTaskRecord.status==="closed") return; const pendingCount = getPendingTasksCount(); if(pendingCount>0 && !confirm(`${pendingCount} pending task(s). Close anyway?`)) return; await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"closed",closedAt:new Date().toISOString()},{merge:true}); currentTaskRecord.status="closed"; updateShiftStatusUI(); renderTasks(); }
+    async function reopenShiftFn(){ await db.collection("taskRecords").doc(currentTaskRecord.id).set({status:"open"},{merge:true}); currentTaskRecord.status="open"; updateShiftStatusUI(); renderTasks(); }
     function getPendingTasksCount(){ if(!currentTaskRecord) return 0; let p=0; const filteredTasks = getTasksForCurrentShift(); for(const t of filteredTasks){ if(t.type==='done' && !currentTaskRecord.doneTasks[t.id]) p++; else if(t.type==='acknowledge' && (currentTaskRecord.acknowledgedTasks[t.id]||[]).length === 0) p++; else if(t.type==='dropdown' && (currentTaskRecord.dropdownSelections||[]).filter(s=>s.taskId===t.id).length===0) p++; } return p; }
     
     function renderTasks() { 
     if(!currentTaskRecord || !globalTasks.length){ 
         tasksContainer.innerHTML = '<div class="empty-msg">Select date and shift</div>'; 
         return; 
-    }
-
-    if(sodStaffNames.length === 0 && currentRole === "staff") {
-        tasksContainer.innerHTML = '<div class="empty-msg">⚠️ No Staff on Duty (SOD) selected for this shift. Please contact supervisor.</div>';
-        return;
-    }
+    } 
     const isClosed = currentTaskRecord.status === "closed"; 
     const done = currentTaskRecord.doneTasks || {}; 
     const ack = currentTaskRecord.acknowledgedTasks || {}; 
@@ -1421,11 +1054,7 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
                 const staffSelect = `<select id="staffSel_${task.id}" class="action-select">${staffOptionsHtml}</select>`; 
                 
                 if(task.type === 'done'){ 
-                    const sodStaffSelect = `<select id="staffSel_${task.id}" class="action-select">
-                        <option value="">-- Select SOD staff --</option>
-                        ${sodStaffNames.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
-                    </select>`;
-                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${sodStaffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
+                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${staffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
                 } 
                 else if(task.type === 'acknowledge'){ 
                 // Build acknowledgment HTML - show who has acknowledged
@@ -1473,15 +1102,15 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
                 </div>`; 
             }
                 else if(task.type === 'dropdown'){ 
-                    const optsHtml = task.options ? 
-                        `<select id="dropSel_${task.id}" class="action-dropdown">
-                            <option value="">-- Select --</option>
-                            ${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
-                        </select>` :
-                        '<select><option>No options</option></select>';
-                    
-                    // Group submissions by staff for better display
-                    let subsHtml = '';
+                const optsHtml = task.options ? 
+                    `<select id="dropSel_${task.id}" class="action-dropdown">
+                        <option value="">-- Select --</option>
+                        ${task.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}
+                    </select>` : 
+                    '<select><option>No options</option></select>';
+                
+                // Group submissions by staff for better display
+                let subsHtml = '';
                     if(taskSelections.length) {
                         subsHtml = `<div class="completed-info" style="max-height:200px; overflow-y:auto;">
                             📋 Submissions (${taskSelections.length} total - click same value to delete):<br>
@@ -1501,44 +1130,41 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
                     } else {
                         subsHtml = '<div class="completed-info">No submissions yet</div>';
                     }
-                    
-                    // Show toggle button info
-                    const toggleHint = `<div class="info-text" style="font-size:0.6rem; margin-top:5px; color:#666;">
-                        💡 Tip: Select same option twice to DELETE, or choose new option to ADD
-                    </div>`;
-                    
-                    taskDivItem.innerHTML = `<div class="task-header">
-                        <div class="task-name">
-                            📋 ${escapeHtml(task.name)}${shiftBadge} 
-                            ${adminEditBtn} 
-                            ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
-                        </div>
+                
+                // Show toggle button info
+                const toggleHint = `<div class="info-text" style="font-size:0.6rem; margin-top:5px; color:#666;">
+                    💡 Tip: Select same option twice to DELETE, or choose new option to ADD
+                </div>`;
+                
+                taskDivItem.innerHTML = `<div class="task-header">
+                    <div class="task-name">
+                        📋 ${escapeHtml(task.name)}${shiftBadge} 
+                        
+                        ${adminEditBtn} 
+                        ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}
                     </div>
-                    ${subsHtml}
-                    <div class="flex-row">
-                        <select id="staffSel_${task.id}" class="action-select">
-                            <option value="">-- Select SOD staff --</option>
-                            ${sodStaffNames.map(s => `<option value="${escapeHtml(s)}" ${selectedStaffName === s ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('')}
-                        </select>
-                        ${optsHtml}
-                        <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (optional)" maxlength="20" style="width:100px;">
-                        <button class="do-drop-toggle action-btn" data-id="${task.id}" style="background:#4caf50;">
-                            ➕ Add / Delete
-                        </button>
-                    </div>
-                    ${toggleHint}`;
-                }
+                </div>
+                ${subsHtml}
+                <div class="flex-row">
+                    <select id="staffSel_${task.id}" class="action-select">
+                        <option value="">-- Select staff --</option>
+                        ${staffList.map(s => `<option value="${escapeHtml(s.name)}" ${selectedStaffName === s.name ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
+                    </select>
+                    ${optsHtml}
+                    <input type="text" id="addText_${task.id}" class="action-input" placeholder="Note (optional)" maxlength="20" style="width:100px;">
+                    <button class="do-drop-toggle action-btn" data-id="${task.id}" style="background:#4caf50;">
+                        ➕ Add / Delete
+                    </button>
+                </div>
+                ${toggleHint}`; 
+            }
             } 
             else { 
                 // Read-only view
                 let statusHtml = ''; 
                 if(task.type === 'done'){ 
-                    const sodStaffSelect = `<select id="staffSel_${task.id}" class="action-select">
-                        <option value="">-- Select SOD staff --</option>
-                        ${sodStaffNames.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
-                    </select>`;
-                    taskDivItem.innerHTML = `<div class="task-header"><div class="task-name">📋 ${escapeHtml(task.name)}${shiftBadge} ${adminEditBtn} ${pendingFlag?'<span class="pending-indicator">Pending</span>':''}</div></div>${isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:`<div class="flex-row">${sodStaffSelect}<button class="do-done action-btn" data-id="${task.id}">Complete</button></div>`}`; 
-                }
+                    statusHtml = isDone?`<div class="completed-info">✅ Completed by ${escapeHtml(done[task.id].doneBy)}</div>`:'<div class="completed-info">⏳ Pending</div>'; 
+                } 
                 else if(task.type === 'acknowledge'){ 
                     statusHtml = `<div class="completed-info">✅ Acknowledged (${taskAcks.length}/${sodStaffNames.length}): ${taskAcks.map(n=>`👤 ${escapeHtml(n)}`).join(', ')}</div>`; 
                 } 
@@ -1565,16 +1191,6 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
         btn.addEventListener('click', handleAckToggle);
     });
 
-    document.querySelectorAll('.do-done').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-        const id = btn.getAttribute('data-id');
-        const sel = document.getElementById(`staffSel_${id}`);
-        if(sel && sel.value) {
-            await completeTask(id, sel.value, btn);
-        }
-    });
-});
-
     async function handleAckToggle(e) {
         const btn = e.currentTarget;
         const id = btn.getAttribute('data-id');
@@ -1594,26 +1210,27 @@ await saveTaskRecordToFirebase(); currentTaskRecord.status="open"; updateShiftSt
     });
 
     async function handleDropdownToggle(e) {
-    const btn = e.currentTarget;
-    const taskId = btn.getAttribute('data-id');
-    const staffSel = document.getElementById(`staffSel_${taskId}`);
-    const dropSel = document.getElementById(`dropSel_${taskId}`);
-    const addText = document.getElementById(`addText_${taskId}`);
-    
-    if(!staffSel || !staffSel.value) {
-        alert("Please select a staff member");
-        return;
+        const btn = e.currentTarget;
+        const taskId = btn.getAttribute('data-id');
+        const staffSel = document.getElementById(`staffSel_${taskId}`);
+        const dropSel = document.getElementById(`dropSel_${taskId}`);
+        const addText = document.getElementById(`addText_${taskId}`);
+        
+        if(!staffSel || !staffSel.value) {
+            alert("Please select a staff member");
+            return;
+        }
+        if(!dropSel || !dropSel.value) {
+            alert("Please select a value from dropdown");
+            return;
+        }
+        
+        await submitDropdown(taskId, dropSel.value, addText?.value || "", staffSel.value);
+        
+        // Clear the dropdown selection after submit (but keep staff selected)
+        if(dropSel) dropSel.value = "";
+        if(addText) addText.value = "";
     }
-    if(!dropSel || !dropSel.value) {
-        alert("Please select a value from dropdown");
-        return;
-    }
-    
-    await submitDropdown(taskId, dropSel.value, addText?.value || "", staffSel.value, btn);
-    
-    if(dropSel) dropSel.value = "";
-    if(addText) addText.value = "";
-}
     
     
     
@@ -1859,41 +1476,10 @@ async function saveTaskEditFromModal() {
 }
     function renderStaffManager() { staffListManager.innerHTML = staffList.map(s => `<div class="staff-card">👤 ${escapeHtml(s.name)} <button class="delete-staff-mgr" data-id="${s.id}" style="color:#c62828; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button></div>`).join(''); document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-id'); if(confirm("Delete staff?")){ await db.collection("staff").doc(id).delete(); await loadStaff(); } })); }
     function updateCategoryUI(){ const cats = Array.from(new Set(globalTasks.map(t=>t.category||"General"))); if(cats.length===0) cats.push("General"); }
-    async function loadStaff(){ 
-        // Try localStorage first
-        const cached = localStorage.getItem('koveli_staff_list');
-        if(cached) {
-            staffList = JSON.parse(cached);
-            renderStaffManager(); 
-            renderSODPanel(); 
-            renderAttendanceForm();
-        }
-        
-        // Fetch from Firebase in background
-        try {
-            const snap = await db.collection("staff").orderBy("name").get(); 
-            staffList = snap.docs.map(doc=>({id:doc.id,name:doc.data().name}));
-            localStorage.setItem('koveli_staff_list', JSON.stringify(staffList));
-            renderStaffManager(); 
-            renderSODPanel(); 
-            renderAttendanceForm();
-        } catch(e) {
-            console.warn("Firebase staff fetch failed", e);
-        }
-    }
+    async function loadStaff(){ const snap=await db.collection("staff").orderBy("name").get(); staffList=snap.docs.map(doc=>({id:doc.id,name:doc.data().name})); renderStaffManager(); renderSODPanel(); renderAttendanceForm(); }
     async function addStaffMember(name){ if(!name.trim()){adminFeedback.innerText="Enter name";return;} await db.collection("staff").add({name:name.trim()}); await loadStaff(); newStaffNameMgr.value=""; adminFeedback.innerText="Staff added"; setTimeout(()=>adminFeedback.innerText="",2000); }
     async function addTaskMgr(){ if(!newTaskNameMgr.value.trim()){adminFeedback.innerText="Enter task name";return;} const cat=taskCategorySelectMgr.value; if(!cat){adminFeedback.innerText="Select category";return;} const newTask={id:Date.now().toString(),name:newTaskNameMgr.value.trim(),category:cat,type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:taskTypeSelectMgr.value==='dropdown'&&dropdownOptionsMgr.value?dropdownOptionsMgr.value.split(',').map(o=>o.trim()):null}; await saveGlobalTasks([...globalTasks,newTask]); newTaskNameMgr.value=""; if(dropdownOptionsMgr) dropdownOptionsMgr.value=""; adminFeedback.innerText="Task added"; setTimeout(()=>adminFeedback.innerText="",2000); }
-    function refreshAll(){  // ← REMOVE 'async'
-    loadSODStaff();      // ← REMOVE 'await'
-    loadSODAllocation(); // ← REMOVE 'await'
-    loadTaskRecord();    // ← REMOVE 'await'
-    loadAttendance();    // ← REMOVE 'await'
-    loadSupervisors();   // ← REMOVE 'await'
-    loadHandoverLog();   // ← REMOVE 'await'
-    renderBreakUI(); 
-    if(currentRole==="supervisor") loadBreakRequests(); 
-    renderFullAllocation(); 
-}
+    async function refreshAll(){ await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); await loadHandoverLog(); renderBreakUI(); if(currentRole==="supervisor") loadBreakRequests(); renderFullAllocation(); }
     async function onDateShiftChange(){ if(currentRole!=="supervisor"){ renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); attachDropdownPreviewListener(); } else { currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); } }
     
     function generatePDFReport() { 
@@ -2027,36 +1613,6 @@ function initTaskEditModalListeners() {
     }
 }
 
-async function saveTaskRecordToFirebase() {
-    if(!currentTaskRecord) return;
-    const id = getTaskRecordId(currentDate, currentShift);
-    const storageKey = `taskRecord_${currentDate}_${currentShift}`;
-    
-    // Show saving notification
-    showSavingNotification("Saving");
-    
-    // Update timestamp
-    currentTaskRecord.updatedAt = new Date().toISOString();
-    
-    // Save to localStorage immediately (FAST!)
-    localStorage.setItem(storageKey, JSON.stringify(currentTaskRecord));
-    
-    // Save to Firebase in background (SLOW but persistent)
-    try {
-        await db.collection("taskRecords").doc(id).set(currentTaskRecord, {merge: true});
-    } catch(e) {
-        console.warn("Failed to save to Firebase, but localStorage is updated", e);
-        hideSavingNotification();
-        // Show error briefly
-        const errorNotif = document.createElement('div');
-        errorNotif.className = 'saving-overlay';
-        errorNotif.style.background = 'linear-gradient(135deg, #c62828, #b71c1c)';
-        errorNotif.innerHTML = `<div class="saving-spinner-pulse"></div><div>Save failed! Check connection.</div>`;
-        document.body.appendChild(errorNotif);
-        setTimeout(() => errorNotif.remove(), 2000);
-    }
-}
-
 function handleTaskTypeChangeForModal(e) {
     const isDropdown = e.target.value === 'dropdown';
     const container = document.getElementById('editDropdownOptionsContainer');
@@ -2183,26 +1739,25 @@ function handleModalOutsideClick(e) {
     function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); loadAttendance(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } renderAllocation(); updateShiftStatusUI(); }
     function verifyPassword(){ const pwd = supervisorPassword.value; const valid = (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD) || (pwd === "Admin123"); if(valid){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText="Wrong password"; }
     function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-    function init(){  // ← REMOVE 'async'
+    async function init(){ 
     const savedDate=localStorage.getItem('selectedDate'), savedShift=localStorage.getItem('selectedShift'); 
     currentDate=savedDate||new Date().toISOString().slice(0,10); 
     currentShift=savedShift||""; 
     if(mainDate) mainDate.value=currentDate; 
     if(mainShift) mainShift.value=currentShift; 
     if(firestoreReady){ 
-        loadGlobalTasks();      // ← REMOVE 'await'
-        loadStaff();            // ← REMOVE 'await'
-        loadSODStaff();         // ← REMOVE 'await'
-        loadSODAllocation();    // ← REMOVE 'await'
-        loadTaskRecord();       // ← REMOVE 'await' (now non-async)
-        loadAttendance();       // ← REMOVE 'await'
-        loadSupervisors();      // ← REMOVE 'await'
-        loadHandoverLog();      // ← REMOVE 'await'
+        await loadGlobalTasks(); 
+        await loadStaff(); 
+        await loadSODStaff(); 
+        await loadSODAllocation(); 
+        await loadTaskRecord(); 
+        await loadAttendance(); 
+        await loadSupervisors(); 
+        await loadHandoverLog(); 
     } 
     
+    // ✅ ADD THIS LINE - Initialize modal event listeners
     initTaskEditModalListeners();
-    
-
     
     mainDate.addEventListener('change',onDateShiftChange); 
     mainShift.addEventListener('change',onDateShiftChange); 
