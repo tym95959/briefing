@@ -3,825 +3,548 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>GateCast Pro · Ryan & Sonia · Flight + Paging</title>
+  <title>GateCast Pro · ElevenLabs Premium Voices</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       background: linear-gradient(135deg, #fbf5e3 0%, #f7e9c3 100%);
-      font-family: 'Segoe UI', system-ui, 'Inter', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+      font-family: 'Segoe UI', system-ui, sans-serif;
       padding: 24px 20px;
       margin: 0;
-      min-height: 100vh;
     }
-
     .player-card {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
       background: rgba(255, 248, 225, 0.96);
-      backdrop-filter: blur(2px);
       border-radius: 2.5rem;
       padding: 1.8rem 2rem;
-      color: #2c2418;
-      box-shadow: 0 25px 40px -14px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 200, 0.6);
+      box-shadow: 0 25px 40px -14px rgba(0,0,0,0.3);
       border: 1px solid #e6d5a8;
     }
-
-    h2 {
-      margin-top: 0;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-      font-size: 1.9rem;
-      letter-spacing: -0.3px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: #3a2c1a;
-    }
-    h2:before {
-      content: "🎙️";
-      font-size: 1.9rem;
-    }
-
-    .tab-bar {
-      display: flex;
-      gap: 0.75rem;
-      margin: 1.2rem 0 1.4rem;
-      border-bottom: 2px solid #e9d6af;
-      padding-bottom: 0.4rem;
-    }
-    .tab-btn {
-      background: transparent;
-      border: none;
-      padding: 0.6rem 1.8rem;
-      font-size: 1rem;
-      font-weight: 600;
-      border-radius: 2rem;
-      color: #6b4f2a;
-      box-shadow: none;
-      transition: 0.2s;
-      cursor: pointer;
-    }
-    .tab-btn.active {
-      background: #dbb45c;
-      color: #2c2418;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    .tab-btn:not(.active):hover {
-      background: #f0e1b9;
-    }
-
-    .tab-content {
-      display: none;
-      animation: fade 0.2s ease;
-    }
-    .tab-content.active-tab {
-      display: block;
-    }
-
-    @keyframes fade {
-      from { opacity: 0; transform: translateY(6px);}
-      to { opacity: 1; transform: translateY(0);}
-    }
-
-    .selector-grid {
-      display: flex;
-      gap: 1.2rem;
-      flex-wrap: wrap;
-      margin: 1.2rem 0 1rem;
-    }
-    .selector-card {
-      background: #fef6e0;
-      padding: 0.7rem 1.2rem 1rem 1.2rem;
-      border-radius: 1.8rem;
-      flex: 1;
-      min-width: 140px;
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.02), 0 3px 8px rgba(0,0,0,0.08);
-      border: 1px solid #e9d6a7;
-    }
-    .selector-card label {
-      font-weight: 600;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      opacity: 0.8;
-      display: block;
-      margin-bottom: 8px;
-      color: #8b6946;
-    }
-    select, input {
-      width: 100%;
-      background: #fffef7;
-      border: 1px solid #dccf9b;
-      color: #2c2418;
-      padding: 8px 12px;
-      border-radius: 2rem;
-      font-weight: 500;
-      font-size: 0.95rem;
-      cursor: pointer;
-      outline: none;
-    }
-    input {
-      cursor: text;
-    }
-    .group-selector {
-      display: none;
-    }
-
-    .action-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      margin: 20px 0 18px;
-      align-items: center;
-    }
-    button {
-      background: #dbb45c;
-      border: none;
-      padding: 10px 28px;
-      border-radius: 3rem;
-      font-weight: 600;
-      font-size: 0.95rem;
-      color: #2c2418;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-    button:hover:not(:disabled) {
-      transform: translateY(-2px);
-      background: #e9c97c;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.12);
-    }
+    h2 { margin-top: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .badge { background: #7b2cbf; color: white; padding: 4px 12px; border-radius: 30px; font-size: 0.75rem; }
+    .premium-badge { background: #d4af37; color: #2c2418; padding: 2px 8px; border-radius: 20px; font-size: 0.65rem; font-weight: bold; margin-left: 6px; }
+    .tab-bar { display: flex; gap: 0.75rem; margin: 1.2rem 0; border-bottom: 2px solid #e9d6af; padding-bottom: 0.4rem; }
+    .tab-btn { background: transparent; border: none; padding: 0.6rem 1.8rem; font-size: 1rem; font-weight: 600; border-radius: 2rem; cursor: pointer; }
+    .tab-btn.active { background: #dbb45c; }
+    .tab-content { display: none; }
+    .tab-content.active-tab { display: block; }
+    .selector-grid { display: flex; gap: 1.2rem; flex-wrap: wrap; margin: 1.2rem 0; }
+    .selector-card { background: #fef6e0; padding: 0.7rem 1.2rem; border-radius: 1.8rem; flex: 1; min-width: 140px; border: 1px solid #e9d6a7; }
+    .selector-card label { font-weight: 600; font-size: 0.75rem; display: block; margin-bottom: 8px; color: #8b6946; }
+    select, input { width: 100%; background: #fffef7; border: 1px solid #dccf9b; padding: 8px 12px; border-radius: 2rem; }
+    .action-bar { display: flex; gap: 14px; margin: 20px 0; flex-wrap: wrap; align-items: center; }
+    button { background: #dbb45c; border: none; padding: 10px 28px; border-radius: 3rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    button:hover { transform: translateY(-2px); background: #e9c97c; }
     #stopBtn { background: #c28b4a; color: white; }
-    #stopBtn:hover:not(:disabled) { background: #d19e5c; }
-    .replay-btn {
-      background: #dbb45c;
-      padding: 4px 12px;
-      font-size: 0.7rem;
-      margin-left: 8px;
-      color: #2c2418;
-    }
-    .clear-history {
-      background: #b4946a;
-      padding: 6px 18px;
-      font-size: 0.75rem;
-      color: white;
-    }
-    .clear-history:hover { background: #ccaa78; }
-
-    .loading-indicator {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      background: #fef0d4;
-      padding: 6px 16px;
-      border-radius: 60px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: #9b7b42;
-      border-left: 3px solid #dcb55a;
-      margin-left: 10px;
-    }
-    .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid rgba(220, 181, 90, 0.3);
-      border-top: 2px solid #dcb55a;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .status-area {
-      background: #fef3e2;
-      border-radius: 1.5rem;
-      padding: 12px 20px;
-      margin-top: 15px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      color: #5a442a;
-    }
-    .tts-panel {
-      background: #fff8ea;
-      border-radius: 1.8rem;
-      padding: 1.2rem 1.3rem;
-      margin: 20px 0 15px;
-      border-left: 5px solid #dbb45c;
-      color: #3e2d1c;
-    }
-    .preview-box {
-      background: #fef5e6;
-      border-radius: 1.5rem;
-      padding: 14px 18px;
-      font-family: monospace;
-      font-size: 0.9rem;
-      word-break: break-word;
-      margin-top: 8px;
-      color: #4a3922;
-      border: 1px solid #e7d5ae;
-    }
-    .voice-selector {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .history-area {
-      background: #fef3e2;
-      border-radius: 1.5rem;
-      padding: 12px 18px;
-      margin-top: 15px;
-    }
-    .history-list {
-      max-height: 200px;
-      overflow-y: auto;
-      margin-top: 8px;
-    }
-    .history-item {
-      background: #fef5e6;
-      border-radius: 1rem;
-      padding: 8px 12px;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      font-size: 0.8rem;
-      border: 1px solid #ebddb4;
-    }
-    .history-summary {
-      font-weight: bold;
-      font-family: monospace;
-      font-size: 0.85rem;
-    }
-    .history-time {
-      font-size: 0.7rem;
-      opacity: 0.7;
-      min-width: 70px;
-    }
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-    @media (max-width: 680px) {
-      .player-card { padding: 1.3rem; }
-      .selector-card { min-width: 100%; }
-      .tab-btn { padding: 0.4rem 1.2rem; font-size: 0.9rem; }
-    }
+    .status-area { background: #fef3e2; border-radius: 1.5rem; padding: 12px 20px; margin-top: 15px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .tts-panel { background: #fff8ea; border-radius: 1.8rem; padding: 1.2rem; margin: 20px 0; border-left: 5px solid #7b2cbf; }
+    .voice-selector { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    .voice-selector select { flex: 2; min-width: 280px; }
+    .speed-group { display: inline-flex; gap: 6px; margin-left: 15px; align-items: center; }
+    .speed-btn { background: #e7d8b0; padding: 4px 12px; font-size: 0.75rem; border-radius: 2rem; cursor: pointer; }
+    .speed-btn.active { background: #dbb45c; }
+    .preview-box { background: #fef5e6; border-radius: 1.5rem; padding: 14px 18px; margin-top: 8px; font-family: monospace; font-size: 0.9rem; }
+    .history-area { background: #fef3e2; border-radius: 1.5rem; padding: 12px 18px; margin-top: 15px; }
+    .history-item { background: #fef5e6; border-radius: 1rem; padding: 8px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .test-voice-btn { background: #7b2cbf; color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.7rem; border: none; cursor: pointer; }
+    .test-voice-btn:hover { background: #9b4ddf; transform: none; }
+    .api-status { font-size: 0.7rem; margin-top: 8px; padding: 6px 10px; border-radius: 20px; display: inline-block; }
+    .api-status.valid { background: #2c5f2d; color: white; }
+    .api-status.invalid { background: #c28b4a; color: white; }
+    .voice-note { font-size: 0.7rem; color: #8b6946; margin-top: 8px; }
+    @media (max-width: 680px) { .selector-card { min-width: 100%; } }
   </style>
 </head>
 <body>
 <div class="player-card">
-  <h2>Announcement</h2>
+  <h2>🎙️ GateCast Pro <span class="badge">✨ ElevenLabs Premium Voices</span></h2>
   
   <div class="tab-bar">
     <button id="flightTabBtn" class="tab-btn active">✈️ Flight Announcement</button>
     <button id="pagingTabBtn" class="tab-btn">📟 Passenger Paging</button>
   </div>
 
-  <!-- Flight Tab -->
   <div id="flightTabContent" class="tab-content active-tab">
     <div class="selector-grid">
-      <div class="selector-card"><label>✈️ FLIGHT NUMBER</label><input type="text" id="flightInput" placeholder="e.g., EK659, BA060, QR678" value=""></div>
+      <div class="selector-card"><label>✈️ FLIGHT NUMBER</label><input type="text" id="flightInput" placeholder="e.g., UL116, BA123" value="UL116"></div>
       <div class="selector-card"><label>📍 DESTINATION</label><select id="destSelect"></select></div>
       <div class="selector-card"><label>🚪 GATE</label><select id="gateSelect"></select></div>
       <div class="selector-card"><label>📢 CALL TYPE</label>
-        <select id="callTypeSelect">
-          <option value="boarding">🟢 Boarding Call</option>
-          <option value="final">🔴 Final Call</option>
-        </select>
+        <select id="callTypeSelect"><option value="boarding">🟢 Boarding Call</option><option value="final">🔴 Final Call</option></select>
       </div>
-    </div>
-    <div id="groupContainer" class="selector-card group-selector" style="margin-top: -0.5rem; margin-bottom: 1rem;">
-      <label>👥 PRIORITY GROUP (BA only)</label>
-      <select id="groupSelect">
-        <option value="0">Group 0 (zero)</option>
-        <option value="1">Group 1</option>
-        <option value="2">Group 2</option>
-        <option value="3">Group 3</option>
-      </select>
     </div>
   </div>
 
-  <!-- Paging Tab -->
   <div id="pagingTabContent" class="tab-content">
-    <div class="selector-grid" style="margin-bottom: 0.5rem;">
-      <div class="selector-card"><label>👤 PASSENGER TITLE</label>
-        <select id="pagingTitle">
-          <option value="Mr.">Mr.</option>
-          <option value="Ms.">Ms.</option>
-          <option value="Mrs.">Mrs.</option>
-          <option value="Dr.">Dr.</option>
-          <option value="Mx.">Mx.</option>
-        </select>
-      </div>
-      <div class="selector-card"><label>🧑 FULL NAME</label>
-        <input type="text" id="pagingName" placeholder="e.g., Peter Paul" value="Peter Paul">
-      </div>
-      <div class="selector-card"><label>✈️ FLIGHT NUMBER</label>
-        <input type="text" id="pagingFlight" placeholder="e.g., EK202, BA123" value="EK202">
-      </div>
-      <div class="selector-card"><label>📍 PROCEED TO (LOCATION)</label>
-        <input type="text" id="pagingLocation" placeholder="e.g., reception desk, gate info" value="reception desk">
-      </div>
+    <div class="selector-grid">
+      <div class="selector-card"><label>👤 PASSENGER TITLE</label><select id="pagingTitle"><option>Mr.</option><option>Ms.</option><option>Mrs.</option><option>Dr.</option></select></div>
+      <div class="selector-card"><label>🧑 FULL NAME</label><input type="text" id="pagingName" placeholder="e.g., James Chen" value="Emily Carter"></div>
+      <div class="selector-card"><label>✈️ FLIGHT NUMBER</label><input type="text" id="pagingFlight" placeholder="e.g., QR678" value="EK202"></div>
+      <div class="selector-card"><label>📍 PROCEED TO</label><input type="text" id="pagingLocation" placeholder="e.g., information desk" value="gate information desk"></div>
     </div>
-    <div style="font-size: 0.75rem; margin: 0.2rem 0 0.8rem 0.5rem; opacity:0.7;">
-      💡 Example: "Attention please. Paging for Mr. Peter Paul, travelling on Emirates flight. Kindly proceed to the reception desk."
-    </div>
-  </div>
-
-  <div class="action-bar">
-    <button id="playBtn">▶ PLAY ANNOUNCEMENT</button>
-    <button id="stopBtn">⏹ STOP SPEAKING</button>
   </div>
 
   <div class="tts-panel">
     <div class="voice-selector">
-      <span>🎤 British Voice (Ryan / Sonia only):</span>
-      <select id="voiceSelect"></select>
+      <span>🎤 Voice Engine:</span>
+      <select id="voiceSelect">
+        <option value="browser">🌐 Browser TTS (Free)</option>
+        <option value="elevenlabs" selected>✨ ElevenLabs AI (Premium)</option>
+      </select>
+      <div class="speed-group">
+        <span>⏱️ Speed:</span>
+        <button data-speed="0.8" class="speed-btn">0.8x</button>
+        <button data-speed="0.85" class="speed-btn">0.85x</button>
+        <button data-speed="0.9" class="speed-btn active">0.9x</button>
+        <button data-speed="1.0" class="speed-btn">1.0x</button>
+      </div>
     </div>
-    <div style="margin-top: 12px;">
-      <div style="font-size: 0.75rem; opacity: 0.8;">📢 PREVIEW (spoken at 0.9x speed)</div>
-      <div class="preview-box" id="previewText">— Select options & hit PLAY —</div>
+
+    <!-- API Key Section -->
+    <div id="apiSection">
+      <div style="font-weight: 600; margin-bottom: 8px;">🔑 ElevenLabs API Key</div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+        <input type="password" id="apiKeyInput" placeholder="Enter your ElevenLabs API Key" style="flex: 2; min-width: 250px;">
+        <button id="saveApiKeyBtn" style="background: #7b2cbf; color: white;">💾 Save & Validate</button>
+      </div>
+      <div id="apiStatus" class="api-status" style="display: none;"></div>
     </div>
+
+    <!-- Voice Selection - PREMIUM VOICES -->
+    <div id="voiceSelectionSection" style="display: none; margin-top: 12px;">
+      <label style="font-weight: 600; font-size: 0.75rem;">🗣️ Select Voice (Premium & Free):</label>
+      <div style="display: flex; gap: 10px; align-items: center; margin-top: 5px; flex-wrap: wrap;">
+        <select id="elevenVoiceSelect" style="flex: 1; min-width: 280px;">
+          <option value="21m00Tcm4TlvDq8ikWAM">🇺🇸 Rachel - Female (Most Natural) ⭐</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">🇺🇸 Domi - Female (Warm & Clear) ⭐</option>
+          <option value="EXAVITQu4vr4xnSDxMaL">🇬🇧 Paul Graham - Male (British) ⭐</option>
+          <option value="ErXwobaYiN19PkyJjW9i">🇺🇸 Antoni - Male (Professional) ⭐</option>
+          <option value="MF3mGyEYD7dR8zZ6kGj3">🇺🇸 Elli - Female (Natural)</option>
+          <option value="TxGEqnHWrfWFTfGW9XjX">🇺🇸 Josh - Male (Friendly)</option>
+          <option value="VR6AuwLTaWGfERdl77m">🇬🇧 Charlotte - Female (British Elegant)</option>
+          <option value="N2lVS1w4EtoT3dr4eOWO">🇬🇧 Callum - Male (British Deep) 👑 Premium</option>
+          <option value="pNInz6obpgDQGcFmaJgB">🇺🇸 Adam - Male (Deep & Authoritative) 👑 Premium</option>
+          <option value="XbExh12j0MkbRp73kGP9">🇺🇸 Bella - Female (Warm & Gentle) 👑 Premium</option>
+          <option value="cgSgspJ2msm6clMCkdW9">🇺🇸 Jessica - Female (Professional) 👑 Premium</option>
+          <option value="z9fAnlkpzviPz146aGWa">🇺🇸 Michael - Male (Authoritative) 👑 Premium</option>
+        </select>
+        <button id="testVoiceBtn" class="test-voice-btn">🔊 Test Voice</button>
+      </div>
+      <div class="voice-note">
+        💡 ⭐ = Best for airport announcements &nbsp;&nbsp;|&nbsp;&nbsp; 👑 Premium = May require paid subscription
+      </div>
+    </div>
+
+    <div id="currentVoiceDisplay" class="current-voice-display" style="display: none; margin-top: 12px; background: #e8dcc0; border-radius: 20px; padding: 8px 12px;">
+      <span>🎤 Current voice: <strong id="currentVoiceName">Rachel</strong></span>
+      <button id="changeKeyBtn" style="background: #c28b4a; color: white; border: none; padding: 4px 12px; border-radius: 20px; margin-left: 10px; cursor: pointer;">Change API Key</button>
+    </div>
+
+    <div class="preview-box" id="previewText">— Select flight details & hit PLAY —</div>
+  </div>
+
+  <div class="action-bar">
+    <button id="playBtn">▶ BOARDING ANNOUNCEMENT</button>
+    <button id="stopBtn">⏹ STOP SPEAKING</button>
   </div>
 
   <div class="status-area">
-    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px;">
-      <span>🎧 Current: <span id="currentTrackName" style="font-weight: 500;">—</span></span>
-      <div id="loadingContainer" style="display: none;" class="loading-indicator">
-        <div class="spinner"></div>
-        <span>Loading announcement audio ...</span>
-      </div>
-    </div>
-    <div id="statusMessage">✅ Ready · Speech rate 0.9 · No duplicate history</div>
+    <span>🎧 <span id="currentTrackName">Ready</span></span>
+    <span id="statusMessage">✅ Enter your ElevenLabs API key to use premium AI voices</span>
   </div>
 
   <div class="history-area">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-      <span>📜 Announcement History <span style="font-size:0.7rem;">(click ▶️ to replay)</span></span>
-      <button id="clearHistoryBtn" class="clear-history">🗑 Clear All</button>
+    <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+      <span>📜 Announcement History <span style="font-size:0.7rem;">(click to replay)</span></span>
+      <button id="clearHistoryBtn" style="background: #b4946a; color: white; padding: 4px 12px; border: none; border-radius: 20px; cursor: pointer;">Clear All</button>
     </div>
-    <div class="history-list" id="historyList">
-      <div style="opacity:0.6; text-align:center; padding:12px;">No history yet. Press PLAY to save announcements.</div>
-    </div>
+    <div class="history-list" id="historyList"><div style="text-align:center; padding:12px;">No history yet. Press PLAY to save announcements.</div></div>
   </div>
 </div>
 
-<!-- Local Ding.mp3 file (must be in same folder) -->
 <audio id="chimeSound" src="Ding.mp3" preload="auto"></audio>
 
 <script>
-  // ----------------------------- DATA ---------------------------------
+  // ==================== DESTINATIONS & GATES ====================
   const DESTINATIONS = [
-   { city: "Abu Dhabi", code: "AUH", display: "Abu Dhabi  — UAE" },
-    { city: "Almaty", code: "ALA", display: "Almaty  — Kazakhstan" },
-    { city: "Astana", code: "NQZ", display: "Astana  — Kazakhstan" },
-    { city: "Bahrain", code: "BAH", display: "Bahrain  — Bahrain" },
-    { city: "Bangalore", code: "BLR", display: "Bangalore  — India" },
-    { city: "Beijing Daxing", code: "PKX", display: "Beijing Daxing  — China" },
-    { city: "Chengdu Tianfu", code: "TFU", display: "Chengdu Tianfu  — China" },
-    { city: "Chongqing", code: "CKG", display: "Chongqing  — China" },
-    { city: "Cochin", code: "COK", display: "Cochin  — India" },
-    { city: "Colombo", code: "CMB", display: "Colombo  — Sri Lanka" },
-    { city: "Danzhou", code: "DZH", display: "Danzhou  — China" },
-    { city: "Delhi", code: "DEL", display: "Delhi — India" },
-    { city: "Dhaka", code: "DAC", display: "Dhaka  — Bangladesh" },
-    { city: "Don Mueang", code: "DMK", display: "Don Mueang  — Thailand" },
-    { city: "Doha", code: "DOH", display: "Doha  — Qatar" },
-    { city: "Dubai", code: "DXB", display: "Dubai  — UAE" },
-    { city: "Hong Kong", code: "HKG", display: "Hong Kong  — China (SAR)" },
-    { city: "Hyderabad", code: "HYD", display: "Hyderabad  — India" },
-    { city: "Istanbul", code: "IST", display: "Istanbul  — Turkey" },
-    { city: "Jeddah", code: "JED", display: "Jeddah — Saudi Arabia" },
-    { city: "Kathmandu", code: "KTM", display: "Kathmandu  — Nepal" },
-    { city: "Kuala Lumpur", code: "KUL", display: "Kuala Lumpur  — Malaysia" },
-    { city: "Kuwait", code: "KWI", display: "Kuwait  — Kuwait" },
-    { city: "Kyiv", code: "KBP", display: "Kyiv  — Ukraine" },
-    { city: "Milan Malpensa", code: "MXP", display: "Milan Malpensa  — Italy" },
-    { city: "Moscow", code: "SVO", display: "Moscow  — Russia" },
-    { city: "Mumbai", code: "BOM", display: "Mumbai  — India" },
-    { city: "Munich", code: "MUC", display: "Munich  — Germany" },
-    { city: "Muscat", code: "MCT", display: "Muscat  — Oman" },
-    { city: "Paris", code: "CDG", display: "Paris  — France" },
-    { city: "Riyadh", code: "RUH", display: "Riyadh  — Saudi Arabia" },
-    { city: "Rome", code: "FCO", display: "Rome  — Italy" },
-    { city: "Shanghai", code: "PVG", display: "Shanghai  — China" },
-    { city: "Sharjah", code: "SHJ", display: "Sharjah  — UAE" },
-    { city: "Singapore", code: "SIN", display: "Singapore  — Singapore" },
-    { city: "Tashkent", code: "TAS", display: "Tashkent  — Uzbekistan" },
-    { city: "Trivandrum", code: "TRV", display: "Trivandrum  — India" },
-    { city: "Verona", code: "VRN", display: "Verona  — Italy" },
-    { city: "Vienna", code: "VIE", display: "Vienna  — Austria" },
-    { city: "Vnukovo", code: "VKO", display: "Moscow Vnukovo  — Russia" },
-    { city: "Warsaw", code: "WAW", display: "Warsaw  — Poland" },
-    { city: "Zurich", code: "ZRH", display: "Zurich (ZRH) — Switzerland" }
+    { city: "Abu Dhabi", display: "Abu Dhabi — UAE" }, { city: "Dubai", display: "Dubai — UAE" },
+    { city: "Doha", display: "Doha — Qatar" }, { city: "London Heathrow", display: "London — UK" },
+    { city: "Singapore", display: "Singapore" }, { city: "New York JFK", display: "New York — USA" },
+    { city: "Paris Charles de Gaulle", display: "Paris — France" }, { city: "Tokyo Haneda", display: "Tokyo — Japan" },
+    { city: "Sydney", display: "Sydney — Australia" }, { city: "Hong Kong", display: "Hong Kong" },
+    { city: "Frankfurt", display: "Frankfurt — Germany" }, { city: "Mumbai", display: "Mumbai — India" }
   ];
   const GATES = [];
   for (let i = 1; i <= 12; i++) GATES.push({ display: `A${i.toString().padStart(2,'0')}` });
-  for (let i = 1; i <= 3; i++) GATES.push({ display: `B${i.toString().padStart(2,'0')}` });
+  for (let i = 1; i <= 5; i++) GATES.push({ display: `B${i.toString().padStart(2,'0')}` });
+  for (let i = 1; i <= 3; i++) GATES.push({ display: `C${i.toString().padStart(2,'0')}` });
 
-  function formatFlightDigits(flightCode) { return flightCode.trim().split('').join(' '); }
-  function formatGateDigits(gateDisplay) {
-    const letter = gateDisplay.match(/^[A-Z]+/)?.[0] || "";
-    const numberPart = gateDisplay.match(/\d+/)?.[0] || "";
-    if (numberPart.length === 0) return gateDisplay;
-    const spacedDigits = numberPart.split('').join(' ');
-    return `${letter} ${spacedDigits}`;
+  const voiceNames = {
+    "21m00Tcm4TlvDq8ikWAM": "Rachel (Female American)",
+    "AZnzlk1XvdvUeBnXmlld": "Domi (Female American)",
+    "EXAVITQu4vr4xnSDxMaL": "Paul Graham (Male British)",
+    "ErXwobaYiN19PkyJjW9i": "Antoni (Male American)",
+    "MF3mGyEYD7dR8zZ6kGj3": "Elli (Female American)",
+    "TxGEqnHWrfWFTfGW9XjX": "Josh (Male American)",
+    "VR6AuwLTaWGfERdl77m": "Charlotte (Female British)",
+    "N2lVS1w4EtoT3dr4eOWO": "Callum (Male British) 👑",
+    "pNInz6obpgDQGcFmaJgB": "Adam (Male Deep) 👑",
+    "XbExh12j0MkbRp73kGP9": "Bella (Female Warm) 👑",
+    "cgSgspJ2msm6clMCkdW9": "Jessica (Female Professional) 👑",
+    "z9fAnlkpzviPz146aGWa": "Michael (Male Authoritative) 👑"
+  };
+
+  function formatFlightDigits(fc) { return fc.trim().toUpperCase().split('').join(' '); }
+  function formatGateDigits(g) { 
+    let letter = g.match(/^[A-Z]+/)?.[0] || ""; 
+    let number = g.match(/\d+/)?.[0] || ""; 
+    return number ? `${letter} ${number.split('').join(' ')}` : g; 
   }
-
-  function getAirlineName(flightCode) {
-    const code = flightCode.trim().toUpperCase();
-    const airlines = {
-      "EK":"Emirates","QR":"Qatar Airways","EY":"Etihad Airways","FZ":"flydubai","G9":"Air Arabia",
-      "WY":"Oman Air","GF":"Gulf Air","SV":"Saudia","KU":"Kuwait Airways","ME":"Middle East Airlines",
-      "SQ":"Singapore Airlines","TR":"Scoot","MH":"Malaysia Airlines","AK":"AirAsia","OD":"Batik Air Malaysia",
-      "TG":"Thai Airways","FD":"Thai AirAsia","VN":"Vietnam Airlines","VJ":"VietJet Air","GA":"Garuda Indonesia",
-      "JT":"Lion Air","UL":"SriLankan Airlines","AI":"Air India","6E":"IndiGo","SG":"SpiceJet","UK":"Vistara",
-      "IX":"Air India Express","BA":"British Airways","LH":"Lufthansa","AF":"Air France","KL":"KLM",
-      "LX":"Swiss","OS":"Austrian Airlines","IB":"Iberia","AZ":"ITA Airways","SK":"Scandinavian",
-      "AY":"Finnair","FR":"Ryanair","U2":"easyJet","AA":"American Airlines","DL":"Delta","UA":"United",
-      "WN":"Southwest","B6":"JetBlue","AS":"Alaska","AC":"Air Canada","WS":"WestJet","QF":"Qantas",
-      "VA":"Virgin Australia","NZ":"Air New Zealand","CA":"Air China","MU":"China Eastern","CZ":"China Southern",
-      "HU":"Hainan Airlines","CX":"Cathay Pacific","KA":"Cathay Dragon","JL":"Japan Airlines","NH":"ANA",
-      "ET":"Ethiopian","KQ":"Kenya Airways","MS":"EgyptAir","AT":"Royal Air Maroc","SA":"South African",
-      "LA":"LATAM","AV":"Avianca","CM":"Copa Airlines","AM":"Aeromexico","MF":"Xiamen Airlines","W6":"Wizz Air",
-      "VS":"Virgin Atlantic","BS":"US Bangla","TK":"Turkish Airlines","3U":"Sichuan Airlines","DV":"SCAT",
-      "NO":"Neos","Q2":"Maldivian","LO":"LOT Polish","WK":"Edelweiss","EW":"Eurowings","4Y":"Discover Airlines",
-      "DE":"Condor","J2":"Azerbaijan","ZF":"Azur Air","JD":"Capital Airlines"
+  function getAirlineName(fc) {
+    const code = fc.trim().toUpperCase();
+    const airlines = { 
+      "UL": "SriLankan Airlines", "EK": "Emirates", "QR": "Qatar Airways", 
+      "BA": "British Airways", "SQ": "Singapore Airlines", "CX": "Cathay Pacific",
+      "AF": "Air France", "LH": "Lufthansa", "AA": "American Airlines",
+      "DL": "Delta Air Lines", "UA": "United Airlines", "QF": "Qantas"
     };
-    for (let [prefix, name] of Object.entries(airlines)) {
-      if (code.startsWith(prefix)) return name;
-    }
+    for (let [p, n] of Object.entries(airlines)) if (code.startsWith(p)) return n;
     return "the airline";
   }
-  function isBritishAirwaysFlight(flightVal) { return flightVal.trim().toUpperCase().startsWith("BA"); }
 
-  // ---------- FLIGHT ANNOUNCEMENT ----------
-  function buildFlightAnnouncement(callType) {
-    const flightCode = document.getElementById('flightInput').value.trim().toUpperCase();
-    if (!flightCode) return "Please enter a flight number.";
-    const airline = getAirlineName(flightCode);
-    const formattedFlight = formatFlightDigits(flightCode);
-    const destSelectEl = document.getElementById('destSelect');
-    const destination = destSelectEl.options[destSelectEl.selectedIndex]?.text.split(' —')[0] || "destination";
-    const gateRaw = document.getElementById('gateSelect').value;
-    const formattedGate = formatGateDigits(gateRaw);
-    if (callType === 'boarding') {
-      if (isBritishAirwaysFlight(flightCode)) {
-        const group = document.getElementById('groupSelect').value;
-        let groupWord = group === "0" ? "zero" : group;
-        return `Attention Please.  all checked-in passengers travelling on ${airline} flight, ${formattedFlight} to ${destination} . Passengers on priority Group ${groupWord}, are requested to proceed to gate ${formattedGate} for boarding. All remaining passengers are requested to wait for further announcement. Thank you.`;
-      } else {
-        return `Attention please, all checked-in passengers travelling on ${airline} flight, ${formattedFlight} to ${destination}. Passengers are kindly requested to proceed to Gate ${formattedGate} for boarding. We wish you a pleasant flight. Thank you.`;
-      }
-    } else {
-      const hour = new Date().getHours();
-      let greeting = "Good Morning";
-      if (hour >= 12 && hour < 18) greeting = "Good Afternoon";
-      else if (hour >= 18) greeting = "Good Evening";
-      return `${greeting}. This is the final call for passengers traveling on ${airline} flight, ${formattedFlight} to ${destination}. Passengers are requested to proceed to gate ${formattedGate} for immediate boarding. Your flight is ready for departure. Thank you.`;
+  function buildFlightAnnouncement(type) {
+    const flight = document.getElementById('flightInput').value.trim().toUpperCase();
+    if (!flight) return "Please enter a valid flight number.";
+    const airline = getAirlineName(flight);
+    const fnum = formatFlightDigits(flight);
+    const dest = document.getElementById('destSelect').options[document.getElementById('destSelect').selectedIndex]?.text.split(' —')[0] || "destination";
+    const gate = formatGateDigits(document.getElementById('gateSelect').value);
+    if (type === 'boarding') {
+      return `Attention please. All checked-in passengers travelling on ${airline} flight, ${fnum} to ${dest}. Passengers are kindly requested to proceed to Gate, ${gate}, for boarding. We wish you a pleasant flight. Thank you.`;
     }
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? "Good morning" : (hour < 18 ? "Good afternoon" : "Good evening");
+    return `${greeting}. This is the final call for passengers traveling on ${airline} flight, ${fnum} to ${dest}. Please proceed to gate, ${gate}, for immediate boarding. Your flight is ready for departure. Thank you.`;
   }
 
-  // ---------- PAGING ANNOUNCEMENT ----------
   function buildPagingMessage() {
     const title = document.getElementById('pagingTitle').value;
-    const passengerName = document.getElementById('pagingName').value.trim();
-    if (!passengerName) return "⚠️ Please enter passenger name.";
-    const flightNum = document.getElementById('pagingFlight').value.trim().toUpperCase();
-    let airline = "the airline";
-    if (flightNum) airline = getAirlineName(flightNum);
-    const location = document.getElementById('pagingLocation').value.trim() || "reception desk";
-    return `Attention please. Paging for ${title} ${passengerName}, travelling on ${airline} flight. Kindly proceed to the ${location}.`;
+    const name = document.getElementById('pagingName').value.trim();
+    if (!name) return "Please enter passenger name.";
+    const flight = document.getElementById('pagingFlight').value.trim().toUpperCase();
+    const airline = flight ? getAirlineName(flight) : "the airline";
+    const loc = document.getElementById('pagingLocation').value.trim() || "information desk";
+    return `Attention please. Paging for ${title} ${name}, travelling on ${airline} flight. Kindly proceed to the ${loc}. Thank you.`;
   }
 
-  function getFlightSummary() {
-    const flight = document.getElementById('flightInput').value.trim().toUpperCase() || "???";
-    const gate = document.getElementById('gateSelect').value;
-    const callType = document.getElementById('callTypeSelect').value === 'boarding' ? 'Boarding' : 'Final Call';
-    let groupInfo = (isBritishAirwaysFlight(flight) && callType === 'Boarding') ? ` · Group ${document.getElementById('groupSelect').value}` : "";
-    return `✈️ ${flight} · ${gate} · ${callType}${groupInfo}`;
-  }
-  function getPagingSummary() {
-    const title = document.getElementById('pagingTitle').value;
+  function getSummary() {
+    const isFlight = document.getElementById('flightTabContent').classList.contains('active-tab');
+    if (isFlight) {
+      const flight = document.getElementById('flightInput').value.trim().toUpperCase() || "???";
+      const type = document.getElementById('callTypeSelect').value === 'boarding' ? 'Boarding' : 'Final';
+      return `✈️ ${flight} · ${type}`;
+    }
     const name = document.getElementById('pagingName').value.trim() || "???";
-    const flight = document.getElementById('pagingFlight').value.trim().toUpperCase() || "flight";
-    return `📟 Paging: ${title} ${name} (${flight})`;
+    return `📟 Paging: ${name}`;
   }
 
-  // DOM elements
-  const flightInput = document.getElementById('flightInput');
-  const destSelect = document.getElementById('destSelect');
-  const gateSelect = document.getElementById('gateSelect');
-  const callTypeSelect = document.getElementById('callTypeSelect');
-  const groupSelect = document.getElementById('groupSelect');
+  // ==================== ELEVENLABS SETUP ====================
+  let elevenApiKey = localStorage.getItem('elevenlabs_key') || '';
+  let currentVoiceId = localStorage.getItem('elevenlabs_voice') || '21m00Tcm4TlvDq8ikWAM';
+  let isKeyValid = false;
+
+  async function validateApiKey(key) {
+    try {
+      const response = await fetch('https://api.elevenlabs.io/v1/user', {
+        headers: { 'xi-api-key': key }
+      });
+      return response.ok;
+    } catch { return false; }
+  }
+
+  async function speakWithElevenLabs(text, speed = 0.9) {
+    if (!elevenApiKey) throw new Error('No API key');
+    
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${currentVoiceId}`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'xi-api-key': elevenApiKey 
+      },
+      body: JSON.stringify({
+        text: text,
+        model_id: "eleven_monolingual_v1",
+        voice_settings: { 
+          stability: 0.5, 
+          similarity_boost: 0.75, 
+          speed: Math.min(1.2, Math.max(0.7, speed)) 
+        }
+      })
+    });
+    
+    if (response.status === 401) throw new Error('Invalid API key');
+    if (response.status === 404) throw new Error('Voice not available');
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    
+    return await response.blob();
+  }
+
+  // ==================== BROWSER TTS ====================
+  let currentAudio = null;
+  let currentUtterance = null;
+  let currentSpeed = 0.9;
+  let isSpeaking = false;
+  let history = [];
+
   const playBtn = document.getElementById('playBtn');
   const stopBtn = document.getElementById('stopBtn');
-  const currentTrackSpan = document.getElementById('currentTrackName');
-  const statusMsgDiv = document.getElementById('statusMessage');
-  const previewSpan = document.getElementById('previewText');
   const voiceSelect = document.getElementById('voiceSelect');
-  const historyListDiv = document.getElementById('historyList');
-  const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-  const loadingContainer = document.getElementById('loadingContainer');
-  const flightTab = document.getElementById('flightTabContent');
-  const pagingTab = document.getElementById('pagingTabContent');
-  const flightTabBtn = document.getElementById('flightTabBtn');
-  const pagingTabBtn = document.getElementById('pagingTabBtn');
-  const groupContainerDiv = document.getElementById('groupContainer');
+  const elevenVoiceSelect = document.getElementById('elevenVoiceSelect');
+  const testVoiceBtn = document.getElementById('testVoiceBtn');
+  const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+  const changeKeyBtn = document.getElementById('changeKeyBtn');
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  const apiStatus = document.getElementById('apiStatus');
+  const apiSection = document.getElementById('apiSection');
+  const voiceSelectionSection = document.getElementById('voiceSelectionSection');
+  const currentVoiceDisplayDiv = document.getElementById('currentVoiceDisplay');
+  const currentVoiceNameSpan = document.getElementById('currentVoiceName');
+  const currentTrackSpan = document.getElementById('currentTrackName');
+  const statusSpan = document.getElementById('statusMessage');
+  const previewSpan = document.getElementById('previewText');
+  const historyDiv = document.getElementById('historyList');
+  const chimeAudio = document.getElementById('chimeSound');
 
-  let currentUtterance = null;
-  let isSpeaking = false;
-  let availableVoices = [];
-  let history = [];
-  let activeTab = "flight";
+  // Load saved settings
+  if (elevenApiKey) {
+    apiKeyInput.value = elevenApiKey;
+    validateAndActivateKey(elevenApiKey);
+  }
+  elevenVoiceSelect.value = currentVoiceId;
+  currentVoiceNameSpan.innerText = voiceNames[currentVoiceId] || "Rachel";
 
-  // ---- Dynamic PLAY button text ----
-  function updatePlayButtonText() {
-    if (activeTab === "flight") {
-      const callType = callTypeSelect.value;
-      if (callType === "boarding") {
-        playBtn.innerHTML = "▶ BOARDING ANNOUNCEMENT";
-      } else {
-        playBtn.innerHTML = "🔴 FINAL CALL ANNOUNCEMENT";
-      }
+  async function validateAndActivateKey(key) {
+    apiStatus.style.display = 'block';
+    apiStatus.className = 'api-status';
+    apiStatus.innerHTML = '⏳ Validating API key...';
+    
+    const isValid = await validateApiKey(key);
+    
+    if (isValid) {
+      elevenApiKey = key;
+      isKeyValid = true;
+      localStorage.setItem('elevenlabs_key', key);
+      apiStatus.className = 'api-status valid';
+      apiStatus.innerHTML = '✅ API key is valid! Premium voices are now available.';
+      
+      setTimeout(() => {
+        apiSection.style.display = 'none';
+        voiceSelectionSection.style.display = 'block';
+        currentVoiceDisplayDiv.style.display = 'block';
+        updateStatus('✅ Ready! Select a voice and click Test Voice or PLAY');
+      }, 1500);
     } else {
-      playBtn.innerHTML = "📟 PAGING ANNOUNCEMENT";
+      apiStatus.className = 'api-status invalid';
+      apiStatus.innerHTML = '❌ Invalid API key. Please check and try again.';
+      isKeyValid = false;
     }
   }
 
-  function showLoading() { loadingContainer.style.display = 'flex'; }
-  function hideLoading() { loadingContainer.style.display = 'none'; }
+  saveApiKeyBtn.addEventListener('click', async () => {
+    const key = apiKeyInput.value.trim();
+    if (!key) {
+      apiStatus.style.display = 'block';
+      apiStatus.className = 'api-status invalid';
+      apiStatus.innerHTML = '❌ Please enter an API key';
+      return;
+    }
+    await validateAndActivateKey(key);
+  });
 
-  function populateDropdowns() {
-    DESTINATIONS.forEach(d => { const opt = document.createElement('option'); opt.value = d.city; opt.textContent = d.display; destSelect.appendChild(opt); });
-    GATES.forEach(g => { const opt = document.createElement('option'); opt.value = g.display; opt.textContent = g.display; gateSelect.appendChild(opt); });
-    if (destSelect.options.length) destSelect.selectedIndex = 0;
-    if (gateSelect.options.length) gateSelect.selectedIndex = 0;
-  }
+  changeKeyBtn.addEventListener('click', () => {
+    apiSection.style.display = 'block';
+    voiceSelectionSection.style.display = 'none';
+    currentVoiceDisplayDiv.style.display = 'none';
+    apiKeyInput.value = '';
+    apiStatus.style.display = 'none';
+    isKeyValid = false;
+    updateStatus('Enter your new ElevenLabs API key');
+  });
 
+  elevenVoiceSelect.addEventListener('change', () => {
+    currentVoiceId = elevenVoiceSelect.value;
+    localStorage.setItem('elevenlabs_voice', currentVoiceId);
+    currentVoiceNameSpan.innerText = voiceNames[currentVoiceId] || elevenVoiceSelect.options[elevenVoiceSelect.selectedIndex].text.split('⭐')[0];
+    updateStatus(`Voice changed to ${voiceNames[currentVoiceId]}`);
+  });
+
+  testVoiceBtn.addEventListener('click', async () => {
+    if (!isKeyValid) {
+      updateStatus('⚠️ Please validate your API key first', true);
+      return;
+    }
+    const testText = `Hello. This is ${voiceNames[currentVoiceId]} speaking. The voice is working perfectly for airport announcements.`;
+    updateStatus(`🔊 Testing ${voiceNames[currentVoiceId]}...`);
+    try {
+      const blob = await speakWithElevenLabs(testText, 0.9);
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onplay = () => updateStatus(`🔊 Playing: ${voiceNames[currentVoiceId]}`);
+      audio.onended = () => URL.revokeObjectURL(url);
+      audio.play();
+    } catch(err) {
+      updateStatus(`❌ Test failed: ${err.message}`, true);
+    }
+  });
+
+  function updateStatus(msg, isError = false) { statusSpan.innerHTML = msg; }
   function updatePreview() {
-    if (activeTab === "flight") previewSpan.innerText = buildFlightAnnouncement(callTypeSelect.value);
-    else previewSpan.innerText = buildPagingMessage();
-  }
-
-  function toggleGroupVisibility() {
-    if (activeTab === "flight") {
-      const flightVal = flightInput.value.trim().toUpperCase();
-      groupContainerDiv.style.display = isBritishAirwaysFlight(flightVal) ? 'block' : 'none';
-    } else {
-      groupContainerDiv.style.display = 'none';
-    }
-  }
-
-  function loadRestrictedVoices() {
-    const all = speechSynthesis.getVoices();
-    if (!all.length) return [];
-    return all.filter(v => {
-      const name = v.name.toLowerCase();
-      return (name.includes('ryan') || name.includes('sonia')) && v.lang.toLowerCase().startsWith('en-gb');
-    });
-  }
-
-  function populateVoiceSelect() {
-    availableVoices = loadRestrictedVoices();
-    voiceSelect.innerHTML = '';
-    if (availableVoices.length === 0) {
-      voiceSelect.innerHTML = '<option value="">⚠️ No Ryan/Sonia found - default voice</option>';
-      updateStatus("ℹ️ No Ryan/Sonia en-GB voices detected, default will be used.", false);
-    } else {
-      availableVoices.forEach(v => { 
-        const opt = document.createElement('option'); 
-        opt.value = v.name; 
-        opt.textContent = `${v.name} (${v.lang})`; 
-        voiceSelect.appendChild(opt); 
-      });
-      voiceSelect.selectedIndex = 0;
-    }
+    const isFlight = document.getElementById('flightTabContent').classList.contains('active-tab');
+    previewSpan.innerText = isFlight ? buildFlightAnnouncement(document.getElementById('callTypeSelect').value) : buildPagingMessage();
   }
 
   function cancelSpeech() {
-    if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
-    if (currentUtterance) {
-      currentUtterance.onstart = null; currentUtterance.onend = null; currentUtterance.onerror = null;
-      currentUtterance = null;
-    }
+    if (speechSynthesis.speaking) speechSynthesis.cancel();
+    if (currentUtterance) { currentUtterance.onend = null; currentUtterance = null; }
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     isSpeaking = false;
-    currentTrackSpan.innerText = '—';
-    hideLoading();
+    currentTrackSpan.innerText = 'Stopped';
   }
 
-  function speakText(text, addToHistory = false, historySummary = null) {
-    if (!text || text.trim() === "" || text.startsWith("⚠️")) { 
-      updateStatus(text.startsWith("⚠️") ? text : "❌ Empty announcement", true); 
-      hideLoading(); 
-      return false; 
-    }
-
-    cancelSpeech();
-
-    const chime = document.getElementById("chimeSound");
-    // Reset audio in case it's still playing
-    chime.pause();
-    chime.currentTime = 0;
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 1;
-
-    const selectedVoiceName = voiceSelect.value;
-    if (selectedVoiceName && availableVoices.length) {
-      const matched = availableVoices.find(v => v.name === selectedVoiceName);
-      if (matched) utterance.voice = matched;
-    }
-
-    // Play ding BEFORE speech (with a short delay to ensure it starts)
-    const playChimeBefore = () => {
-      chime.currentTime = 0;
-      chime.play().catch(e => console.warn("Chime play before error:", e));
-    };
-    playChimeBefore();
-
-    utterance.onstart = () => {
-      isSpeaking = true;
-      hideLoading();
-      const short = text.length > 70 ? text.substring(0, 70) + '…' : text;
-      currentTrackSpan.innerText = `🔊 ${short}`;
-      updateStatus(`🎙️ Speaking (speed 0.9): ${text.length > 110 ? text.substring(0,110)+'…' : text}`);
-    };
-
-    utterance.onend = () => {
-      isSpeaking = false;
-
-      // Play ding AFTER speech (with small delay for natural feel)
-      setTimeout(() => {
-        const chimeAfter = document.getElementById("chimeSound");
-        if (chimeAfter) {
-          chimeAfter.pause();
-          chimeAfter.currentTime = 0;
-          chimeAfter.play().catch(e => console.warn("Chime play after error:", e));
-        }
-      }, 200);
-
-      currentTrackSpan.innerText = '✓ Completed';
-      updateStatus('✅ Announcement finished.');
-      currentUtterance = null;
-      hideLoading();
-
-      setTimeout(() => { 
-        if (!isSpeaking && currentTrackSpan.innerText === '✓ Completed') 
-          currentTrackSpan.innerText = '—'; 
-      }, 1400);
-    };
-
-    utterance.onerror = (ev) => {
-      isSpeaking = false;
-      currentUtterance = null;
-      hideLoading();
-      updateStatus(`❌ TTS error: ${ev.error || 'unknown'}`, true);
-      currentTrackSpan.innerText = 'Error';
-    };
-
-    currentUtterance = utterance;
-
-    // Delay speech start a bit so that chime has time to begin
-    setTimeout(() => {
+  function speakWithBrowser(text) {
+    return new Promise((resolve, reject) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = currentSpeed;
+      utterance.onstart = () => { isSpeaking = true; currentTrackSpan.innerText = '🔊 Browser'; resolve(); };
+      utterance.onend = () => { isSpeaking = false; currentTrackSpan.innerText = '✓ Done'; setTimeout(() => { if (!isSpeaking) currentTrackSpan.innerText = 'Ready'; }, 1500); };
+      utterance.onerror = reject;
+      currentUtterance = utterance;
       speechSynthesis.speak(utterance);
-    }, 300);
-
-    if (addToHistory && historySummary) addToHistory(historySummary, text);
-
-    return true;
+    });
   }
 
-  function addToHistory(summary, fullText) {
-    if (history.length > 0 && history[0].summary === summary) {
-      updateStatus(`⏭️ Duplicate announcement not added to history.`, false);
-      return;
+  async function playAnnouncement(text, addToHistory = true, summary = null) {
+    if (!text || text.includes('Please enter')) { updateStatus('❌ ' + text, true); return; }
+    cancelSpeech();
+    
+    if (chimeAudio) {
+      currentTrackSpan.innerText = '🔔 Chime...';
+      await new Promise(resolve => {
+        chimeAudio.currentTime = 0;
+        chimeAudio.addEventListener('ended', () => resolve(), { once: true });
+        chimeAudio.play().catch(() => resolve());
+      });
     }
-    const timestamp = new Date().toLocaleTimeString();
-    history.unshift({ summary, fullText, timestamp });
-    if (history.length > 20) history.pop();
-    renderHistory();
-    updateStatus(`📝 Added to history: ${summary}`, false);
+    
+    try {
+      if (voiceSelect.value === 'elevenlabs' && isKeyValid) {
+        currentTrackSpan.innerText = '✨ Generating AI...';
+        const blob = await speakWithElevenLabs(text, currentSpeed);
+        const url = URL.createObjectURL(blob);
+        currentAudio = new Audio(url);
+        currentAudio.onplay = () => { currentTrackSpan.innerText = `✨ ${voiceNames[currentVoiceId] || 'AI'}`; };
+        currentAudio.onended = () => { currentTrackSpan.innerText = '✓ Done'; URL.revokeObjectURL(url); };
+        currentAudio.play();
+      } else if (voiceSelect.value === 'elevenlabs' && !isKeyValid) {
+        updateStatus('⚠️ Please validate your API key first', true);
+        await speakWithBrowser(text);
+      } else {
+        await speakWithBrowser(text);
+      }
+      
+      if (addToHistory) {
+        const finalSummary = summary || getSummary();
+        const voiceLabel = voiceSelect.value === 'elevenlabs' ? `✨ ${voiceNames[currentVoiceId]}` : '🌐 Browser';
+        history.unshift({ text, summary: `${voiceLabel} ${finalSummary}`, time: new Date().toLocaleTimeString() });
+        if (history.length > 20) history.pop();
+        renderHistory();
+        localStorage.setItem('gatecast_history', JSON.stringify(history));
+      }
+      updateStatus('✅ Announcement finished');
+    } catch(err) {
+      updateStatus('❌ ' + err.message, true);
+      currentTrackSpan.innerText = 'Error';
+    }
   }
 
   function renderHistory() {
-    if (history.length === 0) { historyListDiv.innerHTML = '<div style="opacity:0.6; text-align:center; padding:12px;">No history yet. Press PLAY to save announcements.</div>'; return; }
-    historyListDiv.innerHTML = '';
-    history.forEach((item) => {
+    if (history.length === 0) { historyDiv.innerHTML = '<div style="text-align:center; padding:12px;">No history yet. Press PLAY to save announcements.</div>'; return; }
+    historyDiv.innerHTML = '';
+    history.forEach(item => {
       const div = document.createElement('div'); div.className = 'history-item';
-      div.innerHTML = `<div class="history-summary" title="${item.fullText.replace(/"/g, '&quot;')}">${item.summary}</div>
-        <div class="history-time">${item.timestamp}</div>
-        <button class="replay-btn" data-text="${item.fullText.replace(/"/g, '&quot;')}">▶️ Replay</button>`;
-      historyListDiv.appendChild(div);
-    });
-    document.querySelectorAll('.replay-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const originalText = btn.getAttribute('data-text');
-        if (originalText) { 
-          speakText(originalText, false, null); 
-          updateStatus(`🔁 Replaying announcement`);
-        }
-      });
+      div.innerHTML = `<div style="flex:2; cursor:pointer; font-weight:bold;" class="history-summary">${item.summary}</div>
+        <div style="font-size:0.7rem;">${item.time}</div>
+        <button class="replay-btn" style="background:#dbb45c; border:none; padding:4px 12px; border-radius:20px; cursor:pointer;">▶️ Replay</button>`;
+      div.querySelector('.replay-btn').onclick = () => playAnnouncement(item.text, false);
+      div.querySelector('.history-summary').onclick = () => playAnnouncement(item.text, false);
+      historyDiv.appendChild(div);
     });
   }
 
-  function clearHistory() { history = []; renderHistory(); updateStatus("🗑 History cleared.", false); }
-
-  function playCurrentAnnouncement() {
-    if (activeTab === "flight") {
-      const message = buildFlightAnnouncement(callTypeSelect.value);
-      if (!message || message.includes("Please enter")) { updateStatus("❌ Invalid flight number", true); return; }
-      const summary = getFlightSummary();
-      if (isSpeaking) cancelSpeech();
-      showLoading();
-      setTimeout(() => speakText(message, true, summary), 10);
-    } else {
-      const pagingMsg = buildPagingMessage();
-      if (pagingMsg.includes("⚠️")) { updateStatus(pagingMsg, true); return; }
-      const summary = getPagingSummary();
-      if (isSpeaking) cancelSpeech();
-      showLoading();
-      setTimeout(() => speakText(pagingMsg, true, summary), 10);
-    }
+  function loadHistory() {
+    try { const stored = localStorage.getItem('gatecast_history'); if (stored) history = JSON.parse(stored); } catch(e) {}
+    renderHistory();
   }
 
-  function updateStatus(msg, isError = false) { statusMsgDiv.innerHTML = msg; }
+  document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.onclick = () => {
+      currentSpeed = parseFloat(btn.dataset.speed);
+      document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateStatus(`Speech speed set to ${currentSpeed}x`);
+    };
+  });
 
-  function setActiveTab(tab) {
-    activeTab = tab;
-    if (tab === "flight") {
-      flightTab.classList.add("active-tab");
-      pagingTab.classList.remove("active-tab");
-      flightTabBtn.classList.add("active");
-      pagingTabBtn.classList.remove("active");
-    } else {
-      flightTab.classList.remove("active-tab");
-      pagingTab.classList.add("active-tab");
-      flightTabBtn.classList.remove("active");
-      pagingTabBtn.classList.add("active");
-    }
-    toggleGroupVisibility();
+  function populateDropdowns() {
+    const dest = document.getElementById('destSelect');
+    dest.innerHTML = '';
+    DESTINATIONS.forEach(d => { const opt = document.createElement('option'); opt.value = d.city; opt.textContent = d.display; dest.appendChild(opt); });
+    const gate = document.getElementById('gateSelect');
+    gate.innerHTML = '';
+    GATES.forEach(g => { const opt = document.createElement('option'); opt.value = g.display; opt.textContent = g.display; gate.appendChild(opt); });
+  }
+
+  // Tab switching
+  document.getElementById('flightTabBtn').onclick = () => {
+    document.getElementById('flightTabContent').classList.add('active-tab');
+    document.getElementById('pagingTabContent').classList.remove('active-tab');
+    document.getElementById('flightTabBtn').classList.add('active');
+    document.getElementById('pagingTabBtn').classList.remove('active');
     updatePreview();
-    updatePlayButtonText();   // update button text on tab change
-    if (isSpeaking) cancelSpeech();
-  }
-
-  function bindEvents() {
-    playBtn.onclick = playCurrentAnnouncement;
-    stopBtn.onclick = () => { cancelSpeech(); hideLoading(); updateStatus("⏹️ Stopped by user."); };
-    clearHistoryBtn.onclick = clearHistory;
-    flightInput.addEventListener('input', () => { if(activeTab==='flight'){ toggleGroupVisibility(); updatePreview(); if(isSpeaking) cancelSpeech(); } });
-    destSelect.addEventListener('change', () => { if(activeTab==='flight') updatePreview(); if(isSpeaking) cancelSpeech(); });
-    gateSelect.addEventListener('change', () => { if(activeTab==='flight') updatePreview(); if(isSpeaking) cancelSpeech(); });
-    callTypeSelect.addEventListener('change', () => { 
-      if(activeTab==='flight') {
-        updatePreview();
-        updatePlayButtonText();   // update when toggling between Boarding / Final Call
-      }
-    });
-    groupSelect.addEventListener('change', () => { if(activeTab==='flight') updatePreview(); });
-    
-    const pagingFields = ['pagingTitle', 'pagingName', 'pagingFlight', 'pagingLocation'];
-    pagingFields.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('input', () => { if(activeTab === 'paging') updatePreview(); });
-      if (el && el.tagName === 'SELECT') el.addEventListener('change', () => { if(activeTab === 'paging') updatePreview(); });
-    });
-    voiceSelect.addEventListener('change', () => updateStatus(`🎤 Voice changed.`));
-    flightTabBtn.onclick = () => setActiveTab("flight");
-    pagingTabBtn.onclick = () => setActiveTab("paging");
-  }
-
-  function init() {
-    if (!window.speechSynthesis) {
-      statusMsgDiv.innerHTML = "❌ TTS unavailable";
-      playBtn.disabled = true; stopBtn.disabled = true; return;
-    }
-    populateDropdowns(); bindEvents();
-    const voiceInit = () => { populateVoiceSelect(); toggleGroupVisibility(); updatePreview(); updatePlayButtonText(); };
-    if (speechSynthesis.getVoices().length) voiceInit(); else speechSynthesis.onvoiceschanged = voiceInit;
-    toggleGroupVisibility();
+    playBtn.innerHTML = '▶ BOARDING ANNOUNCEMENT';
+  };
+  document.getElementById('pagingTabBtn').onclick = () => {
+    document.getElementById('pagingTabContent').classList.add('active-tab');
+    document.getElementById('flightTabContent').classList.remove('active-tab');
+    document.getElementById('pagingTabBtn').classList.add('active');
+    document.getElementById('flightTabBtn').classList.remove('active');
     updatePreview();
-    updatePlayButtonText();
-  }
-  init();
+    playBtn.innerHTML = '📟 PAGING ANNOUNCEMENT';
+  };
+
+  playBtn.onclick = () => {
+    const isFlight = document.getElementById('flightTabContent').classList.contains('active-tab');
+    let msg;
+    if (isFlight) msg = buildFlightAnnouncement(document.getElementById('callTypeSelect').value);
+    else msg = buildPagingMessage();
+    if (msg.includes('Please enter')) { updateStatus(msg, true); return; }
+    playAnnouncement(msg, true, getSummary());
+  };
+  
+  stopBtn.onclick = () => { cancelSpeech(); updateStatus('⏹️ Stopped'); };
+  document.getElementById('clearHistoryBtn').onclick = () => { history = []; renderHistory(); localStorage.removeItem('gatecast_history'); updateStatus('🗑️ History cleared'); };
+  
+  ['flightInput', 'destSelect', 'gateSelect', 'callTypeSelect', 'pagingName', 'pagingFlight', 'pagingTitle', 'pagingLocation'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.addEventListener('input', updatePreview); if (el.tagName === 'SELECT') el.addEventListener('change', updatePreview); }
+  });
+
+  populateDropdowns();
+  loadHistory();
+  updatePreview();
+  updateStatus('✅ Enter your ElevenLabs API key to use premium AI voices!');
+  if(chimeAudio) chimeAudio.load();
 </script>
 </body>
 </html>
