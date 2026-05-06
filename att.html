@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Koveli Lounge · Attendance Report View</title>
+    <!-- Firebase SDKs (same config as main system) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- External config (fire.js + config.js) - needed for Firebase init -->
+    <script src="fire.js"></script>
+    <script src="config.js"></script>
+    <!-- Google Fonts + Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2eaf2 100%);
+            padding: 24px 20px;
+            min-height: 100vh;
+        }
+        .report-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+            overflow: hidden;
+            padding: 24px 28px 40px;
+            transition: all 0.2s;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 28px;
+            border-bottom: 2px solid #eef2f8;
+            padding-bottom: 16px;
+        }
+        .title-section h1 {
+            font-size: 1.7rem;
+            font-weight: 700;
+            background: linear-gradient(145deg, #1a4c6e, #2c6e8f);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .title-section p {
+            font-size: 0.8rem;
+            color: #5a7a97;
+            margin-top: 4px;
+        }
+        .filter-card {
+            background: #f8fbfe;
+            border-radius: 28px;
+            padding: 20px 24px;
+            margin-bottom: 32px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+            border: 1px solid #e2eaf2;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+        }
+        .filter-group label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #2c6e8f;
+        }
+        .filter-group input, .filter-group select {
+            padding: 10px 14px;
+            border-radius: 40px;
+            border: 1.5px solid #e2eaf2;
+            font-size: 0.85rem;
+            background: white;
+            outline: none;
+            transition: 0.2s;
+        }
+        .filter-group input:focus, .filter-group select:focus {
+            border-color: #2a8bb0;
+            box-shadow: 0 0 0 3px rgba(42,139,176,0.1);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #1d6f8f, #2a8bb0);
+            border: none;
+            padding: 8px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            background: linear-gradient(135deg, #2a8bb0, #1d6f8f);
+            box-shadow: 0 6px 12px rgba(29,111,143,0.2);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1.5px solid #cde0ec;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 500;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #1d6f8f;
+        }
+        .btn-outline:hover {
+            background: #eef3fc;
+            border-color: #1d6f8f;
+        }
+        .stats-badge {
+            background: #eef3fc;
+            border-radius: 60px;
+            padding: 8px 18px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #1a4c6e;
+        }
+        .attendance-table-wrapper {
+            overflow-x: auto;
+            border-radius: 24px;
+            border: 1px solid #edf2f7;
+            background: white;
+            margin-top: 20px;
+        }
+        .attendance-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+            min-width: 800px;
+        }
+        .attendance-table th {
+            background: #f1f6fd;
+            color: #1d4e6e;
+            font-weight: 700;
+            padding: 14px 12px;
+            border-bottom: 2px solid #e2eaf2;
+            text-align: left;
+        }
+        .attendance-table td {
+            padding: 12px 12px;
+            border-bottom: 1px solid #ecf3f9;
+            vertical-align: middle;
+        }
+        .status-badge-sm {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .status-present { background: #e8f5e9; color: #2e7d32; }
+        .status-absent { background: #ffebee; color: #c62828; }
+        .status-sl { background: #fff3e0; color: #e65100; }
+        .status-frl { background: #e3f2fd; color: #1565c0; }
+        .no-data {
+            text-align: center;
+            padding: 48px 20px;
+            color: #8aa9c4;
+            font-size: 0.85rem;
+        }
+        .footer-note {
+            margin-top: 32px;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #7c9ab8;
+            border-top: 1px solid #eef2f8;
+            padding-top: 20px;
+        }
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            padding: 40px;
+            color: #1d6f8f;
+        }
+        .fa-spinner-third {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media (max-width: 700px) {
+            .report-container { padding: 16px; }
+            .filter-card { flex-direction: column; align-items: stretch; }
+        }
+        .summary-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 20px 0 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="report-container" id="attendanceReportApp">
+    <div class="header">
+        <div class="title-section">
+            <h1><i class="fas fa-calendar-alt" style="margin-right: 10px; color:#2a8bb0;"></i> Attendance Record Viewer</h1>
+            <p>Staff attendance history | SL / FRL / Present / Absent | Date range filter</p>
+        </div>
+        <div class="stats-badge" id="rangeInfoBadge">
+            <i class="fas fa-chart-line"></i> <span id="recordCountSpan">0 records</span>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-card">
+        <div class="filter-group">
+            <label><i class="far fa-calendar-alt"></i> From Date</label>
+            <input type="date" id="startDateInput">
+        </div>
+        <div class="filter-group">
+            <label><i class="far fa-calendar-check"></i> To Date</label>
+            <input type="date" id="endDateInput">
+        </div>
+        <div class="filter-group">
+            <label><i class="fas fa-user-tag"></i> Shift Filter</label>
+            <select id="shiftFilterSelect">
+                <option value="all">All Shifts</option>
+                <option value="Morning">🌅 Morning</option>
+                <option value="Evening">🌙 Evening</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="fas fa-filter"></i> Status</label>
+            <select id="statusFilterSelect">
+                <option value="all">All Status</option>
+                <option value="Present">✅ Present</option>
+                <option value="Absent">❌ Absent</option>
+                <option value="SL">🩺 Sick Leave (SL)</option>
+                <option value="FRL">📅 FRL</option>
+            </select>
+        </div>
+        <div>
+            <button id="applyFilterBtn" class="btn-primary"><i class="fas fa-search"></i> Load Records</button>
+            <button id="resetFilterBtn" class="btn-outline"><i class="fas fa-undo-alt"></i> Reset</button>
+        </div>
+    </div>
+
+    <!-- Summary chips dynamic -->
+    <div class="summary-row" id="summaryChips"></div>
+
+    <!-- Attendance Table -->
+    <div class="attendance-table-wrapper">
+        <table class="attendance-table" id="attendanceTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Shift</th>
+                    <th>Staff Name</th>
+                    <th>Status</th>
+                    <th>Reason</th>
+                    <th>Reported Date / Time</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+                <tr><td colspan="6" class="no-data"><i class="fas fa-clock"></i> Select date range and click "Load Records"</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="footer-note">
+        <i class="fas fa-database"></i> Data fetched from Koveli Lounge Firestore (attendanceRecords). Handover & tasks not included.
+        <br>Only attendance records for each shift are displayed.
+    </div>
+</div>
+
+<script>
+    // ----------------------------- FIREBASE INIT (reuse same config from main) -----------------------------
+    let db = null;
+    let firestoreReady = false;
+
+    // attempt to init firebase using existing scripts (fire.js + config.js)
+    try {
+        if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+            db = firebase.firestore();
+            firestoreReady = true;
+            console.log("✅ Firebase Firestore ready for Attendance Report");
+        } else {
+            console.warn("Firebase not initialized yet, waiting...");
+            // fallback: wait a bit? but fire.js should load first.
+        }
+    } catch(e) {
+        console.error("Firestore error", e);
+    }
+
+    // DOM Elements
+    const startDateInput = document.getElementById('startDateInput');
+    const endDateInput = document.getElementById('endDateInput');
+    const shiftFilterSelect = document.getElementById('shiftFilterSelect');
+    const statusFilterSelect = document.getElementById('statusFilterSelect');
+    const applyBtn = document.getElementById('applyFilterBtn');
+    const resetBtn = document.getElementById('resetFilterBtn');
+    const tbody = document.getElementById('attendanceTableBody');
+    const recordCountSpan = document.getElementById('recordCountSpan');
+    const summaryChips = document.getElementById('summaryChips');
+
+    // set default dates: last 7 days to today
+    function setDefaultDates() {
+        const today = new Date();
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        const formatDate = (d) => d.toISOString().slice(0,10);
+        startDateInput.value = formatDate(sevenDaysAgo);
+        endDateInput.value = formatDate(today);
+    }
+    setDefaultDates();
+
+    // Helper: fetch all attendance records across multiple documents (each doc = per date/shift)
+    async function fetchAttendanceRecords(startDateStr, endDateStr, shiftFilter = 'all', statusFilter = 'all') {
+        if (!firestoreReady || !db) {
+            console.warn("Firestore not ready, check config.js / fire.js");
+            return [];
+        }
+        
+        // Convert date strings to YYYY-MM-DD for range filtering (doc ids pattern: attendance_YYYY-MM-DD_Shift)
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(endDateStr);
+        endDate.setHours(23,59,59,999);
+        
+        const allRecords = [];
+        
+        // We'll iterate through days in range and for each day, check both shifts (Morning/Evening)
+        // Performance: instead of querying all docs, we manually iterate days range and fetch known doc IDs.
+        // Since the system stores attendance per shift (attendance_YYYY-MM-DD_Morning / Evening), we can fetch exactly.
+        let currentDate = new Date(startDate);
+        currentDate.setHours(0,0,0,0);
+        
+        const dateRangeDays = [];
+        while (currentDate <= endDate) {
+            const dateStr = currentDate.toISOString().slice(0,10);
+            dateRangeDays.push(dateStr);
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        const shiftsToFetch = shiftFilter === 'all' ? ['Morning', 'Evening'] : [shiftFilter];
+        
+        // Batch fetch each doc individually (Firestore lightweight)
+        for (const dateStr of dateRangeDays) {
+            for (const shift of shiftsToFetch) {
+                const docId = `attendance_${dateStr}_${shift}`.replace(/\s/g, '_');
+                try {
+                    const docSnap = await db.collection("attendanceRecords").doc(docId).get();
+                    if (docSnap.exists) {
+                        const data = docSnap.data();
+                        const records = data.records || [];
+                        // attach metadata fields: date & shift directly to each record for easier filtering
+                        records.forEach(record => {
+                            record._docDate = dateStr;
+                            record._docShift = shift;
+                        });
+                        allRecords.push(...records);
+                    }
+                } catch (err) {
+                    console.warn(`Failed fetch ${docId}:`, err);
+                }
+            }
+        }
+        
+        // Filter by status if needed
+        let filtered = allRecords;
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(record => record.status === statusFilter);
+        }
+        // Additional shift filter (already applied via docs but if shiftFilter=all then we keep both)
+        if (shiftFilter !== 'all') {
+            filtered = filtered.filter(record => record.shift === shiftFilter || record._docShift === shiftFilter);
+        }
+        
+        // sort by date descending then shift
+        filtered.sort((a,b) => {
+            const dateCompare = (b._docDate || '').localeCompare(a._docDate || '');
+            if (dateCompare !== 0) return dateCompare;
+            return (a.shift || '').localeCompare(b.shift || '');
+        });
+        
+        return filtered;
+    }
+    
+    // render table and summary
+    function renderAttendanceTable(records) {
+        if (!records || records.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="no-data"><i class="fas fa-folder-open"></i> No attendance records found for selected filters & date range.</td></tr>`;
+            recordCountSpan.innerText = `0 records`;
+            summaryChips.innerHTML = '';
+            return;
+        }
+        
+        // stats for summary chips
+        let presentCount = 0, absentCount = 0, slCount = 0, frlCount = 0;
+        records.forEach(r => {
+            if (r.status === 'Present') presentCount++;
+            else if (r.status === 'Absent') absentCount++;
+            else if (r.status === 'SL') slCount++;
+            else if (r.status === 'FRL') frlCount++;
+        });
+        
+        recordCountSpan.innerText = `${records.length} record${records.length !== 1 ? 's' : ''}`;
+        summaryChips.innerHTML = `
+            <div class="stats-badge" style="background:#e8f5e9; color:#2e7d32;"><i class="fas fa-user-check"></i> Present: ${presentCount}</div>
+            <div class="stats-badge" style="background:#ffebee; color:#c62828;"><i class="fas fa-user-slash"></i> Absent: ${absentCount}</div>
+            <div class="stats-badge" style="background:#fff3e0; color:#e65100;"><i class="fas fa-thermometer-half"></i> Sick Leave: ${slCount}</div>
+            <div class="stats-badge" style="background:#e3f2fd; color:#1565c0;"><i class="fas fa-calendar-week"></i> FRL: ${frlCount}</div>
+        `;
+        
+        let html = '';
+        for (const rec of records) {
+            const displayDate = rec._docDate || (rec.reportDateTime ? new Date(rec.reportDateTime).toISOString().slice(0,10) : '—');
+            const displayShift = rec.shift || rec._docShift || '—';
+            const staffName = rec.staffName || 'Unknown';
+            let statusClass = '';
+            let statusText = '';
+            switch (rec.status) {
+                case 'Present': statusClass = 'status-present'; statusText = '✅ Present'; break;
+                case 'Absent': statusClass = 'status-absent'; statusText = '❌ Absent'; break;
+                case 'SL': statusClass = 'status-sl'; statusText = '🩺 Sick Leave'; break;
+                case 'FRL': statusClass = 'status-frl'; statusText = '📅 FRL'; break;
+                default: statusClass = ''; statusText = rec.status || '—';
+            }
+            const reason = rec.reason || '—';
+            const reportedTime = rec.reportDateTime ? new Date(rec.reportDateTime).toLocaleString() : '—';
+            
+            html += `<tr>
+                <td><strong>${escapeHtml(displayDate)}</strong></td>
+                <td>${escapeHtml(displayShift)}</td>
+                <td>${escapeHtml(staffName)}</td>
+                <td><span class="status-badge-sm ${statusClass}">${statusText}</span></td>
+                <td>${escapeHtml(reason)}</td>
+                <td><small>${escapeHtml(reportedTime)}</small></td>
+            </tr>`;
+        }
+        tbody.innerHTML = html;
+    }
+    
+    async function loadAndRender() {
+        if (!firestoreReady) {
+            tbody.innerHTML = `<tr><td colspan="6" class="no-data"><i class="fas fa-exclamation-triangle"></i> Firestore not ready. Check configuration or network.</td></tr>`;
+            return;
+        }
+        
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+        if (!startDate || !endDate) {
+            alert("Please select both start date and end date.");
+            return;
+        }
+        if (new Date(startDate) > new Date(endDate)) {
+            alert("Start date cannot be after end date.");
+            return;
+        }
+        
+        // show loading indicator
+        tbody.innerHTML = `<tr><td colspan="6" class="loading-spinner"><i class="fas fa-spinner-third fa-spin"></i> Loading attendance records...</td></tr>`;
+        
+        const shiftFilter = shiftFilterSelect.value;
+        const statusFilter = statusFilterSelect.value;
+        
+        try {
+            const records = await fetchAttendanceRecords(startDate, endDate, shiftFilter, statusFilter);
+            renderAttendanceTable(records);
+        } catch (err) {
+            console.error(err);
+            tbody.innerHTML = `<tr><td colspan="6" class="no-data"><i class="fas fa-bug"></i> Error loading data: ${err.message}</td></tr>`;
+        }
+    }
+    
+    function resetFilters() {
+        setDefaultDates();
+        shiftFilterSelect.value = 'all';
+        statusFilterSelect.value = 'all';
+        // reload after reset
+        loadAndRender();
+    }
+    
+    // Helper escape
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, (m) => {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    // event listeners
+    applyBtn.addEventListener('click', loadAndRender);
+    resetBtn.addEventListener('click', resetFilters);
+    
+    // initial load if firestore ready, else wait for firebase init
+    function waitForFirestoreAndLoad() {
+        if (firestoreReady && db) {
+            loadAndRender();
+        } else {
+            // retry after 500ms because fire.js/config.js might be async loaded
+            console.log("Waiting for Firebase initialization...");
+            setTimeout(() => {
+                if (typeof firebase !== 'undefined' && firebase.apps.length && !db) {
+                    try {
+                        db = firebase.firestore();
+                        firestoreReady = true;
+                        loadAndRender();
+                    } catch(e) { console.error(e); }
+                } else if (db) {
+                    loadAndRender();
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="no-data"><i class="fas fa-network-wired"></i> Unable to connect to Firestore. Please ensure you have proper configuration (fire.js, config.js) and network access.</td></tr>`;
+                }
+            }, 800);
+        }
+    }
+    
+    // also if external scripts define SUPERVISOR_PASSWORD etc, we don't need, just firebase.
+    window.addEventListener('DOMContentLoaded', () => {
+        // small delay to allow external firebase init
+        setTimeout(() => {
+            if (!firestoreReady && typeof firebase !== 'undefined' && firebase.apps.length) {
+                db = firebase.firestore();
+                firestoreReady = true;
+            }
+            waitForFirestoreAndLoad();
+        }, 300);
+    });
+    
+    // if firebase already loaded from parent page scripts, define
+    if (typeof firebase !== 'undefined' && firebase.apps.length > 0 && !db) {
+        db = firebase.firestore();
+        firestoreReady = true;
+        waitForFirestoreAndLoad();
+    }
+</script>
+</body>
+</html>
