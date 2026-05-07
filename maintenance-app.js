@@ -1,5 +1,4 @@
-// ========== MAINTENANCE APP WITH FIREBASE ==========
-// Wait for Firebase to be ready
+// ========== MAINTENANCE APP WITH FIREBASE - SIMPLIFIED ACTIONS ==========
 let reports = [];
 
 function getCurrentFormattedDateTime() {
@@ -26,7 +25,6 @@ function generateId() {
 
 // ========== FIREBASE OPERATIONS ==========
 
-// Save report to Firebase
 async function saveReportToFirebase(reportData) {
     try {
         const docRef = await db.collection(COLLECTION_NAME).add({
@@ -41,7 +39,6 @@ async function saveReportToFirebase(reportData) {
     }
 }
 
-// Fetch all reports from Firebase
 async function fetchReportsFromFirebase() {
     try {
         showLoading(true);
@@ -88,21 +85,6 @@ async function fetchReportsFromFirebase() {
     }
 }
 
-// Update report status in Firebase
-async function updateReportStatusInFirebase(firebaseId, newStatus) {
-    try {
-        await db.collection(COLLECTION_NAME).doc(firebaseId).update({
-            status: newStatus,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        return { success: true };
-    } catch (error) {
-        console.error("Error updating status: ", error);
-        return { success: false, error: error.message };
-    }
-}
-
-// Resolve report in Firebase
 async function resolveReportInFirebase(firebaseId, resolvedBy, resolutionNote) {
     try {
         await db.collection(COLLECTION_NAME).doc(firebaseId).update({
@@ -119,7 +101,6 @@ async function resolveReportInFirebase(firebaseId, resolvedBy, resolutionNote) {
     }
 }
 
-// Delete report from Firebase
 async function deleteReportFromFirebase(firebaseId) {
     try {
         await db.collection(COLLECTION_NAME).doc(firebaseId).delete();
@@ -160,7 +141,6 @@ async function addReport(data) {
         newReport.hubEntryTime = null;
     }
     
-    // Save to Firebase
     const result = await saveReportToFirebase(newReport);
     if (result.success) {
         await fetchReportsFromFirebase();
@@ -171,24 +151,11 @@ async function addReport(data) {
     }
 }
 
-async function updateStatus(id, newStatus) {
+async function resolveReport(id, resolver, note) {
     const report = reports.find(r => r.id === id || r.firebaseId === id);
     if (report && report.status !== "resolved") {
         const firebaseId = report.firebaseId;
-        const result = await updateReportStatusInFirebase(firebaseId, newStatus);
-        if (result.success) {
-            await fetchReportsFromFirebase();
-        } else {
-            alert("Error updating status: " + result.error);
-        }
-    }
-}
-
-async function resolveReportAction(id, resolver, note) {
-    const report = reports.find(r => r.id === id || r.firebaseId === id);
-    if (report && report.status !== "resolved") {
-        const firebaseId = report.firebaseId;
-        const result = await resolveReportInFirebase(firebaseId, resolver.trim(), note || "Resolved");
+        const result = await resolveReportInFirebase(firebaseId, resolver.trim(), note || "Task completed");
         if (result.success) {
             await fetchReportsFromFirebase();
         } else {
@@ -197,7 +164,7 @@ async function resolveReportAction(id, resolver, note) {
     }
 }
 
-async function deleteReportAction(id) {
+async function deleteReport(id) {
     if (confirm("Delete this report from Firebase?")) {
         const report = reports.find(r => r.id === id || r.firebaseId === id);
         if (report) {
@@ -239,15 +206,8 @@ function getDetailCell(r) {
     }
 }
 
-function getEntryInfoCell(r) {
-    return `<div style="font-size:0.7rem;">
-                <span class="timestamp-sm">Reported: ${formatDisplayDateTime(r.entryTimestamp)}</span>
-            </div>`;
-}
-
 function getStatusHtml(s) {
     if (s === "resolved") return `<span class="status-tag status-resolved"><i class="fas fa-check-circle"></i> Resolved</span>`;
-    if (s === "in-progress") return `<span class="status-tag status-progress"><i class="fas fa-sync-alt"></i> In Progress</span>`;
     return `<span class="status-tag status-pending"><i class="fas fa-clock"></i> Pending</span>`;
 }
 
@@ -281,21 +241,16 @@ function renderTable() {
                     <td>${getTypeHtml(rep.type)}</td>
                     <td>${getDetailCell(rep)}</td>
                     <td><i class="fas fa-user-edit"></i> ${escapeHtml(rep.informedBy)}</td>
-                    <td>${getEntryInfoCell(rep)}</td>
                     <td>${getStatusHtml(rep.status)}</td>
+                    <td>${getResolutionCell(rep)}</td>
                     <td class="action-icons">`;
         
         if (rep.status !== "resolved") {
-            if (rep.status === "pending") {
-                html += `<button class="action-icon" data-action="start" data-id="${rep.id}"><i class="fas fa-play"></i> Start</button>`;
-            } else if (rep.status === "in-progress") {
-                html += `<button class="action-icon" data-action="resolvePrompt" data-id="${rep.id}"><i class="fas fa-check-double"></i> Resolve</button>`;
-                html += `<button class="action-icon" data-action="back" data-id="${rep.id}"><i class="fas fa-undo"></i> Back</button>`;
-            }
+            html += `<button class="action-icon done" data-action="done" data-id="${rep.id}" data-staff="${escapeHtml(rep.hubStaffName || rep.directStaffName || 'Staff')}"><i class="fas fa-check-circle"></i> Done</button>`;
         } else {
-            html += `<span style="font-size:0.7rem;">✓ Closed</span>`;
+            html += `<span style="font-size:0.7rem; background:#e2e8f0; padding:4px 8px; border-radius:20px;">✓ Completed</span>`;
         }
-        html += `<button class="action-icon" data-action="delete" data-id="${rep.id}"><i class="fas fa-trash"></i> Del</button>`;
+        html += `<button class="action-icon delete" data-action="delete" data-id="${rep.id}"><i class="fas fa-trash"></i> Delete</button>`;
         html += `</td></tr>`;
     }
     tbody.innerHTML = html;
@@ -303,30 +258,26 @@ function renderTable() {
 }
 
 function attachTableEvents() {
-    document.querySelectorAll("[data-action='start']").forEach(btn => {
-        btn.addEventListener("click", () => updateStatus(btn.dataset.id, "in-progress"));
-    });
-    document.querySelectorAll("[data-action='back']").forEach(btn => {
-        btn.addEventListener("click", () => updateStatus(btn.dataset.id, "pending"));
-    });
-    document.querySelectorAll("[data-action='resolvePrompt']").forEach(btn => {
+    document.querySelectorAll("[data-action='done']").forEach(btn => {
         btn.addEventListener("click", () => {
             const id = btn.dataset.id;
-            let resolver = prompt("Resolved by (staff name):", "Technician");
+            const defaultStaff = btn.dataset.staff;
+            let resolver = prompt("Resolved by (staff name):", defaultStaff);
             if (resolver && resolver.trim()) {
-                let note = prompt("Resolution notes:", "Issue resolved");
-                resolveReportAction(id, resolver.trim(), note || "Resolved");
+                let note = prompt("Resolution notes / remarks:", "Task completed successfully");
+                resolveReport(id, resolver.trim(), note || "Completed");
             }
         });
     });
+    
     document.querySelectorAll("[data-action='delete']").forEach(btn => {
-        btn.addEventListener("click", () => deleteReportAction(btn.dataset.id));
+        btn.addEventListener("click", () => deleteReport(btn.dataset.id));
     });
 }
 
 function updateStats() {
     document.getElementById("totalCount").innerText = reports.length;
-    document.getElementById("openCount").innerText = reports.filter(r => r.status !== "resolved").length;
+    document.getElementById("pendingCount").innerText = reports.filter(r => r.status !== "resolved").length;
     document.getElementById("resolvedCount").innerText = reports.filter(r => r.status === "resolved").length;
 }
 
@@ -346,12 +297,8 @@ function updateSyncStatus(status, message = "") {
 
 function showLoading(show) {
     const loadingEl = document.getElementById("loadingIndicator");
-    const tableBody = document.getElementById("tableBody");
     if (show) {
         if (loadingEl) loadingEl.style.display = "block";
-        if (tableBody && reports.length === 0) {
-            tableBody.innerHTML = '';
-        }
     } else {
         if (loadingEl) loadingEl.style.display = "none";
     }
@@ -475,7 +422,7 @@ if (submitBtn) {
     });
 }
 
-// Initialize: Check if Firebase is ready then fetch data
+// Initialize
 if (typeof firebase !== 'undefined' && db) {
     console.log("Firebase ready, fetching data...");
     fetchReportsFromFirebase();
