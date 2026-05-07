@@ -15,3 +15,5 @@ const db = firebase.firestore();
 
 // Collection name for maintenance reports
 const COLLECTION_NAME = "maintenance_reports";
+
+console.log("Firebase initialized successfully");
