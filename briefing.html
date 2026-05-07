@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Briefing Vault · Minutes & Points Log</title>
+    <title>Briefing Vault · Minutes & Points Log + PDF Export</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External Configuration Files -->
+    <!-- External Configuration Files (fire.js, config.js) -->
     <script src="fire.js"></script>
     <script src="config.js"></script>
-    <!-- Google Fonts + Icons -->
+    <!-- Google Fonts + Icons + jsPDF + html2canvas (for PDF export) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -51,6 +53,7 @@
             justify-content: center;
             gap: 16px;
             margin-bottom: 24px;
+            flex-wrap: wrap;
         }
         .role-btn {
             background: white;
@@ -189,6 +192,17 @@
         .btn-outline:hover {
             background: #f8fbfe;
         }
+        /* PDF export button variant */
+        .btn-pdf {
+            background: #e74c3c20;
+            border: 1.5px solid #e74c3c;
+            color: #c0392b;
+        }
+        .btn-pdf:hover {
+            background: #e74c3c;
+            color: white;
+            border-color: #e74c3c;
+        }
         .status-msg {
             background: #eef3fc;
             border-radius: 40px;
@@ -246,7 +260,6 @@
             margin: 20px 0;
             font-size: 1rem;
         }
-        /* Device Auth Modal Styles */
         .device-auth-overlay {
             position: fixed;
             top: 0;
@@ -296,7 +309,6 @@
             font-size: 0.95rem;
             margin-bottom: 16px;
             text-align: center;
-            transition: all 0.2s;
         }
         .device-auth-card input:focus {
             outline: none;
@@ -312,19 +324,6 @@
             font-weight: 700;
             font-size: 1rem;
             cursor: pointer;
-            transition: transform 0.1s;
-        }
-        .device-auth-card button:hover {
-            transform: translateY(-1px);
-        }
-        .device-auth-card button:active {
-            transform: translateY(1px);
-        }
-        .device-error {
-            color: #c62828;
-            font-size: 0.75rem;
-            margin-top: 12px;
-            font-weight: 500;
         }
         .hidden {
             display: none;
@@ -342,19 +341,19 @@
             font-size: 0.7rem;
             color: #7e9bb5;
         }
-        .staff-briefing-list {
+        .staff-briefing-list, .supervisor-briefing-list {
             margin-top: 20px;
             max-height: 550px;
             overflow-y: auto;
         }
-        .staff-briefing-card {
+        .staff-briefing-card, .supervisor-briefing-card {
             background: #f8fbfe;
             border-radius: 24px;
             padding: 20px;
             margin-bottom: 16px;
             border: 1px solid #eef2f8;
         }
-        .staff-briefing-header {
+        .staff-briefing-header, .supervisor-briefing-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -363,7 +362,7 @@
             padding-bottom: 10px;
             border-bottom: 1px solid #eef2f8;
         }
-        .staff-badge {
+        .staff-badge, .supervisor-badge {
             background: #eef2fa;
             padding: 4px 14px;
             border-radius: 30px;
@@ -379,54 +378,14 @@
             line-height: 1.6;
             color: #2c3e50;
         }
-        .supervisor-briefing-list {
-            margin-top: 20px;
-            max-height: 400px;
-            overflow-y: auto;
-            border-top: 2px solid #eef2f8;
-            padding-top: 20px;
-        }
         .supervisor-briefing-card {
-            background: #f8fbfe;
-            border-radius: 24px;
-            padding: 16px;
-            margin-bottom: 14px;
-            border: 1px solid #eef2f8;
             cursor: pointer;
             transition: all 0.2s;
-        }
-        .supervisor-briefing-card:hover {
-            border-color: #2c7da0;
-            background: #ffffff;
         }
         .supervisor-briefing-card.selected {
             border-color: #1d6f8f;
             background: #eef3fc;
             box-shadow: 0 2px 8px rgba(29,111,143,0.1);
-        }
-        .supervisor-briefing-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-        .supervisor-badge {
-            background: #eef2fa;
-            padding: 3px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .supervisor-briefing-preview {
-            font-size: 0.8rem;
-            color: #5a7a97;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
         .empty-state {
             text-align: center;
@@ -447,7 +406,7 @@
 <div class="container" id="appContainer" style="display: none;">
     <div class="header">
         <h1><i class="fas fa-scroll"></i> Briefing Minutes · Point Log</h1>
-        <p>View and manage daily briefing notes</p>
+        <p>View and manage daily briefing notes | PDF Export for any date</p>
     </div>
 
     <div class="role-bar">
@@ -456,17 +415,20 @@
     </div>
 
     <div class="dashboard">
-        <!-- STAFF VIEW PANEL - Read Only -->
+        <!-- STAFF PANEL (Read Only) -->
         <div class="staff-panel" id="staffPanel">
             <div class="card">
                 <div class="card-title">
                     <i class="fas fa-eye" style="color:#2c7da0;"></i> 
                     <span>Briefing Notes</span>
-                    <span class="badge" style="margin-left: auto; background:#eef2f8;">👁️ Read Only</span>
+                    <span class="badge" style="margin-left: auto;">👁️ Read Only</span>
                 </div>
                 <div class="form-group">
                     <label><i class="far fa-calendar-alt"></i> Select Date</label>
                     <input type="date" id="staffDate" value="">
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+                    <button id="exportStaffPdfBtn" class="btn-pdf"><i class="fas fa-file-pdf"></i> Save Report (PDF)</button>
                 </div>
                 <div id="staffBriefingsContainer" class="staff-briefing-list">
                     <div class="empty-state">📅 Select a date to view briefing notes</div>
@@ -478,31 +440,26 @@
             </div>
         </div>
 
-        <!-- SUPERVISOR VIEW PANEL - Edit Mode with Date Selection -->
+        <!-- SUPERVISOR PANEL (Edit Mode) -->
         <div class="supervisor-panel hidden" id="supervisorPanel">
             <div class="card">
                 <div class="card-title">
                     <i class="fas fa-pen-fancy" style="color:#2c7da0;"></i> 
                     <span>Briefing Entry (Edit Mode)</span>
-                    <span id="formModeBadge" class="badge" style="margin-left: auto; background:#fff3e0;">✨ New</span>
+                    <span id="formModeBadge" class="badge">✨ New</span>
                 </div>
-                
-                <!-- Date Selector for Supervisor -->
                 <div class="form-group">
                     <label><i class="far fa-calendar-alt"></i> Select Date</label>
                     <input type="date" id="supervisorDate" value="">
                 </div>
-                
-                <!-- List of Briefings for Selected Date -->
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 10px;">
+                    <button id="exportSupervisorPdfBtn" class="btn-pdf"><i class="fas fa-file-pdf"></i> Save Report (PDF)</button>
+                </div>
                 <div id="supervisorBriefingsList" class="supervisor-briefing-list">
                     <div class="empty-state">📅 Select a date to view briefings</div>
                 </div>
-                
-                <!-- Edit Form -->
                 <div id="editFormSection" style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #eef2f8;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <h3 style="color: #1a4c6e; font-size: 1rem;"><i class="fas fa-edit"></i> Edit / Create Briefing</h3>
-                    </div>
+                    <h3 style="color: #1a4c6e; font-size: 1rem; margin-bottom: 16px;"><i class="fas fa-edit"></i> Edit / Create Briefing</h3>
                     <div class="form-group">
                         <label><i class="fas fa-user-tie"></i> Supervisor</label>
                         <select id="supervisorSelect">
@@ -550,608 +507,230 @@
     </div>
 </div>
 
-<!-- Device Authorization Modal (First-time entry) -->
 <div id="deviceAuthModal" class="device-auth-overlay">
     <div class="device-auth-card">
         <i class="fas fa-microchip"></i>
         <h2>Device Authorization</h2>
-        <p>This device needs to be authorized.<br>Enter the master password to register this device.</p>
-        <input type="password" id="devicePasswordInput" placeholder="Enter Device Authorization Password" autocomplete="off">
+        <p>Enter master password to register this device.</p>
+        <input type="password" id="devicePasswordInput" placeholder="Device Authorization Password" autocomplete="off">
         <button id="authorizeDeviceBtn">Authorize Device</button>
         <div id="deviceAuthError" class="device-error"></div>
     </div>
 </div>
 
 <script>
-    // ========== DEVICE AUTHORIZATION SYSTEM ==========
+    // ========== DEVICE AUTH ==========
     const DEVICE_STORAGE_KEY = "briefing_vault_device_authorized";
+    let DEVICE_MASTER_PASSWORD = (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) ? MASTER_PASSWORD_GLOBAL : (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD ? SUPERVISOR_PASSWORD : "Admin123");
     
-    // Get master password from config.js
-    let DEVICE_MASTER_PASSWORD = null;
+    function isDeviceAuthorized() { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
+    function authorizeDevice(pwd) { if(pwd === DEVICE_MASTER_PASSWORD) { localStorage.setItem(DEVICE_STORAGE_KEY, "true"); return true; } return false; }
     
-    if (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) {
-        DEVICE_MASTER_PASSWORD = MASTER_PASSWORD_GLOBAL;
-        console.log("Device auth: Using MASTER_PASSWORD_GLOBAL");
-    } else if (typeof SUPERVISOR_PASSWORD !== 'undefined' && SUPERVISOR_PASSWORD) {
-        DEVICE_MASTER_PASSWORD = SUPERVISOR_PASSWORD;
-        console.log("Device auth: Using SUPERVISOR_PASSWORD");
-    } else {
-        DEVICE_MASTER_PASSWORD = "Admin123";
-        console.warn("Device auth: Using fallback password 'Admin123'");
-    }
-    
-    function isDeviceAuthorized() {
-        return localStorage.getItem(DEVICE_STORAGE_KEY) === "true";
-    }
-    
-    function authorizeDevice(password) {
-        if (password === DEVICE_MASTER_PASSWORD) {
-            localStorage.setItem(DEVICE_STORAGE_KEY, "true");
-            localStorage.setItem("briefing_vault_authorized_at", new Date().toISOString());
-            return true;
-        }
-        return false;
-    }
-    
-    // Optional: Reset device auth from console
-    window.resetDeviceAuth = function() {
-        localStorage.removeItem(DEVICE_STORAGE_KEY);
-        location.reload();
-    };
-    
-    // ========== FIREBASE INITIALIZATION (FIXED) ==========
+    // Firebase
     let db, firestoreReady = false;
-    
-    // Function to initialize Firestore after Firebase is ready
     function initializeFirestore() {
-        try {
-            if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
-                db = firebase.firestore();
-                firestoreReady = true;
-                console.log("✅ Firestore initialized successfully");
-                return true;
-            } else {
-                console.warn("⚠️ Firebase not yet available");
-                return false;
-            }
-        } catch (err) {
-            console.error("❌ Firestore init error:", err);
-            firestoreReady = false;
-            return false;
-        }
+        try { if(typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; console.log("Firestore ready"); return true; } } catch(e) { console.warn(e); } return false;
     }
+    initializeFirestore();
+    setTimeout(() => { if(!firestoreReady) initializeFirestore(); }, 800);
     
-    // Try to initialize immediately, if not, wait for Firebase
-    if (!initializeFirestore()) {
-        console.log("Waiting for Firebase to be ready...");
-        // Check again after a short delay
-        setTimeout(() => {
-            if (!initializeFirestore()) {
-                console.error("Firebase failed to initialize");
-                // Show error to user
-                const errorDiv = document.createElement('div');
-                errorDiv.style.position = 'fixed';
-                errorDiv.style.top = '20px';
-                errorDiv.style.left = '50%';
-                errorDiv.style.transform = 'translateX(-50%)';
-                errorDiv.style.backgroundColor = '#ff4444';
-                errorDiv.style.color = 'white';
-                errorDiv.style.padding = '15px';
-                errorDiv.style.borderRadius = '8px';
-                errorDiv.style.zIndex = '10000';
-                errorDiv.innerHTML = '⚠️ Firebase connection failed. Please refresh the page.';
-                document.body.appendChild(errorDiv);
-                setTimeout(() => errorDiv.remove(), 5000);
-            }
-        }, 1000);
-    }
-    
-    // Global state
-    let currentEditId = null;
-    let currentBriefings = [];
-    let isLoading = false;
+    // state
+    let currentEditId = null, currentBriefings = [];
     let isSupervisorMode = false;
     
-    // DOM elements
-    const staffPanel = document.getElementById('staffPanel');
-    const supervisorPanel = document.getElementById('supervisorPanel');
-    const staffDate = document.getElementById('staffDate');
-    const staffBriefingsContainer = document.getElementById('staffBriefingsContainer');
-    const staffFeedback = document.getElementById('staffFeedback');
-    const supervisorDate = document.getElementById('supervisorDate');
+    // DOM
+    const staffPanel = document.getElementById('staffPanel'), supervisorPanel = document.getElementById('supervisorPanel');
+    const staffDate = document.getElementById('staffDate'), supervisorDate = document.getElementById('supervisorDate');
+    const staffBriefingsContainer = document.getElementById('staffBriefingsContainer'), staffFeedback = document.getElementById('staffFeedback');
     const supervisorBriefingsList = document.getElementById('supervisorBriefingsList');
-    const supervisorSelect = document.getElementById('supervisorSelect');
-    const shiftSelect = document.getElementById('shiftSelect');
-    const pointsTextarea = document.getElementById('pointsText');
-    const autoLoadStatus = document.getElementById('autoLoadStatus');
-    const saveBtn = document.getElementById('saveBtn');
-    const clearFormBtn = document.getElementById('clearFormBtn');
-    const deleteCurrentBtn = document.getElementById('deleteCurrentBtn');
-    const formFeedback = document.getElementById('formFeedback');
-    const formModeBadge = document.getElementById('formModeBadge');
-    const staffRoleBtn = document.getElementById('staffRoleBtn');
-    const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
-    const passwordModal = document.getElementById('passwordModal');
-    const supervisorPassword = document.getElementById('supervisorPassword');
-    const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
-    const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
-    const passwordError = document.getElementById('passwordError');
+    const supervisorSelect = document.getElementById('supervisorSelect'), shiftSelect = document.getElementById('shiftSelect');
+    const pointsTextarea = document.getElementById('pointsText'), saveBtn = document.getElementById('saveBtn'), clearFormBtn = document.getElementById('clearFormBtn');
+    const deleteCurrentBtn = document.getElementById('deleteCurrentBtn'), formFeedback = document.getElementById('formFeedback'), formModeBadge = document.getElementById('formModeBadge');
+    const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
+    const passwordModal = document.getElementById('passwordModal'), supervisorPassword = document.getElementById('supervisorPassword'), verifyPasswordBtn = document.getElementById('verifyPasswordBtn'), cancelPasswordBtn = document.getElementById('cancelPasswordBtn'), passwordError = document.getElementById('passwordError');
+    const exportStaffPdfBtn = document.getElementById('exportStaffPdfBtn');
+    const exportSupervisorPdfBtn = document.getElementById('exportSupervisorPdfBtn');
     
-    function getTodayDate() {
-        const today = new Date();
-        return today.toISOString().slice(0,10);
-    }
+    function getTodayDate() { return new Date().toISOString().slice(0,10); }
     
-    // Staff View: Load all briefings for selected date
-    async function loadStaffBriefings() {
-        if (!firestoreReady || !db) {
-            staffBriefingsContainer.innerHTML = '<div class="empty-state">⚠️ Firebase not connected. Please refresh.</div>';
-            staffFeedback.innerHTML = "❌ Firebase connection error";
-            staffFeedback.className = 'status-msg warning-msg';
-            return;
-        }
-        
-        const dateVal = staffDate.value;
-        if (!dateVal) {
-            staffBriefingsContainer.innerHTML = '<div class="empty-state">📅 Please select a date to view briefing notes</div>';
-            staffFeedback.innerHTML = "📅 Select a date to view briefings";
-            staffFeedback.className = 'status-msg info-msg';
-            return;
-        }
-        
-        staffFeedback.innerHTML = "🔍 Loading briefings for " + dateVal + "...";
-        staffFeedback.className = 'status-msg info-msg';
-        
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m; }).replace(/["']/g, function(m){ if(m==='"') return '&quot;'; if(m==="'") return '&#39;'; return m; }); }
+    
+    // ========== PDF Export Core ==========
+    async function generatePDFForDate(dateValue, titlePrefix = "Briefing_Report") {
+        if(!firestoreReady || !db) { alert("Firebase not ready. Cannot generate PDF."); return; }
+        if(!dateValue) { alert("Please select a date first."); return; }
         try {
-            const snapshot = await db.collection("briefingMinutes")
-                .where("date", "==", dateVal)
-                .get();
-            
-            const entriesList = [];
-            snapshot.forEach(doc => {
-                entriesList.push({ id: doc.id, ...doc.data() });
-            });
-            
-            if (entriesList.length === 0) {
-                staffBriefingsContainer.innerHTML = '<div class="empty-state">📝 No briefing notes available for ' + dateVal + '</div>';
-                staffFeedback.innerHTML = "📝 No briefings found for this date";
-                staffFeedback.className = 'status-msg info-msg';
-                return;
-            }
-            
-            let displayHtml = '';
-            entriesList.forEach(entry => {
-                const safeSupervisor = escapeHtml(entry.supervisor);
-                const safeShift = escapeHtml(entry.shift);
-                const safePoints = escapeHtml(entry.pointsText || '').replace(/\n/g, '<br>');
-                displayHtml += `
-                    <div class="staff-briefing-card">
-                        <div class="staff-briefing-header">
-                            <span class="staff-badge"><i class="fas fa-user-tie"></i> ${safeSupervisor}</span>
-                            <span class="staff-badge"><i class="fas fa-clock"></i> ${safeShift}</span>
-                        </div>
-                        <div class="staff-briefing-text">${safePoints}</div>
-                    </div>
-                `;
-            });
-            staffBriefingsContainer.innerHTML = displayHtml;
-            staffFeedback.innerHTML = `✅ ${entriesList.length} briefing(s) found for ${dateVal}`;
-            staffFeedback.className = 'status-msg success-msg';
-            
-        } catch (err) {
-            console.error("Load staff briefings error:", err);
-            staffBriefingsContainer.innerHTML = '<div class="empty-state">❌ Error loading briefing notes.</div>';
-            staffFeedback.innerHTML = "⚠️ Error loading data: " + err.message;
-            staffFeedback.className = 'status-msg warning-msg';
-        }
-        
-        setTimeout(() => {
-            if (staffFeedback.innerHTML.includes('found') || staffFeedback.innerHTML.includes('Error')) {
-                staffFeedback.innerHTML = '';
-                staffFeedback.className = 'status-msg';
-            }
-        }, 3000);
-    }
-    
-    // Supervisor View: Load briefings for selected date
-    async function loadSupervisorBriefings() {
-        if (!firestoreReady || !db) {
-            supervisorBriefingsList.innerHTML = '<div class="empty-state">⚠️ Firebase not connected.</div>';
-            return;
-        }
-        
-        const dateVal = supervisorDate.value;
-        if (!dateVal) {
-            supervisorBriefingsList.innerHTML = '<div class="empty-state">📅 Select a date to view briefings</div>';
-            return;
-        }
-        
-        try {
-            const snapshot = await db.collection("briefingMinutes")
-                .where("date", "==", dateVal)
-                .get();
-            
-            const entriesList = [];
-            snapshot.forEach(doc => {
-                entriesList.push({ id: doc.id, ...doc.data() });
-            });
-            
-            entriesList.sort((a, b) => {
-                const timeA = a.createdAt || a.updatedAt || '';
-                const timeB = b.createdAt || b.updatedAt || '';
-                return timeA.localeCompare(timeB);
-            });
-            
-            currentBriefings = entriesList;
-            renderSupervisorBriefingsList();
-            
-        } catch (err) {
-            console.error("Load supervisor briefings error:", err);
-            supervisorBriefingsList.innerHTML = '<div class="empty-state">❌ Error loading briefings: ' + err.message + '</div>';
-        }
-    }
-    
-    function renderSupervisorBriefingsList() {
-        if (currentBriefings.length === 0) {
-            supervisorBriefingsList.innerHTML = '<div class="empty-state">📝 No briefings for this date. Create a new one below.</div>';
-            return;
-        }
-        
-        let html = '';
-        currentBriefings.forEach(briefing => {
-            const safeSupervisor = escapeHtml(briefing.supervisor);
-            const safeShift = escapeHtml(briefing.shift);
-            const previewText = (briefing.pointsText || '').substring(0, 80);
-            // Escape the points text for data attribute
-            const escapedPoints = escapeHtml(briefing.pointsText || '');
-            html += `
-                <div class="supervisor-briefing-card" data-id="${briefing.id}" data-supervisor="${safeSupervisor}" data-shift="${safeShift}" data-points="${escapedPoints.replace(/"/g, '&quot;')}">
-                    <div class="supervisor-briefing-header">
-                        <span class="supervisor-badge"><i class="fas fa-user-tie"></i> ${safeSupervisor}</span>
-                        <span class="supervisor-badge"><i class="fas fa-clock"></i> ${safeShift}</span>
-                    </div>
-                    <div class="supervisor-briefing-preview">${previewText}${(briefing.pointsText || '').length > 80 ? '...' : ''}</div>
+            const snapshot = await db.collection("briefingMinutes").where("date", "==", dateValue).get();
+            const entries = [];
+            snapshot.forEach(doc => entries.push({ id: doc.id, ...doc.data() }));
+            if(entries.length === 0) { alert(`No briefing entries found for ${dateValue}.`); return; }
+            // Create a temporary div for PDF rendering
+            const pdfContainer = document.createElement('div');
+            pdfContainer.style.position = 'absolute';
+            pdfContainer.style.left = '-9999px';
+            pdfContainer.style.top = '-9999px';
+            pdfContainer.style.width = '800px';
+            pdfContainer.style.background = 'white';
+            pdfContainer.style.padding = '30px';
+            pdfContainer.style.fontFamily = "'Inter', sans-serif";
+            pdfContainer.style.color = '#1a2c3e';
+            pdfContainer.innerHTML = `
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="font-size: 26px; margin-bottom: 8px;">📋 Briefing Minutes Report</h1>
+                    <p style="color: #5a7a97;">Date: ${dateValue} | Generated: ${new Date().toLocaleString()}</p>
                 </div>
+                <div style="border-top: 2px solid #e2eaf2; margin: 20px 0;"></div>
+                ${entries.map((entry, idx) => `
+                    <div style="margin-bottom: 30px; border-left: 4px solid #2c7da0; padding-left: 20px; background: #fafdff; border-radius: 16px; padding: 18px;">
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 12px;">
+                            <span style="background: #eef2fa; padding: 4px 12px; border-radius: 50px; font-size: 13px;"><i class="fas fa-user-tie"></i> ${escapeHtml(entry.supervisor)}</span>
+                            <span style="background: #eef2fa; padding: 4px 12px; border-radius: 50px; font-size: 13px;"><i class="fas fa-clock"></i> ${escapeHtml(entry.shift)}</span>
+                        </div>
+                        <div style="font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(entry.pointsText || '').replace(/\n/g, '<br>')}</div>
+                    </div>
+                `).join('')}
+                <footer style="margin-top: 40px; text-align: center; font-size: 11px; color: #7e9bb5;">Briefing Vault · Official Minutes Log</footer>
             `;
-        });
-        supervisorBriefingsList.innerHTML = html;
-        
-        // Add click event to load briefing into edit form
-        document.querySelectorAll('.supervisor-briefing-card').forEach(card => {
-            card.addEventListener('click', () => {
-                document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
-                
-                const id = card.getAttribute('data-id');
-                const supervisor = card.getAttribute('data-supervisor');
-                const shift = card.getAttribute('data-shift');
-                const points = card.getAttribute('data-points');
-                
-                currentEditId = id;
-                formModeBadge.innerHTML = '✏️ Editing Entry';
-                supervisorSelect.value = supervisor;
-                shiftSelect.value = shift;
-                pointsTextarea.value = points;
-                autoLoadStatus.innerHTML = "✓ Loaded";
-                setTimeout(() => {
-                    if (autoLoadStatus.innerHTML === "✓ Loaded") {
-                        autoLoadStatus.innerHTML = "";
-                    }
-                }, 1500);
-                formFeedback.innerHTML = `✏️ Editing ${supervisor} (${shift})`;
-                formFeedback.className = 'status-msg info-msg';
-                setTimeout(() => {
-                    if (formFeedback.innerHTML.includes('Editing')) {
-                        formFeedback.innerHTML = '';
-                    }
-                }, 2000);
-            });
-        });
+            document.body.appendChild(pdfContainer);
+            const canvas = await html2canvas(pdfContainer, { scale: 2, backgroundColor: '#ffffff' });
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let position = 0;
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            if (imgHeight > pageHeight) {
+                let remaining = imgHeight - pageHeight;
+                let currentPos = -pageHeight;
+                while (remaining > 0) {
+                    pdf.addPage();
+                    currentPos -= pageHeight;
+                    pdf.addImage(imgData, 'PNG', 0, currentPos, imgWidth, imgHeight);
+                    remaining -= pageHeight;
+                }
+            }
+            pdf.save(`Briefing_Report_${dateValue}.pdf`);
+            document.body.removeChild(pdfContainer);
+        } catch(err) { console.error("PDF error", err); alert("Failed to generate PDF: "+err.message); }
     }
     
-    function resetFormToNew() {
-        currentEditId = null;
-        formModeBadge.innerHTML = '✨ New Entry';
-        supervisorSelect.value = "";
-        shiftSelect.value = "";
-        pointsTextarea.value = "";
-        autoLoadStatus.innerHTML = "";
-        formFeedback.innerHTML = "";
-        document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected'));
+    // Staff load
+    async function loadStaffBriefings() {
+        if(!firestoreReady || !db) { staffBriefingsContainer.innerHTML = '<div class="empty-state">⚠️ Firebase not connected.</div>'; return; }
+        const dateVal = staffDate.value;
+        if(!dateVal) { staffBriefingsContainer.innerHTML = '<div class="empty-state">📅 Select date</div>'; return; }
+        staffFeedback.innerHTML = "🔍 Loading...";
+        try {
+            const snapshot = await db.collection("briefingMinutes").where("date", "==", dateVal).get();
+            const entriesList = []; snapshot.forEach(doc => entriesList.push({ id: doc.id, ...doc.data() }));
+            if(entriesList.length === 0) { staffBriefingsContainer.innerHTML = `<div class="empty-state">📝 No briefings for ${dateVal}</div>`; staffFeedback.innerHTML = "No briefings found"; return; }
+            let html = '';
+            entriesList.forEach(entry => {
+                html += `<div class="staff-briefing-card">
+                            <div class="staff-briefing-header">
+                                <span class="staff-badge"><i class="fas fa-user-tie"></i> ${escapeHtml(entry.supervisor)}</span>
+                                <span class="staff-badge"><i class="fas fa-clock"></i> ${escapeHtml(entry.shift)}</span>
+                            </div>
+                            <div class="staff-briefing-text">${escapeHtml(entry.pointsText || '').replace(/\n/g, '<br>')}</div>
+                         </div>`;
+            });
+            staffBriefingsContainer.innerHTML = html;
+            staffFeedback.innerHTML = `✅ ${entriesList.length} briefing(s) loaded`;
+            setTimeout(() => { staffFeedback.innerHTML = ''; }, 2500);
+        } catch(err) { staffBriefingsContainer.innerHTML = '<div class="empty-state">❌ Error loading</div>'; staffFeedback.innerHTML = "Error: "+err.message; }
+    }
+    
+    async function loadSupervisorBriefings() {
+        if(!firestoreReady || !db) { supervisorBriefingsList.innerHTML = '<div class="empty-state">⚠️ Firebase not connected.</div>'; return; }
+        const dateVal = supervisorDate.value;
+        if(!dateVal) { supervisorBriefingsList.innerHTML = '<div class="empty-state">📅 Select date</div>'; return; }
+        try {
+            const snapshot = await db.collection("briefingMinutes").where("date", "==", dateVal).get();
+            const entriesList = []; snapshot.forEach(doc => entriesList.push({ id: doc.id, ...doc.data() }));
+            currentBriefings = entriesList;
+            if(currentBriefings.length === 0) { supervisorBriefingsList.innerHTML = '<div class="empty-state">📝 No briefings. Create below.</div>'; return; }
+            let html = '';
+            currentBriefings.forEach(b => {
+                html += `<div class="supervisor-briefing-card" data-id="${b.id}" data-supervisor="${escapeHtml(b.supervisor)}" data-shift="${escapeHtml(b.shift)}" data-points="${escapeHtml(b.pointsText || '').replace(/"/g, '&quot;')}">
+                            <div class="supervisor-briefing-header">
+                                <span class="supervisor-badge"><i class="fas fa-user-tie"></i> ${escapeHtml(b.supervisor)}</span>
+                                <span class="supervisor-badge"><i class="fas fa-clock"></i> ${escapeHtml(b.shift)}</span>
+                            </div>
+                            <div class="supervisor-briefing-preview">${(b.pointsText || '').substring(0, 80)}${(b.pointsText || '').length > 80 ? '...' : ''}</div>
+                         </div>`;
+            });
+            supervisorBriefingsList.innerHTML = html;
+            document.querySelectorAll('.supervisor-briefing-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    currentEditId = card.dataset.id;
+                    formModeBadge.innerHTML = '✏️ Editing Entry';
+                    supervisorSelect.value = card.dataset.supervisor;
+                    shiftSelect.value = card.dataset.shift;
+                    pointsTextarea.value = card.dataset.points;
+                    formFeedback.innerHTML = `Editing ${card.dataset.supervisor}`;
+                    setTimeout(() => formFeedback.innerHTML = '', 1500);
+                });
+            });
+        } catch(err) { supervisorBriefingsList.innerHTML = '<div class="empty-state">Error loading</div>'; }
     }
     
     async function saveBriefing() {
-        console.log("Save function called - firestoreReady:", firestoreReady, "db:", !!db);
-        
-        if (!firestoreReady || !db) {
-            formFeedback.innerHTML = "❌ Firebase not connected. Please refresh the page.";
-            formFeedback.className = 'status-msg warning-msg';
-            console.error("Firebase not ready for save");
-            return;
-        }
-        
-        const dateVal = supervisorDate.value;
-        const supervisor = supervisorSelect.value;
-        const shift = shiftSelect.value;
-        const pointsVal = pointsTextarea.value.trim();
-        
-        console.log("Saving:", { dateVal, supervisor, shift, pointsLength: pointsVal.length, isEdit: !!currentEditId });
-        
-        if (!dateVal) {
-            formFeedback.innerHTML = "❌ Please select a date";
-            formFeedback.className = 'status-msg warning-msg';
-            return;
-        }
-        if (!supervisor) {
-            formFeedback.innerHTML = "❌ Select Supervisor";
-            formFeedback.className = 'status-msg warning-msg';
-            return;
-        }
-        if (!shift) {
-            formFeedback.innerHTML = "❌ Select Shift";
-            formFeedback.className = 'status-msg warning-msg';
-            return;
-        }
-        if (!pointsVal) {
-            formFeedback.innerHTML = "⚠️ Briefing notes cannot be empty";
-            formFeedback.className = 'status-msg warning-msg';
-            return;
-        }
-        
-        const entryData = {
-            date: dateVal,
-            supervisor: supervisor,
-            shift: shift,
-            pointsText: pointsVal,
-            updatedAt: new Date().toISOString()
-        };
-        
+        if(!firestoreReady || !db) { formFeedback.innerHTML = "❌ Firebase not ready"; return; }
+        const dateVal = supervisorDate.value, supervisor = supervisorSelect.value, shift = shiftSelect.value, pointsVal = pointsTextarea.value.trim();
+        if(!dateVal || !supervisor || !shift || !pointsVal) { formFeedback.innerHTML = "⚠️ Fill all fields."; return; }
+        const entryData = { date: dateVal, supervisor, shift, pointsText: pointsVal, updatedAt: new Date().toISOString() };
         try {
-            formFeedback.innerHTML = "💾 Saving...";
-            formFeedback.className = 'status-msg info-msg';
-            
-            if (currentEditId) {
-                console.log("Updating document:", currentEditId);
-                await db.collection("briefingMinutes").doc(currentEditId).update(entryData);
-                formFeedback.innerHTML = `✅ Updated briefing for ${supervisor} (${shift})`;
-            } else {
-                console.log("Creating new document");
-                entryData.createdAt = new Date().toISOString();
-                const docRef = await db.collection("briefingMinutes").add(entryData);
-                console.log("Document created with ID:", docRef.id);
-                formFeedback.innerHTML = `✅ New briefing created for ${supervisor} (${shift})`;
-            }
-            formFeedback.className = 'status-msg success-msg';
-            
-            // Reload data
+            if(currentEditId) await db.collection("briefingMinutes").doc(currentEditId).update(entryData);
+            else { entryData.createdAt = new Date().toISOString(); await db.collection("briefingMinutes").add(entryData); }
+            formFeedback.innerHTML = "✅ Saved!"; formFeedback.className = 'status-msg success-msg';
             await loadSupervisorBriefings();
-            if (staffDate.value === dateVal) {
-                await loadStaffBriefings();
-            }
-            resetFormToNew();
-            
-            setTimeout(() => {
-                if (formFeedback.innerHTML.includes('✅')) {
-                    formFeedback.innerHTML = '';
-                }
-            }, 3000);
-        } catch (err) {
-            console.error("Save error details:", err);
-            console.error("Error code:", err.code);
-            console.error("Error message:", err.message);
-            
-            let errorMsg = err.message;
-            if (err.code === 'permission-denied') {
-                errorMsg = "Permission denied. Check Firestore security rules.";
-            } else if (err.code === 'failed-precondition') {
-                errorMsg = "Missing Firestore index. Check Firebase Console.";
-            }
-            
-            formFeedback.innerHTML = `⚠️ Error saving: ${errorMsg}`;
-            formFeedback.className = 'status-msg warning-msg';
-        }
+            if(staffDate.value === dateVal) await loadStaffBriefings();
+            currentEditId = null; formModeBadge.innerHTML = '✨ New Entry'; supervisorSelect.value = ""; shiftSelect.value = ""; pointsTextarea.value = "";
+            setTimeout(() => formFeedback.innerHTML = '', 2000);
+        } catch(err) { formFeedback.innerHTML = "⚠️ Error: "+err.message; }
     }
     
-    async function deleteBriefingById(id) {
-        if (!confirm("Delete this briefing? Action cannot be undone.")) return;
-        try {
-            await db.collection("briefingMinutes").doc(id).delete();
-            formFeedback.innerHTML = "🗑️ Briefing deleted";
-            formFeedback.className = 'status-msg success-msg';
-            
-            if (currentEditId === id) resetFormToNew();
-            await loadSupervisorBriefings();
-            
-            const currentDateVal = supervisorDate.value;
-            if (staffDate.value === currentDateVal) {
-                await loadStaffBriefings();
-            }
-            
-            setTimeout(() => {
-                if (formFeedback.innerHTML.includes('deleted')) {
-                    formFeedback.innerHTML = '';
-                }
-            }, 2000);
-        } catch (err) {
-            console.error("Delete error:", err);
-            formFeedback.innerHTML = "Error: " + err.message;
-            formFeedback.className = 'status-msg warning-msg';
-        }
-    }
-    
-    async function deleteCurrentBriefing() {
-        if (currentEditId) {
-            await deleteBriefingById(currentEditId);
-            resetFormToNew();
-        } else {
-            formFeedback.innerHTML = "ℹ️ Select a briefing from the list to delete.";
-            formFeedback.className = 'status-msg';
-            setTimeout(() => {
-                if (formFeedback.innerHTML.includes('Select')) {
-                    formFeedback.innerHTML = '';
-                }
-            }, 2000);
-        }
-    }
-    
-    function clearForm() {
-        resetFormToNew();
-        formFeedback.innerHTML = "Form cleared";
-        formFeedback.className = 'status-msg success-msg';
-        setTimeout(() => {
-            if (formFeedback.innerHTML === "Form cleared") {
-                formFeedback.innerHTML = '';
-            }
-        }, 1500);
-    }
-    
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        }).replace(/["']/g, function(m) {
-            if (m === '"') return '&quot;';
-            if (m === "'") return '&#39;';
-            return m;
-        });
-    }
+    async function deleteCurrentBriefing() { if(currentEditId && confirm("Delete?")) { await db.collection("briefingMinutes").doc(currentEditId).delete(); formFeedback.innerHTML = "Deleted"; await loadSupervisorBriefings(); if(staffDate.value === supervisorDate.value) await loadStaffBriefings(); resetForm(); } else if(!currentEditId) formFeedback.innerHTML = "Select a briefing to delete."; }
+    function resetForm() { currentEditId = null; formModeBadge.innerHTML = '✨ New Entry'; supervisorSelect.value = ""; shiftSelect.value = ""; pointsTextarea.value = ""; document.querySelectorAll('.supervisor-briefing-card').forEach(c => c.classList.remove('selected')); }
+    function clearForm() { resetForm(); formFeedback.innerHTML = "Form cleared"; }
     
     function setSupervisorMode(enable) {
         isSupervisorMode = enable;
-        
-        if (enable) {
-            staffPanel.classList.add('hidden');
-            supervisorPanel.classList.remove('hidden');
-            staffRoleBtn.classList.remove('active');
-            supervisorRoleBtn.classList.add('active');
-            
-            const todayStr = getTodayDate();
-            supervisorDate.value = todayStr;
-            loadSupervisorBriefings();
-            resetFormToNew();
-            
-            formFeedback.innerHTML = "✅ Supervisor mode enabled. Select a date to view and edit briefings.";
-            formFeedback.className = 'status-msg success-msg';
-        } else {
-            staffPanel.classList.remove('hidden');
-            supervisorPanel.classList.add('hidden');
-            supervisorRoleBtn.classList.remove('active');
-            staffRoleBtn.classList.add('active');
-            
-            const todayStr = getTodayDate();
-            staffDate.value = todayStr;
-            loadStaffBriefings();
-            
-            staffFeedback.innerHTML = "👁️ Staff view - Select a date to view briefing notes.";
-            staffFeedback.className = 'status-msg info-msg';
-        }
-        
-        setTimeout(() => {
-            if(formFeedback && formFeedback.innerHTML && formFeedback.innerHTML.includes('mode')) {
-                formFeedback.innerHTML = '';
-                formFeedback.className = 'status-msg';
-            }
-            if(staffFeedback && staffFeedback.innerHTML === "👁️ Staff view - Select a date to view briefing notes.") {
-                setTimeout(() => {
-                    staffFeedback.innerHTML = '';
-                }, 3000);
-            }
-        }, 3000);
+        if(enable) { staffPanel.classList.add('hidden'); supervisorPanel.classList.remove('hidden'); staffRoleBtn.classList.remove('active'); supervisorRoleBtn.classList.add('active'); supervisorDate.value = getTodayDate(); loadSupervisorBriefings(); resetForm(); }
+        else { staffPanel.classList.remove('hidden'); supervisorPanel.classList.add('hidden'); supervisorRoleBtn.classList.remove('active'); staffRoleBtn.classList.add('active'); staffDate.value = getTodayDate(); loadStaffBriefings(); }
     }
-    
-    function showPasswordModal() {
-        passwordModal.classList.remove('hidden');
-        supervisorPassword.value = "";
-        passwordError.innerText = "";
-    }
-    
-    function hidePasswordModal() {
-        passwordModal.classList.add('hidden');
-    }
-    
-    function verifyPassword() {
-        if (typeof SUPERVISOR_PASSWORD !== 'undefined' && supervisorPassword.value === SUPERVISOR_PASSWORD) {
-            hidePasswordModal();
-            setSupervisorMode(true);
-        } else {
-            passwordError.innerText = "Incorrect password. Access denied.";
-        }
-    }
+    function showPasswordModal() { passwordModal.classList.remove('hidden'); supervisorPassword.value = ""; passwordError.innerText = ""; }
+    function hidePasswordModal() { passwordModal.classList.add('hidden'); }
+    function verifyPassword() { if(typeof SUPERVISOR_PASSWORD !== 'undefined' && supervisorPassword.value === SUPERVISOR_PASSWORD) { hidePasswordModal(); setSupervisorMode(true); } else passwordError.innerText = "Incorrect password."; }
     
     async function initApp() {
-        console.log("Initializing app...");
-        const todayStr = getTodayDate();
-        staffDate.value = todayStr;
-        supervisorDate.value = todayStr;
-        
-        // Double-check Firebase is ready
-        if (!firestoreReady) {
-            initializeFirestore();
-        }
-        
-        if (firestoreReady) {
-            await loadStaffBriefings();
-            console.log("App initialized successfully");
-        } else {
-            console.warn("App initialized but Firebase not ready");
-            staffBriefingsContainer.innerHTML = '<div class="empty-state">⚠️ Waiting for Firebase connection...</div>';
-        }
-        
+        staffDate.value = getTodayDate(); supervisorDate.value = getTodayDate();
+        if(firestoreReady) await loadStaffBriefings();
         setSupervisorMode(false);
-        
         staffDate.addEventListener('change', loadStaffBriefings);
         supervisorDate.addEventListener('change', loadSupervisorBriefings);
-        
         saveBtn.addEventListener('click', saveBriefing);
         clearFormBtn.addEventListener('click', clearForm);
         deleteCurrentBtn.addEventListener('click', deleteCurrentBriefing);
-        
         staffRoleBtn.addEventListener('click', () => setSupervisorMode(false));
         supervisorRoleBtn.addEventListener('click', showPasswordModal);
         verifyPasswordBtn.addEventListener('click', verifyPassword);
         cancelPasswordBtn.addEventListener('click', hidePasswordModal);
-        supervisorPassword.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') verifyPassword();
-        });
+        supervisorPassword.addEventListener('keypress', (e) => { if(e.key === 'Enter') verifyPassword(); });
+        
+        // PDF export event listeners
+        exportStaffPdfBtn.addEventListener('click', () => { const selectedDate = staffDate.value; if(selectedDate) generatePDFForDate(selectedDate, "Briefing"); else alert("Select a date first"); });
+        exportSupervisorPdfBtn.addEventListener('click', () => { const selectedDate = supervisorDate.value; if(selectedDate) generatePDFForDate(selectedDate, "Briefing"); else alert("Select a date first"); });
     }
     
-    // ========== DEVICE AUTHORIZATION FLOW ==========
-    const deviceModal = document.getElementById('deviceAuthModal');
-    const devicePasswordInput = document.getElementById('devicePasswordInput');
-    const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
-    const deviceAuthError = document.getElementById('deviceAuthError');
-    const appContainer = document.getElementById('appContainer');
-
-    function handleDeviceAuthorization() {
-        const enteredPassword = devicePasswordInput.value;
-        if (authorizeDevice(enteredPassword)) {
-            deviceModal.style.display = 'none';
-            appContainer.style.display = 'block';
-            initApp();
-        } else {
-            deviceAuthError.textContent = 'Invalid authorization password. Access denied.';
-            devicePasswordInput.value = '';
-            devicePasswordInput.focus();
-        }
-    }
-
-    // Check if device is already authorized
-    if (isDeviceAuthorized()) {
-        deviceModal.style.display = 'none';
-        appContainer.style.display = 'block';
-        initApp();
-    } else {
-        deviceModal.style.display = 'flex';
-        appContainer.style.display = 'none';
-        authorizeDeviceBtn.addEventListener('click', handleDeviceAuthorization);
-        devicePasswordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleDeviceAuthorization();
-        });
-        devicePasswordInput.focus();
-    }
+    // Device auth flow
+    const deviceModal = document.getElementById('deviceAuthModal'), devicePasswordInput = document.getElementById('devicePasswordInput'), authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn'), deviceAuthError = document.getElementById('deviceAuthError'), appContainer = document.getElementById('appContainer');
+    function handleDeviceAuthorization() { if(authorizeDevice(devicePasswordInput.value)) { deviceModal.style.display = 'none'; appContainer.style.display = 'block'; initApp(); } else { deviceAuthError.textContent = 'Invalid authorization password.'; devicePasswordInput.value = ''; devicePasswordInput.focus(); } }
+    if(isDeviceAuthorized()) { deviceModal.style.display = 'none'; appContainer.style.display = 'block'; initApp(); } else { deviceModal.style.display = 'flex'; appContainer.style.display = 'none'; authorizeDeviceBtn.addEventListener('click', handleDeviceAuthorization); devicePasswordInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') handleDeviceAuthorization(); }); devicePasswordInput.focus(); }
 </script>
 </body>
 </html>
