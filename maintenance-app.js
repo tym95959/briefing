@@ -1,6 +1,6 @@
 // ========== MAINTENANCE APP WITH FIREBASE ==========
+// Wait for Firebase to be ready
 let reports = [];
-let isLoading = false;
 
 function getCurrentFormattedDateTime() {
     const now = new Date();
@@ -45,6 +45,8 @@ async function saveReportToFirebase(reportData) {
 async function fetchReportsFromFirebase() {
     try {
         showLoading(true);
+        updateSyncStatus("loading", "Fetching data...");
+        
         const snapshot = await db.collection(COLLECTION_NAME)
             .orderBy("createdAt", "desc")
             .get();
@@ -75,11 +77,11 @@ async function fetchReportsFromFirebase() {
         reports = fetchedReports;
         renderTable();
         updateStats();
-        updateSyncStatus(true, `${fetchedReports.length} records loaded`);
+        updateSyncStatus("success", `${fetchedReports.length} records loaded`);
         return { success: true, data: fetchedReports };
     } catch (error) {
         console.error("Error fetching reports: ", error);
-        updateSyncStatus(false, error.message);
+        updateSyncStatus("error", error.message);
         return { success: false, error: error.message };
     } finally {
         showLoading(false);
@@ -161,7 +163,6 @@ async function addReport(data) {
     // Save to Firebase
     const result = await saveReportToFirebase(newReport);
     if (result.success) {
-        // Refresh data from Firebase to get latest
         await fetchReportsFromFirebase();
         return true;
     } else {
@@ -329,12 +330,17 @@ function updateStats() {
     document.getElementById("resolvedCount").innerText = reports.filter(r => r.status === "resolved").length;
 }
 
-function updateSyncStatus(connected, message = "") {
+function updateSyncStatus(status, message = "") {
     const statusEl = document.getElementById("syncStatus");
-    if (connected) {
+    if (status === "loading") {
+        statusEl.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> ${message}`;
+        statusEl.style.background = "#eef2fa";
+    } else if (status === "success") {
         statusEl.innerHTML = `<i class="fas fa-check-circle" style="color:#22c55e;"></i> Firebase Connected | ${message}`;
-    } else {
+        statusEl.style.background = "#dcfce7";
+    } else if (status === "error") {
         statusEl.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Firebase Error: ${message}`;
+        statusEl.style.background = "#fee2e2";
     }
 }
 
@@ -343,7 +349,9 @@ function showLoading(show) {
     const tableBody = document.getElementById("tableBody");
     if (show) {
         if (loadingEl) loadingEl.style.display = "block";
-        if (tableBody) tableBody.innerHTML = '';
+        if (tableBody && reports.length === 0) {
+            tableBody.innerHTML = '';
+        }
     } else {
         if (loadingEl) loadingEl.style.display = "none";
     }
@@ -379,81 +387,99 @@ setInterval(updateLiveTime, 1000);
 updateLiveTime();
 
 function togglePanels() {
-    if (typeHub.checked) {
-        hubPanel.classList.remove("hidden");
-        directPanel.classList.add("hidden");
-    } else if (typeDirect.checked) {
-        directPanel.classList.remove("hidden");
-        hubPanel.classList.add("hidden");
+    if (typeHub && typeHub.checked) {
+        if (hubPanel) hubPanel.classList.remove("hidden");
+        if (directPanel) directPanel.classList.add("hidden");
+    } else if (typeDirect && typeDirect.checked) {
+        if (directPanel) directPanel.classList.remove("hidden");
+        if (hubPanel) hubPanel.classList.add("hidden");
     } else {
-        hubPanel.classList.add("hidden");
-        directPanel.classList.add("hidden");
+        if (hubPanel) hubPanel.classList.add("hidden");
+        if (directPanel) directPanel.classList.add("hidden");
     }
     updateLiveTime();
 }
 
-typeHub.addEventListener("change", togglePanels);
-typeDirect.addEventListener("change", togglePanels);
+if (typeHub) typeHub.addEventListener("change", togglePanels);
+if (typeDirect) typeDirect.addEventListener("change", togglePanels);
 
 function resetModal() {
-    document.getElementById("modalDescription").value = "";
-    document.getElementById("modalPriority").value = "Medium";
-    document.getElementById("modalInformedBy").value = "";
-    document.getElementById("hubStaffName").value = "";
-    document.getElementById("directDepartment").value = "";
-    document.getElementById("directStaffName").value = "";
-    typeHub.checked = false;
-    typeDirect.checked = false;
+    const desc = document.getElementById("modalDescription");
+    const priority = document.getElementById("modalPriority");
+    const informedBy = document.getElementById("modalInformedBy");
+    const hubStaff = document.getElementById("hubStaffName");
+    const directDept = document.getElementById("directDepartment");
+    const directStaff = document.getElementById("directStaffName");
+    
+    if (desc) desc.value = "";
+    if (priority) priority.value = "Medium";
+    if (informedBy) informedBy.value = "";
+    if (hubStaff) hubStaff.value = "";
+    if (directDept) directDept.value = "";
+    if (directStaff) directStaff.value = "";
+    
+    if (typeHub) typeHub.checked = false;
+    if (typeDirect) typeDirect.checked = false;
     togglePanels();
     updateLiveTime();
 }
 
 function openModal() {
     resetModal();
-    modal.classList.add("active");
+    if (modal) modal.classList.add("active");
     updateLiveTime();
 }
 
 function closeModal() {
-    modal.classList.remove("active");
+    if (modal) modal.classList.remove("active");
 }
 
-openBtn.addEventListener("click", openModal);
+if (openBtn) openBtn.addEventListener("click", openModal);
 if (refreshBtn) {
     refreshBtn.addEventListener("click", () => fetchReportsFromFirebase());
 }
-closeBtn.addEventListener("click", closeModal);
-cancelBtn.addEventListener("click", closeModal);
-modal.addEventListener("click", (e) => {
-    if (e.target === modal) closeModal();
-});
+if (closeBtn) closeBtn.addEventListener("click", closeModal);
+if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+if (modal) {
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeModal();
+    });
+}
 
-submitBtn.addEventListener("click", async () => {
-    const description = document.getElementById("modalDescription").value.trim();
-    const priority = document.getElementById("modalPriority").value;
-    const informedBy = document.getElementById("modalInformedBy").value.trim();
-    
-    if (!description) { alert("Enter issue description."); return; }
-    if (!informedBy) { alert("Enter 'Informed By' name."); return; }
-    
-    if (typeHub.checked) {
-        const hubStaffName = document.getElementById("hubStaffName").value.trim();
-        if (!hubStaffName) { alert("Hub Entry: Enter staff name."); return; }
-        await addReport({ type: "hub", description, priority, informedBy, hubStaffName });
-    } 
-    else if (typeDirect.checked) {
-        const directDepartment = document.getElementById("directDepartment").value.trim();
-        const directStaffName = document.getElementById("directStaffName").value.trim();
-        if (!directDepartment) { alert("Direct Inform: Enter department."); return; }
-        if (!directStaffName) { alert("Direct Inform: Enter staff name."); return; }
-        await addReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
-    }
-    else {
-        alert("Select report type: Hub Entry or Direct Inform.");
-        return;
-    }
-    closeModal();
-});
+if (submitBtn) {
+    submitBtn.addEventListener("click", async () => {
+        const description = document.getElementById("modalDescription")?.value.trim();
+        const priority = document.getElementById("modalPriority")?.value;
+        const informedBy = document.getElementById("modalInformedBy")?.value.trim();
+        
+        if (!description) { alert("Enter issue description."); return; }
+        if (!informedBy) { alert("Enter 'Informed By' name."); return; }
+        
+        if (typeHub && typeHub.checked) {
+            const hubStaffName = document.getElementById("hubStaffName")?.value.trim();
+            if (!hubStaffName) { alert("Hub Entry: Enter staff name."); return; }
+            await addReport({ type: "hub", description, priority, informedBy, hubStaffName });
+        } 
+        else if (typeDirect && typeDirect.checked) {
+            const directDepartment = document.getElementById("directDepartment")?.value.trim();
+            const directStaffName = document.getElementById("directStaffName")?.value.trim();
+            if (!directDepartment) { alert("Direct Inform: Enter department."); return; }
+            if (!directStaffName) { alert("Direct Inform: Enter staff name."); return; }
+            await addReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
+        }
+        else {
+            alert("Select report type: Hub Entry or Direct Inform.");
+            return;
+        }
+        closeModal();
+    });
+}
 
-// Initialize: Fetch data from Firebase on load
-fetchReportsFromFirebase();
+// Initialize: Check if Firebase is ready then fetch data
+if (typeof firebase !== 'undefined' && db) {
+    console.log("Firebase ready, fetching data...");
+    fetchReportsFromFirebase();
+} else {
+    console.error("Firebase not initialized");
+    updateSyncStatus("error", "Firebase not initialized. Check configuration.");
+}
