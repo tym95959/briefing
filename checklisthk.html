@@ -305,14 +305,52 @@
     const BREAK_EVENING_SLOTS = ["15:30-16:30","16:30-17:30","17:30-18:30","18:30-19:30","19:30-20:30","20:30-21:30","21:30-22:30","22:30-23:30"];
     
     let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [], selectedStaffName = "", attendanceRecords = [], supervisorList = [];
-    
-    // Handover Log Data - Initialize with empty arrays
-   
-    
-    // DOM Elements
-   
-    const taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr'), newTaskNameMgr = document.getElementById('newTaskNameMgr'), taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr'), taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr'), dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr'), dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr'), addTaskBtnMgr = document.getElementById('addTaskBtnMgr'), taskListManager = document.getElementById('taskListManager'), newStaffNameMgr = document.getElementById('newStaffNameMgr'), addStaffBtnMgr = document.getElementById('addStaffBtnMgr'), staffListManager = document.getElementById('staffListManager'), adminFeedback = document.getElementById('adminFeedback'), passwordModal = document.getElementById('passwordModal'), supervisorPassword = document.getElementById('supervisorPassword'), verifyPasswordBtn = document.getElementById('verifyPasswordBtn'), cancelPasswordBtn = document.getElementById('cancelPasswordBtn'), passwordError = document.getElementById('passwordError'), exportFullPdfBtn = document.getElementById('exportFullPdfBtn'), printAllocationBtn = document.getElementById('printAllocationBtn');
-    
+
+// DOM Elements
+const staffRoleBtn = document.getElementById('staffRoleBtn');
+const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
+const mainDate = document.getElementById('mainDate');
+const mainShift = document.getElementById('mainShift');
+const shiftStatusBadge = document.getElementById('shiftStatusBadge');
+const reopenShiftBtn = document.getElementById('reopenShiftBtn');
+const closeShiftBtn = document.getElementById('closeShiftBtn');
+const allocationContainer = document.getElementById('allocationContainer');
+const tasksContainer = document.getElementById('tasksContainer');
+const tasksInfo = document.getElementById('tasksInfo');
+const supervisorTabs = document.getElementById('supervisorTabs');
+const sodStaffListDiv = document.getElementById('sodStaffList');
+const sodHint = document.getElementById('sodHint');
+const shiftFilterIndicator = document.getElementById('shiftFilterIndicator');
+const staffViewSection = document.getElementById('staffViewSection');
+const fullAllocationContainer = document.getElementById('fullAllocationContainer');
+const breakRequestContainer = document.getElementById('breakRequestContainer');
+const breakStatus = document.getElementById('breakStatus');
+const breakRequestsList = document.getElementById('breakRequestsList');
+const attendanceContainer = document.getElementById('attendanceContainer');
+const staffAttendanceView = document.getElementById('staffAttendanceView');
+const supervisorsDisplay = document.getElementById('supervisorsDisplay');
+const supervisorSelectPanel = document.getElementById('supervisorSelectPanel');
+
+const taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr');
+const newTaskNameMgr = document.getElementById('newTaskNameMgr');
+const taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr');
+const taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr');
+const dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr');
+const dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr');
+const addTaskBtnMgr = document.getElementById('addTaskBtnMgr');
+const taskListManager = document.getElementById('taskListManager');
+const newStaffNameMgr = document.getElementById('newStaffNameMgr');
+const addStaffBtnMgr = document.getElementById('addStaffBtnMgr');
+const staffListManager = document.getElementById('staffListManager');
+const adminFeedback = document.getElementById('adminFeedback');
+const passwordModal = document.getElementById('passwordModal');
+const supervisorPassword = document.getElementById('supervisorPassword');
+const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
+const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
+const passwordError = document.getElementById('passwordError');
+const exportFullPdfBtn = document.getElementById('exportFullPdfBtn');
+const printAllocationBtn = document.getElementById('printAllocationBtn');
+
     if(taskTypeSelectMgr) taskTypeSelectMgr.addEventListener('change', () => { if(dropdownOptionsDivMgr) dropdownOptionsDivMgr.style.display = taskTypeSelectMgr.value === 'dropdown' ? 'block' : 'none'; });
     
     document.querySelectorAll('.staff-tabs .tab-btn').forEach(btn => { 
