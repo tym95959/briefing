@@ -211,7 +211,7 @@
                 <button class="tab-btn" data-staff-tab="allocation-staff-tab"><i class="fas fa-map-marker-alt"></i> Staff Allocation</button>
                 <button class="tab-btn" data-staff-tab="break-staff-tab"><i class="fas fa-coffee"></i> Break Request</button>
                 <button class="tab-btn" data-staff-tab="absentees-tab"><i class="fas fa-calendar-times"></i> Today's Absentees</button>
-                <button class="tab-btn" data-staff-tab="handover-tab" onclick="window.location.href='handover.html'"><i class="fas fa-exchange-alt"></i> Handover Log</button>
+                <button class="tab-btn" data-staff-tab="handover-tab"><i class="fas fa-exchange-alt"></i> Handover Log</button>
             </div>
             <div id="tasks-staff-tab" class="staff-tab-content active"><div class="task-card"><div class="card-title"><i class="fas fa-tasks"></i> Daily Tasks by Category <span id="shiftFilterIndicator" style="font-size:0.65rem; background:#eef3fc; padding:3px 10px; border-radius:20px;"></span></div><div id="tasksContainer" class="tasks-list"><div class="empty-msg">Select date and shift</div></div><div id="tasksInfo" class="info-text"></div></div></div>
             <div id="allocation-staff-tab" class="staff-tab-content">
@@ -223,7 +223,7 @@
             </div>
             <div id="break-staff-tab" class="staff-tab-content"><div class="break-card"><div class="card-title"><i class="fas fa-coffee"></i> Break Time Request (1 hour per staff)</div><div id="breakRequestContainer"><div class="empty-msg">Select shift and choose your name from SOD list</div></div><div id="breakStatus" class="info-text"></div></div></div>
             <div id="absentees-tab" class="staff-tab-content"><div class="attendance-view-card"><div class="card-title"><i class="fas fa-calendar-times"></i> Today's Absentees & Leave Records</div><div id="staffAttendanceView"><div class="empty-msg">Select date and shift to view absentees</div></div></div></div>
-            
+            <div id="handover-tab" class="staff-tab-content"><div class="handover-card"><div class="card-title"><i class="fas fa-exchange-alt"></i> Shift Handover Log (Real-time updates - NOT included in reports)</div><div id="handoverContainer"><div class="empty-msg">Select date and shift to load handover log</div></div><div class="info-text"><i class="fas fa-save"></i> All changes saved automatically. This log is for internal shift handover only and excluded from PDF reports.</div></div></div>
         </div>
     </div>
     
@@ -305,63 +305,17 @@
     const BREAK_EVENING_SLOTS = ["15:30-16:30","16:30-17:30","17:30-18:30","18:30-19:30","19:30-20:30","20:30-21:30","21:30-22:30","22:30-23:30"];
     
     let currentRole = "staff", currentDate = new Date().toISOString().slice(0,10), currentShift = "", currentSODRecord = null, currentTaskRecord = null, globalTasks = [], staffList = [], isSupervisor = false, sodStaffNames = [], selectedStaffName = "", attendanceRecords = [], supervisorList = [];
-
-// DOM Elements
-const staffRoleBtn = document.getElementById('staffRoleBtn');
-const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
-const mainDate = document.getElementById('mainDate');
-const mainShift = document.getElementById('mainShift');
-const shiftStatusBadge = document.getElementById('shiftStatusBadge');
-const reopenShiftBtn = document.getElementById('reopenShiftBtn');
-const closeShiftBtn = document.getElementById('closeShiftBtn');
-const allocationContainer = document.getElementById('allocationContainer');
-const tasksContainer = document.getElementById('tasksContainer');
-const tasksInfo = document.getElementById('tasksInfo');
-const supervisorTabs = document.getElementById('supervisorTabs');
-const sodStaffListDiv = document.getElementById('sodStaffList');
-const sodHint = document.getElementById('sodHint');
-const shiftFilterIndicator = document.getElementById('shiftFilterIndicator');
-const staffViewSection = document.getElementById('staffViewSection');
-const fullAllocationContainer = document.getElementById('fullAllocationContainer');
-const breakRequestContainer = document.getElementById('breakRequestContainer');
-const breakStatus = document.getElementById('breakStatus');
-const breakRequestsList = document.getElementById('breakRequestsList');
-const attendanceContainer = document.getElementById('attendanceContainer');
-const staffAttendanceView = document.getElementById('staffAttendanceView');
-const supervisorsDisplay = document.getElementById('supervisorsDisplay');
-const supervisorSelectPanel = document.getElementById('supervisorSelectPanel');
-
-const taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr');
-const newTaskNameMgr = document.getElementById('newTaskNameMgr');
-const taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr');
-const taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr');
-const dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr');
-const dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr');
-const addTaskBtnMgr = document.getElementById('addTaskBtnMgr');
-const taskListManager = document.getElementById('taskListManager');
-const newStaffNameMgr = document.getElementById('newStaffNameMgr');
-const addStaffBtnMgr = document.getElementById('addStaffBtnMgr');
-const staffListManager = document.getElementById('staffListManager');
-const adminFeedback = document.getElementById('adminFeedback');
-const passwordModal = document.getElementById('passwordModal');
-const supervisorPassword = document.getElementById('supervisorPassword');
-const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
-const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
-const passwordError = document.getElementById('passwordError');
-const exportFullPdfBtn = document.getElementById('exportFullPdfBtn');
-const printAllocationBtn = document.getElementById('printAllocationBtn');
-
+    
+    // Handover Log Data - Initialize with empty arrays
+    let handoverData = { cards: [], wheelchair: [], complimentary: [], delayFlights: [], followup: [], importantMsg: "" };
+    
+    // DOM Elements
+    const staffRoleBtn = document.getElementById('staffRoleBtn'), supervisorRoleBtn = document.getElementById('supervisorRoleBtn'), mainDate = document.getElementById('mainDate'), mainShift = document.getElementById('mainShift'), shiftStatusBadge = document.getElementById('shiftStatusBadge'), reopenShiftBtn = document.getElementById('reopenShiftBtn'), closeShiftBtn = document.getElementById('closeShiftBtn'), allocationContainer = document.getElementById('allocationContainer'), tasksContainer = document.getElementById('tasksContainer'), tasksInfo = document.getElementById('tasksInfo'), supervisorTabs = document.getElementById('supervisorTabs'), sodStaffListDiv = document.getElementById('sodStaffList'), sodHint = document.getElementById('sodHint'), shiftFilterIndicator = document.getElementById('shiftFilterIndicator'), staffViewSection = document.getElementById('staffViewSection'), fullAllocationContainer = document.getElementById('fullAllocationContainer'), breakRequestContainer = document.getElementById('breakRequestContainer'), breakStatus = document.getElementById('breakStatus'), breakRequestsList = document.getElementById('breakRequestsList'), attendanceContainer = document.getElementById('attendanceContainer'), staffAttendanceView = document.getElementById('staffAttendanceView'), supervisorsDisplay = document.getElementById('supervisorsDisplay'), supervisorSelectPanel = document.getElementById('supervisorSelectPanel'), handoverContainer = document.getElementById('handoverContainer');
+    const taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr'), newTaskNameMgr = document.getElementById('newTaskNameMgr'), taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr'), taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr'), dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr'), dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr'), addTaskBtnMgr = document.getElementById('addTaskBtnMgr'), taskListManager = document.getElementById('taskListManager'), newStaffNameMgr = document.getElementById('newStaffNameMgr'), addStaffBtnMgr = document.getElementById('addStaffBtnMgr'), staffListManager = document.getElementById('staffListManager'), adminFeedback = document.getElementById('adminFeedback'), passwordModal = document.getElementById('passwordModal'), supervisorPassword = document.getElementById('supervisorPassword'), verifyPasswordBtn = document.getElementById('verifyPasswordBtn'), cancelPasswordBtn = document.getElementById('cancelPasswordBtn'), passwordError = document.getElementById('passwordError'), exportFullPdfBtn = document.getElementById('exportFullPdfBtn'), printAllocationBtn = document.getElementById('printAllocationBtn');
+    
     if(taskTypeSelectMgr) taskTypeSelectMgr.addEventListener('change', () => { if(dropdownOptionsDivMgr) dropdownOptionsDivMgr.style.display = taskTypeSelectMgr.value === 'dropdown' ? 'block' : 'none'; });
     
-    document.querySelectorAll('.staff-tabs .tab-btn').forEach(btn => { 
-    btn.addEventListener('click', () => { 
-        document.querySelectorAll('.staff-tabs .tab-btn').forEach(b => b.classList.remove('active')); 
-        btn.classList.add('active'); 
-        document.querySelectorAll('.staff-tab-content').forEach(tab => tab.classList.remove('active')); 
-        document.getElementById(btn.getAttribute('data-staff-tab')).classList.add('active'); 
-        // Removed handover log loading
-    }); 
-});
+    document.querySelectorAll('.staff-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.staff-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.staff-tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-staff-tab')).classList.add('active'); if(btn.getAttribute('data-staff-tab') === 'handover-tab') { loadHandoverLog(); } }); });
     document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('.supervisor-tabs .tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active')); document.getElementById(btn.getAttribute('data-tab')).classList.add('active'); if(btn.getAttribute('data-tab') === 'break-approve-tab') loadBreakRequests(); if(btn.getAttribute('data-tab') === 'attendance-tab') renderAttendanceForm(); }); });
     
     // Helper Functions
@@ -577,7 +531,10 @@ const printAllocationBtn = document.getElementById('printAllocationBtn');
 }
     
     // Make functions globally accessible for onclick handlers
-    
+    window.addRow = addRow;
+    window.updateRowField = updateRowField;
+    window.deleteRow = deleteRow;
+    window.updateImportantMsg = updateImportantMsg;
     
     // ============ SUPERVISOR FUNCTIONS ============
     async function loadSupervisors() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSupervisorRecordId(currentDate, currentShift); try { const doc = await db.collection("supervisorRecords").doc(id).get(); supervisorList = doc.exists ? doc.data().supervisors || [] : []; } catch(e) { supervisorList = []; } renderSupervisorsDisplay(); renderSupervisorSelectPanel(); }
@@ -794,150 +751,177 @@ const printAllocationBtn = document.getElementById('printAllocationBtn');
     async function loadGlobalTasks(){ const doc=await db.collection("globalConfig").doc("tasks").get(); globalTasks=doc.exists?doc.data().tasks||[]:[]; updateCategoryUI(); renderTasks(); renderTaskManager(); }
     async function saveGlobalTasks(tasks){ await db.collection("globalConfig").doc("tasks").set({tasks}); globalTasks=tasks; updateCategoryUI(); renderTasks(); renderTaskManager(); }
     async function loadTaskRecord() {
+    if (!firestoreReady || !currentDate || !currentShift) return;
     const id = getTaskRecordId(currentDate, currentShift);
-    const doc = await db.collection("taskRecords").doc(id).get();
+    const docRef = db.collection("taskRecords").doc(id);
     
-    if(doc.exists) {
-        currentTaskRecord = { id: doc.id, ...doc.data() };
-    } else {
-        const now = new Date().toISOString();
-        currentTaskRecord = {
-            date: currentDate,
-            shift: currentShift,
-            status: "open",
-            doneTasks: {},
-            acknowledgedTasks: {},
-            dropdownSelections: [],
-            createdAt: now,
-            updatedAt: now
-        };
-        await db.collection("taskRecords").doc(id).set(currentTaskRecord);
-        currentTaskRecord.id = id;
+    try {
+        const doc = await docRef.get();
+        if (doc.exists) {
+            currentTaskRecord = { id: doc.id, ...doc.data() };
+        } else {
+            // Create initial record
+            const initialRecord = {
+                date: currentDate,
+                shift: currentShift,
+                status: "open",
+                doneTasks: {},
+                acknowledgedTasks: {},
+                dropdownSelections: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                _version: 1  // Add version tracking
+            };
+            await docRef.set(initialRecord);
+            currentTaskRecord = { id: id, ...initialRecord };
+        }
+        updateShiftStatusUI();
+        renderTasks();
+    } catch (e) {
+        console.error("Error loading task record:", e);
+        // Retry once
+        setTimeout(() => loadTaskRecord(), 500);
     }
-    
-    updateShiftStatusUI();
-    renderTasks();
 }
     function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'<i class="fas fa-lock"></i> Closed':'<i class="fas fa-lock-open"></i> Open'; shiftStatusBadge.className=`status-badge ${closed?'status-closed':'status-open'}`; if(currentRole==="supervisor"){ closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); } }
-    async function completeTask(taskId, staffName) {
-    if(!currentTaskRecord || currentTaskRecord.status === "closed") {
-        alert("Shift closed"); 
-        return; 
-    }
-    if(!staffName) {
-        alert("Select staff"); 
-        return; 
+    let isProcessing = false;
+
+async function completeTask(taskId, staffName) {
+    if (isProcessing) {
+        alert("Please wait, previous action is still processing...");
+        return;
     }
     
-    const taskRecordRef = db.collection("taskRecords").doc(currentTaskRecord.id);
-    let retries = 0;
-    const MAX_RETRIES = 3;
+    if (!currentTaskRecord || currentTaskRecord.status === "closed") {
+        alert("Shift closed");
+        return;
+    }
+    if (!staffName) {
+        alert("Select staff");
+        return;
+    }
     
-    while(retries < MAX_RETRIES) {
-        try {
-            await db.runTransaction(async (transaction) => {
-                const doc = await transaction.get(taskRecordRef);
-                if(!doc.exists) throw new Error("Task record not found");
-                
-                const taskData = doc.data();
-                if(taskData.status === "closed") {
-                    throw new Error("Shift is closed");
-                }
-                
-                const doneTasks = taskData.doneTasks || {};
-                if(doneTasks[taskId]) {
-                    throw new Error("Task already completed");
-                }
-                
-                // Add the completion
-                doneTasks[taskId] = {
-                    doneBy: staffName,
-                    doneAt: new Date().toISOString()
-                };
-                
-                transaction.update(taskRecordRef, { doneTasks: doneTasks });
+    isProcessing = true;
+    const id = getTaskRecordId(currentDate, currentShift);
+    const docRef = db.collection("taskRecords").doc(id);
+    
+    try {
+        await db.runTransaction(async (transaction) => {
+            const doc = await transaction.get(docRef);
+            if (!doc.exists) {
+                throw new Error("Task record does not exist!");
+            }
+            
+            const data = doc.data();
+            if (data.status === "closed") {
+                throw new Error("Shift is already closed");
+            }
+            
+            if (data.doneTasks && data.doneTasks[taskId]) {
+                throw new Error("Task already completed");
+            }
+            
+            const updatedDoneTasks = { ...(data.doneTasks || {}) };
+            updatedDoneTasks[taskId] = {
+                doneBy: staffName,
+                doneAt: new Date().toISOString()
+            };
+            
+            transaction.update(docRef, {
+                doneTasks: updatedDoneTasks,
+                updatedAt: new Date().toISOString()
             });
-            
-            // Success - refresh data
-            await loadTaskRecord();
-            renderTasks();
-            alert(`✅ Task completed by ${staffName}`);
-            return; // Exit on success
-            
-        } catch(error) {
-            if(error.message === "Task already completed") {
-                alert("This task was already completed by someone else");
-                return;
-            }
-            if(error.message === "Shift is closed") {
-                alert("Shift has been closed");
-                return;
-            }
-            if(error.code === 'aborted' && retries < MAX_RETRIES - 1) {
-                retries++;
-                await new Promise(resolve => setTimeout(resolve, 100 * retries));
-                await loadTaskRecord(); // Refresh local data
-            } else {
-                console.error("Error completing task:", error);
-                alert("Failed to save. Please try again.");
-                return;
-            }
+        });
+        
+        await loadTaskRecord();
+        alert(`✅ Task completed by ${staffName}`);
+        
+    } catch (error) {
+        console.error("Transaction failed:", error);
+        if (error.message === "Task already completed") {
+            alert("This task was already completed by someone else.");
+        } else if (error.message === "Shift is already closed") {
+            alert("Shift has been closed. Cannot complete tasks.");
+        } else {
+            alert("Network issue. Please try again.");
         }
+        await loadTaskRecord();
+    } finally {
+        isProcessing = false;
     }
 }
     
     async function acknowledgeTask(taskId, staffName) {
-    if(!currentTaskRecord || currentTaskRecord.status === "closed") {
-        alert("Shift closed"); 
-        return; 
+    if (!currentTaskRecord || currentTaskRecord.status === "closed") {
+        alert("Shift closed");
+        return;
     }
-    if(!staffName) {
-        alert("Select staff"); 
-        return; 
+    if (!staffName) {
+        alert("Select staff");
+        return;
     }
-    if(!sodStaffNames.includes(staffName)) {
-        alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`); 
-        return; 
+    if (!sodStaffNames.includes(staffName)) {
+        alert(`⚠️ ${staffName} is not on duty. Only SOD can acknowledge.`);
+        return;
     }
     
-    const taskRecordRef = db.collection("taskRecords").doc(currentTaskRecord.id);
+    const id = getTaskRecordId(currentDate, currentShift);
+    const docRef = db.collection("taskRecords").doc(id);
     
     try {
-        // Use FieldValue.arrayUnion/arrayRemove for atomic operations
-        const doc = await taskRecordRef.get();
-        if(!doc.exists) throw new Error("Task record not found");
+        let wasAdded = false;
         
-        const taskData = doc.data();
-        if(taskData.status === "closed") {
-            alert("Shift is closed");
-            return;
-        }
-        
-        const acks = taskData.acknowledgedTasks || {};
-        let currentAcks = acks[taskId] || [];
-        let isCurrentlyAcknowledged = currentAcks.includes(staffName);
-        
-        if(isCurrentlyAcknowledged) {
-            // Remove acknowledgment atomically
-            await taskRecordRef.update({
-                [`acknowledgedTasks.${taskId}`]: firebase.firestore.FieldValue.arrayRemove(staffName)
+        await db.runTransaction(async (transaction) => {
+            const doc = await transaction.get(docRef);
+            if (!doc.exists) {
+                throw new Error("Task record does not exist!");
+            }
+            
+            const data = doc.data();
+            if (data.status === "closed") {
+                throw new Error("Shift is already closed");
+            }
+            
+            const ackTasks = { ...(data.acknowledgedTasks || {}) };
+            let acks = [...(ackTasks[taskId] || [])];
+            
+            // Toggle: Remove if exists, add if not
+            if (acks.includes(staffName)) {
+                acks = acks.filter(name => name !== staffName);
+                wasAdded = false;
+            } else {
+                acks.push(staffName);
+                wasAdded = true;
+            }
+            
+            if (acks.length === 0) {
+                delete ackTasks[taskId];
+            } else {
+                ackTasks[taskId] = acks;
+            }
+            
+            transaction.update(docRef, {
+                acknowledgedTasks: ackTasks,
+                updatedAt: new Date().toISOString()
             });
-            alert(`❌ ${staffName} removed acknowledgment`);
-        } else {
-            // Add acknowledgment atomically
-            await taskRecordRef.update({
-                [`acknowledgedTasks.${taskId}`]: firebase.firestore.FieldValue.arrayUnion(staffName)
-            });
-            alert(`✅ ${staffName} acknowledged task!`);
-        }
+        });
         
-        // Refresh data
         await loadTaskRecord();
-        renderTasks();
         
-    } catch(error) {
-        console.error("Error acknowledging task:", error);
-        alert("Failed to save. Please try again.");
+        if (wasAdded) {
+            alert(`✅ ${staffName} acknowledged task!`);
+        } else {
+            alert(`❌ ${staffName} removed acknowledgment.`);
+        }
+        
+    } catch (error) {
+        console.error("Acknowledge transaction failed:", error);
+        if (error.message === "Shift is already closed") {
+            alert("Shift has been closed.");
+        } else {
+            alert("Network issue. Please try again.");
+        }
+        await loadTaskRecord();
     }
 }
 
@@ -961,84 +945,83 @@ document.querySelectorAll('.cancel-ack-btn').forEach(btn => {
    
 
 async function submitDropdown(taskId, selectedValue, note, staffName) {
-    if(!currentTaskRecord || currentTaskRecord.status === "closed") {
-        alert("Shift closed"); 
-        return; 
+    if (!currentTaskRecord || currentTaskRecord.status === "closed") {
+        alert("Shift closed");
+        return;
     }
-    if(!selectedValue || !staffName) {
+    if (!selectedValue || !staffName) {
         alert("Please select a value and staff name");
         return;
     }
     
-    const taskRecordRef = db.collection("taskRecords").doc(currentTaskRecord.id);
+    const id = getTaskRecordId(currentDate, currentShift);
+    const docRef = db.collection("taskRecords").doc(id);
     const noteText = note || "";
-    const entryId = `${taskId}_${staffName}_${Date.now()}`;
+    const newEntryId = Date.now() + Math.random();
     
-    let retries = 0;
-    const MAX_RETRIES = 3;
-    
-    while(retries < MAX_RETRIES) {
-        try {
-            await db.runTransaction(async (transaction) => {
-                const doc = await transaction.get(taskRecordRef);
-                if(!doc.exists) throw new Error("Task record not found");
-                
-                const taskData = doc.data();
-                if(taskData.status === "closed") {
-                    throw new Error("Shift is closed");
-                }
-                
-                let selections = [...(taskData.dropdownSelections || [])];
-                
-                // Check if exact same entry exists (for toggle behavior)
-                const existingIndex = selections.findIndex(s => 
-                    s.taskId === taskId && 
-                    s.staffName === staffName && 
-                    s.selectedValue === selectedValue &&
-                    (s.additionalText || "") === noteText
-                );
-                
-                if(existingIndex !== -1) {
-                    // Remove existing entry
-                    selections.splice(existingIndex, 1);
-                } else {
-                    // Add new entry
-                    selections.push({ 
-                        taskId, 
-                        staffName, 
-                        selectedValue, 
-                        additionalText: noteText, 
-                        submittedAt: new Date().toISOString(),
-                        entryId: entryId
-                    });
-                }
-                
-                transaction.update(taskRecordRef, { dropdownSelections: selections });
-            });
-            
-            // Success
-            await loadTaskRecord();
-            renderTasks();
-            alert(existingIndex !== -1 ? 
-                `❌ Removed "${selectedValue}" entry for ${staffName}` : 
-                `✅ Added "${selectedValue}" for ${staffName}`);
-            return;
-            
-        } catch(error) {
-            if(error.message === "Shift is closed") {
-                alert("Shift has been closed");
-                return;
+    try {
+        let wasAdded = false;
+        
+        await db.runTransaction(async (transaction) => {
+            const doc = await transaction.get(docRef);
+            if (!doc.exists) {
+                throw new Error("Task record does not exist!");
             }
-            if(error.code === 'aborted' && retries < MAX_RETRIES - 1) {
-                retries++;
-                await new Promise(resolve => setTimeout(resolve, 100 * retries));
-                await loadTaskRecord();
+            
+            const data = doc.data();
+            if (data.status === "closed") {
+                throw new Error("Shift is already closed");
+            }
+            
+            const selections = [...(data.dropdownSelections || [])];
+            
+            // Find if exact same entry exists (same staff, same task, same value, same note)
+            const existingIndex = selections.findIndex(s => 
+                s.taskId === taskId && 
+                s.staffName === staffName && 
+                s.selectedValue === selectedValue &&
+                (s.additionalText || "") === noteText
+            );
+            
+            if (existingIndex !== -1) {
+                // DELETE (toggle off)
+                selections.splice(existingIndex, 1);
+                wasAdded = false;
             } else {
-                console.error("Error submitting dropdown:", error);
-                alert("Failed to save. Please try again.");
-                return;
+                // ADD (toggle on)
+                selections.push({
+                    taskId,
+                    staffName,
+                    selectedValue,
+                    additionalText: noteText,
+                    submittedAt: new Date().toISOString(),
+                    entryId: newEntryId
+                });
+                wasAdded = true;
             }
+            
+            transaction.update(docRef, {
+                dropdownSelections: selections,
+                updatedAt: new Date().toISOString()
+            });
+        });
+        
+        await loadTaskRecord();
+        
+        if (wasAdded) {
+            alert(`✅ Added "${selectedValue}"${noteText ? ` with note "${noteText}"` : ''} for ${staffName}`);
+        } else {
+            alert(`❌ Removed "${selectedValue}"${noteText ? ` with note "${noteText}"` : ''} entry for ${staffName}`);
         }
+        
+    } catch (error) {
+        console.error("Dropdown transaction failed:", error);
+        if (error.message === "Shift is already closed") {
+            alert("Shift has been closed.");
+        } else {
+            alert("Network issue. Please try again.");
+        }
+        await loadTaskRecord();
     }
 }
 
@@ -1177,78 +1160,85 @@ function closeTaskEditModal() {
 
    
 async function closeShift() {
-    if(!currentTaskRecord || currentTaskRecord.status === "closed") {
-        alert("Shift is already closed");
-        return;
-    }
+    if (currentTaskRecord.status === "closed") return;
     
     const pendingCount = getPendingTasksCount();
-    if(pendingCount > 0 && !confirm(`${pendingCount} pending task(s). Close anyway?`)) {
+    if (pendingCount > 0 && !confirm(`${pendingCount} pending task(s). Close anyway?`)) {
         return;
     }
     
-    const taskRecordRef = db.collection("taskRecords").doc(currentTaskRecord.id);
+    const id = getTaskRecordId(currentDate, currentShift);
+    const docRef = db.collection("taskRecords").doc(id);
     
     try {
-        // Use transaction to ensure status hasn't changed
         await db.runTransaction(async (transaction) => {
-            const doc = await transaction.get(taskRecordRef);
-            if(!doc.exists) throw new Error("Task record not found");
-            
-            const taskData = doc.data();
-            if(taskData.status === "closed") {
-                throw new Error("Shift already closed by someone else");
+            const doc = await transaction.get(docRef);
+            if (!doc.exists) {
+                throw new Error("Task record does not exist!");
             }
             
-            transaction.update(taskRecordRef, {
+            const data = doc.data();
+            if (data.status === "closed") {
+                throw new Error("Shift is already closed");
+            }
+            
+            transaction.update(docRef, {
                 status: "closed",
                 closedAt: new Date().toISOString(),
-                closedBy: currentRole === "supervisor" ? "Supervisor" : "Staff"
+                updatedAt: new Date().toISOString()
             });
         });
         
         await loadTaskRecord();
-        updateShiftStatusUI();
-        renderTasks();
-        alert("✅ Shift closed successfully");
+        alert("✅ Shift closed successfully!");
         
-    } catch(error) {
-        if(error.message === "Shift already closed by someone else") {
-            alert("This shift has already been closed by another user");
-        } else {
-            console.error("Error closing shift:", error);
-            alert("Failed to close shift. Please try again.");
-        }
+    } catch (error) {
+        console.error("Close shift failed:", error);
+        alert("Could not close shift. Someone else may have closed it already.");
+        await loadTaskRecord();
+    }
+}
+  
+async function reopenShiftFn() {
+    const id = getTaskRecordId(currentDate, currentShift);
+    const docRef = db.collection("taskRecords").doc(id);
+    
+    try {
+        await db.runTransaction(async (transaction) => {
+            const doc = await transaction.get(docRef);
+            if (!doc.exists) {
+                throw new Error("Task record does not exist!");
+            }
+            
+            transaction.update(docRef, {
+                status: "open",
+                updatedAt: new Date().toISOString()
+            });
+        });
+        
+        await loadTaskRecord();
+        alert("✅ Shift reopened!");
+        
+    } catch (error) {
+        console.error("Reopen shift failed:", error);
+        alert("Could not reopen shift.");
+        await loadTaskRecord();
     }
 }
 
-async function reopenShiftFn() {
-    if(!currentTaskRecord) return;
+
+function setupNetworkHandlers() {
+    window.addEventListener('online', () => {
+        console.log("Network restored - refreshing data");
+        refreshAll();
+    });
     
-    const taskRecordRef = db.collection("taskRecords").doc(currentTaskRecord.id);
-    
-    try {
-        await db.runTransaction(async (transaction) => {
-            const doc = await transaction.get(taskRecordRef);
-            if(!doc.exists) throw new Error("Task record not found");
-            
-            transaction.update(taskRecordRef, {
-                status: "open",
-                reopenedAt: new Date().toISOString()
-            });
-        });
-        
-        await loadTaskRecord();
-        updateShiftStatusUI();
-        renderTasks();
-        alert("✅ Shift reopened");
-        
-    } catch(error) {
-        console.error("Error reopening shift:", error);
-        alert("Failed to reopen shift. Please try again.");
-    }
-}  
-  function getPendingTasksCount(){ if(!currentTaskRecord) return 0; let p=0; const filteredTasks = getTasksForCurrentShift(); for(const t of filteredTasks){ if(t.type==='done' && !currentTaskRecord.doneTasks[t.id]) p++; else if(t.type==='acknowledge' && (currentTaskRecord.acknowledgedTasks[t.id]||[]).length === 0) p++; else if(t.type==='dropdown' && (currentTaskRecord.dropdownSelections||[]).filter(s=>s.taskId===t.id).length===0) p++; } return p; }
+    window.addEventListener('offline', () => {
+        console.warn("Network lost - changes will not be saved");
+        alert("⚠️ You are offline. Changes will not be saved until connection is restored.");
+    });
+}
+    function getPendingTasksCount(){ if(!currentTaskRecord) return 0; let p=0; const filteredTasks = getTasksForCurrentShift(); for(const t of filteredTasks){ if(t.type==='done' && !currentTaskRecord.doneTasks[t.id]) p++; else if(t.type==='acknowledge' && (currentTaskRecord.acknowledgedTasks[t.id]||[]).length === 0) p++; else if(t.type==='dropdown' && (currentTaskRecord.dropdownSelections||[]).filter(s=>s.taskId===t.id).length===0) p++; } return p; }
     
     function renderTasks() { 
     if(!currentTaskRecord || !globalTasks.length){ 
@@ -1730,8 +1720,7 @@ async function saveTaskEditFromModal() {
     async function loadStaff(){ const snap=await db.collection("staff").orderBy("name").get(); staffList=snap.docs.map(doc=>({id:doc.id,name:doc.data().name})); renderStaffManager(); renderSODPanel(); renderAttendanceForm(); }
     async function addStaffMember(name){ if(!name.trim()){adminFeedback.innerText="Enter name";return;} await db.collection("staff").add({name:name.trim()}); await loadStaff(); newStaffNameMgr.value=""; adminFeedback.innerText="Staff added"; setTimeout(()=>adminFeedback.innerText="",2000); }
     async function addTaskMgr(){ if(!newTaskNameMgr.value.trim()){adminFeedback.innerText="Enter task name";return;} const cat=taskCategorySelectMgr.value; if(!cat){adminFeedback.innerText="Select category";return;} const newTask={id:Date.now().toString(),name:newTaskNameMgr.value.trim(),category:cat,type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:taskTypeSelectMgr.value==='dropdown'&&dropdownOptionsMgr.value?dropdownOptionsMgr.value.split(',').map(o=>o.trim()):null}; await saveGlobalTasks([...globalTasks,newTask]); newTaskNameMgr.value=""; if(dropdownOptionsMgr) dropdownOptionsMgr.value=""; adminFeedback.innerText="Task added"; setTimeout(()=>adminFeedback.innerText="",2000); }
-    async function refreshAll(){ await loadSODStaff(); await loadSODAllocation(); await loadTaskRecord(); await loadAttendance(); await loadSupervisors(); renderBreakUI(); if(currentRole==="supervisor") loadBreakRequests(); renderFullAllocation(); }
-    async function onDateShiftChange(){ if(currentRole!=="supervisor"){ renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); attachDropdownPreviewListener(); } else { currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); } }
+   
     
     function generatePDFReport() { 
         if(!currentDate || !currentShift){ alert("Please select date and shift first"); return; } 
@@ -1820,6 +1809,19 @@ async function saveTaskEditFromModal() {
             }
         }
     }
+
+    async function retryOperation(operation, maxRetries = 3, delay = 1000) {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await operation();
+        } catch (error) {
+            console.error(`Attempt ${i + 1} failed:`, error);
+            if (i === maxRetries - 1) throw error;
+            await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+        }
+    }
+}
+
     
     // Override renderTasks to also attach dropdown preview listener
     
@@ -1884,6 +1886,8 @@ function handleModalOutsideClick(e) {
         currentEditingTaskObj = null;
     }
 }
+
+
 
 // Call this in your init() function  
     function printAllocationSheet(){ 
@@ -1985,123 +1989,168 @@ function handleModalOutsideClick(e) {
     reportWindow.document.close(); 
     setTimeout(()=>reportWindow.print(), 500); 
 }
+
+
     function exportFullReport(){ generatePDFReport(); }
     
     function setRole(role){ if(role==="supervisor"&&!isSupervisor){ passwordModal.classList.remove('hidden'); return; } currentRole=role; if(role==="supervisor"){ staffRoleBtn.classList.remove("active"); supervisorRoleBtn.classList.add("active"); mainDate.disabled=false; mainShift.disabled=false; staffViewSection.style.display='none'; supervisorTabs.classList.remove('hidden'); if(currentDate&&currentShift) refreshAll(); else { renderSODPanel(); loadAttendance(); } } else { supervisorRoleBtn.classList.remove("active"); staffRoleBtn.classList.add("active"); mainDate.disabled=true; mainShift.disabled=true; supervisorTabs.classList.add('hidden'); staffViewSection.style.display='block'; renderFullAllocation(); renderBreakUI(); renderTasks(); renderStaffAttendanceView(); } renderAllocation(); updateShiftStatusUI(); }
     function verifyPassword(){ const pwd = supervisorPassword.value; const valid = (typeof SUPERVISOR_PASSWORD !== 'undefined' && pwd === SUPERVISOR_PASSWORD) || (pwd === "Admin123"); if(valid){ isSupervisor=true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText="Wrong password"; }
+   
     function escapeHtml(str){ if(!str) return ''; return str.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    // Keep ONLY ONE of these - remove the duplicate
     
-    // Add this variable at the top with your other declarations
-let taskUpdateUnsubscribe = null;
-let isLocalTaskUpdate = false;
+    // Keep ONLY ONE of these - remove the duplicate
+let taskRecordUnsubscribe = null;
 
-// Add this function
-function subscribeToTaskUpdates() {
-    if(!currentDate || !currentShift) return;
-    
-    // Unsubscribe from previous listener
-    if(taskUpdateUnsubscribe) {
-        taskUpdateUnsubscribe();
-    }
+function setupTaskRecordListener() {
+    if (!firestoreReady || !currentDate || !currentShift) return;
     
     const id = getTaskRecordId(currentDate, currentShift);
-    taskUpdateUnsubscribe = db.collection("taskRecords").doc(id)
-        .onSnapshot((doc) => {
-            if(doc.exists && !isLocalTaskUpdate) {
-                const serverData = doc.data();
-                // Check if server has newer data than what we have locally
-                const serverUpdatedAt = serverData.updatedAt ? new Date(serverData.updatedAt).getTime() : 0;
-                const localUpdatedAt = currentTaskRecord?.updatedAt ? new Date(currentTaskRecord.updatedAt).getTime() : 0;
-                
-                if(serverUpdatedAt > localUpdatedAt) {
-                    console.log("Real-time update received for tasks");
-                    const oldStatus = currentTaskRecord?.status;
-                    currentTaskRecord = { id: doc.id, ...serverData };
-                    renderTasks();
-                    updateShiftStatusUI();
-                    
-                    // Show visual feedback for real-time updates
-                    if(oldStatus !== currentTaskRecord?.status) {
-                        showNotification(`Shift ${currentTaskRecord?.status === 'closed' ? 'closed' : 'reopened'} by another user`);
-                    } else {
-                        showNotification("Tasks updated by another staff member");
-                    }
-                }
-            }
-        }, (error) => {
-            console.error("Task subscription error:", error);
-        });
-}
-
-// Add this simple notification function
-function showNotification(message) {
-    // Remove any existing notification
-    const existing = document.querySelector('.realtime-notification');
-    if(existing) existing.remove();
+    const docRef = db.collection("taskRecords").doc(id);
     
-    const toast = document.createElement('div');
-    toast.className = 'realtime-notification';
-    toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: #1d6f8f;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 30px;
-        font-size: 0.8rem;
-        z-index: 9999;
-        animation: slideIn 0.3s ease;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    `;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-    async function init() {
-    const savedDate = localStorage.getItem('selectedDate');
-    const savedShift = localStorage.getItem('selectedShift');
-    currentDate = savedDate || new Date().toISOString().slice(0,10);
-    currentShift = savedShift || "";
-    
-    if(mainDate) mainDate.value = currentDate;
-    if(mainShift) mainShift.value = currentShift;
-    
-    if(firestoreReady) {
-        await loadGlobalTasks();
-        await loadStaff();
-        await loadSODStaff();
-        await loadSODAllocation();
-        await loadTaskRecord();
-        await loadAttendance();
-        await loadSupervisors();
-        
-        subscribeToTaskUpdates();
+    if (taskRecordUnsubscribe) {
+        taskRecordUnsubscribe();
+        taskRecordUnsubscribe = null;
     }
     
+    taskRecordUnsubscribe = docRef.onSnapshot(
+        (doc) => {
+            if (doc.exists) {
+                const oldStatus = currentTaskRecord?.status;
+                currentTaskRecord = { id: doc.id, ...doc.data() };
+                
+                if (oldStatus !== currentTaskRecord.status) {
+                    updateShiftStatusUI();
+                    renderTasks();
+                    if (currentRole === "supervisor") {
+                        renderAllocation();
+                    }
+                } else {
+                    // Still refresh UI to show latest data
+                    renderTasks();
+                }
+                
+                console.log("📡 Task record updated from server");
+            }
+        },
+        (error) => {
+            console.error("Snapshot listener error:", error);
+        }
+    );
+}
 
+// SINGLE refreshAll function with listener
+async function refreshAll() {
+    await Promise.all([
+        loadSODStaff(),
+        loadSODAllocation(),
+        loadAttendance(),
+        loadSupervisors(),
+        loadHandoverLog()
+    ]);
+    await loadTaskRecord();
+    setupTaskRecordListener(); // ✅ ADD THIS - Enable real-time sync
     
-    // ✅ ADD THIS LINE - Initialize modal event listeners
+    renderBreakUI();
+    if (currentRole === "supervisor") loadBreakRequests();
+    renderFullAllocation();
+}
+
+// SINGLE onDateShiftChange function with listener
+async function onDateShiftChange() {
+    currentDate = mainDate.value;
+    currentShift = mainShift.value;
+    localStorage.setItem('selectedDate', currentDate);
+    localStorage.setItem('selectedShift', currentShift);
+    
+    // Reset listener when date/shift changes
+    if (taskRecordUnsubscribe) {
+        taskRecordUnsubscribe();
+        taskRecordUnsubscribe = null;
+    }
+    
+    if (tasksContainer) tasksContainer.innerHTML = '<div class="empty-msg">Loading...</div>';
+    
+    if (currentRole !== "supervisor") {
+        renderFullAllocation();
+        renderBreakUI();
+        await loadTaskRecord();
+        setupTaskRecordListener(); // ✅ ADD THIS - Enable real-time sync for staff view
+        renderStaffAttendanceView();
+    } else {
+        await refreshAll();
+    }
+}
+
+// Main init function
+async function init() { 
+    const savedDate = localStorage.getItem('selectedDate'), savedShift = localStorage.getItem('selectedShift'); 
+    currentDate = savedDate || new Date().toISOString().slice(0,10); 
+    currentShift = savedShift || ""; 
+    if (mainDate) mainDate.value = currentDate; 
+    if (mainShift) mainShift.value = currentShift; 
+    
+    if (firestoreReady) { 
+        await loadGlobalTasks(); 
+        await loadStaff(); 
+        await loadSODStaff(); 
+        await loadSODAllocation(); 
+        await loadTaskRecord(); 
+        await loadAttendance(); 
+        await loadSupervisors(); 
+        await loadHandoverLog(); 
+        setupTaskRecordListener(); // ✅ ADD THIS - Start listening immediately
+    } 
+    
     initTaskEditModalListeners();
+    setupNetworkHandlers();
     
-    mainDate.addEventListener('change',onDateShiftChange); 
-    mainShift.addEventListener('change',onDateShiftChange); 
-    staffRoleBtn.addEventListener('click',()=>setRole("staff")); 
-    supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); 
-    addTaskBtnMgr.addEventListener('click',addTaskMgr); 
-    addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); 
-    closeShiftBtn.addEventListener('click',closeShift); 
-    reopenShiftBtn.addEventListener('click',reopenShiftFn); 
-    verifyPasswordBtn.addEventListener('click',verifyPassword); 
-    cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); 
-    exportFullPdfBtn.addEventListener('click',exportFullReport); 
-    printAllocationBtn.addEventListener('click',printAllocationSheet); 
+    mainDate.addEventListener('change', onDateShiftChange); 
+    mainShift.addEventListener('change', onDateShiftChange); 
+    staffRoleBtn.addEventListener('click', () => setRole("staff")); 
+    supervisorRoleBtn.addEventListener('click', () => setRole("supervisor")); 
+    addTaskBtnMgr.addEventListener('click', addTaskMgr); 
+    addStaffBtnMgr.addEventListener('click', () => addStaffMember(newStaffNameMgr.value)); 
+    closeShiftBtn.addEventListener('click', closeShift); 
+    reopenShiftBtn.addEventListener('click', reopenShiftFn); 
+    verifyPasswordBtn.addEventListener('click', verifyPassword); 
+    cancelPasswordBtn.addEventListener('click', () => passwordModal.classList.add('hidden')); 
+    exportFullPdfBtn.addEventListener('click', exportFullReport); 
+    printAllocationBtn.addEventListener('click', printAllocationSheet); 
     setRole("staff"); 
 }
-    const deviceModal=document.getElementById('deviceAuthModal'), devicePasswordInput=document.getElementById('devicePasswordInput'), authorizeDeviceBtn=document.getElementById('authorizeDeviceBtn'), deviceAuthError=document.getElementById('deviceAuthError'), appContainer=document.getElementById('appContainer');
+
+// Device authorization
+const deviceModal = document.getElementById('deviceAuthModal'), 
+      devicePasswordInput = document.getElementById('devicePasswordInput'), 
+      authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn'), 
+      deviceAuthError = document.getElementById('deviceAuthError'), 
+      appContainer = document.getElementById('appContainer');
+
+function handleDeviceAuth() { 
+    if (authorizeDevice(devicePasswordInput.value)) { 
+        deviceModal.style.display = 'none'; 
+        appContainer.style.display = 'block'; 
+        init(); 
+    } else { 
+        deviceAuthError.textContent = 'Invalid authorization password.'; 
+        devicePasswordInput.value = ''; 
+        devicePasswordInput.focus(); 
+    } 
+}
+
+if (isDeviceAuthorized()) { 
+    deviceModal.style.display = 'none'; 
+    appContainer.style.display = 'block'; 
+    init(); 
+} else { 
+    deviceModal.style.display = 'flex'; 
+    appContainer.style.display = 'none'; 
+    authorizeDeviceBtn.addEventListener('click', handleDeviceAuth); 
+    devicePasswordInput.addEventListener('keypress', e => { if (e.key === 'Enter') handleDeviceAuth(); }); 
+    devicePasswordInput.focus(); 
+}
    
-    function handleDeviceAuth(){ if(authorizeDevice(devicePasswordInput.value)){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceAuthError.textContent='Invalid authorization password.'; devicePasswordInput.value=''; devicePasswordInput.focus(); } }
-    if(isDeviceAuthorized()){ deviceModal.style.display='none'; appContainer.style.display='block'; init(); } else { deviceModal.style.display='flex'; appContainer.style.display='none'; authorizeDeviceBtn.addEventListener('click',handleDeviceAuth); devicePasswordInput.addEventListener('keypress',e=>{if(e.key==='Enter') handleDeviceAuth();}); devicePasswordInput.focus(); }
-</script>
+   </script>
 </body>
 </html>
