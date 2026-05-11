@@ -612,24 +612,42 @@
     }
     
     function renderStaffAttendanceView() { 
-        if(!staffAttendanceView) return; 
-        if(!currentDate || !currentShift){ 
-            staffAttendanceView.innerHTML='<div class="empty-msg">Select date and shift to view absentees and leave records</div>'; 
-            return; 
-        }
-        const absentRecords = attendanceRecords.filter(r => r.shift === currentShift && (r.status === 'Absent' || r.status === 'SL' || r.status === 'FRL'));
-        if(absentRecords.length === 0){ 
-            staffAttendanceView.innerHTML='<div class="empty-msg">No absent or leave records found for this shift. All staff present.</div>'; 
-            return; 
-        }
-        let html = `<div style="margin-bottom:10px;"><strong>Shift: ${currentShift}</strong> - ${absentRecords.length} staff member(s) absent/on leave</div>`;
-        absentRecords.forEach(r => { 
-            let statusClass = r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; 
-            let statusText = r.status==='Absent'?'❌ Absent':r.status==='SL'?'🩺 Sick Leave':'📅 FRL'; 
-            html += `<div class="attendance-record"><strong>${escapeHtml(r.staffName)}</strong> - <span class="${statusClass}">${statusText}</span>${r.reason?`<br>📝 Reason: ${escapeHtml(r.reason)}`:''}${r.reportDateTime?`<br>🕐 Reported: ${new Date(r.reportDateTime).toLocaleString()}`:''}</div>`; 
-        });
-        staffAttendanceView.innerHTML = html;
+    if(!staffAttendanceView) return; 
+    if(!currentDate){ 
+        staffAttendanceView.innerHTML='<div class="empty-msg">Select date to view absentees and leave records</div>'; 
+        return; 
     }
+    
+    // For staff view, show absentees for BOTH shifts or current selected shift
+    let recordsToShow = attendanceRecords;
+    
+    // If shift is selected, filter by it
+    if(currentShift) {
+        recordsToShow = attendanceRecords.filter(r => r.shift === currentShift);
+    }
+    
+    const absentRecords = recordsToShow.filter(r => r.status === 'Absent' || r.status === 'SL' || r.status === 'FRL');
+    
+    if(absentRecords.length === 0){ 
+        staffAttendanceView.innerHTML='<div class="empty-msg">No absent or leave records found. All staff present.</div>'; 
+        return; 
+    }
+    
+    let html = `<div style="margin-bottom:10px;"><strong>${currentShift ? `Shift: ${currentShift}` : 'All Shifts'}</strong> - ${absentRecords.length} staff member(s) absent/on leave</div>`;
+    
+    absentRecords.forEach(r => { 
+        let statusClass = r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; 
+        let statusText = r.status==='Absent'?'❌ Absent':r.status==='SL'?'🩺 Sick Leave':'📅 FRL'; 
+        html += `<div class="attendance-record">
+            <strong>${escapeHtml(r.staffName)}</strong> - <span class="${statusClass}">${statusText}</span>
+            ${r.shift ? `<span style="margin-left:8px; font-size:0.65rem;">(${r.shift} shift)</span>` : ''}
+            ${r.reason ? `<br>📝 Reason: ${escapeHtml(r.reason)}` : ''}
+            ${r.reportDateTime ? `<br>🕐 Reported: ${new Date(r.reportDateTime).toLocaleString()}` : ''}
+        </div>`; 
+    });
+    
+    staffAttendanceView.innerHTML = html;
+}
     
     async function loadSODStaff() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSODStaffRecordId(currentDate, currentShift); try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; } renderSODPanel(); renderBreakUI(); renderSupervisorSelectPanel(); }
     async function saveSODStaff(staffNames) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); sodStaffNames = staffNames; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); renderSupervisorSelectPanel(); }
@@ -2044,16 +2062,17 @@ async function refreshAll() {
     await Promise.all([
         loadSODStaff(),
         loadSODAllocation(),
-        loadAttendance(),
+        loadAttendance(),  // This is key - loads attendance records
         loadSupervisors(),
         loadHandoverLog()
     ]);
     await loadTaskRecord();
-    setupTaskRecordListener(); // ✅ ADD THIS - Enable real-time sync
+    setupTaskRecordListener();
     
     renderBreakUI();
     if (currentRole === "supervisor") loadBreakRequests();
     renderFullAllocation();
+    renderStaffAttendanceView(); // Add this to refresh staff view
 }
 
 // SINGLE onDateShiftChange function with listener
@@ -2063,7 +2082,6 @@ async function onDateShiftChange() {
     localStorage.setItem('selectedDate', currentDate);
     localStorage.setItem('selectedShift', currentShift);
     
-    // Reset listener when date/shift changes
     if (taskRecordUnsubscribe) {
         taskRecordUnsubscribe();
         taskRecordUnsubscribe = null;
@@ -2071,12 +2089,15 @@ async function onDateShiftChange() {
     
     if (tasksContainer) tasksContainer.innerHTML = '<div class="empty-msg">Loading...</div>';
     
+    // Load attendance for both supervisor and staff views
+    await loadAttendance();
+    
     if (currentRole !== "supervisor") {
         renderFullAllocation();
         renderBreakUI();
         await loadTaskRecord();
-        setupTaskRecordListener(); // ✅ ADD THIS - Enable real-time sync for staff view
-        renderStaffAttendanceView();
+        setupTaskRecordListener();
+        renderStaffAttendanceView(); // This will now show absentees
     } else {
         await refreshAll();
     }
