@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Maintenance Activity Log | Firebase Powered</title>
+    <title>Maintenance Activity Log | Pending & Resolved Tasks</title>
     <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Google Fonts -->
@@ -136,7 +136,7 @@
             font-weight: 600;
             color: #4a5568;
         }
-        .filter-group select, .filter-group input {
+        .filter-group select {
             padding: 8px 16px;
             border-radius: 30px;
             border: 1.5px solid #e2e8f0;
@@ -233,7 +233,7 @@
             gap: 10px;
             transition: 0.2s;
         }
-        .btn-new-popup:hover {
+        .btn-new-popup:hover, .btn-refresh:hover {
             transform: scale(0.97);
             filter: brightness(1.05);
         }
@@ -246,9 +246,6 @@
             font-weight: 500;
             font-size: 0.8rem;
             cursor: pointer;
-        }
-        .btn-refresh:hover {
-            background: #dee2e6;
         }
 
         .table-modern {
@@ -349,6 +346,11 @@
             padding: 2px 6px;
             border-radius: 16px;
             display: inline-block;
+        }
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: #1a5d7d;
         }
 
         /* MODAL */
@@ -532,12 +534,6 @@
             .filter-bar { flex-direction: column; align-items: stretch; }
             .filter-group { justify-content: center; }
         }
-        
-        .loading-spinner {
-            text-align: center;
-            padding: 40px;
-            color: #1a5d7d;
-        }
     </style>
 </head>
 <body>
@@ -550,7 +546,7 @@
             <div class="logo-text">
                 <h1><i class="fas fa-clipboard-list"></i> Maintenance Activity Log</h1>
                 <div class="sync-status" id="syncStatus">
-                    <i class="fas fa-spinner fa-pulse"></i> Connecting to Firebase...
+                    <i class="fas fa-spinner fa-pulse"></i> Initializing Firebase...
                 </div>
             </div>
         </div>
@@ -561,7 +557,7 @@
         </div>
     </div>
 
-    <!-- Filter Bar with Date and Priority -->
+    <!-- Filter Bar -->
     <div class="filter-bar">
         <div class="filter-group">
             <label><i class="fas fa-calendar"></i> Filter by Date:</label>
@@ -581,7 +577,7 @@
         <button class="clear-filters" id="clearFiltersBtn"><i class="fas fa-times"></i> Clear Filters</button>
     </div>
 
-    <!-- Tabs for Pending and Resolved -->
+    <!-- Tabs -->
     <div class="tabs">
         <button class="tab-btn active" data-tab="pending">📋 Pending Reports</button>
         <button class="tab-btn" data-tab="resolved">✅ Resolved Reports</button>
@@ -596,38 +592,29 @@
             </div>
         </div>
         <div class="table-modern">
-            <div id="loadingIndicator" style="display: none;" class="loading-spinner">
+            <div id="loadingIndicator" class="loading-spinner" style="display: none;">
                 <i class="fas fa-spinner fa-pulse fa-2x"></i>
-                <p>Loading from Firebase...</p>
-            </div>
-            <!-- Pending Tab Content -->
-            <div id="pending-tab" class="tab-content active">
-                <table class="report-table">
-                    <thead>
-                        <tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr>
-                    </thead>
-                    <tbody id="pendingTableBody">
-                        <tr><td colspan="9" class="empty-state">Loading...</td></tr>
-                    </tbody>
-                ~
+                <p>Loading data from Firebase...</p>
             </div>
             
-            <!-- Resolved Tab Content -->
+            <div id="pending-tab" class="tab-content active">
+                <table class="report-table">
+                    <thead><tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr></thead>
+                    <tbody id="pendingTableBody"><tr><td colspan="9" class="empty-state">Loading...</td></tr></tbody>
+                </table>
+            </div>
+            
             <div id="resolved-tab" class="tab-content">
                 <table class="report-table">
-                    <thead>
-                        <tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr>
-                    </thead>
-                    <tbody id="resolvedTableBody">
-                        <tr><td colspan="9" class="empty-state">Loading...</td></tr>
-                    </tbody>
-                ~
+                    <thead><tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr></thead>
+                    <tbody id="resolvedTableBody"><tr><td colspan="9" class="empty-state">Loading...</td></tr></tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
-<!-- POPUP MODAL -->
+<!-- MODAL -->
 <div id="entryModal" class="modal-overlay">
     <div class="modal-window">
         <div class="modal-header">
@@ -635,10 +622,7 @@
             <button class="close-modal" id="closeModalBtn">&times;</button>
         </div>
         <div class="modal-body">
-            <div class="auto-badge">
-                <i class="fas fa-clock"></i> Current date/time: <strong id="liveDateTime">--</strong>
-            </div>
-
+            <div class="auto-badge"><i class="fas fa-clock"></i> Current date/time: <strong id="liveDateTime">--</strong></div>
             <div class="type-selector">
                 <label style="font-weight: 700;"><i class="fas fa-code-branch"></i> Select Report Type</label>
                 <div class="radio-group">
@@ -646,12 +630,10 @@
                     <label class="radio-label"><input type="radio" name="reportType" value="direct" id="typeDirect"> 📢 Direct Inform</label>
                 </div>
             </div>
-
             <div class="form-group">
                 <label><i class="fas fa-align-left"></i> Issue Description <span class="required">*</span></label>
                 <textarea rows="3" id="modalDescription" placeholder="Describe the maintenance issue..."></textarea>
             </div>
-
             <div class="form-group">
                 <label><i class="fas fa-flag"></i> Priority <span class="required">*</span></label>
                 <select id="modalPriority">
@@ -660,7 +642,6 @@
                     <option value="Low">🟢 Low</option>
                 </select>
             </div>
-
             <div id="hubPanel" class="conditional-panel hidden">
                 <div class="info-note"><i class="fas fa-building"></i> Hub Entry - Staff who received the report</div>
                 <div class="form-group">
@@ -668,7 +649,6 @@
                     <input type="text" id="hubStaffName" placeholder="Staff name who entered into Hub">
                 </div>
             </div>
-
             <div id="directPanel" class="conditional-panel hidden">
                 <div class="info-note"><i class="fas fa-bell"></i> Direct Inform - Department and staff to inform</div>
                 <div class="form-group">
@@ -680,9 +660,8 @@
                     <input type="text" id="directStaffName" placeholder="Staff member to inform">
                 </div>
             </div>
-
             <div class="form-group">
-                <label><i class="fas fa-user-edit"></i> Reported By (Your Name) <span class="required">*</span></label>
+                <label><i class="fas fa-user-edit"></i> Reported By <span class="required">*</span></label>
                 <input type="text" id="modalInformedBy" placeholder="Person reporting this issue">
             </div>
         </div>
@@ -701,8 +680,7 @@
         projectId: "briefing-ded2b",
         storageBucket: "briefing-ded2b.firebasestorage.app",
         messagingSenderId: "583386183547",
-        appId: "1:583386183547:web:945d92eaa3d13f513defde",
-        measurementId: "G-B4TWNT1FQ1"
+        appId: "1:583386183547:web:945d92eaa3d13f513defde"
     };
     
     // Initialize Firebase
@@ -715,51 +693,19 @@
     try {
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
-            console.log("✅ Firebase initialized");
         }
         db = firebase.firestore();
         firestoreReady = true;
-        updateSyncStatus(true, "Connected to Firebase");
+        console.log("✅ Firebase initialized successfully");
+        document.getElementById("syncStatus").innerHTML = '<i class="fas fa-check-circle" style="color:#22c55e;"></i> Firebase Connected';
+        document.getElementById("syncStatus").style.background = "#dcfce7";
     } catch (error) {
         console.error("Firebase init error:", error);
-        firestoreReady = false;
-        updateSyncStatus(false, error.message);
+        document.getElementById("syncStatus").innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Connection Error';
+        document.getElementById("syncStatus").style.background = "#fee2e2";
     }
-    
-    // DOM elements
-    const pendingTableBody = document.getElementById("pendingTableBody");
-    const resolvedTableBody = document.getElementById("resolvedTableBody");
-    const dateFilter = document.getElementById("dateFilter");
-    const priorityFilter = document.getElementById("priorityFilter");
-    const clearFiltersBtn = document.getElementById("clearFiltersBtn");
-    const tabBtns = document.querySelectorAll(".tab-btn");
-    const tabContents = document.querySelectorAll(".tab-content");
-    const tabTitle = document.getElementById("tabTitle");
-    const refreshBtn = document.getElementById("refreshBtn");
-    const openPopupBtn = document.getElementById("openPopupBtn");
-    const loadingIndicator = document.getElementById("loadingIndicator");
-    const syncStatusEl = document.getElementById("syncStatus");
-    const totalCountSpan = document.getElementById("totalCount");
-    const pendingCountSpan = document.getElementById("pendingCount");
-    const resolvedCountSpan = document.getElementById("resolvedCount");
-    
-    // Modal elements
-    const modal = document.getElementById("entryModal");
-    const closeModalBtn = document.getElementById("closeModalBtn");
-    const cancelModalBtn = document.getElementById("cancelModalBtn");
-    const submitModalBtn = document.getElementById("submitModalBtn");
-    const typeHub = document.getElementById("typeHub");
-    const typeDirect = document.getElementById("typeDirect");
-    const hubPanel = document.getElementById("hubPanel");
-    const directPanel = document.getElementById("directPanel");
-    const liveSpan = document.getElementById("liveDateTime");
     
     // Helper functions
-    function getCurrentFormattedDateTime() {
-        const now = new Date();
-        return now.toLocaleString();
-    }
-    
     function getCurrentISODateTime() {
         return new Date().toISOString();
     }
@@ -791,21 +737,11 @@
         return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
     }
     
-    function updateSyncStatus(connected, message) {
-        if (connected) {
-            syncStatusEl.innerHTML = `<i class="fas fa-check-circle" style="color:#22c55e;"></i> ${message}`;
-            syncStatusEl.style.background = "#dcfce7";
-        } else {
-            syncStatusEl.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Error: ${message}`;
-            syncStatusEl.style.background = "#fee2e2";
-        }
-    }
-    
     function showLoading(show) {
-        loadingIndicator.style.display = show ? "block" : "none";
+        document.getElementById("loadingIndicator").style.display = show ? "block" : "none";
     }
     
-    // Update date filter dropdown
+    // Update date filter
     function updateDateFilter() {
         const dates = new Set();
         reports.forEach(report => {
@@ -818,19 +754,19 @@
             const count = reports.filter(r => formatDateOnly(r.entryTimestamp) === d).length;
             options += `<option value="${d}">📆 ${d} (${count})</option>`;
         });
-        dateFilter.innerHTML = options;
+        document.getElementById("dateFilter").innerHTML = options;
     }
     
     // Get filtered reports
     function getFilteredReports() {
         let filtered = reports.filter(r => currentTab === "pending" ? r.status !== "resolved" : r.status === "resolved");
         
-        const dateVal = dateFilter.value;
+        const dateVal = document.getElementById("dateFilter").value;
         if (dateVal !== 'all') {
             filtered = filtered.filter(r => formatDateOnly(r.entryTimestamp) === dateVal);
         }
         
-        const priorityVal = priorityFilter.value;
+        const priorityVal = document.getElementById("priorityFilter").value;
         if (priorityVal !== 'all') {
             filtered = filtered.filter(r => r.priority === priorityVal);
         }
@@ -841,10 +777,10 @@
     // Render tables
     function renderTables() {
         const filtered = getFilteredReports();
-        const container = currentTab === "pending" ? pendingTableBody : resolvedTableBody;
+        const container = currentTab === "pending" ? document.getElementById("pendingTableBody") : document.getElementById("resolvedTableBody");
         
         if (filtered.length === 0) {
-            container.innerHTML = `<tr><td colspan="9" class="empty-state">No ${currentTab} reports found with current filters.</td></tr>`;
+            container.innerHTML = `<tr><td colspan="9" class="empty-state">No ${currentTab} reports found.</td></tr>`;
             return;
         }
         
@@ -852,172 +788,86 @@
         for (let rep of filtered) {
             let shortDesc = rep.description?.length > 45 ? rep.description.substring(0, 42) + "..." : rep.description || '';
             let priorityClass = rep.priority === "High" ? "priority-high" : (rep.priority === "Medium" ? "priority-medium" : "priority-low");
-            let typeClass = rep.type === "hub" ? "type-hub" : "type-direct";
-            let typeIcon = rep.type === "hub" ? '<i class="fas fa-building"></i> Hub Entry' : '<i class="fas fa-bell"></i> Direct Inform';
             
             html += `<tr>
                         <td><span class="timestamp-sm">${formatDisplayDateTime(rep.entryTimestamp)}</span></td>
                         <td title="${escapeHtml(rep.description)}">${escapeHtml(shortDesc)}</td>
                         <td><span class="priority-tag ${priorityClass}">${rep.priority}</span></td>
-                        <td><span class="type-badge ${typeClass}">${typeIcon}</span></td>
-                        <td>${getDetailCell(rep)}</td>
+                        <td><span class="type-badge ${rep.type === 'hub' ? 'type-hub' : 'type-direct'}">${rep.type === 'hub' ? '<i class="fas fa-building"></i> Hub Entry' : '<i class="fas fa-bell"></i> Direct Inform'}</span></td>
+                        <td>${rep.type === 'hub' ? 
+                            `<div><strong>Staff:</strong> ${escapeHtml(rep.hubStaffName || '—')}<br><small>${formatDisplayDateTime(rep.hubEntryTime)}</small></div>` :
+                            `<div><strong>Dept:</strong> ${escapeHtml(rep.directDepartment || '—')}<br><strong>Staff:</strong> ${escapeHtml(rep.directStaffName || '—')}<br><small>${formatDisplayDateTime(rep.directInfoTime)}</small></div>`
+                        }</td>
                         <td><i class="fas fa-user-edit"></i> ${escapeHtml(rep.informedBy)}</td>
-                        <td>${getStatusHtml(rep.status)}</td>
-                        <td>${getResolutionCell(rep)}</td>
-                        <td class="action-icons">${getActionButtons(rep)}</td>
-                      </tr>`;
+                        <td>${rep.status === 'resolved' ? '<span class="status-tag status-resolved"><i class="fas fa-check-circle"></i> Resolved</span>' : '<span class="status-tag status-pending"><i class="fas fa-clock"></i> Pending</span>'}</td>
+                        <td>${rep.status === 'resolved' && rep.resolvedBy ? 
+                            `<div><small>${escapeHtml(rep.resolvedBy)}<br>${formatDisplayDateTime(rep.resolvedDate)}</small></div>` : 
+                            '<span style="color:#aaa;">—</span>'
+                        }</td>
+                        <td class="action-icons">
+                            ${rep.status !== "resolved" ? `<button class="action-icon done" data-id="${rep.firebaseId}" data-staff="${escapeHtml(rep.hubStaffName || rep.directStaffName || 'Staff')}"><i class="fas fa-check-circle"></i> Resolve</button>` : ''}
+                            <button class="action-icon delete" data-id="${rep.firebaseId}"><i class="fas fa-trash"></i> Delete</button>
+                        </td>
+                    </tr>`;
         }
         container.innerHTML = html;
-        attachTableEvents();
-    }
-    
-    function getDetailCell(r) {
-        if (r.type === "hub") {
-            return `<div style="font-size:0.75rem;">
-                        <strong><i class="fas fa-user-check"></i> Staff:</strong> ${escapeHtml(r.hubStaffName || '—')}<br>
-                        <span class="timestamp-sm"><i class="fas fa-clock"></i> ${formatDisplayDateTime(r.hubEntryTime)}</span>
-                    </div>`;
-        } else {
-            return `<div style="font-size:0.75rem;">
-                        <strong><i class="fas fa-building"></i> Dept:</strong> ${escapeHtml(r.directDepartment || '—')}<br>
-                        <strong><i class="fas fa-user"></i> Staff:</strong> ${escapeHtml(r.directStaffName || '—')}<br>
-                        <span class="timestamp-sm"><i class="fas fa-clock"></i> ${formatDisplayDateTime(r.directInfoTime)}</span>
-                    </div>`;
-        }
-    }
-    
-    function getStatusHtml(status) {
-        if (status === "resolved") {
-            return `<span class="status-tag status-resolved"><i class="fas fa-check-circle"></i> Resolved</span>`;
-        }
-        return `<span class="status-tag status-pending"><i class="fas fa-clock"></i> Pending</span>`;
-    }
-    
-    function getResolutionCell(r) {
-        if (r.status === "resolved" && r.resolvedBy) {
-            return `<div style="font-size:0.7rem;">
-                        <i class="fas fa-user-check"></i> ${escapeHtml(r.resolvedBy)}<br>
-                        <i class="fas fa-calendar"></i> ${formatDisplayDateTime(r.resolvedDate)}<br>
-                        <small>${escapeHtml(r.resolutionNote?.substring(0, 25) || '')}</small>
-                    </div>`;
-        }
-        return `<span style="color:#aaa;">—</span>`;
-    }
-    
-    function getActionButtons(r) {
-        if (r.status !== "resolved") {
-            return `<button class="action-icon done" data-action="done" data-id="${r.firebaseId}" data-staff="${escapeHtml(r.hubStaffName || r.directStaffName || 'Staff')}"><i class="fas fa-check-circle"></i> Resolve</button>
-                    <button class="action-icon delete" data-action="delete" data-id="${r.firebaseId}"><i class="fas fa-trash"></i> Delete</button>`;
-        } else {
-            return `<span style="font-size:0.7rem; background:#e2e8f0; padding:4px 8px; border-radius:20px;">✓ Completed</span>
-                    <button class="action-icon delete" data-action="delete" data-id="${r.firebaseId}"><i class="fas fa-trash"></i> Delete</button>`;
-        }
-    }
-    
-    function attachTableEvents() {
-        document.querySelectorAll("[data-action='done']").forEach(btn => {
-            btn.removeEventListener("click", handleResolve);
-            btn.addEventListener("click", handleResolve);
+        
+        // Attach events
+        document.querySelectorAll('.action-icon.done').forEach(btn => {
+            btn.onclick = async () => {
+                const id = btn.dataset.id;
+                const resolver = prompt("Resolved by:", btn.dataset.staff);
+                if (resolver) {
+                    const note = prompt("Resolution notes:", "Completed");
+                    await db.collection(COLLECTION_NAME).doc(id).update({
+                        status: "resolved",
+                        resolvedBy: resolver,
+                        resolvedDate: getCurrentISODateTime(),
+                        resolutionNote: note || "Completed"
+                    });
+                    fetchReports();
+                }
+            };
         });
         
-        document.querySelectorAll("[data-action='delete']").forEach(btn => {
-            btn.removeEventListener("click", handleDelete);
-            btn.addEventListener("click", handleDelete);
+        document.querySelectorAll('.action-icon.delete').forEach(btn => {
+            btn.onclick = async () => {
+                if (confirm("Delete this report?")) {
+                    await db.collection(COLLECTION_NAME).doc(btn.dataset.id).delete();
+                    fetchReports();
+                }
+            };
         });
-    }
-    
-    async function handleResolve(e) {
-        const id = e.currentTarget.dataset.id;
-        const defaultStaff = e.currentTarget.dataset.staff;
-        let resolver = prompt("Resolved by (staff name):", defaultStaff);
-        if (resolver && resolver.trim()) {
-            let note = prompt("Resolution notes / remarks:", "Task completed successfully");
-            await resolveReport(id, resolver.trim(), note || "Completed");
-        }
-    }
-    
-    async function handleDelete(e) {
-        const id = e.currentTarget.dataset.id;
-        if (confirm("Delete this report permanently from Firebase?")) {
-            await deleteReport(id);
-        }
     }
     
     function updateStats() {
-        totalCountSpan.innerText = reports.length;
-        pendingCountSpan.innerText = reports.filter(r => r.status !== "resolved").length;
-        resolvedCountSpan.innerText = reports.filter(r => r.status === "resolved").length;
+        document.getElementById("totalCount").innerText = reports.length;
+        document.getElementById("pendingCount").innerText = reports.filter(r => r.status !== "resolved").length;
+        document.getElementById("resolvedCount").innerText = reports.filter(r => r.status === "resolved").length;
     }
     
-    // Firebase CRUD operations
-    async function fetchReportsFromFirebase() {
+    // Fetch reports from Firebase
+    async function fetchReports() {
         if (!firestoreReady) return;
         try {
             showLoading(true);
             const snapshot = await db.collection(COLLECTION_NAME).orderBy("entryTimestamp", "desc").get();
-            const fetchedReports = [];
+            reports = [];
             snapshot.forEach(doc => {
-                const data = doc.data();
-                fetchedReports.push({
-                    firebaseId: doc.id,
-                    ...data
-                });
+                reports.push({ firebaseId: doc.id, ...doc.data() });
             });
-            reports = fetchedReports;
             updateDateFilter();
             renderTables();
             updateStats();
-            updateSyncStatus(true, `${fetchedReports.length} records loaded`);
         } catch (error) {
-            console.error("Error fetching reports:", error);
-            updateSyncStatus(false, error.message);
-            // Load sample data if collection doesn't exist
-            if (error.message.includes("permission-denied") || error.message.includes("not found")) {
-                await createSampleData();
-            }
+            console.error("Error:", error);
         } finally {
             showLoading(false);
         }
     }
     
-    async function createSampleData() {
-        const sampleReports = [
-            {
-                id: generateId(),
-                type: "hub",
-                description: "Air conditioning not working in main lounge area",
-                priority: "High",
-                informedBy: "John Smith",
-                status: "pending",
-                entryTimestamp: getCurrentISODateTime(),
-                hubStaffName: "Mike Johnson",
-                hubEntryTime: getCurrentISODateTime()
-            },
-            {
-                id: generateId(),
-                type: "direct",
-                description: "Restroom faucet leaking, needs immediate repair",
-                priority: "Medium",
-                informedBy: "Sarah Williams",
-                status: "resolved",
-                entryTimestamp: getCurrentISODateTime(),
-                directDepartment: "Plumbing",
-                directStaffName: "Tom Brown",
-                directInfoTime: getCurrentISODateTime(),
-                resolvedBy: "Tom Brown",
-                resolvedDate: getCurrentISODateTime(),
-                resolutionNote: "Fixed and replaced valve"
-            }
-        ];
-        
-        for (const report of sampleReports) {
-            await db.collection(COLLECTION_NAME).add(report);
-        }
-        await fetchReportsFromFirebase();
-    }
-    
+    // Add report
     async function addReport(data) {
-        if (!firestoreReady) return false;
         const newReport = {
             id: generateId(),
             type: data.type,
@@ -1025,10 +875,7 @@
             priority: data.priority,
             informedBy: data.informedBy.trim(),
             status: "pending",
-            entryTimestamp: getCurrentISODateTime(),
-            resolvedBy: null,
-            resolvedDate: null,
-            resolutionNote: null
+            entryTimestamp: getCurrentISODateTime()
         };
         
         if (data.type === "hub") {
@@ -1040,164 +887,101 @@
             newReport.directInfoTime = getCurrentISODateTime();
         }
         
-        try {
-            await db.collection(COLLECTION_NAME).add(newReport);
-            await fetchReportsFromFirebase();
-            return true;
-        } catch (error) {
-            console.error("Error adding report:", error);
-            alert("Failed to save: " + error.message);
-            return false;
-        }
-    }
-    
-    async function resolveReport(firebaseId, resolvedBy, resolutionNote) {
-        if (!firestoreReady) return;
-        try {
-            await db.collection(COLLECTION_NAME).doc(firebaseId).update({
-                status: "resolved",
-                resolvedBy: resolvedBy,
-                resolvedDate: getCurrentISODateTime(),
-                resolutionNote: resolutionNote
-            });
-            await fetchReportsFromFirebase();
-        } catch (error) {
-            console.error("Error resolving report:", error);
-            alert("Failed to resolve: " + error.message);
-        }
-    }
-    
-    async function deleteReport(firebaseId) {
-        if (!firestoreReady) return;
-        try {
-            await db.collection(COLLECTION_NAME).doc(firebaseId).delete();
-            await fetchReportsFromFirebase();
-        } catch (error) {
-            console.error("Error deleting report:", error);
-            alert("Failed to delete: " + error.message);
-        }
+        await db.collection(COLLECTION_NAME).add(newReport);
+        await fetchReports();
     }
     
     // Tab switching
     function switchTab(tabId) {
         currentTab = tabId;
-        tabBtns.forEach(btn => {
-            if (btn.dataset.tab === tabId) {
-                btn.classList.add("active");
-            } else {
-                btn.classList.remove("active");
-            }
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabId);
         });
-        tabContents.forEach(content => {
-            if (content.id === `${tabId}-tab`) {
-                content.classList.add("active");
-            } else {
-                content.classList.remove("active");
-            }
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `${tabId}-tab`);
         });
-        tabTitle.innerHTML = currentTab === "pending" ? '<i class="fas fa-history"></i> Pending Maintenance Reports' : '<i class="fas fa-check-circle"></i> Resolved Maintenance Reports';
+        document.getElementById("tabTitle").innerHTML = currentTab === "pending" ? '<i class="fas fa-history"></i> Pending Maintenance Reports' : '<i class="fas fa-check-circle"></i> Resolved Maintenance Reports';
         renderTables();
     }
     
-    // Modal functions
+    // Modal handling
     function updateLiveTime() {
-        const now = getCurrentFormattedDateTime();
-        if (liveSpan) liveSpan.innerText = now;
+        document.getElementById("liveDateTime").innerText = new Date().toLocaleString();
     }
     
     function togglePanels() {
-        if (typeHub && typeHub.checked) {
-            hubPanel.classList.remove("hidden");
-            directPanel.classList.add("hidden");
-        } else if (typeDirect && typeDirect.checked) {
-            directPanel.classList.remove("hidden");
-            hubPanel.classList.add("hidden");
-        } else {
-            hubPanel.classList.add("hidden");
-            directPanel.classList.add("hidden");
-        }
+        const isHub = document.getElementById("typeHub").checked;
+        document.getElementById("hubPanel").classList.toggle("hidden", !isHub);
+        document.getElementById("directPanel").classList.toggle("hidden", isHub);
     }
     
-    function resetModal() {
+    function openModal() {
         document.getElementById("modalDescription").value = "";
         document.getElementById("modalPriority").value = "Medium";
         document.getElementById("modalInformedBy").value = "";
         document.getElementById("hubStaffName").value = "";
         document.getElementById("directDepartment").value = "";
         document.getElementById("directStaffName").value = "";
-        typeHub.checked = false;
-        typeDirect.checked = false;
+        document.getElementById("typeHub").checked = false;
+        document.getElementById("typeDirect").checked = false;
         togglePanels();
-        updateLiveTime();
-    }
-    
-    function openModal() {
-        resetModal();
-        modal.classList.add("active");
+        document.getElementById("entryModal").classList.add("active");
     }
     
     function closeModal() {
-        modal.classList.remove("active");
+        document.getElementById("entryModal").classList.remove("active");
     }
     
     // Event listeners
-    function bindEvents() {
-        refreshBtn.addEventListener("click", () => fetchReportsFromFirebase());
-        openPopupBtn.addEventListener("click", openModal);
-        closeModalBtn.addEventListener("click", closeModal);
-        cancelModalBtn.addEventListener("click", closeModal);
-        typeHub.addEventListener("change", togglePanels);
-        typeDirect.addEventListener("change", togglePanels);
-        dateFilter.addEventListener("change", () => renderTables());
-        priorityFilter.addEventListener("change", () => renderTables());
-        clearFiltersBtn.addEventListener("click", () => {
-            dateFilter.value = "all";
-            priorityFilter.value = "all";
-            renderTables();
-        });
-        tabBtns.forEach(btn => {
-            btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-        });
-        modal.addEventListener("click", (e) => {
-            if (e.target === modal) closeModal();
-        });
+    document.getElementById("refreshBtn").onclick = () => fetchReports();
+    document.getElementById("openPopupBtn").onclick = openModal;
+    document.getElementById("closeModalBtn").onclick = closeModal;
+    document.getElementById("cancelModalBtn").onclick = closeModal;
+    document.getElementById("typeHub").onchange = togglePanels;
+    document.getElementById("typeDirect").onchange = togglePanels;
+    document.getElementById("dateFilter").onchange = () => renderTables();
+    document.getElementById("priorityFilter").onchange = () => renderTables();
+    document.getElementById("clearFiltersBtn").onclick = () => {
+        document.getElementById("dateFilter").value = "all";
+        document.getElementById("priorityFilter").value = "all";
+        renderTables();
+    };
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.onclick = () => switchTab(btn.dataset.tab);
+    });
+    document.getElementById("entryModal").onclick = (e) => {
+        if (e.target === document.getElementById("entryModal")) closeModal();
+    };
+    
+    document.getElementById("submitModalBtn").onclick = async () => {
+        const description = document.getElementById("modalDescription").value.trim();
+        const priority = document.getElementById("modalPriority").value;
+        const informedBy = document.getElementById("modalInformedBy").value.trim();
         
-        submitModalBtn.addEventListener("click", async () => {
-            const description = document.getElementById("modalDescription")?.value.trim();
-            const priority = document.getElementById("modalPriority")?.value;
-            const informedBy = document.getElementById("modalInformedBy")?.value.trim();
-            
-            if (!description) { alert("Enter issue description."); return; }
-            if (!informedBy) { alert("Enter 'Reported By' name."); return; }
-            
-            if (typeHub && typeHub.checked) {
-                const hubStaffName = document.getElementById("hubStaffName")?.value.trim();
-                if (!hubStaffName) { alert("Hub Entry: Enter staff name."); return; }
-                await addReport({ type: "hub", description, priority, informedBy, hubStaffName });
-            } else if (typeDirect && typeDirect.checked) {
-                const directDepartment = document.getElementById("directDepartment")?.value.trim();
-                const directStaffName = document.getElementById("directStaffName")?.value.trim();
-                if (!directDepartment) { alert("Direct Inform: Enter department."); return; }
-                if (!directStaffName) { alert("Direct Inform: Enter staff name."); return; }
-                await addReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
-            } else {
-                alert("Select report type: Hub Entry or Direct Inform.");
-                return;
-            }
-            closeModal();
-        });
-    }
+        if (!description) { alert("Enter description"); return; }
+        if (!informedBy) { alert("Enter your name"); return; }
+        
+        if (document.getElementById("typeHub").checked) {
+            const hubStaffName = document.getElementById("hubStaffName").value.trim();
+            if (!hubStaffName) { alert("Enter hub staff name"); return; }
+            await addReport({ type: "hub", description, priority, informedBy, hubStaffName });
+        } else if (document.getElementById("typeDirect").checked) {
+            const directDepartment = document.getElementById("directDepartment").value.trim();
+            const directStaffName = document.getElementById("directStaffName").value.trim();
+            if (!directDepartment) { alert("Enter department"); return; }
+            if (!directStaffName) { alert("Enter staff name"); return; }
+            await addReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
+        } else {
+            alert("Select report type");
+            return;
+        }
+        closeModal();
+    };
     
     // Initialize
     setInterval(updateLiveTime, 1000);
     updateLiveTime();
-    bindEvents();
-    
-    if (firestoreReady) {
-        fetchReportsFromFirebase();
-    } else {
-        pendingTableBody.innerHTML = `<tr><td colspan="9" class="empty-state">Firebase not initialized. Check configuration.</td></tr>`;
-    }
+    if (firestoreReady) fetchReports();
 </script>
 </body>
 </html>
