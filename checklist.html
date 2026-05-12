@@ -588,49 +588,195 @@
     renderAttendanceForm(); 
     renderStaffAttendanceView(); 
 }
-    async function saveAttendance() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getAttendanceRecordId(currentDate, currentShift); await db.collection("attendanceRecords").doc(id).set({ records: attendanceRecords, date: currentDate, shift: currentShift, updatedAt: new Date().toISOString() }, { merge: true }); renderStaffAttendanceView(); renderAttendanceForm(); }
+    async function saveAttendance() { 
+    if(!firestoreReady || !currentDate) return; 
     
-    function addAttendanceRecord(staffName, status, reason, reportDateTime, shift) { 
-        if(!staffName){ alert("Please select staff"); return; }
-        if(!shift){ alert("Please select shift"); return; }
-        if((status==='SL'||status==='FRL') && !reason.trim()){ alert(`Please provide a reason for ${status==='SL'?'Sick Leave (SL)':'FRL'}`); return; }
-        const existingIndex = attendanceRecords.findIndex(r => r.staffName === staffName);
-        const newRecord = { staffName, status, reason: reason || null, reportDateTime, shift, updatedAt: new Date().toISOString() };
-        if(existingIndex !== -1) { attendanceRecords[existingIndex] = newRecord; } 
-        else { attendanceRecords.push(newRecord); } 
-        saveAttendance(); 
-        alert(`Attendance updated for ${staffName} (${shift} shift)`);
-        renderAttendanceForm();
+    // Separate records by shift
+    const morningRecords = attendanceRecords.filter(r => r.shift === 'Morning');
+    const eveningRecords = attendanceRecords.filter(r => r.shift === 'Evening');
+    
+    // Save morning shift records
+    if(morningRecords.length > 0) {
+        const morningId = getAttendanceRecordId(currentDate, "Morning");
+        await db.collection("attendanceRecords").doc(morningId).set({ 
+            records: morningRecords, 
+            date: currentDate, 
+            shift: "Morning", 
+            updatedAt: new Date().toISOString() 
+        }, { merge: true });
     }
+    
+    // Save evening shift records
+    if(eveningRecords.length > 0) {
+        const eveningId = getAttendanceRecordId(currentDate, "Evening");
+        await db.collection("attendanceRecords").doc(eveningId).set({ 
+            records: eveningRecords, 
+            date: currentDate, 
+            shift: "Evening", 
+            updatedAt: new Date().toISOString() 
+        }, { merge: true });
+    }
+    
+    renderStaffAttendanceView(); 
+    renderAttendanceForm(); 
+}
+    function addAttendanceRecord(staffName, status, reason, reportDateTime, shift) { 
+    if(!staffName){ 
+        alert("Please select or add staff member"); 
+        return; 
+    }
+    if(!shift){ 
+        alert("Please select shift"); 
+        return; 
+    }
+    
+    // For SL and FRL, require reason
+    if((status==='SL'||status==='FRL') && !reason.trim()){ 
+        alert(`Please provide a reason for ${status==='SL'?'Sick Leave (SL)':'FRL'}`); 
+        return; 
+    }
+    
+    // Check if staff exists in master list, if not, add them
+    const existingStaff = staffList.find(s => s.name === staffName);
+    if(!existingStaff) {
+        // Add to master staff list (but don't await to avoid blocking)
+        db.collection("staff").add({name: staffName})
+            .then(() => {
+                console.log(`Added new staff: ${staffName} to master list`);
+                loadStaff(); // Refresh staff list
+            })
+            .catch(err => console.error("Error adding staff:", err));
+    }
+    
+    const existingIndex = attendanceRecords.findIndex(r => r.staffName === staffName && r.shift === shift);
+    const newRecord = { 
+        staffName, 
+        status, 
+        reason: reason || null, 
+        reportDateTime, 
+        shift, 
+        updatedAt: new Date().toISOString() 
+    };
+    
+    if(existingIndex !== -1) { 
+        attendanceRecords[existingIndex] = newRecord; 
+    } else { 
+        attendanceRecords.push(newRecord); 
+    } 
+    
+    saveAttendance(); 
+    alert(`✅ ${status} record saved for ${staffName} (${shift} shift)`);
+    renderAttendanceForm();
+    renderStaffAttendanceView();
+}
     
     function renderAttendanceForm() { 
-        if(!attendanceContainer || currentRole !== "supervisor") return; 
-        if(staffList.length === 0){ attendanceContainer.innerHTML='<div class="empty-msg">No staff members added</div>'; return; } 
-        const now = new Date();
-        const defaultDateTime = now.toISOString().slice(0,16);
-        let html=`<div class="attendance-form">
-            <div class="form-row"><label>Select Staff:</label><select id="attendanceStaffSelect"><option value="">-- Select Staff --</option>${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select></div>
-            <div class="form-row"><label>Shift:</label><select id="attendanceShiftSelect"><option value="Morning">🌅 Morning</option><option value="Evening">🌙 Evening</option></select></div>
-            <div class="form-row"><label>Status:</label><select id="attendanceStatusSelect"><option value="Present">✅ Present</option><option value="Absent">❌ Absent</option><option value="SL">🩺 Sick Leave (SL)</option><option value="FRL">📅 FRL</option></select></div>
-            <div class="form-row" id="reasonRow" style="display:none;"><label>Reason (Required):</label><input type="text" id="attendanceReason" placeholder="Enter reason for SL or FRL"></div>
-            <div class="form-row"><label>Date & Time:</label><input type="datetime-local" id="attendanceDateTime" value="${defaultDateTime}"></div>
-            <button class="submit-attendance-btn" id="submitAttendanceBtn">Submit Attendance</button>
-        </div><div class="attendance-list"><strong>Today's Attendance Records:</strong><div id="attendanceRecordsList"></div></div>`;
-        attendanceContainer.innerHTML=html;
-        const statusSelect = document.getElementById('attendanceStatusSelect');
-        const reasonRow = document.getElementById('reasonRow');
-        statusSelect.addEventListener('change',()=>{ reasonRow.style.display = (statusSelect.value==='SL'||statusSelect.value==='FRL')?'flex':'none'; });
-        reasonRow.style.display = (statusSelect.value==='SL'||statusSelect.value==='FRL')?'flex':'none';
-        document.getElementById('submitAttendanceBtn').addEventListener('click',()=>{
-            const staff = document.getElementById('attendanceStaffSelect').value;
-            const shiftVal = document.getElementById('attendanceShiftSelect').value;
-            const status = document.getElementById('attendanceStatusSelect').value;
-            const reason = document.getElementById('attendanceReason').value;
-            const dateTime = document.getElementById('attendanceDateTime').value;
-            addAttendanceRecord(staff, status, reason, dateTime, shiftVal);
-        });
-        renderAttendanceRecordsList();
-    }
+    if(!attendanceContainer || currentRole !== "supervisor") return; 
+    
+    const now = new Date();
+    const defaultDateTime = now.toISOString().slice(0,16);
+    
+    let html = `<div class="attendance-form">
+        <div class="form-row">
+            <label>Select Staff:</label>
+            <select id="attendanceStaffSelect">
+                <option value="">-- Select Staff --</option>
+                ${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}
+            </select>
+        </div>
+        <div class="form-row">
+            <label>Or Add New:</label>
+            <input type="text" id="newStaffNameAttendance" placeholder="Enter new staff name (temporary/permanent)" style="flex:1;">
+            <button id="addNewStaffToAttendanceBtn" class="btn-primary" style="width:auto; padding:8px 15px;">+ Add & Mark</button>
+        </div>
+        <div class="form-row">
+            <label>Shift:</label>
+            <select id="attendanceShiftSelect">
+                <option value="Morning">🌅 Morning Shift (07:30-15:30)</option>
+                <option value="Evening">🌙 Evening Shift (15:30-23:30)</option>
+            </select>
+        </div>
+        <div class="form-row">
+            <label>Status:</label>
+            <select id="attendanceStatusSelect">
+                <option value="Absent">❌ Absent (No Show)</option>
+                <option value="SL">🩺 Sick Leave (SL)</option>
+                <option value="FRL">📅 FRL</option>
+                <option value="Training">📚 Training</option>
+            </select>
+        </div>
+        <div class="form-row" id="reasonRow" style="display:none;">
+            <label>Reason (Required):</label>
+            <input type="text" id="attendanceReason" placeholder="Enter reason for leave/absence">
+        </div>
+        <div class="form-row">
+            <label>Date & Time:</label>
+            <input type="datetime-local" id="attendanceDateTime" value="${defaultDateTime}">
+        </div>
+        <button class="submit-attendance-btn" id="submitAttendanceBtn">Mark Absence/Leave</button>
+    </div>
+    <div class="attendance-list">
+        <strong>Today's Absence & Leave Records:</strong>
+        <div id="attendanceRecordsList"></div>
+    </div>`;
+    
+    attendanceContainer.innerHTML = html;
+    
+    const statusSelect = document.getElementById('attendanceStatusSelect');
+    const reasonRow = document.getElementById('reasonRow');
+    
+    statusSelect.addEventListener('change', () => { 
+        reasonRow.style.display = (statusSelect.value === 'SL' || statusSelect.value === 'FRL') ? 'flex' : 'none'; 
+    });
+    reasonRow.style.display = 'none';
+    
+    // Add new staff button handler
+    document.getElementById('addNewStaffToAttendanceBtn').addEventListener('click', async () => {
+        const newStaffName = document.getElementById('newStaffNameAttendance').value.trim();
+        if(!newStaffName) {
+            alert("Please enter staff name");
+            return;
+        }
+        
+        // Check if staff already exists
+        const existingStaff = staffList.find(s => s.name === newStaffName);
+        if(!existingStaff) {
+            // Add to global staff list
+            await addStaffMember(newStaffName);
+            // Wait a moment for the staff to be added
+            setTimeout(() => {
+                document.getElementById('attendanceStaffSelect').value = newStaffName;
+                document.getElementById('newStaffNameAttendance').value = '';
+            }, 500);
+        } else {
+            document.getElementById('attendanceStaffSelect').value = newStaffName;
+            document.getElementById('newStaffNameAttendance').value = '';
+        }
+    });
+    
+    document.getElementById('submitAttendanceBtn').addEventListener('click', () => {
+        let staff = document.getElementById('attendanceStaffSelect').value;
+        const newStaffName = document.getElementById('newStaffNameAttendance').value.trim();
+        
+        if(!staff && !newStaffName) {
+            alert("Please select or add a staff member");
+            return;
+        }
+        
+        if(newStaffName && !staff) {
+            staff = newStaffName;
+        }
+        
+        const shiftVal = document.getElementById('attendanceShiftSelect').value;
+        const status = document.getElementById('attendanceStatusSelect').value;
+        const reason = document.getElementById('attendanceReason').value;
+        const dateTime = document.getElementById('attendanceDateTime').value;
+        
+        addAttendanceRecord(staff, status, reason, dateTime, shiftVal);
+    });
+    
+    renderAttendanceRecordsList();
+}
     
     function renderAttendanceRecordsList() {
         const listDiv = document.getElementById('attendanceRecordsList');
@@ -647,35 +793,35 @@
         return; 
     }
     
-    // Show ALL absentees for the selected date, regardless of shift
-    const absentRecords = attendanceRecords.filter(r => r.status === 'Absent' || r.status === 'SL' || r.status === 'FRL');
+    // Show ALL absence/leave records (excluding present status since we removed it)
+    const absenceRecords = attendanceRecords.filter(r => r.status !== 'Present');
     
-    if(absentRecords.length === 0){ 
-        staffAttendanceView.innerHTML='<div class="empty-msg">✅ No absent or leave records found for this date. All staff present.</div>'; 
+    if(absenceRecords.length === 0){ 
+        staffAttendanceView.innerHTML='<div class="empty-msg">✅ No absence or leave records found for this date. All staff present.</div>'; 
         return; 
     }
     
     // Group by shift for better display
-    const morningAbsentees = absentRecords.filter(r => r.shift === 'Morning');
-    const eveningAbsentees = absentRecords.filter(r => r.shift === 'Evening');
-    const unknownShiftAbsentees = absentRecords.filter(r => r.shift !== 'Morning' && r.shift !== 'Evening');
+    const morningRecords = absenceRecords.filter(r => r.shift === 'Morning');
+    const eveningRecords = absenceRecords.filter(r => r.shift === 'Evening');
     
     let html = `<div style="margin-bottom:15px; padding:10px; background:#eef3fc; border-radius:12px;">
         <strong><i class="fas fa-calendar-day"></i> Date: ${currentDate}</strong><br>
-        <span style="font-size:0.75rem;">Total absent/leave: ${absentRecords.length} staff member(s)</span>
+        <span style="font-size:0.75rem;">Total records: ${absenceRecords.length} staff member(s)</span>
     </div>`;
     
     // Morning Shift Section
-    if(morningAbsentees.length > 0) {
+    if(morningRecords.length > 0) {
         html += `<div style="margin-bottom:20px;">
             <div style="background:#fff3e0; padding:8px 12px; border-radius:10px; margin-bottom:10px;">
-                <strong><i class="fas fa-sun"></i> Morning Shift (07:30-15:30)</strong> - ${morningAbsentees.length} staff
+                <strong><i class="fas fa-sun"></i> Morning Shift (07:30-15:30)</strong> - ${morningRecords.length} staff
             </div>`;
         
-        morningAbsentees.forEach(r => { 
-            let statusClass = r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; 
-            let statusText = r.status==='Absent'?'❌ Absent':r.status==='SL'?'🩺 Sick Leave':'📅 FRL'; 
-            let statusIcon = r.status==='Absent'?'❌':r.status==='SL'?'🩺':'📅';
+        morningRecords.forEach(r => { 
+            let statusClass = getStatusClass(r.status);
+            let statusIcon = getStatusIcon(r.status);
+            let statusText = getStatusText(r.status);
+            
             html += `<div class="attendance-record" style="margin-bottom:8px;">
                 <strong>${escapeHtml(r.staffName)}</strong> - <span class="${statusClass}">${statusIcon} ${statusText}</span>
                 ${r.reason ? `<br><span style="font-size:0.65rem; color:#666;">📝 Reason: ${escapeHtml(r.reason)}</span>` : ''}
@@ -686,39 +832,19 @@
     }
     
     // Evening Shift Section
-    if(eveningAbsentees.length > 0) {
+    if(eveningRecords.length > 0) {
         html += `<div style="margin-bottom:20px;">
             <div style="background:#e3f2fd; padding:8px 12px; border-radius:10px; margin-bottom:10px;">
-                <strong><i class="fas fa-moon"></i> Evening Shift (15:30-23:30)</strong> - ${eveningAbsentees.length} staff
+                <strong><i class="fas fa-moon"></i> Evening Shift (15:30-23:30)</strong> - ${eveningRecords.length} staff
             </div>`;
         
-        eveningAbsentees.forEach(r => { 
-            let statusClass = r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; 
-            let statusText = r.status==='Absent'?'❌ Absent':r.status==='SL'?'🩺 Sick Leave':'📅 FRL';
-            let statusIcon = r.status==='Absent'?'❌':r.status==='SL'?'🩺':'📅'; 
+        eveningRecords.forEach(r => { 
+            let statusClass = getStatusClass(r.status);
+            let statusIcon = getStatusIcon(r.status);
+            let statusText = getStatusText(r.status);
+            
             html += `<div class="attendance-record" style="margin-bottom:8px;">
                 <strong>${escapeHtml(r.staffName)}</strong> - <span class="${statusClass}">${statusIcon} ${statusText}</span>
-                ${r.reason ? `<br><span style="font-size:0.65rem; color:#666;">📝 Reason: ${escapeHtml(r.reason)}</span>` : ''}
-                ${r.reportDateTime ? `<br><span style="font-size:0.65rem; color:#666;">🕐 Reported: ${new Date(r.reportDateTime).toLocaleString()}</span>` : ''}
-            </div>`; 
-        });
-        html += `</div>`;
-    }
-    
-    // Unknown/Other Shifts
-    if(unknownShiftAbsentees.length > 0) {
-        html += `<div style="margin-bottom:20px;">
-            <div style="background:#f5f5f5; padding:8px 12px; border-radius:10px; margin-bottom:10px;">
-                <strong><i class="fas fa-clock"></i> Other Shifts</strong> - ${unknownShiftAbsentees.length} staff
-            </div>`;
-        
-        unknownShiftAbsentees.forEach(r => { 
-            let statusClass = r.status==='Absent'?'status-absent':r.status==='SL'?'status-sl':'status-frl'; 
-            let statusText = r.status==='Absent'?'❌ Absent':r.status==='SL'?'🩺 Sick Leave':'📅 FRL';
-            let statusIcon = r.status==='Absent'?'❌':r.status==='SL'?'🩺':'📅';
-            html += `<div class="attendance-record" style="margin-bottom:8px;">
-                <strong>${escapeHtml(r.staffName)}</strong> - <span class="${statusClass}">${statusIcon} ${statusText}</span>
-                ${r.shift ? `<span style="margin-left:8px; font-size:0.65rem;">(${r.shift} shift)</span>` : ''}
                 ${r.reason ? `<br><span style="font-size:0.65rem; color:#666;">📝 Reason: ${escapeHtml(r.reason)}</span>` : ''}
                 ${r.reportDateTime ? `<br><span style="font-size:0.65rem; color:#666;">🕐 Reported: ${new Date(r.reportDateTime).toLocaleString()}</span>` : ''}
             </div>`; 
@@ -727,6 +853,37 @@
     }
     
     staffAttendanceView.innerHTML = html;
+}
+
+// Helper functions for status display
+function getStatusClass(status) {
+    switch(status) {
+        case 'Absent': return 'status-absent';
+        case 'SL': return 'status-sl';
+        case 'FRL': return 'status-frl';
+        case 'Training': return 'status-training';
+        default: return 'status-absent';
+    }
+}
+
+function getStatusIcon(status) {
+    switch(status) {
+        case 'Absent': return '❌';
+        case 'SL': return '🩺';
+        case 'FRL': return '📅';      
+        case 'Training': return '📚';
+        default: return '❌';
+    }
+}
+
+function getStatusText(status) {
+    switch(status) {
+        case 'Absent': return 'Absent (No Show)';
+        case 'SL': return 'Sick Leave';
+        case 'FRL': return 'FRL (Annual Leave)';
+        case 'Training': return 'Training/Meeting';
+        default: return status;
+    }
 }
     
     async function loadSODStaff() { if(!firestoreReady || !currentDate || !currentShift) return; const id = getSODStaffRecordId(currentDate, currentShift); try { const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; } catch(e) { sodStaffNames = []; } renderSODPanel(); renderBreakUI(); renderSupervisorSelectPanel(); }
