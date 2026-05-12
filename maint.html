@@ -11,6 +11,8 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- External Firebase Configuration -->
+    <script src="firebase-config1.js"></script>
     
     <style>
         * {
@@ -546,7 +548,7 @@
             <div class="logo-text">
                 <h1><i class="fas fa-clipboard-list"></i> Maintenance Activity Log</h1>
                 <div class="sync-status" id="syncStatus">
-                    <i class="fas fa-spinner fa-pulse"></i> Initializing Firebase...
+                    <i class="fas fa-spinner fa-pulse"></i> Connecting to Firebase...
                 </div>
             </div>
         </div>
@@ -601,14 +603,14 @@
                 <table class="report-table">
                     <thead><tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr></thead>
                     <tbody id="pendingTableBody"><tr><td colspan="9" class="empty-state">Loading...</td></tr></tbody>
-                </table>
+                ~
             </div>
             
             <div id="resolved-tab" class="tab-content">
                 <table class="report-table">
                     <thead><tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr></thead>
                     <tbody id="resolvedTableBody"><tr><td colspan="9" class="empty-state">Loading...</td></tr></tbody>
-                </table>
+                ~
             </div>
         </div>
     </div>
@@ -673,36 +675,54 @@
 </div>
 
 <script>
-    // ========== FIREBASE CONFIGURATION ==========
-    const firebaseConfig = {
-        apiKey: "AIzaSyALK_YlhFl6XOTDY54SOhk4DUDLPq1PBEE",
-        authDomain: "briefing-ded2b.firebaseapp.com",
-        projectId: "briefing-ded2b",
-        storageBucket: "briefing-ded2b.firebasestorage.app",
-        messagingSenderId: "583386183547",
-        appId: "1:583386183547:web:945d92eaa3d13f513defde"
-    };
-    
-    // Initialize Firebase
+    // Wait for Firebase to be initialized from external config
     let db = null;
     let COLLECTION_NAME = "maintenance_reports";
     let firestoreReady = false;
     let reports = [];
     let currentTab = "pending";
     
-    try {
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
+    // Check if Firebase is initialized (from firebase-config1.js)
+    function checkFirebaseReady() {
+        return new Promise((resolve) => {
+            let attempts = 0;
+            const interval = setInterval(() => {
+                attempts++;
+                if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+                    clearInterval(interval);
+                    resolve(true);
+                } else if (attempts > 20) {
+                    clearInterval(interval);
+                    resolve(false);
+                }
+            }, 500);
+        });
+    }
+    
+    // Initialize Firestore
+    async function initFirestore() {
+        const firebaseReady = await checkFirebaseReady();
+        if (firebaseReady) {
+            try {
+                db = firebase.firestore();
+                firestoreReady = true;
+                console.log("✅ Firestore initialized successfully");
+                document.getElementById("syncStatus").innerHTML = '<i class="fas fa-check-circle" style="color:#22c55e;"></i> Firebase Connected';
+                document.getElementById("syncStatus").style.background = "#dcfce7";
+                await fetchReports();
+                return true;
+            } catch (error) {
+                console.error("Firestore init error:", error);
+                document.getElementById("syncStatus").innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Firestore Error';
+                document.getElementById("syncStatus").style.background = "#fee2e2";
+                return false;
+            }
+        } else {
+            console.error("Firebase not loaded from external config");
+            document.getElementById("syncStatus").innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Config not loaded';
+            document.getElementById("syncStatus").style.background = "#fee2e2";
+            return false;
         }
-        db = firebase.firestore();
-        firestoreReady = true;
-        console.log("✅ Firebase initialized successfully");
-        document.getElementById("syncStatus").innerHTML = '<i class="fas fa-check-circle" style="color:#22c55e;"></i> Firebase Connected';
-        document.getElementById("syncStatus").style.background = "#dcfce7";
-    } catch (error) {
-        console.error("Firebase init error:", error);
-        document.getElementById("syncStatus").innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Connection Error';
-        document.getElementById("syncStatus").style.background = "#fee2e2";
     }
     
     // Helper functions
@@ -780,7 +800,7 @@
         const container = currentTab === "pending" ? document.getElementById("pendingTableBody") : document.getElementById("resolvedTableBody");
         
         if (filtered.length === 0) {
-            container.innerHTML = `<tr><td colspan="9" class="empty-state">No ${currentTab} reports found.</td></tr>`;
+            container.innerHTML = `<tr><td colspan="9" class="empty-state">No ${currentTab} reports found.  </td></tr>`;
             return;
         }
         
@@ -817,11 +837,11 @@
             btn.onclick = async () => {
                 const id = btn.dataset.id;
                 const resolver = prompt("Resolved by:", btn.dataset.staff);
-                if (resolver) {
+                if (resolver && resolver.trim()) {
                     const note = prompt("Resolution notes:", "Completed");
                     await db.collection(COLLECTION_NAME).doc(id).update({
                         status: "resolved",
-                        resolvedBy: resolver,
+                        resolvedBy: resolver.trim(),
                         resolvedDate: getCurrentISODateTime(),
                         resolutionNote: note || "Completed"
                     });
@@ -832,7 +852,7 @@
         
         document.querySelectorAll('.action-icon.delete').forEach(btn => {
             btn.onclick = async () => {
-                if (confirm("Delete this report?")) {
+                if (confirm("Delete this report permanently?")) {
                     await db.collection(COLLECTION_NAME).doc(btn.dataset.id).delete();
                     fetchReports();
                 }
@@ -860,7 +880,7 @@
             renderTables();
             updateStats();
         } catch (error) {
-            console.error("Error:", error);
+            console.error("Error fetching:", error);
         } finally {
             showLoading(false);
         }
@@ -875,7 +895,8 @@
             priority: data.priority,
             informedBy: data.informedBy.trim(),
             status: "pending",
-            entryTimestamp: getCurrentISODateTime()
+            entryTimestamp: getCurrentISODateTime(),
+            createdAt: getCurrentISODateTime()
         };
         
         if (data.type === "hub") {
@@ -958,7 +979,7 @@
         const priority = document.getElementById("modalPriority").value;
         const informedBy = document.getElementById("modalInformedBy").value.trim();
         
-        if (!description) { alert("Enter description"); return; }
+        if (!description) { alert("Enter issue description"); return; }
         if (!informedBy) { alert("Enter your name"); return; }
         
         if (document.getElementById("typeHub").checked) {
@@ -972,7 +993,7 @@
             if (!directStaffName) { alert("Enter staff name"); return; }
             await addReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
         } else {
-            alert("Select report type");
+            alert("Select report type: Hub Entry or Direct Inform");
             return;
         }
         closeModal();
@@ -981,7 +1002,7 @@
     // Initialize
     setInterval(updateLiveTime, 1000);
     updateLiveTime();
-    if (firestoreReady) fetchReports();
+    initFirestore();
 </script>
 </body>
 </html>
