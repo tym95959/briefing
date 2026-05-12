@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>View Roster - Firebase Data with Local Cache</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <!-- External Firebase config -->
+    <script src="fireduty.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+            background: #f0f4f8;
+            padding: 24px 20px;
+            color: #1a3e50;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header-card {
+            background: white;
+            border-radius: 28px;
+            padding: 20px 28px;
+            margin-bottom: 32px;
+            border: 1px solid #e0eef6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-title h1 {
+            font-size: 1.5rem;
+            color: #1f5e7e;
+        }
+
+        .header-title p {
+            font-size: 0.8rem;
+            color: #7c9bb0;
+        }
+
+        .cache-badge {
+            background: #e0f2e9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: #1e6f3f;
+            margin-left: 12px;
+        }
+
+        .btn {
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #2c7da0;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1e627f;
+        }
+
+        .btn-warning {
+            background: #e67e22;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d35400;
+        }
+
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+            justify-content: space-between;
+            background: white;
+            padding: 18px 24px;
+            border-radius: 24px;
+            margin-bottom: 28px;
+            border: 1px solid #e2ecf3;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 170px;
+        }
+
+        .filter-group label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #3d6e8b;
+        }
+
+        select, input {
+            padding: 10px 14px;
+            border-radius: 60px;
+            border: 1px solid #caddf0;
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .stats-badge {
+            background: #eef3f8;
+            border-radius: 40px;
+            padding: 6px 18px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #1f5e7e;
+        }
+
+        .sync-status {
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            background: #eef2f5;
+        }
+
+        .sync-status.success { background: #e0f2e9; color: #1e6f3f; }
+        .sync-status.error { background: #ffe6e2; color: #c0392b; }
+        .sync-status.syncing { background: #fff0db; color: #b85c1a; }
+        .sync-status.cache { background: #e0e7ff; color: #2c3e8f; }
+
+        .group-section {
+            margin-bottom: 32px;
+            background: white;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid #e2ecf3;
+        }
+
+        .group-header {
+            background: #f2f8fc;
+            padding: 14px 24px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: #1f5e7e;
+            border-bottom: 2px solid #d4e3ef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .group-count {
+            font-size: 0.8rem;
+            font-weight: normal;
+            background: white;
+            padding: 4px 12px;
+            border-radius: 40px;
+            color: #2c7da0;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .roster-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            min-width: 800px;
+        }
+
+        .roster-table th {
+            background: #f8fbfe;
+            color: #1a4b66;
+            font-weight: 600;
+            padding: 12px 8px;
+            border-bottom: 1px solid #dae9f2;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .roster-table td {
+            padding: 10px 6px;
+            border-bottom: 1px solid #ecf3f8;
+            text-align: center;
+        }
+
+        .roster-table tr:hover td {
+            background-color: #fafeff;
+        }
+
+        .staff-name-cell {
+            font-weight: 700;
+            background-color: #fafdff;
+            border-right: 1px solid #e2edf5;
+            text-align: left !important;
+            padding-left: 16px;
+            white-space: nowrap;
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 5;
+        }
+
+        .rcno-cell {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #4a6f8a;
+            white-space: nowrap;
+            border-right: 1px solid #e2edf5;
+            background-color: #fafdff;
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 5;
+        }
+
+        .shift-chip {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 40px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        /* Morning shifts - Yellow gradient (brighter for early morning, fading later) */
+        .shift-morning-0730 { background: #FFD700; color: #5c3d0e; border-left: 3px solid #e6be00; } /* Bright gold - 0730 */
+        .shift-morning-0800 { background: #FFE44D; color: #5a3b0c; border-left: 3px solid #e0c400; } /* 0800 */
+        .shift-morning-0830 { background: #FFEC80; color: #54360a; border-left: 3px solid #d4b800; } /* 0830 - lighter yellow */
+        .shift-morning-0900 { background: #FFF2B3; color: #4e3208; border-left: 3px solid #c8ac00; } /* 0900 */
+        .shift-morning-0930 { background: #FFF5C4; color: #472d07; border-left: 3px solid #b89e00; } /* 0930 */
+        .shift-morning-1000 { background: #FFF8D6; color: #402805; border-left: 3px solid #a88e00; } /* 1000 */
+        .shift-morning-1030 { background: #FFFBE8; color: #392304; border-left: 3px solid #987e00; } /* 1030 */
+        .shift-morning-1100 { background: #FFFDF5; color: #321e03; border-left: 3px solid #886e00; } /* 1100 - very light yellow */
+        
+        /* Evening shifts - Blue gradient (lighter blue in afternoon, darker as night approaches) */
+        .shift-evening-1500 { background: #E8F4FD; color: #1a5276; border-left: 3px solid #3498db; } /* Light blue - 1500 */
+        .shift-evening-1530 { background: #D4EAFA; color: #1a4e6e; border-left: 3px solid #2e86c1; } /* 1530 */
+        .shift-evening-1600 { background: #C0E0F7; color: #184a66; border-left: 3px solid #2874a6; } /* 1600 */
+        .shift-evening-1630 { background: #ACD6F4; color: #16455e; border-left: 3px solid #226a9e; } /* 1630 - medium blue */
+        .shift-evening-1700 { background: #98CCF1; color: #144156; border-left: 3px solid #1c5e8e; } /* 1700 */
+        .shift-evening-1730 { background: #84C2EE; color: #123c4e; border-left: 3px solid #16527e; } /* 1730 */
+        .shift-evening-1800 { background: #70B8EB; color: #103746; border-left: 3px solid #10466e; } /* 1800 - darker blue */
+        
+        /* Midnight shifts (0030-0830) - Red shades */
+        .shift-midnight-0030 { background: #FFE0E0; color: #c0392b; border-left: 3px solid #e74c3c; }
+        .shift-midnight-0000 { background: #FFCCCC; color: #a93226; border-left: 3px solid #cb4335; }
+        
+        /* OFF and Leave */
+        .shift-off { background: #eef2f5; color: #7f8c8d; border-left: 3px solid #bdc3c7; }
+        .shift-leave { background: #f3e5f5; color: #7b2d8e; border-left: 3px solid #9b59b6; }
+        
+        .shift-default { background: #eef2f5; color: #3a6b8c; border-left: 3px solid #7f8c8d; }
+
+        .empty-state {
+            text-align: center;
+            padding: 56px 24px;
+            color: #7c9bb0;
+            font-style: italic;
+        }
+
+        .footer-note {
+            margin-top: 18px;
+            text-align: right;
+            font-size: 0.7rem;
+            color: #7f9bb2;
+        }
+        
+        .color-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 16px;
+            padding: 12px 20px;
+            background: white;
+            border-radius: 20px;
+            justify-content: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.7rem;
+        }
+        
+        .legend-color {
+            width: 40px;
+            height: 20px;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header-card">
+        <div class="header-title">
+            <h1>📋 Staff Roster Viewer <span id="cacheIndicator" class="cache-badge" style="display: none;">📦 Cached</span></h1>
+            <p>Data loaded from Local Storage (cached) | Refresh to fetch from Firebase</p>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <div id="syncStatus" class="sync-status">Loading...</div>
+            <button class="btn btn-warning" id="clearCacheBtn">🗑️ Clear Cache</button>
+            <button class="btn btn-primary" id="refreshBtn">🔄 Refresh from Firebase</button>
+        </div>
+    </div>
+
+    <div id="filterSection" style="display: none;">
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>👥 STAFF NAME</label>
+                <select id="staffFilterSelect"><option value="ALL">All Staff</option></select>
+            </div>
+            <div class="filter-group">
+                <label>📅 DATE RANGE</label>
+                <div style="display: flex; gap: 12px;">
+                    <input type="date" id="startDateFilter" placeholder="Start Date">
+                    <input type="date" id="endDateFilter" placeholder="End Date">
+                    <button class="btn btn-primary" id="applyDateBtn">Apply</button>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>⏰ SHIFT TYPE</label>
+                <select id="shiftTypeFilter">
+                    <option value="ALL">All Shifts</option>
+                    <option value="MORNING">🌅 Morning (07-11)</option>
+                    <option value="EVENING">🌙 Evening (15-18)</option>
+                    <option value="MIDNIGHT">🌃 Midnight (00)</option>
+                    <option value="OFF">🚫 OFF</option>
+                    <option value="LEAVE">🌿 Leave</option>
+                </select>
+            </div>
+            <div class="stats-badge" id="statsInfo">—</div>
+            <button class="btn btn-primary" id="resetFiltersBtn" style="background: #6c757d;">Reset</button>
+        </div>
+    </div>
+
+    <div id="groupsContainer"></div>
+    
+    <div class="color-legend">
+        <div class="legend-item"><div class="legend-color" style="background:#FFD700;"></div><span>Early Morning (0730)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#FFF2B3;"></div><span>Late Morning (0900+)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#E8F4FD;"></div><span>Early Afternoon (1500)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#70B8EB;"></div><span>Late Evening (1800)</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#FFE0E0;"></div><span>Midnight Shift</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#eef2f5;"></div><span>OFF</span></div>
+        <div class="legend-item"><div class="legend-color" style="background:#f3e5f5;"></div><span>Leave</span></div>
+    </div>
+    
+    <div class="footer-note">✅ Snr. Executive on top | Morning shifts: bright yellow → fade | Evening shifts: light blue → dark blue | Midnight: red</div>
+</div>
+
+<script>
+    let database = null;
+    let ROSTER_REF = 'rosterData';
+    let groupedStaff = {};
+    let allStaffFlat = [];
+    let masterDateList = [];
+    let lastUpdatedInfo = null;
+    let currentFilters = { staffName: "ALL", startDate: null, endDate: null, shiftType: "ALL" };
+    let dataLoaded = false;
+    let isFromCache = false;
+
+    // Day names mapping
+    const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+    // Cache key for localStorage
+    const CACHE_KEY = 'roster_viewer_cache';
+
+    // Get color class based on shift timing
+    function getShiftColorClass(shiftRaw) {
+        if (!shiftRaw || shiftRaw === "") return "shift-default";
+        
+        let upper = String(shiftRaw).trim().toUpperCase();
+        
+        // OFF
+        if (upper === "OFF") {
+            return "shift-off";
+        }
+        // Leave
+        if (upper.includes("LEAVE") || upper.includes("A-LEAVE")) {
+            return "shift-leave";
+        }
+        
+        // Extract the start time from shift (first 4 digits)
+        let match = shiftRaw.match(/(\d{4})/);
+        if (match) {
+            let timeStr = match[1];
+            let hour = parseInt(timeStr.substring(0, 2));
+            let minute = parseInt(timeStr.substring(2, 4));
+            
+            // Midnight shifts (00xx)
+            if (hour === 0) {
+                return "shift-midnight-0030";
+            }
+            
+            // Morning shifts (07-11)
+            if (hour >= 7 && hour <= 11) {
+                if (hour === 7 && minute === 30) return "shift-morning-0730";
+                if (hour === 8 && minute === 0) return "shift-morning-0800";
+                if (hour === 8 && minute === 30) return "shift-morning-0830";
+                if (hour === 9 && minute === 0) return "shift-morning-0900";
+                if (hour === 9 && minute === 30) return "shift-morning-0930";
+                if (hour === 10 && minute === 0) return "shift-morning-1000";
+                if (hour === 10 && minute === 30) return "shift-morning-1030";
+                if (hour === 11 && minute === 0) return "shift-morning-1100";
+                return "shift-morning-0900"; // default fallback
+            }
+            
+            // Evening shifts (15-18)
+            if (hour >= 15 && hour <= 18) {
+                if (hour === 15 && minute === 0) return "shift-evening-1500";
+                if (hour === 15 && minute === 30) return "shift-evening-1530";
+                if (hour === 16 && minute === 0) return "shift-evening-1600";
+                if (hour === 16 && minute === 30) return "shift-evening-1630";
+                if (hour === 17 && minute === 0) return "shift-evening-1700";
+                if (hour === 17 && minute === 30) return "shift-evening-1730";
+                if (hour === 18 && minute === 0) return "shift-evening-1800";
+                return "shift-evening-1600"; // default fallback
+            }
+        }
+        
+        return "shift-default";
+    }
+
+    function getShiftCategory(shiftRaw) {
+        if (!shiftRaw || shiftRaw === "") return "UNKNOWN";
+        let upper = String(shiftRaw).trim().toUpperCase();
+        if (upper === "OFF") return "OFF";
+        if (upper.includes("LEAVE") || upper.includes("A-LEAVE")) return "LEAVE";
+        let match = shiftRaw.match(/(\d{4})/);
+        if (match) {
+            let hour = parseInt(match[1].substring(0, 2));
+            if (hour >= 7 && hour <= 11) return "MORNING";
+            if (hour >= 15 && hour <= 18) return "EVENING";
+            if (hour === 0) return "MIDNIGHT";
+        }
+        return "UNKNOWN";
+    }
+
+    function formatShiftDisplay(raw) {
+        if (!raw) return "—";
+        let v = String(raw).trim();
+        if (v.toUpperCase() === "OFF") return "🚫 OFF";
+        if (v.toUpperCase().includes("LEAVE")) return "🌿 Leave";
+        return v;
+    }
+
+    function formatDateWithDay(isoDate) {
+        if (!isoDate) return "";
+        let d = new Date(isoDate);
+        if (isNaN(d.getTime())) return isoDate;
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = monthNames[d.getMonth()];
+        const day = d.getDate();
+        const dayName = dayNames[d.getDay()];
+        return `${month} ${day} ${dayName}`;
+    }
+
+    function formatDateHeader(isoDate) {
+        return formatDateWithDay(isoDate);
+    }
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;'));
+    }
+
+    function getDisplayGroupName(groupKey) {
+        const displayMap = {
+            'Snr_Executive': ' Snr. Executive',
+            'Executive': ' Executive',
+            'Supervisors': ' Supervisors',
+            'Officers': ' Officers',
+            'Housekeepers': ' Housekeepers'
+        };
+        return displayMap[groupKey] || groupKey.replace(/_/g, ' ');
+    }
+
+    function getGroupOrder(groupKey) {
+        const orderMap = {
+            'Snr_Executive': 1,
+            'Executive': 2,
+            'Supervisors': 3,
+            'Officers': 4,
+            'Housekeepers': 5
+        };
+        return orderMap[groupKey] || 999;
+    }
+
+    function getShiftValue(shifts, date) {
+        if (!shifts) return "";
+        if (shifts instanceof Map) {
+            return shifts.get(date) || "";
+        }
+        if (typeof shifts === 'object') {
+            return shifts[date] || "";
+        }
+        return "";
+    }
+
+    function saveToCache() {
+        if (!dataLoaded) return;
+        const cacheData = {
+            groupedStaff: groupedStaff,
+            masterDateList: masterDateList,
+            lastUpdated: lastUpdatedInfo,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+        console.log('Data saved to cache');
+    }
+
+    function loadFromCache() {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (!cached) return false;
+        
+        try {
+            const cacheData = JSON.parse(cached);
+            groupedStaff = cacheData.groupedStaff;
+            masterDateList = cacheData.masterDateList;
+            lastUpdatedInfo = cacheData.lastUpdated;
+            
+            allStaffFlat = [];
+            for (let g in groupedStaff) {
+                groupedStaff[g].forEach(s => {
+                    allStaffFlat.push({ ...s, groupKey: g });
+                });
+            }
+            dataLoaded = true;
+            isFromCache = true;
+            return true;
+        } catch (err) {
+            console.error('Error loading cache:', err);
+            return false;
+        }
+    }
+
+    function clearCache() {
+        localStorage.removeItem(CACHE_KEY);
+        setSyncStatus('Cache cleared. Click Refresh to load from Firebase.', 'cache');
+        document.getElementById('cacheIndicator').style.display = 'none';
+        document.getElementById("groupsContainer").innerHTML = `<div class="empty-state">🗑️ Cache cleared. Click Refresh to load data from Firebase.</div>`;
+        document.getElementById("filterSection").style.display = "none";
+        dataLoaded = false;
+        isFromCache = false;
+    }
+
+    function initFirebaseFromConfig() {
+        return new Promise((resolve, reject) => {
+            if (typeof firebaseConfig !== 'undefined') {
+                try {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(firebaseConfig);
+                    }
+                    database = firebase.database();
+                    resolve(true);
+                } catch (err) {
+                    reject(err);
+                }
+            } else {
+                const checkInterval = setInterval(() => {
+                    if (typeof firebaseConfig !== 'undefined') {
+                        clearInterval(checkInterval);
+                        try {
+                            if (!firebase.apps.length) {
+                                firebase.initializeApp(firebaseConfig);
+                            }
+                            database = firebase.database();
+                            resolve(true);
+                        } catch (err) {
+                            reject(err);
+                        }
+                    }
+                }, 100);
+                setTimeout(() => {
+                    clearInterval(checkInterval);
+                    reject(new Error('Firebase config not loaded'));
+                }, 5000);
+            }
+        });
+    }
+
+    function setSyncStatus(message, type = 'info') {
+        const el = document.getElementById('syncStatus');
+        el.textContent = message;
+        el.className = 'sync-status';
+        if (type === 'success') el.classList.add('success');
+        else if (type === 'error') el.classList.add('error');
+        else if (type === 'syncing') el.classList.add('syncing');
+        else if (type === 'cache') el.classList.add('cache');
+    }
+
+    function populateStaffDropdown() {
+        let select = document.getElementById("staffFilterSelect");
+        select.innerHTML = '<option value="ALL">All Staff Members</option>';
+        allStaffFlat.forEach(s => {
+            let opt = document.createElement("option");
+            opt.value = s.staffName;
+            opt.textContent = s.rcNo ? `${s.rcNo} - ${s.staffName}` : s.staffName;
+            select.appendChild(opt);
+        });
+        select.value = currentFilters.staffName;
+    }
+
+    function shiftMatchesType(shiftRaw, filter) {
+        if (filter === "ALL") return true;
+        let cat = getShiftCategory(shiftRaw);
+        if (filter === "MORNING" && cat === "MORNING") return true;
+        if (filter === "EVENING" && cat === "EVENING") return true;
+        if (filter === "MIDNIGHT" && cat === "MIDNIGHT") return true;
+        if (filter === "OFF" && cat === "OFF") return true;
+        if (filter === "LEAVE" && cat === "LEAVE") return true;
+        return false;
+    }
+
+    function getFilteredDates() {
+        let filtered = [...masterDateList];
+        if (currentFilters.startDate) filtered = filtered.filter(d => d >= currentFilters.startDate);
+        if (currentFilters.endDate) filtered = filtered.filter(d => d <= currentFilters.endDate);
+        return filtered;
+    }
+
+    function renderAllGroups() {
+        if (!dataLoaded) {
+            document.getElementById("groupsContainer").innerHTML = `<div class="empty-state">📭 No data loaded. Click Refresh to load from Firebase or check cache.</div>`;
+            return;
+        }
+
+        let filteredDates = getFilteredDates();
+        if (filteredDates.length === 0) {
+            document.getElementById("groupsContainer").innerHTML = `<div class="empty-state">⚠️ No dates in selected range</div>`;
+            return;
+        }
+
+        let totalStaffDisplayed = 0;
+        let totalCells = 0;
+        let html = "";
+
+        // Sort groups: Snr_Executive first, then Executive, Supervisors, Officers, Housekeepers
+        let sortedGroups = Object.keys(groupedStaff).sort((a, b) => {
+            return getGroupOrder(a) - getGroupOrder(b);
+        });
+
+        for (let groupKey of sortedGroups) {
+            let staffList = groupedStaff[groupKey];
+            let filteredStaff = staffList;
+            if (currentFilters.staffName !== "ALL") {
+                filteredStaff = filteredStaff.filter(s => s.staffName === currentFilters.staffName);
+            }
+
+            let visibleStaff = [];
+            for (let staff of filteredStaff) {
+                let hasAnyMatch = false;
+                for (let date of filteredDates) {
+                    let shiftRaw = getShiftValue(staff.shifts, date);
+                    if (currentFilters.shiftType === "ALL" || shiftMatchesType(shiftRaw, currentFilters.shiftType)) {
+                        hasAnyMatch = true;
+                        break;
+                    }
+                }
+                if (hasAnyMatch || currentFilters.shiftType === "ALL") {
+                    visibleStaff.push(staff);
+                }
+            }
+
+            if (visibleStaff.length === 0) continue;
+            totalStaffDisplayed += visibleStaff.length;
+
+            for (let staff of visibleStaff) {
+                for (let date of filteredDates) {
+                    let shiftRaw = getShiftValue(staff.shifts, date);
+                    if (currentFilters.shiftType === "ALL" || shiftMatchesType(shiftRaw, currentFilters.shiftType)) {
+                        totalCells++;
+                    }
+                }
+            }
+
+            let displayGroupName = getDisplayGroupName(groupKey);
+            
+            html += `<div class="group-section">
+                        <div class="group-header">
+                            <span>${displayGroupName}</span>
+                            <span class="group-count">${visibleStaff.length} staff</span>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="roster-table">
+                                <thead><tr><th style="position:sticky; left:0; background:#f8fbfe; z-index:20;">RC No.</th><th style="position:sticky; left:80px; background:#f8fbfe; z-index:20;">Staff Name</th>`;
+            for (let date of filteredDates) {
+                html += `<th>${formatDateHeader(date)}</th>`;
+            }
+            html += `</tr></thead><tbody>`;
+
+            for (let staff of visibleStaff) {
+                html += `<tr>`;
+                html += `<td class="rcno-cell">${escapeHtml(staff.rcNo || "—")}</td>`;
+                html += `<td class="staff-name-cell">${escapeHtml(staff.staffName)}</td>`;
+                for (let date of filteredDates) {
+                    let shiftRaw = getShiftValue(staff.shifts, date);
+                    let displayShift = formatShiftDisplay(shiftRaw);
+                    let chipClass = getShiftColorClass(shiftRaw);
+                    let matches = (currentFilters.shiftType === "ALL") || shiftMatchesType(shiftRaw, currentFilters.shiftType);
+                    let highlight = (matches && currentFilters.shiftType !== "ALL") ? 'style="box-shadow:0 0 0 2px #2c7da0; border-radius:40px;"' : '';
+                    html += `<td>`;
+                    if (matches || currentFilters.shiftType === "ALL") {
+                        html += `<span class="shift-chip ${chipClass}" ${highlight}>${escapeHtml(displayShift)}</span>`;
+                    } else {
+                        html += `<span class="shift-chip shift-default" style="opacity:0.4;">${escapeHtml(displayShift)}</span>`;
+                    }
+                    html += `<\/td>`;
+                }
+                html += `</tr>`;
+            }
+            html += `</tbody></table></div></div>`;
+        }
+
+        if (totalStaffDisplayed === 0) {
+            document.getElementById("groupsContainer").innerHTML = `<div class="empty-state">⚠️ No staff match the current filters</div>`;
+        } else {
+            document.getElementById("groupsContainer").innerHTML = html;
+        }
+
+        const shiftDisplay = currentFilters.shiftType === "ALL" ? "All" : 
+            currentFilters.shiftType === "MORNING" ? "Morning" :
+            currentFilters.shiftType === "EVENING" ? "Evening" :
+            currentFilters.shiftType === "MIDNIGHT" ? "Midnight" :
+            currentFilters.shiftType === "OFF" ? "OFF" : "Leave";
+        
+        const cacheText = isFromCache ? " (cached)" : "";
+        document.getElementById("statsInfo").innerHTML = `${totalStaffDisplayed} staff · ${filteredDates.length} days · ${totalCells} ${shiftDisplay} shifts${cacheText}`;
+    }
+
+    async function loadFromFirebase(forceRefresh = false) {
+        if (!database) {
+            setSyncStatus('Firebase not initialized', 'error');
+            return;
+        }
+        
+        // If not force refresh, try to load from cache first
+        if (!forceRefresh && loadFromCache()) {
+            setSyncStatus(`✓ Loaded from cache (${lastUpdatedInfo || 'saved data'})`, 'cache');
+            document.getElementById('cacheIndicator').style.display = 'inline-block';
+            populateStaffDropdown();
+            renderAllGroups();
+            document.getElementById("filterSection").style.display = "block";
+            isFromCache = true;
+            return;
+        }
+        
+        // Force refresh or no cache - load from Firebase
+        setSyncStatus('Fetching latest data from Firebase...', 'syncing');
+        isFromCache = false;
+        document.getElementById('cacheIndicator').style.display = 'none';
+        
+        try {
+            const snapshot = await database.ref(ROSTER_REF).get();
+            if (!snapshot.exists()) {
+                setSyncStatus('No roster data found. Please upload an Excel file first.', 'error');
+                document.getElementById("groupsContainer").innerHTML = `<div class="empty-state">📭 No roster data in Firebase. Please go to Upload page to add data.</div>`;
+                document.getElementById("filterSection").style.display = "none";
+                dataLoaded = false;
+                return;
+            }
+            const data = snapshot.val();
+            masterDateList = data.dateList || [];
+            lastUpdatedInfo = data.lastUpdated || data.timestamp;
+            groupedStaff = {};
+            
+            if (data.groups) {
+                for (let groupKey in data.groups) {
+                    groupedStaff[groupKey] = data.groups[groupKey].map(staff => ({
+                        rcNo: staff.rcNo || "",
+                        staffName: staff.staffName,
+                        shifts: staff.shifts || {}
+                    }));
+                }
+            }
+            
+            allStaffFlat = [];
+            for (let g in groupedStaff) {
+                groupedStaff[g].forEach(s => {
+                    allStaffFlat.push({ ...s, groupKey: g });
+                });
+            }
+            dataLoaded = true;
+            
+            // Save to cache
+            saveToCache();
+            
+            populateStaffDropdown();
+            renderAllGroups();
+            document.getElementById("filterSection").style.display = "block";
+            setSyncStatus(`✓ Loaded from Firebase · ${allStaffFlat.length} staff members · Last updated: ${lastUpdatedInfo || 'N/A'}`, 'success');
+        } catch (err) {
+            console.error(err);
+            setSyncStatus('✗ Load failed: ' + err.message, 'error');
+        }
+    }
+
+    // Event handlers
+    document.getElementById("refreshBtn").addEventListener("click", () => {
+        loadFromFirebase(true);
+    });
+    document.getElementById("clearCacheBtn").addEventListener("click", () => clearCache());
+    document.getElementById("applyDateBtn").addEventListener("click", () => {
+        if (!dataLoaded) return;
+        currentFilters.startDate = document.getElementById("startDateFilter").value || null;
+        currentFilters.endDate = document.getElementById("endDateFilter").value || null;
+        renderAllGroups();
+    });
+    document.getElementById("staffFilterSelect").addEventListener("change", e => {
+        if (!dataLoaded) return;
+        currentFilters.staffName = e.target.value;
+        renderAllGroups();
+    });
+    document.getElementById("shiftTypeFilter").addEventListener("change", e => {
+        if (!dataLoaded) return;
+        currentFilters.shiftType = e.target.value;
+        renderAllGroups();
+    });
+    document.getElementById("resetFiltersBtn").addEventListener("click", () => {
+        if (!dataLoaded) return;
+        document.getElementById("staffFilterSelect").value = "ALL";
+        document.getElementById("startDateFilter").value = "";
+        document.getElementById("endDateFilter").value = "";
+        document.getElementById("shiftTypeFilter").value = "ALL";
+        currentFilters = { staffName: "ALL", startDate: null, endDate: null, shiftType: "ALL" };
+        renderAllGroups();
+    });
+
+    initFirebaseFromConfig().then(() => {
+        // Try cache first, then Firebase if needed
+        if (!loadFromCache()) {
+            loadFromFirebase(false);
+        } else {
+            // Already loaded from cache, just show
+            setSyncStatus('✓ Loaded from cache', 'cache');
+            document.getElementById('cacheIndicator').style.display = 'inline-block';
+            populateStaffDropdown();
+            renderAllGroups();
+            document.getElementById("filterSection").style.display = "block";
+        }
+    }).catch(err => {
+        console.error(err);
+        setSyncStatus('⚠️ Firebase config error. Check fireduty.js', 'error');
+        // Still try to load from cache even if Firebase fails
+        if (loadFromCache()) {
+            setSyncStatus('⚠️ Using cached data (Firebase unavailable)', 'cache');
+            document.getElementById('cacheIndicator').style.display = 'inline-block';
+            populateStaffDropdown();
+            renderAllGroups();
+            document.getElementById("filterSection").style.display = "block";
+        }
+    });
+</script>
+</body>
+</html>
