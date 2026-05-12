@@ -3,95 +3,558 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Koveli Lounge | Task Manager - Resolved Tab & Filters</title>
+    <title>Maintenance Activity Log | Pending & Resolved Tasks with Filters</title>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External config files -->
-    <script src="fire.js"></script>
-    <script src="config.js"></script>
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%); padding: 20px; min-height: 100vh; }
-        .app-container { max-width: 1600px; margin: 0 auto; }
-        
-        /* Header */
-        .header { background: white; border-radius: 28px; padding: 20px 28px; margin-bottom: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
-        .header h1 { font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, #1a4c6e, #2c7da0); -webkit-background-clip: text; background-clip: text; color: transparent; }
-        .header h1 i { color: #2c7da0; margin-right: 8px; }
-        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #e8eff7 0%, #dce5f0 100%);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 32px 28px;
+        }
+
+        .app-wrapper {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .modern-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 32px;
+            padding: 24px 36px;
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .maintenance-logo {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #1a5d7d, #2382a8);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(26, 93, 125, 0.3);
+        }
+        .maintenance-logo i {
+            font-size: 28px;
+            color: white;
+        }
+        .logo-text h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1a4d6b, #0f2f48);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .logo-text p {
+            color: #5a6e85;
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+        .sync-status {
+            font-size: 0.7rem;
+            margin-top: 5px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: #eef2fa;
+            display: inline-block;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 20px;
+        }
+        .stat-card-mini {
+            background: #f8fafd;
+            border-radius: 28px;
+            padding: 10px 24px;
+            text-align: center;
+            border: 1px solid #e2edf2;
+        }
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #1a5d7d;
+            line-height: 1;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: #6b7f99;
+        }
+
         /* Filter Bar */
-        .filter-bar { background: white; border-radius: 20px; padding: 16px 24px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-        .filter-group { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-        .filter-group label { font-size: 0.75rem; font-weight: 600; color: #4a5568; }
-        .filter-group select, .filter-group input { padding: 8px 16px; border-radius: 30px; border: 1.5px solid #e2e8f0; font-size: 0.8rem; background: white; cursor: pointer; outline: none; }
-        .filter-group select:focus, .filter-group input:focus { border-color: #2c7da0; }
-        .stats-badge { background: linear-gradient(135deg, #1a4c6e, #2c7da0); color: white; padding: 8px 20px; border-radius: 30px; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-        
+        .filter-bar {
+            background: white;
+            border-radius: 24px;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .filter-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        .filter-group select, .filter-group input {
+            padding: 8px 16px;
+            border-radius: 30px;
+            border: 1.5px solid #e2e8f0;
+            font-size: 0.8rem;
+            background: white;
+            cursor: pointer;
+            outline: none;
+        }
+        .filter-group select:focus {
+            border-color: #1a5d7d;
+        }
+        .clear-filters {
+            background: #e9ecef;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
         /* Tabs */
-        .tabs { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; }
-        .tab-btn { background: none; border: none; padding: 12px 28px; font-size: 0.9rem; font-weight: 600; color: #7c9ab8; cursor: pointer; border-radius: 30px 30px 0 0; transition: all 0.3s; }
-        .tab-btn.active { color: #1d6f8f; background: white; border-bottom: 3px solid #1d6f8f; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 12px 32px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #7c9ab8;
+            cursor: pointer;
+            border-radius: 30px 30px 0 0;
+            transition: all 0.3s;
+        }
+        .tab-btn.active {
+            color: #1a5d7d;
+            background: white;
+            border-bottom: 3px solid #1a5d7d;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        .reports-card {
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .reports-header {
+            padding: 22px 28px;
+            background: #ffffff;
+            border-bottom: 1px solid #ecf3f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .reports-header h3 {
+            font-weight: 700;
+            color: #1f3b4c;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .btn-new-popup {
+            background: linear-gradient(120deg, #1a5d7d, #2382a8);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.2s;
+        }
+        .btn-new-popup:hover, .btn-refresh:hover {
+            transform: scale(0.97);
+            filter: brightness(1.05);
+        }
+        .btn-refresh {
+            background: #e9ecef;
+            color: #1a5d7d;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-weight: 500;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .table-modern {
+            overflow-x: auto;
+            padding: 0 8px 24px 8px;
+        }
+        .report-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+        .report-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #6c86a3;
+            letter-spacing: 0.5px;
+        }
+        .report-table td {
+            background: #fbfdff;
+            padding: 16px;
+            border-radius: 20px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+            vertical-align: middle;
+            border: 1px solid #ecf3f9;
+        }
+        .priority-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .priority-high { background: #fee2e2; color: #b91c1c; }
+        .priority-medium { background: #fff0e0; color: #b45309; }
+        .priority-low { background: #e2f3fc; color: #0c6e8f; }
         
-        /* Task Cards Grid */
-        .tasks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; margin-top: 20px; }
-        .task-card { background: white; border-radius: 20px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border-left: 5px solid; transition: all 0.2s; }
-        .task-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-        .task-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
-        .task-title { font-weight: 700; font-size: 1rem; color: #1a2c3e; flex: 1; }
-        .priority-badge { font-size: 0.65rem; font-weight: 700; padding: 4px 12px; border-radius: 30px; }
-        .priority-high { background: #fee2e2; color: #dc2626; }
-        .priority-medium { background: #fef3c7; color: #d97706; }
-        .priority-low { background: #dcfce7; color: #16a34a; }
-        .task-meta { display: flex; gap: 15px; font-size: 0.65rem; color: #94a3b8; margin: 10px 0; flex-wrap: wrap; }
-        .task-desc { font-size: 0.75rem; color: #4a5568; margin: 10px 0; line-height: 1.4; }
-        .task-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
-        .btn-resolve { background: #22c55e; color: white; border: none; padding: 6px 16px; border-radius: 30px; font-size: 0.7rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s; }
-        .btn-resolve:hover { background: #16a34a; transform: scale(0.98); }
-        .btn-reopen { background: #f59e0b; color: white; border: none; padding: 6px 16px; border-radius: 30px; font-size: 0.7rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-        .btn-delete { background: #ef4444; color: white; border: none; padding: 6px 16px; border-radius: 30px; font-size: 0.7rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-        .btn-edit { background: #3b82f6; color: white; border: none; padding: 6px 16px; border-radius: 30px; font-size: 0.7rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-        .resolution-info { background: #f0fdf4; padding: 8px 12px; border-radius: 12px; margin-top: 10px; font-size: 0.65rem; color: #166534; }
-        .empty-state { text-align: center; padding: 60px; color: #94a3b8; font-size: 0.85rem; }
-        
-        /* Fab Button */
-        .fab { position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #1a4c6e, #2c7da0); width: 60px; height: 60px; border-radius: 30px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.6rem; box-shadow: 0 8px 20px rgba(0,0,0,0.2); cursor: pointer; transition: 0.2s; z-index: 100; border: none; }
-        .fab:hover { transform: scale(1.05); background: #2c7da0; }
-        
-        /* Modal */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center; }
-        .modal.active { display: flex; }
-        .modal-content { background: white; border-radius: 28px; width: 550px; max-width: 92%; padding: 28px; }
-        .modal-content h2 { font-size: 1.3rem; margin-bottom: 20px; color: #1a4c6e; }
-        .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 0.75rem; font-weight: 600; margin-bottom: 6px; color: #4a5568; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 14px; border-radius: 16px; border: 1.5px solid #e2e8f0; font-size: 0.85rem; outline: none; }
-        .modal-buttons { display: flex; gap: 12px; margin-top: 20px; }
-        .modal-buttons button { flex: 1; padding: 12px; border-radius: 40px; border: none; font-weight: 600; cursor: pointer; }
-        .btn-primary { background: #2c7da0; color: white; }
-        .btn-secondary { background: #e2e8f0; color: #4a5568; }
-        
-        .loading { text-align: center; padding: 40px; }
-        .sync-status { font-size: 0.7rem; padding: 6px 12px; border-radius: 20px; background: #e2e8f0; display: inline-flex; align-items: center; gap: 6px; }
-        
-        @media (max-width: 768px) {
-            .tasks-grid { grid-template-columns: 1fr; }
-            .filter-group { flex-wrap: wrap; }
+        .status-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .status-resolved { background: #dcfce7; color: #15803d; }
+        .status-pending { background: #ffe4e6; color: #be123c; }
+
+        .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+        .type-hub { background: #1a5d7d20; color: #1a5d7d; border-left: 3px solid #1a5d7d; }
+        .type-direct { background: #f5a62320; color: #b45f06; border-left: 3px solid #f5a623; }
+
+        .action-icons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .action-icon {
+            background: #f1f5f9;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .action-icon.done {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        .action-icon.delete {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .action-icon:hover {
+            transform: scale(0.95);
+            filter: brightness(0.98);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #8ca3bc;
+        }
+        .timestamp-sm {
+            font-size: 0.65rem;
+            font-family: monospace;
+            background: #eef2fa;
+            padding: 2px 6px;
+            border-radius: 16px;
+            display: inline-block;
+        }
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: #1a5d7d;
+        }
+
+        /* MODAL */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.25s ease;
+        }
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal-window {
+            background: white;
+            max-width: 580px;
+            width: 90%;
+            border-radius: 40px;
+            box-shadow: 0 30px 50px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.2s;
+        }
+        .modal-overlay.active .modal-window {
+            transform: scale(1);
+        }
+        .modal-header {
+            background: linear-gradient(120deg, #1a5d7d, #2382a8);
+            color: white;
+            padding: 22px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .close-modal {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .close-modal:hover {
+            background: rgba(255,255,255,0.4);
+        }
+        .modal-body {
+            padding: 28px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .type-selector {
+            background: #f0f7fc;
+            border-radius: 24px;
+            padding: 16px;
+            margin-bottom: 24px;
+            border-left: 4px solid #1a5d7d;
+        }
+        .radio-group {
+            display: flex;
+            gap: 24px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .conditional-panel {
+            background: #fafcff;
+            border-radius: 20px;
+            padding: 18px;
+            margin-bottom: 18px;
+            border: 1px solid #e9f0f5;
+        }
+        .conditional-panel.hidden {
+            display: none;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #5a6e85;
+            margin-bottom: 6px;
+        }
+        .form-group label .required {
+            color: #e74c3c;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 24px;
+            border: 1.5px solid #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #1a5d7d;
+            box-shadow: 0 0 0 3px rgba(26,93,125,0.1);
+        }
+        .info-note {
+            background: #fef7e0;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 0.7rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .auto-badge {
+            background: #eef2fa;
+            border-radius: 20px;
+            padding: 10px 16px;
+            margin-bottom: 20px;
+            font-size: 0.75rem;
+            text-align: center;
+            font-family: monospace;
+        }
+        .modal-footer {
+            padding: 20px 28px 28px;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            border-top: 1px solid #ecf3f9;
+        }
+        .btn-submit-modal {
+            background: linear-gradient(120deg, #1a5d7d, #2382a8);
+            color: white;
+            border: none;
+            padding: 12px 26px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-cancel-modal {
+            background: #e9ecef;
+            border: none;
+            padding: 12px 26px;
+            border-radius: 40px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .readonly-time {
+            background: #f0f4fa;
+            font-family: monospace;
+            cursor: default;
+        }
+
+        @media (max-width: 950px) {
+            body { padding: 20px; }
+            .modern-header { flex-direction: column; text-align: center; }
+            .stats-row { justify-content: center; }
+            .logo-area { flex-direction: column; text-align: center; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .filter-group { justify-content: center; }
         }
     </style>
 </head>
 <body>
-<div class="app-container">
-    <div class="header">
-        <h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Task Manager</h1>
-        <div class="sync-status" id="syncStatus"><i class="fas fa-circle"></i> Connected</div>
+<div class="app-wrapper">
+    <div class="modern-header">
+        <div class="logo-area">
+            <div class="maintenance-logo">
+                <i class="fas fa-wrench"></i>
+            </div>
+            <div class="logo-text">
+                <h1><i class="fas fa-clipboard-list"></i> Maintenance Activity Log</h1>
+                <div class="sync-status" id="syncStatus">
+                    <i class="fas fa-spinner fa-pulse"></i> Initializing Firebase...
+                </div>
+            </div>
+        </div>
+        <div class="stats-row">
+            <div class="stat-card-mini"><div class="stat-number" id="totalCount">0</div><div class="stat-label">Total</div></div>
+            <div class="stat-card-mini"><div class="stat-number" id="pendingCount">0</div><div class="stat-label">Pending</div></div>
+            <div class="stat-card-mini"><div class="stat-number" id="resolvedCount">0</div><div class="stat-label">Resolved</div></div>
+        </div>
     </div>
-    
+
+    <!-- Filter Bar with Date and Priority -->
     <div class="filter-bar">
         <div class="filter-group">
             <label><i class="fas fa-calendar"></i> Due Date:</label>
@@ -103,156 +566,210 @@
             <label><i class="fas fa-flag"></i> Priority:</label>
             <select id="priorityFilter">
                 <option value="all">🎯 All Priorities</option>
-                <option value="high">🔴 High</option>
-                <option value="medium">🟠 Medium</option>
-                <option value="low">🟢 Low</option>
+                <option value="High">🔴 High</option>
+                <option value="Medium">🟠 Medium</option>
+                <option value="Low">🟢 Low</option>
             </select>
         </div>
-        <div class="stats-badge">
-            <i class="fas fa-chart-line"></i>
-            <span id="totalStats">0 tasks</span>
-        </div>
+        <button class="clear-filters" id="clearFiltersBtn"><i class="fas fa-times"></i> Clear Filters</button>
     </div>
-    
+
+    <!-- Tabs for Pending and Resolved -->
     <div class="tabs">
-        <button class="tab-btn active" data-tab="pending">📋 Pending Tasks</button>
-        <button class="tab-btn" data-tab="resolved">✅ Resolved Tasks</button>
+        <button class="tab-btn active" data-tab="pending">📋 Pending Reports</button>
+        <button class="tab-btn" data-tab="resolved">✅ Resolved Reports</button>
     </div>
-    
-    <div id="pending-tab" class="tab-content active">
-        <div id="pendingTasks" class="tasks-grid">
-            <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading tasks...</div>
+
+    <div class="reports-card">
+        <div class="reports-header">
+            <h3 id="tabTitle"><i class="fas fa-history"></i> Pending Maintenance Reports</h3>
+            <div class="header-buttons">
+                <button id="refreshBtn" class="btn-refresh"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button id="openPopupBtn" class="btn-new-popup"><i class="fas fa-plus-circle"></i> New Report</button>
+            </div>
         </div>
-    </div>
-    
-    <div id="resolved-tab" class="tab-content">
-        <div id="resolvedTasks" class="tasks-grid">
-            <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading tasks...</div>
+        <div class="table-modern">
+            <div id="loadingIndicator" class="loading-spinner" style="display: none;">
+                <i class="fas fa-spinner fa-pulse fa-2x"></i>
+                <p>Loading data from Firebase...</p>
+            </div>
+            
+            <!-- Pending Tab Content -->
+            <div id="pending-tab" class="tab-content active">
+                <table class="report-table">
+                    <thead>
+                        <tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="pendingTableBody">
+                        <tr><td colspan="9" class="empty-state">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Resolved Tab Content -->
+            <div id="resolved-tab" class="tab-content">
+                <table class="report-table">
+                    <thead>
+                        <tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="resolvedTableBody">
+                        <tr><td colspan="9" class="empty-state">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
-<button class="fab" id="addTaskBtn"><i class="fas fa-plus"></i></button>
+<!-- POPUP MODAL -->
+<div id="entryModal" class="modal-overlay">
+    <div class="modal-window">
+        <div class="modal-header">
+            <h3><i class="fas fa-wrench"></i> New Maintenance Report</h3>
+            <button class="close-modal" id="closeModalBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="auto-badge">
+                <i class="fas fa-clock"></i> All dates/times auto-recorded: <strong id="liveDateTime">--</strong>
+            </div>
 
-<div class="modal" id="taskModal">
-    <div class="modal-content">
-        <h2 id="modalTitle"><i class="fas fa-plus-circle"></i> Create New Task</h2>
-        <div class="form-group">
-            <label>Task Title *</label>
-            <input type="text" id="taskTitle" placeholder="Enter task title">
+            <div class="type-selector">
+                <label style="font-weight: 700;"><i class="fas fa-code-branch"></i> Select Report Type</label>
+                <div class="radio-group">
+                    <label class="radio-label"><input type="radio" name="reportType" value="hub" id="typeHub"> 🏢 Hub Entry</label>
+                    <label class="radio-label"><input type="radio" name="reportType" value="direct" id="typeDirect"> 📢 Direct Inform</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-align-left"></i> Issue Description <span class="required">*</span></label>
+                <textarea rows="3" id="modalDescription" placeholder="Describe the maintenance issue..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-flag"></i> Priority <span class="required">*</span></label>
+                <select id="modalPriority">
+                    <option value="High">🔴 High</option>
+                    <option value="Medium" selected>🟠 Medium</option>
+                    <option value="Low">🟢 Low</option>
+                </select>
+            </div>
+
+            <div id="hubPanel" class="conditional-panel hidden">
+                <div class="info-note"><i class="fas fa-building"></i> Hub Entry - Enter staff name (date/time auto)</div>
+                <div class="form-group">
+                    <label><i class="fas fa-user-check"></i> Entered Staff Name (Hub) <span class="required">*</span></label>
+                    <input type="text" id="hubStaffName" placeholder="Staff name who entered into Hub">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-alt"></i> Hub Entry Date & Time</label>
+                    <input type="text" id="hubAutoTime" class="readonly-time" readonly placeholder="Auto-recorded">
+                </div>
+            </div>
+
+            <div id="directPanel" class="conditional-panel hidden">
+                <div class="info-note"><i class="fas fa-bell"></i> Direct Inform - Department and staff (date/time auto)</div>
+                <div class="form-group">
+                    <label><i class="fas fa-building"></i> Department to Inform <span class="required">*</span></label>
+                    <input type="text" id="directDepartment" placeholder="e.g., Engineering, Maintenance">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> Staff Name to Inform <span class="required">*</span></label>
+                    <input type="text" id="directStaffName" placeholder="Specific staff member">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-calendar-alt"></i> Informed Date & Time</label>
+                    <input type="text" id="directAutoTime" class="readonly-time" readonly placeholder="Auto-recorded">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-user-edit"></i> Informed By (Your Name) <span class="required">*</span></label>
+                <input type="text" id="modalInformedBy" placeholder="Person reporting this issue">
+            </div>
         </div>
-        <div class="form-group">
-            <label>Description</label>
-            <textarea id="taskDesc" rows="3" placeholder="Task description..."></textarea>
-        </div>
-        <div class="form-group">
-            <label>Priority *</label>
-            <select id="taskPriority">
-                <option value="high">🔴 High</option>
-                <option value="medium" selected>🟠 Medium</option>
-                <option value="low">🟢 Low</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Due Date *</label>
-            <input type="date" id="taskDueDate">
-        </div>
-        <div class="modal-buttons">
-            <button class="btn-primary" id="saveTaskBtn">Save Task</button>
-            <button class="btn-secondary" id="closeModalBtn">Cancel</button>
+        <div class="modal-footer">
+            <button class="btn-cancel-modal" id="cancelModalBtn">Cancel</button>
+            <button class="btn-submit-modal" id="submitModalBtn"><i class="fas fa-save"></i> Save to Firebase</button>
         </div>
     </div>
 </div>
 
 <script>
-    // Firebase initialization
-    let db = null;
-    let firestoreReady = false;
-    let allTasks = [];
-    let editingTaskId = null;
-    
-    // DOM elements
-    const pendingContainer = document.getElementById("pendingTasks");
-    const resolvedContainer = document.getElementById("resolvedTasks");
-    const dateFilter = document.getElementById("dateFilter");
-    const priorityFilter = document.getElementById("priorityFilter");
-    const syncStatus = document.getElementById("syncStatus");
-    const totalStats = document.getElementById("totalStats");
-    const addTaskBtn = document.getElementById("addTaskBtn");
-    const taskModal = document.getElementById("taskModal");
-    const modalTitle = document.getElementById("modalTitle");
-    const taskTitleInput = document.getElementById("taskTitle");
-    const taskDescInput = document.getElementById("taskDesc");
-    const taskPriorityInput = document.getElementById("taskPriority");
-    const taskDueDateInput = document.getElementById("taskDueDate");
-    const saveTaskBtn = document.getElementById("saveTaskBtn");
-    const closeModalBtn = document.getElementById("closeModalBtn");
-    
-    // Tab elements
-    const tabBtns = document.querySelectorAll(".tab-btn");
-    const tabContents = document.querySelectorAll(".tab-content");
-    let currentTab = "pending";
+    // ========== FIREBASE CONFIGURATION ==========
+    // Firebase configuration - Replace with your actual config
+    const firebaseConfig = {
+        apiKey: "AIzaSyB7JQy3FzY5xQ8wE9rT0yU1iO2pA3sD4fG5hJ6kL",
+        authDomain: "koveli-lounge.firebaseapp.com",
+        projectId: "koveli-lounge",
+        storageBucket: "koveli-lounge.appspot.com",
+        messagingSenderId: "123456789012",
+        appId: "1:123456789012:web:abc123def456"
+    };
     
     // Initialize Firebase
-    function initFirebase() {
-        try {
-            if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-                db = firebase.firestore();
-                firestoreReady = true;
-                console.log("✅ Firebase connected");
-                updateSyncStatus(true, "Connected");
-                return true;
-            }
-            
-            // Fallback config (replace with your actual config)
-            const firebaseConfig = {
-                apiKey: "AIzaSyB7JQy3FzY5xQ8wE9rT0yU1iO2pA3sD4fG5hJ6kL",
-                authDomain: "koveli-lounge.firebaseapp.com",
-                projectId: "koveli-lounge",
-                storageBucket: "koveli-lounge.appspot.com",
-                messagingSenderId: "123456789012",
-                appId: "1:123456789012:web:abc123def456"
-            };
-            
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore();
-                firestoreReady = true;
-                console.log("✅ Firebase initialized with config");
-                updateSyncStatus(true, "Connected");
-                return true;
-            }
-        } catch (error) {
-            console.error("Firebase init error:", error);
-            updateSyncStatus(false, error.message);
-            return false;
+    let db = null;
+    let COLLECTION_NAME = "maintenance_reports";
+    let firestoreReady = false;
+    let reports = [];
+    let currentTab = "pending";
+    
+    try {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
-        return false;
+        db = firebase.firestore();
+        firestoreReady = true;
+        console.log("✅ Firebase initialized successfully");
+        updateSyncStatus(true, "Connected");
+    } catch (error) {
+        console.error("Firebase init error:", error);
+        firestoreReady = false;
+        updateSyncStatus(false, error.message);
     }
     
-    function updateSyncStatus(connected, message) {
-        if (connected) {
-            syncStatus.innerHTML = `<i class="fas fa-check-circle" style="color:#22c55e;"></i> ${message}`;
-            syncStatus.style.background = "#dcfce7";
-        } else {
-            syncStatus.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#ef4444;"></i> ${message}`;
-            syncStatus.style.background = "#fee2e2";
-        }
+    // DOM elements
+    const pendingTableBody = document.getElementById("pendingTableBody");
+    const resolvedTableBody = document.getElementById("resolvedTableBody");
+    const dateFilter = document.getElementById("dateFilter");
+    const priorityFilter = document.getElementById("priorityFilter");
+    const clearFiltersBtn = document.getElementById("clearFiltersBtn");
+    const tabBtns = document.querySelectorAll(".tab-btn");
+    const tabContents = document.querySelectorAll(".tab-content");
+    const tabTitle = document.getElementById("tabTitle");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const openPopupBtn = document.getElementById("openPopupBtn");
+    const syncStatus = document.getElementById("syncStatus");
+    const totalCountSpan = document.getElementById("totalCount");
+    const pendingCountSpan = document.getElementById("pendingCount");
+    const resolvedCountSpan = document.getElementById("resolvedCount");
+    const loadingIndicator = document.getElementById("loadingIndicator");
+    
+    // Modal elements
+    const modal = document.getElementById("entryModal");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const cancelModalBtn = document.getElementById("cancelModalBtn");
+    const submitModalBtn = document.getElementById("submitModalBtn");
+    const typeHub = document.getElementById("typeHub");
+    const typeDirect = document.getElementById("typeDirect");
+    const hubPanel = document.getElementById("hubPanel");
+    const directPanel = document.getElementById("directPanel");
+    const hubAutoTime = document.getElementById("hubAutoTime");
+    const directAutoTime = document.getElementById("directAutoTime");
+    const liveSpan = document.getElementById("liveDateTime");
+    
+    // Helper functions
+    function getCurrentFormattedDateTime() {
+        const now = new Date();
+        return now.toLocaleString();
     }
     
-    function escapeHtml(str) {
-        if (!str) return "";
-        return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    function getCurrentISODateTime() {
+        return new Date().toISOString();
     }
     
-    function formatDate(dateStr) {
-        if (!dateStr) return "No date";
-        const d = new Date(dateStr);
-        return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-    }
-    
-    function formatDateTime(iso) {
-        if (!iso) return "—";
+    function formatDisplayDateTime(iso) {
+        if (!iso) return '—';
         try {
             return new Date(iso).toLocaleString();
         } catch(e) {
@@ -260,257 +777,275 @@
         }
     }
     
-    function getPriorityClass(priority) {
-        if (priority === 'high') return 'priority-high';
-        if (priority === 'medium') return 'priority-medium';
-        return 'priority-low';
+    function formatDateOnly(iso) {
+        if (!iso) return '';
+        try {
+            return new Date(iso).toISOString().slice(0, 10);
+        } catch(e) {
+            return '';
+        }
     }
     
-    function getPriorityIcon(priority) {
-        if (priority === 'high') return '🔴 High';
-        if (priority === 'medium') return '🟠 Medium';
-        return '🟢 Low';
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
     }
     
-    // Update date filter dropdown with unique dates
+    function escapeHtml(str) {
+        if (!str) return "";
+        return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    }
+    
+    function updateSyncStatus(connected, message) {
+        const statusEl = document.getElementById("syncStatus");
+        if (connected) {
+            statusEl.innerHTML = `<i class="fas fa-check-circle" style="color:#22c55e;"></i> Firebase Connected | ${message}`;
+            statusEl.style.background = "#dcfce7";
+        } else {
+            statusEl.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Error: ${message}`;
+            statusEl.style.background = "#fee2e2";
+        }
+    }
+    
+    function showLoading(show) {
+        loadingIndicator.style.display = show ? "block" : "none";
+    }
+    
+    // Update date filter dropdown with unique dates from reports
     function updateDateFilter() {
         const dates = new Set();
-        allTasks.forEach(task => {
-            if (task.dueDate) dates.add(task.dueDate);
+        reports.forEach(report => {
+            const dateOnly = formatDateOnly(report.entryTimestamp);
+            if (dateOnly) dates.add(dateOnly);
         });
-        const sortedDates = Array.from(dates).sort();
+        const sortedDates = Array.from(dates).sort().reverse();
         let options = '<option value="all">📅 All Dates</option>';
         sortedDates.forEach(d => {
-            const count = allTasks.filter(t => t.dueDate === d).length;
+            const count = reports.filter(r => formatDateOnly(r.entryTimestamp) === d).length;
             options += `<option value="${d}">📆 ${d} (${count})</option>`;
         });
         dateFilter.innerHTML = options;
     }
     
-    // Filter tasks based on date, priority, and resolved status
-    function getFilteredTasks(resolved = false) {
-        let filtered = allTasks.filter(t => t.resolved === resolved);
+    // Get filtered reports based on tab, date, and priority
+    function getFilteredReports() {
+        let filtered = reports.filter(r => currentTab === "pending" ? r.status !== "resolved" : r.status === "resolved");
         
         const dateVal = dateFilter.value;
         if (dateVal !== 'all') {
-            filtered = filtered.filter(t => t.dueDate === dateVal);
+            filtered = filtered.filter(r => formatDateOnly(r.entryTimestamp) === dateVal);
         }
         
         const priorityVal = priorityFilter.value;
         if (priorityVal !== 'all') {
-            filtered = filtered.filter(t => t.priority === priorityVal);
+            filtered = filtered.filter(r => r.priority === priorityVal);
         }
         
         return filtered;
     }
     
-    // Render tasks for current tab
-    function renderTasks() {
-        const isPendingTab = currentTab === "pending";
-        const tasks = getFilteredTasks(!isPendingTab);
+    // Render tables based on current tab and filters
+    function renderTables() {
+        const filtered = getFilteredReports();
+        const container = currentTab === "pending" ? pendingTableBody : resolvedTableBody;
         
-        const container = isPendingTab ? pendingContainer : resolvedContainer;
-        
-        if (tasks.length === 0) {
-            container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><br>No ${isPendingTab ? 'pending' : 'resolved'} tasks found</div>`;
+        if (filtered.length === 0) {
+            container.innerHTML = `<tr><td colspan="9" class="empty-state">No ${currentTab} reports found with current filters.</td></tr>`;
             return;
         }
         
-        container.innerHTML = tasks.map(task => `
-            <div class="task-card" style="border-left-color: ${task.priority === 'high' ? '#dc2626' : task.priority === 'medium' ? '#f59e0b' : '#10b981'}">
-                <div class="task-header">
-                    <div class="task-title">${escapeHtml(task.title)}</div>
-                    <span class="priority-badge ${getPriorityClass(task.priority)}">${getPriorityIcon(task.priority)}</span>
-                </div>
-                ${task.description ? `<div class="task-desc">📝 ${escapeHtml(task.description.substring(0, 100))}${task.description.length > 100 ? '...' : ''}</div>` : ''}
-                <div class="task-meta">
-                    <span><i class="far fa-calendar-alt"></i> Due: ${formatDate(task.dueDate)}</span>
-                    <span><i class="far fa-clock"></i> Created: ${formatDateTime(task.createdAt)}</span>
-                </div>
-                ${task.resolved && task.resolvedBy ? `
-                    <div class="resolution-info">
-                        <i class="fas fa-check-circle"></i> Resolved by: ${escapeHtml(task.resolvedBy)}<br>
-                        <i class="fas fa-calendar"></i> Resolved: ${formatDateTime(task.resolvedAt)}
-                        ${task.resolutionNote ? `<br><i class="fas fa-comment"></i> Note: ${escapeHtml(task.resolutionNote)}` : ''}
-                    </div>
-                ` : ''}
-                <div class="task-actions">
-                    ${!task.resolved ? `
-                        <button class="btn-resolve" onclick="resolveTask('${task.id}')"><i class="fas fa-check-circle"></i> Resolve</button>
-                        <button class="btn-edit" onclick="editTask('${task.id}')"><i class="fas fa-edit"></i> Edit</button>
-                        <button class="btn-delete" onclick="deleteTask('${task.id}')"><i class="fas fa-trash"></i> Delete</button>
-                    ` : `
-                        <button class="btn-reopen" onclick="reopenTask('${task.id}')"><i class="fas fa-undo-alt"></i> Reopen</button>
-                        <button class="btn-edit" onclick="editTask('${task.id}')"><i class="fas fa-edit"></i> Edit</button>
-                        <button class="btn-delete" onclick="deleteTask('${task.id}')"><i class="fas fa-trash"></i> Delete</button>
-                    `}
-                </div>
-            </div>
-        `).join('');
-        
-        // Update stats
-        const pendingCount = allTasks.filter(t => !t.resolved).length;
-        const resolvedCount = allTasks.filter(t => t.resolved).length;
-        totalStats.innerHTML = `${pendingCount} pending / ${resolvedCount} resolved`;
+        let html = "";
+        for (let rep of filtered) {
+            let shortDesc = rep.description?.length > 45 ? rep.description.substring(0, 42) + "..." : rep.description || '';
+            let priorityClass = rep.priority === "High" ? "priority-high" : (rep.priority === "Medium" ? "priority-medium" : "priority-low");
+            let typeClass = rep.type === "hub" ? "type-hub" : "type-direct";
+            let typeIcon = rep.type === "hub" ? '<i class="fas fa-building"></i> Hub Entry' : '<i class="fas fa-bell"></i> Direct Inform';
+            
+            html += `<tr>
+                        <td><span class="timestamp-sm">${formatDisplayDateTime(rep.entryTimestamp)}</span></td>
+                        <td title="${escapeHtml(rep.description)}">${escapeHtml(shortDesc)}</td>
+                        <td><span class="priority-tag ${priorityClass}">${rep.priority}</span></td>
+                        <td><span class="type-badge ${typeClass}">${typeIcon}</span></td>
+                        <td>${getDetailCell(rep)}</td>
+                        <td><i class="fas fa-user-edit"></i> ${escapeHtml(rep.informedBy)}</td>
+                        <td>${getStatusHtml(rep.status)}</td>
+                        <td>${getResolutionCell(rep)}</td>
+                        <td class="action-icons">${getActionButtons(rep)}</td>
+                     </tr>`;
+        }
+        container.innerHTML = html;
+        attachTableEvents();
     }
     
-    // CRUD Operations
-    async function addTask(taskData) {
-        if (!firestoreReady) return false;
-        const newTask = {
-            id: Date.now().toString(36) + Math.random().toString(36).substr(2, 6),
-            title: taskData.title,
-            description: taskData.description || "",
-            priority: taskData.priority,
-            dueDate: taskData.dueDate,
-            resolved: false,
-            resolvedBy: null,
-            resolvedAt: null,
-            resolutionNote: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-        
-        try {
-            await db.collection("koveli_tasks").add(newTask);
-            await fetchTasks();
-            return true;
-        } catch (error) {
-            console.error("Error adding task:", error);
-            alert("Failed to add task: " + error.message);
-            return false;
+    function getDetailCell(r) {
+        if (r.type === "hub") {
+            return `<div style="font-size:0.75rem;">
+                        <strong><i class="fas fa-user-check"></i> Entered:</strong> ${escapeHtml(r.hubStaffName || '—')}<br>
+                        <span class="timestamp-sm"><i class="fas fa-clock"></i> ${formatDisplayDateTime(r.hubEntryTime)}</span>
+                    </div>`;
+        } else {
+            return `<div style="font-size:0.75rem;">
+                        <strong><i class="fas fa-building"></i> Dept:</strong> ${escapeHtml(r.directDepartment || '—')}<br>
+                        <strong><i class="fas fa-user"></i> Staff:</strong> ${escapeHtml(r.directStaffName || '—')}<br>
+                        <span class="timestamp-sm"><i class="fas fa-clock"></i> ${formatDisplayDateTime(r.directInfoTime)}</span>
+                    </div>`;
         }
     }
     
-    async function updateTask(taskId, updates) {
-        if (!firestoreReady) return false;
-        try {
-            const taskRef = db.collection("koveli_tasks").doc(taskId);
-            await taskRef.update({
-                ...updates,
-                updatedAt: new Date().toISOString()
-            });
-            await fetchTasks();
-            return true;
-        } catch (error) {
-            console.error("Error updating task:", error);
-            alert("Failed to update task: " + error.message);
-            return false;
+    function getStatusHtml(status) {
+        if (status === "resolved") {
+            return `<span class="status-tag status-resolved"><i class="fas fa-check-circle"></i> Resolved</span>`;
+        }
+        return `<span class="status-tag status-pending"><i class="fas fa-clock"></i> Pending</span>`;
+    }
+    
+    function getResolutionCell(r) {
+        if (r.status === "resolved" && r.resolvedBy) {
+            return `<div style="font-size:0.7rem;">
+                        <i class="fas fa-user-check"></i> ${escapeHtml(r.resolvedBy)}<br>
+                        <i class="fas fa-calendar"></i> ${formatDisplayDateTime(r.resolvedDate)}<br>
+                        <small>${escapeHtml(r.resolutionNote?.substring(0, 25) || '')}</small>
+                    </div>`;
+        }
+        return `<span style="color:#aaa;">—</span>`;
+    }
+    
+    function getActionButtons(r) {
+        if (r.status !== "resolved") {
+            return `<button class="action-icon done" data-action="done" data-id="${r.firebaseId}" data-staff="${escapeHtml(r.hubStaffName || r.directStaffName || 'Staff')}"><i class="fas fa-check-circle"></i> Resolve</button>
+                    <button class="action-icon delete" data-action="delete" data-id="${r.firebaseId}"><i class="fas fa-trash"></i> Delete</button>`;
+        } else {
+            return `<span style="font-size:0.7rem; background:#e2e8f0; padding:4px 8px; border-radius:20px;">✓ Completed</span>
+                    <button class="action-icon delete" data-action="delete" data-id="${r.firebaseId}"><i class="fas fa-trash"></i> Delete</button>`;
         }
     }
     
-    async function resolveTask(taskId) {
-        const resolver = prompt("Resolved by (staff name):", "Supervisor");
-        if (!resolver || !resolver.trim()) return;
+    function attachTableEvents() {
+        document.querySelectorAll("[data-action='done']").forEach(btn => {
+            btn.removeEventListener("click", handleResolve);
+            btn.addEventListener("click", handleResolve);
+        });
         
-        const note = prompt("Resolution notes (optional):", "Task completed successfully");
-        
-        await updateTask(taskId, {
-            resolved: true,
-            resolvedBy: resolver.trim(),
-            resolvedAt: new Date().toISOString(),
-            resolutionNote: note || "Task completed"
+        document.querySelectorAll("[data-action='delete']").forEach(btn => {
+            btn.removeEventListener("click", handleDelete);
+            btn.addEventListener("click", handleDelete);
         });
     }
     
-    async function reopenTask(taskId) {
-        if (confirm("Reopen this task? It will move back to pending.")) {
-            await updateTask(taskId, {
-                resolved: false,
-                resolvedBy: null,
-                resolvedAt: null,
-                resolutionNote: null
-            });
+    async function handleResolve(e) {
+        const id = e.currentTarget.dataset.id;
+        const defaultStaff = e.currentTarget.dataset.staff;
+        let resolver = prompt("Resolved by (staff name):", defaultStaff);
+        if (resolver && resolver.trim()) {
+            let note = prompt("Resolution notes / remarks:", "Task completed successfully");
+            await resolveReport(id, resolver.trim(), note || "Completed");
         }
     }
     
-    async function deleteTask(taskId) {
-        if (confirm("Delete this task permanently?")) {
-            if (!firestoreReady) return;
-            try {
-                await db.collection("koveli_tasks").doc(taskId).delete();
-                await fetchTasks();
-            } catch (error) {
-                console.error("Error deleting task:", error);
-                alert("Failed to delete task: " + error.message);
-            }
+    async function handleDelete(e) {
+        const id = e.currentTarget.dataset.id;
+        if (confirm("Delete this report permanently?")) {
+            await deleteReport(id);
         }
     }
     
-    async function fetchTasks() {
+    function updateStats() {
+        totalCountSpan.innerText = reports.length;
+        pendingCountSpan.innerText = reports.filter(r => r.status !== "resolved").length;
+        resolvedCountSpan.innerText = reports.filter(r => r.status === "resolved").length;
+    }
+    
+    // Firebase CRUD operations
+    async function fetchReportsFromFirebase() {
         if (!firestoreReady) return;
-        
         try {
-            const snapshot = await db.collection("koveli_tasks").orderBy("createdAt", "desc").get();
-            const tasks = [];
+            showLoading(true);
+            const snapshot = await db.collection(COLLECTION_NAME).orderBy("entryTimestamp", "desc").get();
+            const fetchedReports = [];
             snapshot.forEach(doc => {
-                tasks.push({ firebaseId: doc.id, ...doc.data() });
+                const data = doc.data();
+                fetchedReports.push({
+                    firebaseId: doc.id,
+                    ...data
+                });
             });
-            allTasks = tasks;
+            reports = fetchedReports;
             updateDateFilter();
-            renderTasks();
+            renderTables();
+            updateStats();
+            updateSyncStatus(true, `${fetchedReports.length} records loaded`);
         } catch (error) {
-            console.error("Error fetching tasks:", error);
+            console.error("Error fetching reports:", error);
             updateSyncStatus(false, error.message);
+        } finally {
+            showLoading(false);
         }
     }
     
-    // Modal handlers
-    function openCreateModal() {
-        editingTaskId = null;
-        modalTitle.innerHTML = '<i class="fas fa-plus-circle"></i> Create New Task';
-        taskTitleInput.value = "";
-        taskDescInput.value = "";
-        taskPriorityInput.value = "medium";
-        taskDueDateInput.value = new Date().toISOString().slice(0, 10);
-        taskModal.classList.add("active");
-    }
-    
-    function editTask(taskId) {
-        const task = allTasks.find(t => t.firebaseId === taskId);
-        if (!task) return;
-        
-        editingTaskId = taskId;
-        modalTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Task';
-        taskTitleInput.value = task.title || "";
-        taskDescInput.value = task.description || "";
-        taskPriorityInput.value = task.priority || "medium";
-        taskDueDateInput.value = task.dueDate || "";
-        taskModal.classList.add("active");
-    }
-    
-    async function saveTask() {
-        const title = taskTitleInput.value.trim();
-        if (!title) {
-            alert("Please enter a task title");
-            return;
-        }
-        
-        const taskData = {
-            title: title,
-            description: taskDescInput.value.trim(),
-            priority: taskPriorityInput.value,
-            dueDate: taskDueDateInput.value
+    async function addReport(data) {
+        if (!firestoreReady) return false;
+        const newReport = {
+            id: generateId(),
+            type: data.type,
+            description: data.description.trim(),
+            priority: data.priority,
+            informedBy: data.informedBy.trim(),
+            status: "pending",
+            entryTimestamp: getCurrentISODateTime(),
+            resolvedBy: null,
+            resolvedDate: null,
+            resolutionNote: null
         };
         
-        if (editingTaskId) {
-            await updateTask(editingTaskId, taskData);
+        if (data.type === "hub") {
+            newReport.hubStaffName = data.hubStaffName.trim();
+            newReport.hubEntryTime = getCurrentISODateTime();
         } else {
-            await addTask(taskData);
+            newReport.directDepartment = data.directDepartment.trim();
+            newReport.directStaffName = data.directStaffName.trim();
+            newReport.directInfoTime = getCurrentISODateTime();
         }
         
-        closeModal();
+        try {
+            await db.collection(COLLECTION_NAME).add(newReport);
+            await fetchReportsFromFirebase();
+            return true;
+        } catch (error) {
+            console.error("Error adding report:", error);
+            alert("Failed to save: " + error.message);
+            return false;
+        }
     }
     
-    function closeModal() {
-        taskModal.classList.remove("active");
-        editingTaskId = null;
+    async function resolveReport(firebaseId, resolvedBy, resolutionNote) {
+        if (!firestoreReady) return;
+        try {
+            await db.collection(COLLECTION_NAME).doc(firebaseId).update({
+                status: "resolved",
+                resolvedBy: resolvedBy,
+                resolvedDate: getCurrentISODateTime(),
+                resolutionNote: resolutionNote
+            });
+            await fetchReportsFromFirebase();
+        } catch (error) {
+            console.error("Error resolving report:", error);
+            alert("Failed to resolve: " + error.message);
+        }
+    }
+    
+    async function deleteReport(firebaseId) {
+        if (!firestoreReady) return;
+        try {
+            await db.collection(COLLECTION_NAME).doc(firebaseId).delete();
+            await fetchReportsFromFirebase();
+        } catch (error) {
+            console.error("Error deleting report:", error);
+            alert("Failed to delete: " + error.message);
+        }
     }
     
     // Tab switching
     function switchTab(tabId) {
         currentTab = tabId;
-        
         tabBtns.forEach(btn => {
             if (btn.dataset.tab === tabId) {
                 btn.classList.add("active");
@@ -518,7 +1053,6 @@
                 btn.classList.remove("active");
             }
         });
-        
         tabContents.forEach(content => {
             if (content.id === `${tabId}-tab`) {
                 content.classList.add("active");
@@ -526,96 +1060,112 @@
                 content.classList.remove("active");
             }
         });
-        
-        renderTasks();
+        tabTitle.innerHTML = currentTab === "pending" ? '<i class="fas fa-history"></i> Pending Maintenance Reports' : '<i class="fas fa-check-circle"></i> Resolved Maintenance Reports';
+        renderTables();
     }
     
-    // Setup realtime listener
-    let unsubscribe = null;
-    function setupRealtimeListener() {
-        if (!firestoreReady) return;
-        if (unsubscribe) unsubscribe();
-        
-        unsubscribe = db.collection("koveli_tasks")
-            .orderBy("createdAt", "desc")
-            .onSnapshot((snapshot) => {
-                const tasks = [];
-                snapshot.forEach(doc => {
-                    tasks.push({ firebaseId: doc.id, ...doc.data() });
-                });
-                allTasks = tasks;
-                updateDateFilter();
-                renderTasks();
-                updateSyncStatus(true, `${tasks.length} tasks loaded`);
-            }, (error) => {
-                console.error("Snapshot error:", error);
-                updateSyncStatus(false, error.message);
-            });
+    // Modal functions
+    function updateLiveTime() {
+        const now = getCurrentFormattedDateTime();
+        if (liveSpan) liveSpan.innerText = now;
+        if (hubAutoTime) hubAutoTime.value = now;
+        if (directAutoTime) directAutoTime.value = now;
+    }
+    
+    function togglePanels() {
+        if (typeHub && typeHub.checked) {
+            hubPanel.classList.remove("hidden");
+            directPanel.classList.add("hidden");
+        } else if (typeDirect && typeDirect.checked) {
+            directPanel.classList.remove("hidden");
+            hubPanel.classList.add("hidden");
+        } else {
+            hubPanel.classList.add("hidden");
+            directPanel.classList.add("hidden");
+        }
+    }
+    
+    function resetModal() {
+        document.getElementById("modalDescription").value = "";
+        document.getElementById("modalPriority").value = "Medium";
+        document.getElementById("modalInformedBy").value = "";
+        document.getElementById("hubStaffName").value = "";
+        document.getElementById("directDepartment").value = "";
+        document.getElementById("directStaffName").value = "";
+        typeHub.checked = false;
+        typeDirect.checked = false;
+        togglePanels();
+        updateLiveTime();
+    }
+    
+    function openModal() {
+        resetModal();
+        modal.classList.add("active");
+    }
+    
+    function closeModal() {
+        modal.classList.remove("active");
     }
     
     // Event listeners
     function bindEvents() {
-        addTaskBtn.addEventListener("click", openCreateModal);
-        saveTaskBtn.addEventListener("click", saveTask);
+        refreshBtn.addEventListener("click", () => fetchReportsFromFirebase());
+        openPopupBtn.addEventListener("click", openModal);
         closeModalBtn.addEventListener("click", closeModal);
-        dateFilter.addEventListener("change", () => renderTasks());
-        priorityFilter.addEventListener("change", () => renderTasks());
-        
+        cancelModalBtn.addEventListener("click", closeModal);
+        typeHub.addEventListener("change", togglePanels);
+        typeDirect.addEventListener("change", togglePanels);
+        dateFilter.addEventListener("change", () => renderTables());
+        priorityFilter.addEventListener("change", () => renderTables());
+        clearFiltersBtn.addEventListener("click", () => {
+            dateFilter.value = "all";
+            priorityFilter.value = "all";
+            renderTables();
+        });
         tabBtns.forEach(btn => {
             btn.addEventListener("click", () => switchTab(btn.dataset.tab));
         });
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal) closeModal();
+        });
         
-        taskModal.addEventListener("click", (e) => {
-            if (e.target === taskModal) closeModal();
+        submitModalBtn.addEventListener("click", async () => {
+            const description = document.getElementById("modalDescription")?.value.trim();
+            const priority = document.getElementById("modalPriority")?.value;
+            const informedBy = document.getElementById("modalInformedBy")?.value.trim();
+            
+            if (!description) { alert("Enter issue description."); return; }
+            if (!informedBy) { alert("Enter 'Informed By' name."); return; }
+            
+            if (typeHub && typeHub.checked) {
+                const hubStaffName = document.getElementById("hubStaffName")?.value.trim();
+                if (!hubStaffName) { alert("Hub Entry: Enter staff name."); return; }
+                await addReport({ type: "hub", description, priority, informedBy, hubStaffName });
+            } else if (typeDirect && typeDirect.checked) {
+                const directDepartment = document.getElementById("directDepartment")?.value.trim();
+                const directStaffName = document.getElementById("directStaffName")?.value.trim();
+                if (!directDepartment) { alert("Direct Inform: Enter department."); return; }
+                if (!directStaffName) { alert("Direct Inform: Enter staff name."); return; }
+                await addReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
+            } else {
+                alert("Select report type: Hub Entry or Direct Inform.");
+                return;
+            }
+            closeModal();
         });
     }
     
-    // Make functions global for onclick handlers
-    window.resolveTask = resolveTask;
-    window.reopenTask = reopenTask;
-    window.deleteTask = deleteTask;
-    window.editTask = editTask;
+    // Initialize
+    setInterval(updateLiveTime, 1000);
+    updateLiveTime();
+    bindEvents();
     
-    // Initialize app
-    async function init() {
-        bindEvents();
-        initFirebase();
-        
-        if (firestoreReady) {
-            setupRealtimeListener();
-        } else {
-            // Demo data for testing
-            allTasks = [
-                {
-                    firebaseId: "demo1",
-                    id: "demo1",
-                    title: "Clean reception area",
-                    description: "Thorough cleaning of welcome desk and lounge entrance",
-                    priority: "high",
-                    dueDate: new Date().toISOString().slice(0, 10),
-                    resolved: false,
-                    createdAt: new Date().toISOString()
-                },
-                {
-                    firebaseId: "demo2",
-                    title: "Restock bathroom supplies",
-                    description: "Soap, tissue, hand sanitizer",
-                    priority: "medium",
-                    dueDate: new Date().toISOString().slice(0, 10),
-                    resolved: true,
-                    resolvedBy: "John",
-                    resolvedAt: new Date().toISOString(),
-                    resolutionNote: "Completed",
-                    createdAt: new Date().toISOString()
-                }
-            ];
-            updateDateFilter();
-            renderTasks();
-            updateSyncStatus(true, "Demo mode (Firebase not connected)");
-        }
+    if (firestoreReady) {
+        fetchReportsFromFirebase();
+    } else {
+        pendingTableBody.innerHTML = `<tr><td colspan="9" class="empty-state">Firebase not configured. Check console.</td></tr>`;
+        resolvedTableBody.innerHTML = `</tr><td colspan="9" class="empty-state">Firebase not configured. Check console.</td></tr>`;
     }
-    
-    init();
 </script>
 </body>
 </html>
