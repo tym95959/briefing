@@ -675,24 +675,24 @@
 </div>
 
 <script>
-    // Use the existing Firebase instance from external config
-    let firestore = null;
-    let COLLECTION_NAME = "maintenance_reports";
-    let firestoreReady = false;
-    let reports = [];
-    let currentTab = "pending";
+    // Use unique variable names to avoid conflicts with external config
+    let maintenanceFirestore = null;
+    const MAINTENANCE_COLLECTION = "maintenance_reports";
+    let isFirestoreReady = false;
+    let allReports = [];
+    let activeTab = "pending";
     
     // Check if Firebase is initialized from external config
-    function initFirestore() {
+    function initializeMaintenanceFirestore() {
         try {
             // Check if firebase is already initialized (from firebase-config1.js)
             if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
-                firestore = firebase.firestore();
-                firestoreReady = true;
+                maintenanceFirestore = firebase.firestore();
+                isFirestoreReady = true;
                 console.log("✅ Firestore connected successfully");
                 document.getElementById("syncStatus").innerHTML = '<i class="fas fa-check-circle" style="color:#22c55e;"></i> Firebase Connected';
                 document.getElementById("syncStatus").style.background = "#dcfce7";
-                fetchReports();
+                fetchMaintenanceReports();
                 return true;
             } else {
                 console.error("Firebase not initialized");
@@ -731,7 +731,7 @@
         }
     }
     
-    function generateId() {
+    function generateUniqueId() {
         return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
     }
     
@@ -745,16 +745,16 @@
     }
     
     // Update date filter
-    function updateDateFilter() {
+    function updateDateFilterDropdown() {
         const dates = new Set();
-        reports.forEach(report => {
+        allReports.forEach(report => {
             const dateOnly = formatDateOnly(report.entryTimestamp);
             if (dateOnly) dates.add(dateOnly);
         });
         const sortedDates = Array.from(dates).sort().reverse();
         let options = '<option value="all">📅 All Dates</option>';
         sortedDates.forEach(d => {
-            const count = reports.filter(r => formatDateOnly(r.entryTimestamp) === d).length;
+            const count = allReports.filter(r => formatDateOnly(r.entryTimestamp) === d).length;
             options += `<option value="${d}">📆 ${d} (${count})</option>`;
         });
         document.getElementById("dateFilter").innerHTML = options;
@@ -762,7 +762,7 @@
     
     // Get filtered reports
     function getFilteredReports() {
-        let filtered = reports.filter(r => currentTab === "pending" ? r.status !== "resolved" : r.status === "resolved");
+        let filtered = allReports.filter(r => activeTab === "pending" ? r.status !== "resolved" : r.status === "resolved");
         
         const dateVal = document.getElementById("dateFilter").value;
         if (dateVal !== 'all') {
@@ -778,12 +778,12 @@
     }
     
     // Render tables
-    function renderTables() {
+    function renderReportTables() {
         const filtered = getFilteredReports();
-        const container = currentTab === "pending" ? document.getElementById("pendingTableBody") : document.getElementById("resolvedTableBody");
+        const container = activeTab === "pending" ? document.getElementById("pendingTableBody") : document.getElementById("resolvedTableBody");
         
         if (filtered.length === 0) {
-            container.innerHTML = `<tr><td colspan="9" class="empty-state">No ${currentTab} reports found.<\/td><\/tr>`;
+            container.innerHTML = `<tr><td colspan="9" class="empty-state">No ${activeTab} reports found.<\/td><\/tr>`;
             return;
         }
         
@@ -822,13 +822,13 @@
                 const resolver = prompt("Resolved by:", btn.dataset.staff);
                 if (resolver && resolver.trim()) {
                     const note = prompt("Resolution notes:", "Completed");
-                    await firestore.collection(COLLECTION_NAME).doc(id).update({
+                    await maintenanceFirestore.collection(MAINTENANCE_COLLECTION).doc(id).update({
                         status: "resolved",
                         resolvedBy: resolver.trim(),
                         resolvedDate: getCurrentISODateTime(),
                         resolutionNote: note || "Completed"
                     });
-                    fetchReports();
+                    fetchMaintenanceReports();
                 }
             };
         });
@@ -836,32 +836,32 @@
         document.querySelectorAll('.action-icon.delete').forEach(btn => {
             btn.onclick = async () => {
                 if (confirm("Delete this report permanently?")) {
-                    await firestore.collection(COLLECTION_NAME).doc(btn.dataset.id).delete();
-                    fetchReports();
+                    await maintenanceFirestore.collection(MAINTENANCE_COLLECTION).doc(btn.dataset.id).delete();
+                    fetchMaintenanceReports();
                 }
             };
         });
     }
     
-    function updateStats() {
-        document.getElementById("totalCount").innerText = reports.length;
-        document.getElementById("pendingCount").innerText = reports.filter(r => r.status !== "resolved").length;
-        document.getElementById("resolvedCount").innerText = reports.filter(r => r.status === "resolved").length;
+    function updateStatistics() {
+        document.getElementById("totalCount").innerText = allReports.length;
+        document.getElementById("pendingCount").innerText = allReports.filter(r => r.status !== "resolved").length;
+        document.getElementById("resolvedCount").innerText = allReports.filter(r => r.status === "resolved").length;
     }
     
     // Fetch reports from Firebase
-    async function fetchReports() {
-        if (!firestoreReady) return;
+    async function fetchMaintenanceReports() {
+        if (!isFirestoreReady) return;
         try {
             showLoading(true);
-            const snapshot = await firestore.collection(COLLECTION_NAME).orderBy("entryTimestamp", "desc").get();
-            reports = [];
+            const snapshot = await maintenanceFirestore.collection(MAINTENANCE_COLLECTION).orderBy("entryTimestamp", "desc").get();
+            allReports = [];
             snapshot.forEach(doc => {
-                reports.push({ firebaseId: doc.id, ...doc.data() });
+                allReports.push({ firebaseId: doc.id, ...doc.data() });
             });
-            updateDateFilter();
-            renderTables();
-            updateStats();
+            updateDateFilterDropdown();
+            renderReportTables();
+            updateStatistics();
         } catch (error) {
             console.error("Error fetching:", error);
         } finally {
@@ -870,9 +870,9 @@
     }
     
     // Add report
-    async function addReport(data) {
+    async function addMaintenanceReport(data) {
         const newReport = {
-            id: generateId(),
+            id: generateUniqueId(),
             type: data.type,
             description: data.description.trim(),
             priority: data.priority,
@@ -891,35 +891,35 @@
             newReport.directInfoTime = getCurrentISODateTime();
         }
         
-        await firestore.collection(COLLECTION_NAME).add(newReport);
-        await fetchReports();
+        await maintenanceFirestore.collection(MAINTENANCE_COLLECTION).add(newReport);
+        await fetchMaintenanceReports();
     }
     
     // Tab switching
-    function switchTab(tabId) {
-        currentTab = tabId;
+    function switchActiveTab(tabId) {
+        activeTab = tabId;
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tabId);
         });
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.toggle('active', content.id === `${tabId}-tab`);
         });
-        document.getElementById("tabTitle").innerHTML = currentTab === "pending" ? '<i class="fas fa-history"></i> Pending Maintenance Reports' : '<i class="fas fa-check-circle"></i> Resolved Maintenance Reports';
-        renderTables();
+        document.getElementById("tabTitle").innerHTML = activeTab === "pending" ? '<i class="fas fa-history"></i> Pending Maintenance Reports' : '<i class="fas fa-check-circle"></i> Resolved Maintenance Reports';
+        renderReportTables();
     }
     
     // Modal handling
-    function updateLiveTime() {
+    function updateLiveDateTime() {
         document.getElementById("liveDateTime").innerText = new Date().toLocaleString();
     }
     
-    function togglePanels() {
+    function toggleConditionalPanels() {
         const isHub = document.getElementById("typeHub").checked;
         document.getElementById("hubPanel").classList.toggle("hidden", !isHub);
         document.getElementById("directPanel").classList.toggle("hidden", isHub);
     }
     
-    function openModal() {
+    function openReportModal() {
         document.getElementById("modalDescription").value = "";
         document.getElementById("modalPriority").value = "Medium";
         document.getElementById("modalInformedBy").value = "";
@@ -928,33 +928,33 @@
         document.getElementById("directStaffName").value = "";
         document.getElementById("typeHub").checked = false;
         document.getElementById("typeDirect").checked = false;
-        togglePanels();
+        toggleConditionalPanels();
         document.getElementById("entryModal").classList.add("active");
     }
     
-    function closeModal() {
+    function closeReportModal() {
         document.getElementById("entryModal").classList.remove("active");
     }
     
     // Event listeners
-    document.getElementById("refreshBtn").onclick = () => fetchReports();
-    document.getElementById("openPopupBtn").onclick = openModal;
-    document.getElementById("closeModalBtn").onclick = closeModal;
-    document.getElementById("cancelModalBtn").onclick = closeModal;
-    document.getElementById("typeHub").onchange = togglePanels;
-    document.getElementById("typeDirect").onchange = togglePanels;
-    document.getElementById("dateFilter").onchange = () => renderTables();
-    document.getElementById("priorityFilter").onchange = () => renderTables();
+    document.getElementById("refreshBtn").onclick = () => fetchMaintenanceReports();
+    document.getElementById("openPopupBtn").onclick = openReportModal;
+    document.getElementById("closeModalBtn").onclick = closeReportModal;
+    document.getElementById("cancelModalBtn").onclick = closeReportModal;
+    document.getElementById("typeHub").onchange = toggleConditionalPanels;
+    document.getElementById("typeDirect").onchange = toggleConditionalPanels;
+    document.getElementById("dateFilter").onchange = () => renderReportTables();
+    document.getElementById("priorityFilter").onchange = () => renderReportTables();
     document.getElementById("clearFiltersBtn").onclick = () => {
         document.getElementById("dateFilter").value = "all";
         document.getElementById("priorityFilter").value = "all";
-        renderTables();
+        renderReportTables();
     };
     document.querySelectorAll(".tab-btn").forEach(btn => {
-        btn.onclick = () => switchTab(btn.dataset.tab);
+        btn.onclick = () => switchActiveTab(btn.dataset.tab);
     });
     document.getElementById("entryModal").onclick = (e) => {
-        if (e.target === document.getElementById("entryModal")) closeModal();
+        if (e.target === document.getElementById("entryModal")) closeReportModal();
     };
     
     document.getElementById("submitModalBtn").onclick = async () => {
@@ -968,27 +968,27 @@
         if (document.getElementById("typeHub").checked) {
             const hubStaffName = document.getElementById("hubStaffName").value.trim();
             if (!hubStaffName) { alert("Enter hub staff name"); return; }
-            await addReport({ type: "hub", description, priority, informedBy, hubStaffName });
+            await addMaintenanceReport({ type: "hub", description, priority, informedBy, hubStaffName });
         } else if (document.getElementById("typeDirect").checked) {
             const directDepartment = document.getElementById("directDepartment").value.trim();
             const directStaffName = document.getElementById("directStaffName").value.trim();
             if (!directDepartment) { alert("Enter department"); return; }
             if (!directStaffName) { alert("Enter staff name"); return; }
-            await addReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
+            await addMaintenanceReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
         } else {
             alert("Select report type: Hub Entry or Direct Inform");
             return;
         }
-        closeModal();
+        closeReportModal();
     };
     
     // Initialize
-    setInterval(updateLiveTime, 1000);
-    updateLiveTime();
+    setInterval(updateLiveDateTime, 1000);
+    updateLiveDateTime();
     
     // Wait a moment for external config to load
     setTimeout(() => {
-        initFirestore();
+        initializeMaintenanceFirestore();
     }, 500);
 </script>
 </body>
