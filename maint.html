@@ -602,19 +602,19 @@
             <div id="pending-tab" class="tab-content active">
                 <table class="report-table">
                     <thead><tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr></thead>
-                    <tbody id="pendingTableBody"><tr><td colspan="9" class="empty-state">Loading...</td></tr></tbody>
-                ~
-            </div>
+                    <tbody id="pendingTableBody"><tr><td colspan="9" class="empty-state">Loading...<\/td><\/tr><\/tbody>
+                <\/table>
+            <\/div>
             
             <div id="resolved-tab" class="tab-content">
                 <table class="report-table">
                     <thead><tr><th>Date/Time</th><th>Issue</th><th>Priority</th><th>Type</th><th>Details</th><th>Informed By</th><th>Status</th><th>Resolution</th><th>Actions</th></tr></thead>
-                    <tbody id="resolvedTableBody"><tr><td colspan="9" class="empty-state">Loading...</td></tr></tbody>
-                ~
-            </div>
-        </div>
-    </div>
-</div>
+                    <tbody id="resolvedTableBody"><tr><td colspan="9" class="empty-state">Loading...<\/td><\/tr><\/tbody>
+                <\/table>
+            <\/div>
+        <\/div>
+    <\/div>
+<\/div>
 
 <!-- MODAL -->
 <div id="entryModal" class="modal-overlay">
@@ -675,51 +675,34 @@
 </div>
 
 <script>
-    // Wait for Firebase to be initialized from external config
-    let db = null;
+    // Use the existing Firebase instance from external config
+    let firestore = null;
     let COLLECTION_NAME = "maintenance_reports";
     let firestoreReady = false;
     let reports = [];
     let currentTab = "pending";
     
-    // Check if Firebase is initialized (from firebase-config1.js)
-    function checkFirebaseReady() {
-        return new Promise((resolve) => {
-            let attempts = 0;
-            const interval = setInterval(() => {
-                attempts++;
-                if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
-                    clearInterval(interval);
-                    resolve(true);
-                } else if (attempts > 20) {
-                    clearInterval(interval);
-                    resolve(false);
-                }
-            }, 500);
-        });
-    }
-    
-    // Initialize Firestore
-    async function initFirestore() {
-        const firebaseReady = await checkFirebaseReady();
-        if (firebaseReady) {
-            try {
-                db = firebase.firestore();
+    // Check if Firebase is initialized from external config
+    function initFirestore() {
+        try {
+            // Check if firebase is already initialized (from firebase-config1.js)
+            if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0) {
+                firestore = firebase.firestore();
                 firestoreReady = true;
-                console.log("✅ Firestore initialized successfully");
+                console.log("✅ Firestore connected successfully");
                 document.getElementById("syncStatus").innerHTML = '<i class="fas fa-check-circle" style="color:#22c55e;"></i> Firebase Connected';
                 document.getElementById("syncStatus").style.background = "#dcfce7";
-                await fetchReports();
+                fetchReports();
                 return true;
-            } catch (error) {
-                console.error("Firestore init error:", error);
-                document.getElementById("syncStatus").innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Firestore Error';
+            } else {
+                console.error("Firebase not initialized");
+                document.getElementById("syncStatus").innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Config not loaded';
                 document.getElementById("syncStatus").style.background = "#fee2e2";
                 return false;
             }
-        } else {
-            console.error("Firebase not loaded from external config");
-            document.getElementById("syncStatus").innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Config not loaded';
+        } catch (error) {
+            console.error("Firestore init error:", error);
+            document.getElementById("syncStatus").innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Error: ' + error.message;
             document.getElementById("syncStatus").style.background = "#fee2e2";
             return false;
         }
@@ -800,7 +783,7 @@
         const container = currentTab === "pending" ? document.getElementById("pendingTableBody") : document.getElementById("resolvedTableBody");
         
         if (filtered.length === 0) {
-            container.innerHTML = `<tr><td colspan="9" class="empty-state">No ${currentTab} reports found.  </td></tr>`;
+            container.innerHTML = `<tr><td colspan="9" class="empty-state">No ${currentTab} reports found.<\/td><\/tr>`;
             return;
         }
         
@@ -810,25 +793,25 @@
             let priorityClass = rep.priority === "High" ? "priority-high" : (rep.priority === "Medium" ? "priority-medium" : "priority-low");
             
             html += `<tr>
-                        <td><span class="timestamp-sm">${formatDisplayDateTime(rep.entryTimestamp)}</span></td>
-                        <td title="${escapeHtml(rep.description)}">${escapeHtml(shortDesc)}</td>
-                        <td><span class="priority-tag ${priorityClass}">${rep.priority}</span></td>
-                        <td><span class="type-badge ${rep.type === 'hub' ? 'type-hub' : 'type-direct'}">${rep.type === 'hub' ? '<i class="fas fa-building"></i> Hub Entry' : '<i class="fas fa-bell"></i> Direct Inform'}</span></td>
+                        <td><span class="timestamp-sm">${formatDisplayDateTime(rep.entryTimestamp)}</span><\/td>
+                        <td title="${escapeHtml(rep.description)}">${escapeHtml(shortDesc)}<\/td>
+                        <td><span class="priority-tag ${priorityClass}">${rep.priority}<\/span><\/td>
+                        <td><span class="type-badge ${rep.type === 'hub' ? 'type-hub' : 'type-direct'}">${rep.type === 'hub' ? '<i class="fas fa-building"></i> Hub Entry' : '<i class="fas fa-bell"></i> Direct Inform'}<\/span><\/td>
                         <td>${rep.type === 'hub' ? 
                             `<div><strong>Staff:</strong> ${escapeHtml(rep.hubStaffName || '—')}<br><small>${formatDisplayDateTime(rep.hubEntryTime)}</small></div>` :
                             `<div><strong>Dept:</strong> ${escapeHtml(rep.directDepartment || '—')}<br><strong>Staff:</strong> ${escapeHtml(rep.directStaffName || '—')}<br><small>${formatDisplayDateTime(rep.directInfoTime)}</small></div>`
-                        }</td>
-                        <td><i class="fas fa-user-edit"></i> ${escapeHtml(rep.informedBy)}</td>
-                        <td>${rep.status === 'resolved' ? '<span class="status-tag status-resolved"><i class="fas fa-check-circle"></i> Resolved</span>' : '<span class="status-tag status-pending"><i class="fas fa-clock"></i> Pending</span>'}</td>
+                        }<\/td>
+                        <td><i class="fas fa-user-edit"></i> ${escapeHtml(rep.informedBy)}<\/td>
+                        <td>${rep.status === 'resolved' ? '<span class="status-tag status-resolved"><i class="fas fa-check-circle"></i> Resolved</span>' : '<span class="status-tag status-pending"><i class="fas fa-clock"></i> Pending</span>'}<\/td>
                         <td>${rep.status === 'resolved' && rep.resolvedBy ? 
                             `<div><small>${escapeHtml(rep.resolvedBy)}<br>${formatDisplayDateTime(rep.resolvedDate)}</small></div>` : 
                             '<span style="color:#aaa;">—</span>'
-                        }</td>
+                        }<\/td>
                         <td class="action-icons">
                             ${rep.status !== "resolved" ? `<button class="action-icon done" data-id="${rep.firebaseId}" data-staff="${escapeHtml(rep.hubStaffName || rep.directStaffName || 'Staff')}"><i class="fas fa-check-circle"></i> Resolve</button>` : ''}
                             <button class="action-icon delete" data-id="${rep.firebaseId}"><i class="fas fa-trash"></i> Delete</button>
-                        </td>
-                    </tr>`;
+                        <\/td>
+                     <\/tr>`;
         }
         container.innerHTML = html;
         
@@ -839,7 +822,7 @@
                 const resolver = prompt("Resolved by:", btn.dataset.staff);
                 if (resolver && resolver.trim()) {
                     const note = prompt("Resolution notes:", "Completed");
-                    await db.collection(COLLECTION_NAME).doc(id).update({
+                    await firestore.collection(COLLECTION_NAME).doc(id).update({
                         status: "resolved",
                         resolvedBy: resolver.trim(),
                         resolvedDate: getCurrentISODateTime(),
@@ -853,7 +836,7 @@
         document.querySelectorAll('.action-icon.delete').forEach(btn => {
             btn.onclick = async () => {
                 if (confirm("Delete this report permanently?")) {
-                    await db.collection(COLLECTION_NAME).doc(btn.dataset.id).delete();
+                    await firestore.collection(COLLECTION_NAME).doc(btn.dataset.id).delete();
                     fetchReports();
                 }
             };
@@ -871,7 +854,7 @@
         if (!firestoreReady) return;
         try {
             showLoading(true);
-            const snapshot = await db.collection(COLLECTION_NAME).orderBy("entryTimestamp", "desc").get();
+            const snapshot = await firestore.collection(COLLECTION_NAME).orderBy("entryTimestamp", "desc").get();
             reports = [];
             snapshot.forEach(doc => {
                 reports.push({ firebaseId: doc.id, ...doc.data() });
@@ -908,7 +891,7 @@
             newReport.directInfoTime = getCurrentISODateTime();
         }
         
-        await db.collection(COLLECTION_NAME).add(newReport);
+        await firestore.collection(COLLECTION_NAME).add(newReport);
         await fetchReports();
     }
     
@@ -1002,7 +985,11 @@
     // Initialize
     setInterval(updateLiveTime, 1000);
     updateLiveTime();
-    initFirestore();
+    
+    // Wait a moment for external config to load
+    setTimeout(() => {
+        initFirestore();
+    }, 500);
 </script>
 </body>
 </html>
