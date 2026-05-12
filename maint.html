@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Maintenance Activity Log | Pending & Resolved with Date Filters</title>
+    <title>Maintenance Activity Log | Firebase Powered</title>
     <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     
     <style>
         * {
@@ -76,15 +79,13 @@
             font-size: 0.8rem;
             margin-top: 4px;
         }
-        .storage-status {
+        .sync-status {
             font-size: 0.7rem;
+            margin-top: 5px;
             padding: 4px 12px;
             border-radius: 20px;
-            background: #dcfce7;
+            background: #eef2fa;
             display: inline-block;
-        }
-        .storage-status i {
-            color: #16a34a;
         }
 
         .stats-row {
@@ -531,6 +532,12 @@
             .filter-bar { flex-direction: column; align-items: stretch; }
             .filter-group { justify-content: center; }
         }
+        
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: #1a5d7d;
+        }
     </style>
 </head>
 <body>
@@ -542,8 +549,8 @@
             </div>
             <div class="logo-text">
                 <h1><i class="fas fa-clipboard-list"></i> Maintenance Activity Log</h1>
-                <div class="storage-status">
-                    <i class="fas fa-database"></i> Local Storage Mode | Data saved in browser
+                <div class="sync-status" id="syncStatus">
+                    <i class="fas fa-spinner fa-pulse"></i> Connecting to Firebase...
                 </div>
             </div>
         </div>
@@ -589,6 +596,10 @@
             </div>
         </div>
         <div class="table-modern">
+            <div id="loadingIndicator" style="display: none;" class="loading-spinner">
+                <i class="fas fa-spinner fa-pulse fa-2x"></i>
+                <p>Loading from Firebase...</p>
+            </div>
             <!-- Pending Tab Content -->
             <div id="pending-tab" class="tab-content active">
                 <table class="report-table">
@@ -598,7 +609,7 @@
                     <tbody id="pendingTableBody">
                         <tr><td colspan="9" class="empty-state">Loading...</td></tr>
                     </tbody>
-                </table>
+                ~
             </div>
             
             <!-- Resolved Tab Content -->
@@ -610,7 +621,7 @@
                     <tbody id="resolvedTableBody">
                         <tr><td colspan="9" class="empty-state">Loading...</td></tr>
                     </tbody>
-                </table>
+                ~
             </div>
         </div>
     </div>
@@ -677,19 +688,71 @@
         </div>
         <div class="modal-footer">
             <button class="btn-cancel-modal" id="cancelModalBtn">Cancel</button>
-            <button class="btn-submit-modal" id="submitModalBtn"><i class="fas fa-save"></i> Save Report</button>
+            <button class="btn-submit-modal" id="submitModalBtn"><i class="fas fa-save"></i> Save to Firebase</button>
         </div>
     </div>
 </div>
 
 <script>
-    // ========== LOCAL STORAGE DATA MANAGEMENT ==========
+    // ========== FIREBASE CONFIGURATION ==========
+    const firebaseConfig = {
+        apiKey: "AIzaSyALK_YlhFl6XOTDY54SOhk4DUDLPq1PBEE",
+        authDomain: "briefing-ded2b.firebaseapp.com",
+        projectId: "briefing-ded2b",
+        storageBucket: "briefing-ded2b.firebasestorage.app",
+        messagingSenderId: "583386183547",
+        appId: "1:583386183547:web:945d92eaa3d13f513defde",
+        measurementId: "G-B4TWNT1FQ1"
+    };
+    
+    // Initialize Firebase
+    let db = null;
+    let COLLECTION_NAME = "maintenance_reports";
+    let firestoreReady = false;
     let reports = [];
     let currentTab = "pending";
-    let nextId = 1;
     
-    // Storage key
-    const STORAGE_KEY = "maintenance_reports";
+    try {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+            console.log("✅ Firebase initialized");
+        }
+        db = firebase.firestore();
+        firestoreReady = true;
+        updateSyncStatus(true, "Connected to Firebase");
+    } catch (error) {
+        console.error("Firebase init error:", error);
+        firestoreReady = false;
+        updateSyncStatus(false, error.message);
+    }
+    
+    // DOM elements
+    const pendingTableBody = document.getElementById("pendingTableBody");
+    const resolvedTableBody = document.getElementById("resolvedTableBody");
+    const dateFilter = document.getElementById("dateFilter");
+    const priorityFilter = document.getElementById("priorityFilter");
+    const clearFiltersBtn = document.getElementById("clearFiltersBtn");
+    const tabBtns = document.querySelectorAll(".tab-btn");
+    const tabContents = document.querySelectorAll(".tab-content");
+    const tabTitle = document.getElementById("tabTitle");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const openPopupBtn = document.getElementById("openPopupBtn");
+    const loadingIndicator = document.getElementById("loadingIndicator");
+    const syncStatusEl = document.getElementById("syncStatus");
+    const totalCountSpan = document.getElementById("totalCount");
+    const pendingCountSpan = document.getElementById("pendingCount");
+    const resolvedCountSpan = document.getElementById("resolvedCount");
+    
+    // Modal elements
+    const modal = document.getElementById("entryModal");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const cancelModalBtn = document.getElementById("cancelModalBtn");
+    const submitModalBtn = document.getElementById("submitModalBtn");
+    const typeHub = document.getElementById("typeHub");
+    const typeDirect = document.getElementById("typeDirect");
+    const hubPanel = document.getElementById("hubPanel");
+    const directPanel = document.getElementById("directPanel");
+    const liveSpan = document.getElementById("liveDateTime");
     
     // Helper functions
     function getCurrentFormattedDateTime() {
@@ -719,81 +782,30 @@
         }
     }
     
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    }
+    
     function escapeHtml(str) {
         if (!str) return "";
         return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
     }
     
-    // Load data from localStorage
-    function loadReports() {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            reports = JSON.parse(saved);
-            // Update nextId
-            if (reports.length > 0) {
-                const maxId = Math.max(...reports.map(r => parseInt(r.id) || 0));
-                nextId = maxId + 1;
-            }
+    function updateSyncStatus(connected, message) {
+        if (connected) {
+            syncStatusEl.innerHTML = `<i class="fas fa-check-circle" style="color:#22c55e;"></i> ${message}`;
+            syncStatusEl.style.background = "#dcfce7";
         } else {
-            // Add sample data for demonstration
-            reports = [
-                {
-                    id: "1",
-                    type: "hub",
-                    description: "Air conditioning not working in main lounge area",
-                    priority: "High",
-                    informedBy: "John Smith",
-                    status: "pending",
-                    entryTimestamp: new Date(Date.now() - 2 * 86400000).toISOString(),
-                    hubStaffName: "Mike Johnson",
-                    hubEntryTime: new Date(Date.now() - 2 * 86400000).toISOString(),
-                    resolvedBy: null,
-                    resolvedDate: null,
-                    resolutionNote: null
-                },
-                {
-                    id: "2",
-                    type: "direct",
-                    description: "Restroom faucet leaking, needs immediate repair",
-                    priority: "Medium",
-                    informedBy: "Sarah Williams",
-                    status: "resolved",
-                    entryTimestamp: new Date(Date.now() - 3 * 86400000).toISOString(),
-                    directDepartment: "Plumbing",
-                    directStaffName: "Tom Brown",
-                    directInfoTime: new Date(Date.now() - 3 * 86400000).toISOString(),
-                    resolvedBy: "Tom Brown",
-                    resolvedDate: new Date(Date.now() - 1 * 86400000).toISOString(),
-                    resolutionNote: "Fixed and replaced valve"
-                },
-                {
-                    id: "3",
-                    type: "hub",
-                    description: "Lights flickering in corridor B",
-                    priority: "Low",
-                    informedBy: "Emily Davis",
-                    status: "pending",
-                    entryTimestamp: new Date().toISOString(),
-                    hubStaffName: "David Wilson",
-                    hubEntryTime: new Date().toISOString(),
-                    resolvedBy: null,
-                    resolvedDate: null,
-                    resolutionNote: null
-                }
-            ];
-            saveReports();
+            syncStatusEl.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Error: ${message}`;
+            syncStatusEl.style.background = "#fee2e2";
         }
-        updateDateFilter();
-        renderTables();
-        updateStats();
     }
     
-    // Save data to localStorage
-    function saveReports() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+    function showLoading(show) {
+        loadingIndicator.style.display = show ? "block" : "none";
     }
     
-    // Update date filter dropdown with unique dates
+    // Update date filter dropdown
     function updateDateFilter() {
         const dates = new Set();
         reports.forEach(report => {
@@ -809,7 +821,7 @@
         dateFilter.innerHTML = options;
     }
     
-    // Get filtered reports based on tab, date, and priority
+    // Get filtered reports
     function getFilteredReports() {
         let filtered = reports.filter(r => currentTab === "pending" ? r.status !== "resolved" : r.status === "resolved");
         
@@ -826,7 +838,7 @@
         return filtered;
     }
     
-    // Render tables based on current tab and filters
+    // Render tables
     function renderTables() {
         const filtered = getFilteredReports();
         const container = currentTab === "pending" ? pendingTableBody : resolvedTableBody;
@@ -894,11 +906,11 @@
     
     function getActionButtons(r) {
         if (r.status !== "resolved") {
-            return `<button class="action-icon done" data-action="done" data-id="${r.id}" data-staff="${escapeHtml(r.hubStaffName || r.directStaffName || 'Staff')}"><i class="fas fa-check-circle"></i> Resolve</button>
-                    <button class="action-icon delete" data-action="delete" data-id="${r.id}"><i class="fas fa-trash"></i> Delete</button>`;
+            return `<button class="action-icon done" data-action="done" data-id="${r.firebaseId}" data-staff="${escapeHtml(r.hubStaffName || r.directStaffName || 'Staff')}"><i class="fas fa-check-circle"></i> Resolve</button>
+                    <button class="action-icon delete" data-action="delete" data-id="${r.firebaseId}"><i class="fas fa-trash"></i> Delete</button>`;
         } else {
             return `<span style="font-size:0.7rem; background:#e2e8f0; padding:4px 8px; border-radius:20px;">✓ Completed</span>
-                    <button class="action-icon delete" data-action="delete" data-id="${r.id}"><i class="fas fa-trash"></i> Delete</button>`;
+                    <button class="action-icon delete" data-action="delete" data-id="${r.firebaseId}"><i class="fas fa-trash"></i> Delete</button>`;
         }
     }
     
@@ -914,33 +926,100 @@
         });
     }
     
-    function handleResolve(e) {
+    async function handleResolve(e) {
         const id = e.currentTarget.dataset.id;
         const defaultStaff = e.currentTarget.dataset.staff;
         let resolver = prompt("Resolved by (staff name):", defaultStaff);
         if (resolver && resolver.trim()) {
             let note = prompt("Resolution notes / remarks:", "Task completed successfully");
-            resolveReport(id, resolver.trim(), note || "Completed");
+            await resolveReport(id, resolver.trim(), note || "Completed");
         }
     }
     
-    function handleDelete(e) {
+    async function handleDelete(e) {
         const id = e.currentTarget.dataset.id;
-        if (confirm("Delete this report permanently?")) {
-            deleteReport(id);
+        if (confirm("Delete this report permanently from Firebase?")) {
+            await deleteReport(id);
         }
     }
     
     function updateStats() {
-        document.getElementById("totalCount").innerText = reports.length;
-        document.getElementById("pendingCount").innerText = reports.filter(r => r.status !== "resolved").length;
-        document.getElementById("resolvedCount").innerText = reports.filter(r => r.status === "resolved").length;
+        totalCountSpan.innerText = reports.length;
+        pendingCountSpan.innerText = reports.filter(r => r.status !== "resolved").length;
+        resolvedCountSpan.innerText = reports.filter(r => r.status === "resolved").length;
     }
     
-    // CRUD operations
-    function addReport(data) {
+    // Firebase CRUD operations
+    async function fetchReportsFromFirebase() {
+        if (!firestoreReady) return;
+        try {
+            showLoading(true);
+            const snapshot = await db.collection(COLLECTION_NAME).orderBy("entryTimestamp", "desc").get();
+            const fetchedReports = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                fetchedReports.push({
+                    firebaseId: doc.id,
+                    ...data
+                });
+            });
+            reports = fetchedReports;
+            updateDateFilter();
+            renderTables();
+            updateStats();
+            updateSyncStatus(true, `${fetchedReports.length} records loaded`);
+        } catch (error) {
+            console.error("Error fetching reports:", error);
+            updateSyncStatus(false, error.message);
+            // Load sample data if collection doesn't exist
+            if (error.message.includes("permission-denied") || error.message.includes("not found")) {
+                await createSampleData();
+            }
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    async function createSampleData() {
+        const sampleReports = [
+            {
+                id: generateId(),
+                type: "hub",
+                description: "Air conditioning not working in main lounge area",
+                priority: "High",
+                informedBy: "John Smith",
+                status: "pending",
+                entryTimestamp: getCurrentISODateTime(),
+                hubStaffName: "Mike Johnson",
+                hubEntryTime: getCurrentISODateTime()
+            },
+            {
+                id: generateId(),
+                type: "direct",
+                description: "Restroom faucet leaking, needs immediate repair",
+                priority: "Medium",
+                informedBy: "Sarah Williams",
+                status: "resolved",
+                entryTimestamp: getCurrentISODateTime(),
+                directDepartment: "Plumbing",
+                directStaffName: "Tom Brown",
+                directInfoTime: getCurrentISODateTime(),
+                resolvedBy: "Tom Brown",
+                resolvedDate: getCurrentISODateTime(),
+                resolutionNote: "Fixed and replaced valve"
+            }
+        ];
+        
+        for (const report of sampleReports) {
+            await db.collection(COLLECTION_NAME).add(report);
+        }
+        await fetchReportsFromFirebase();
+    }
+    
+    async function addReport(data) {
+        if (!firestoreReady) return false;
         const newReport = {
-            id: (nextId++).toString(),
+            id: generateId(),
             type: data.type,
             description: data.description.trim(),
             priority: data.priority,
@@ -961,34 +1040,42 @@
             newReport.directInfoTime = getCurrentISODateTime();
         }
         
-        reports.unshift(newReport);
-        saveReports();
-        updateDateFilter();
-        renderTables();
-        updateStats();
-        return true;
-    }
-    
-    function resolveReport(id, resolvedBy, resolutionNote) {
-        const report = reports.find(r => r.id === id);
-        if (report && report.status !== "resolved") {
-            report.status = "resolved";
-            report.resolvedBy = resolvedBy;
-            report.resolvedDate = getCurrentISODateTime();
-            report.resolutionNote = resolutionNote;
-            saveReports();
-            updateDateFilter();
-            renderTables();
-            updateStats();
+        try {
+            await db.collection(COLLECTION_NAME).add(newReport);
+            await fetchReportsFromFirebase();
+            return true;
+        } catch (error) {
+            console.error("Error adding report:", error);
+            alert("Failed to save: " + error.message);
+            return false;
         }
     }
     
-    function deleteReport(id) {
-        reports = reports.filter(r => r.id !== id);
-        saveReports();
-        updateDateFilter();
-        renderTables();
-        updateStats();
+    async function resolveReport(firebaseId, resolvedBy, resolutionNote) {
+        if (!firestoreReady) return;
+        try {
+            await db.collection(COLLECTION_NAME).doc(firebaseId).update({
+                status: "resolved",
+                resolvedBy: resolvedBy,
+                resolvedDate: getCurrentISODateTime(),
+                resolutionNote: resolutionNote
+            });
+            await fetchReportsFromFirebase();
+        } catch (error) {
+            console.error("Error resolving report:", error);
+            alert("Failed to resolve: " + error.message);
+        }
+    }
+    
+    async function deleteReport(firebaseId) {
+        if (!firestoreReady) return;
+        try {
+            await db.collection(COLLECTION_NAME).doc(firebaseId).delete();
+            await fetchReportsFromFirebase();
+        } catch (error) {
+            console.error("Error deleting report:", error);
+            alert("Failed to delete: " + error.message);
+        }
     }
     
     // Tab switching
@@ -1053,32 +1140,9 @@
         modal.classList.remove("active");
     }
     
-    // DOM elements
-    const pendingTableBody = document.getElementById("pendingTableBody");
-    const resolvedTableBody = document.getElementById("resolvedTableBody");
-    const dateFilter = document.getElementById("dateFilter");
-    const priorityFilter = document.getElementById("priorityFilter");
-    const clearFiltersBtn = document.getElementById("clearFiltersBtn");
-    const tabBtns = document.querySelectorAll(".tab-btn");
-    const tabContents = document.querySelectorAll(".tab-content");
-    const tabTitle = document.getElementById("tabTitle");
-    const refreshBtn = document.getElementById("refreshBtn");
-    const openPopupBtn = document.getElementById("openPopupBtn");
-    const modal = document.getElementById("entryModal");
-    const closeModalBtn = document.getElementById("closeModalBtn");
-    const cancelModalBtn = document.getElementById("cancelModalBtn");
-    const submitModalBtn = document.getElementById("submitModalBtn");
-    const typeHub = document.getElementById("typeHub");
-    const typeDirect = document.getElementById("typeDirect");
-    const hubPanel = document.getElementById("hubPanel");
-    const directPanel = document.getElementById("directPanel");
-    const liveSpan = document.getElementById("liveDateTime");
-    
     // Event listeners
     function bindEvents() {
-        refreshBtn.addEventListener("click", () => {
-            loadReports();
-        });
+        refreshBtn.addEventListener("click", () => fetchReportsFromFirebase());
         openPopupBtn.addEventListener("click", openModal);
         closeModalBtn.addEventListener("click", closeModal);
         cancelModalBtn.addEventListener("click", closeModal);
@@ -1098,7 +1162,7 @@
             if (e.target === modal) closeModal();
         });
         
-        submitModalBtn.addEventListener("click", () => {
+        submitModalBtn.addEventListener("click", async () => {
             const description = document.getElementById("modalDescription")?.value.trim();
             const priority = document.getElementById("modalPriority")?.value;
             const informedBy = document.getElementById("modalInformedBy")?.value.trim();
@@ -1109,13 +1173,13 @@
             if (typeHub && typeHub.checked) {
                 const hubStaffName = document.getElementById("hubStaffName")?.value.trim();
                 if (!hubStaffName) { alert("Hub Entry: Enter staff name."); return; }
-                addReport({ type: "hub", description, priority, informedBy, hubStaffName });
+                await addReport({ type: "hub", description, priority, informedBy, hubStaffName });
             } else if (typeDirect && typeDirect.checked) {
                 const directDepartment = document.getElementById("directDepartment")?.value.trim();
                 const directStaffName = document.getElementById("directStaffName")?.value.trim();
                 if (!directDepartment) { alert("Direct Inform: Enter department."); return; }
                 if (!directStaffName) { alert("Direct Inform: Enter staff name."); return; }
-                addReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
+                await addReport({ type: "direct", description, priority, informedBy, directDepartment, directStaffName });
             } else {
                 alert("Select report type: Hub Entry or Direct Inform.");
                 return;
@@ -1128,7 +1192,12 @@
     setInterval(updateLiveTime, 1000);
     updateLiveTime();
     bindEvents();
-    loadReports();
+    
+    if (firestoreReady) {
+        fetchReportsFromFirebase();
+    } else {
+        pendingTableBody.innerHTML = `<tr><td colspan="9" class="empty-state">Firebase not initialized. Check configuration.</td></tr>`;
+    }
 </script>
 </body>
 </html>
