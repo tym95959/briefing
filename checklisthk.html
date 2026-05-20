@@ -250,7 +250,36 @@ function renderSODPanel() { if(!sodStaffListDiv || currentRole!="supervisor") re
 async function loadSODAllocation() { const id = getSODRecordId(currentDate, currentShift); const doc = await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord=doc.data(); else { currentSODRecord={ allocations:{} }; await db.collection("sodRecords").doc(id).set(currentSODRecord); } renderAllocation(); renderFullAllocation(); }
 async function assignMultipleStaff(slotId,area,staffNames){ if(!currentSODRecord) return; if(!currentSODRecord.allocations[slotId]) currentSODRecord.allocations[slotId]={}; if(!currentSODRecord.allocations[slotId][area]) currentSODRecord.allocations[slotId][area]=[]; staffNames.forEach(s=>{ if(!currentSODRecord.allocations[slotId][area].includes(s)) currentSODRecord.allocations[slotId][area].push(s); }); await db.collection("sodRecords").doc(getSODRecordId(currentDate,currentShift)).set({allocations:currentSODRecord.allocations}); renderAllocation(); renderFullAllocation(); }
 async function removeStaff(slotId,area,staffName){ if(currentSODRecord.allocations[slotId]?.[area]){ currentSODRecord.allocations[slotId][area] = currentSODRecord.allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(getSODRecordId(currentDate,currentShift)).set({allocations:currentSODRecord.allocations}); renderAllocation(); renderFullAllocation(); } }
-function renderAllocation(){ if(!allocationContainer||!currentSODRecord) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS; const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; let html='<table class="allocation-table"><tr><th>Area</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</tr>'; areas.forEach(area=>{ html+=`<tr><td><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=currentSODRecord.allocations[slot.id]?.[area]||[]; let assignHtml='<div class="assign-wrapper"><select multiple class="staff-multi-select" id="multi_${slot.id}_${area.replace(/\s/g,'_')}">'+sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')+'</select><button class="assign-multi-btn" data-slot="'+slot.id+'" data-area="'+area+'">Add</button></div>'+assigned.map(s=>`<span class="staff-name-badge">${s} <button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button></span>`).join(''); html+=`<td>${assignHtml}</td>`; }); html+='</tr>'; }); html+='</table>'; allocationContainer.innerHTML=html; document.querySelectorAll('.assign-multi-btn').forEach(btn=>btn.addEventListener('click',()=>{ const slot=btn.dataset.slot, area=btn.dataset.area, sel=document.getElementById(`multi_${slot}_${area.replace(/\s/g,'_')}`); const selected=[...sel.selectedOptions].map(o=>o.value); if(selected.length) assignMultipleStaff(slot,area,selected); })); document.querySelectorAll('.remove-staff-btn').forEach(btn=>btn.addEventListener('click',()=>removeStaff(btn.dataset.slot,btn.dataset.area,btn.dataset.staff))); }
+function renderAllocation(){ 
+    if(!allocationContainer||!currentSODRecord) return; 
+    const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS; 
+    const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
+    let html='<table class="allocation-table"><tr><th>Area</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</tr>'; 
+    areas.forEach(area=>{ 
+        html+=`<tr><td><strong>${area}</strong></td>`; 
+        slots.forEach(slot=>{ 
+            const assigned=currentSODRecord.allocations[slot.id]?.[area]||[]; 
+            const cleanArea = area.replace(/ /g, '_').replace(/\//g, '_');
+            let assignHtml='<div class="assign-wrapper"><select multiple class="staff-multi-select" id="multi_'+slot.id+'_'+cleanArea+'">'+sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')+'</select><button class="assign-multi-btn" data-slot="'+slot.id+'" data-area="'+area+'">Add</button></div>'+assigned.map(s=>`<span class="staff-name-badge">${s} <button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button></span>`).join(''); 
+            html+=`<td>${assignHtml}</td>`; 
+        }); 
+        html+='</tr>'; 
+    }); 
+    html+='</table>'; 
+    allocationContainer.innerHTML=html; 
+    
+    document.querySelectorAll('.assign-multi-btn').forEach(btn=>btn.addEventListener('click',()=>{ 
+        const slot=btn.dataset.slot, area=btn.dataset.area; 
+        const cleanArea = area.replace(/ /g, '_').replace(/\//g, '_');
+        const sel=document.getElementById('multi_'+slot+'_'+cleanArea); 
+        if(sel){
+            const selected=[...sel.selectedOptions].map(o=>o.value); 
+            if(selected.length) assignMultipleStaff(slot,area,selected);
+        }
+    })); 
+    
+    document.querySelectorAll('.remove-staff-btn').forEach(btn=>btn.addEventListener('click',()=>removeStaff(btn.dataset.slot,btn.dataset.area,btn.dataset.staff))); 
+}
 function renderFullAllocation(){ if(!fullAllocationContainer||!currentSODRecord) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; let html='<table class="allocation-table"><tr><th>Area</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</tr>'; areas.forEach(area=>{ html+=`<tr><td><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=currentSODRecord.allocations[slot.id]?.[area]||[]; html+=`<td>${assigned.map(s=>`<span class="staff-name-badge">${escapeHtml(s)}</span>`).join('')||'—'}</td>`; }); html+='</tr>'; }); fullAllocationContainer.innerHTML=html; }
 async function loadTaskRecord(){ if(!currentDate||!currentShift) return; const id=getTaskRecordId(currentDate,currentShift); if(taskUnsub) taskUnsub(); taskUnsub = db.collection("taskRecords").doc(id).onSnapshot(doc=>{ if(doc.exists) currentTaskRecord=doc.data(); else currentTaskRecord={status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[]}; renderTasks(); updateShiftStatusUI(); }); }
 async function completeTask(taskId,staffName){ if(!staffName||!sodStaffNames.includes(staffName)){ alert("Only SOD staff can complete tasks"); return; } if(currentTaskRecord?.status==="closed") return alert("Shift closed"); const id=getTaskRecordId(currentDate,currentShift); await db.collection("taskRecords").doc(id).update({ [`doneTasks.${taskId}`]:{doneBy:staffName,doneAt:new Date().toISOString()}, updatedAt:new Date().toISOString() }); alert("Completed"); }
