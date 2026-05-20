@@ -7,9 +7,6 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <!-- External Configuration Files (these should exist locally) -->
-    <script src="fire.js"></script>
-    <script src="config.js"></script>
     <!-- Google Fonts + Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -57,7 +54,6 @@
         .add-row-btn { background: linear-gradient(135deg, #4caf50, #43a047); color: white; border: none; padding: 4px 12px; border-radius: 25px; font-size: 0.65rem; cursor: pointer; margin: 5px 0; }
         .delete-row-btn { background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.9rem; margin-left: 5px; }
         .handover-msg-area { width: 100%; padding: 10px; border-radius: 16px; border: 1.5px solid #e2eaf2; font-size: 0.75rem; margin-top: 8px; }
-        .handover-save-btn { background: #1d6f8f; color: white; border: none; padding: 8px 16px; border-radius: 30px; font-weight: 600; font-size: 0.7rem; cursor: pointer; margin-top: 12px; }
         
         .break-request-box { background: #fff8e1; border-radius: 12px; padding: 12px; margin-top: 8px; }
         .time-slots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -112,7 +108,6 @@
         .action-select, .action-dropdown { padding: 5px 10px; border-radius: 25px; border: 1.5px solid #e2eaf2; font-size: 0.7rem; background: white; }
         .action-select { width: 140px; }
         .action-btn { background: linear-gradient(135deg, #4caf50, #43a047); color: white; border: none; padding: 5px 14px; border-radius: 25px; cursor: pointer; font-weight: 600; font-size: 0.7rem; }
-        .action-btn.remove-btn { background: #f44336; }
         .management-panel { background: white; border-radius: 20px; padding: 20px; border: 1px solid #e2eaf2; }
         .section-title { font-size: 1rem; font-weight: 700; color: #1d6f8f; margin: 20px 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #e2eaf2; display: flex; align-items: center; gap: 8px; }
         .btn-primary { background: linear-gradient(135deg, #1d6f8f, #2a8bb0); color: white; border: none; padding: 8px 16px; border-radius: 30px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }
@@ -131,6 +126,9 @@
         .info-text { font-size: 0.65rem; color: #7c9ab8; margin-top: 8px; text-align: center; }
         .empty-msg { text-align: center; padding: 30px 20px; color: #8aa9c4; font-size: 0.8rem; }
         .staff-multi-select { padding: 5px; border-radius: 8px; border: 1.5px solid #e2eaf2; font-size: 0.7rem; background: white; width: 140px; min-height: 70px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.7rem; font-weight: 600; margin-bottom: 5px; color: #5a7a97; }
+        .form-group input, .form-group select { width: 100%; padding: 8px 12px; border-radius: 25px; border: 1.5px solid #e2eaf2; font-size: 0.75rem; }
     </style>
 </head>
 <body>
@@ -138,7 +136,7 @@
     <div class="header"><h1><i class="fas fa-clipboard-list"></i> Koveli Lounge Daily Check List</h1><p>Supervisor | Break System | Allocation | Handover Log</p></div>
     <div class="role-bar"><button id="staffRoleBtn" class="role-btn active"><i class="fas fa-user"></i> Staff View</button><button id="supervisorRoleBtn" class="role-btn"><i class="fas fa-user-tie"></i> Supervisor</button></div>
     <div class="date-bar">
-        <div class="date-selector"><input type="date" id="mainDate"><select id="mainShift"><option value="">Select Shift</option><option value="Morning">🌅 Morning (07:30-15:30)</option><option value="Evening">🌙 Evening (15:30-23:30)</option></select></div>
+        <div class="date-selector"><input type="date" id="mainDate"><select id="mainShift"><option value="">Select Shift</option><option value="Morning"> Morning (07:30-15:30)</option><option value="Evening"> Evening (15:30-23:30)</option></select></div>
         <div class="action-buttons"><button id="exportFullPdfBtn" class="pdf-btn"><i class="fas fa-file-pdf"></i> Report</button><button id="printAllocationBtn" class="pdf-btn print-btn"><i class="fas fa-print"></i> Allocation</button></div>
         <div class="shift-controls"><div id="shiftStatusBadge" class="status-badge status-open"><i class="fas fa-lock-open"></i> Open</div><button id="closeShiftBtn" class="close-shift-btn hidden"><i class="fas fa-lock"></i> Close Shift</button><button id="reopenShiftBtn" class="reopen-btn hidden"><i class="fas fa-undo-alt"></i> Reopen</button></div>
     </div>
@@ -146,19 +144,92 @@
     <div id="supervisorTabs" class="supervisor-tabs hidden"><div class="tabs-header"><button class="tab-btn active" data-tab="allocation-tab"><i class="fas fa-users"></i> Allocation & SOD</button><button class="tab-btn" data-tab="attendance-tab"><i class="fas fa-calendar-check"></i> Attendance</button><button class="tab-btn" data-tab="management-tab"><i class="fas fa-cog"></i> Tasks & Staff</button><button class="tab-btn" data-tab="break-approve-tab"><i class="fas fa-coffee"></i> Break Approvals</button></div><div id="allocation-tab" class="tab-content active"><div class="sod-panel"><div class="panel-title"><i class="fas fa-users"></i> Staff on Duty (SOD)</div><div id="sodStaffList"></div></div><div class="allocation-panel"><div class="panel-title"><i class="fas fa-clock"></i> Staff Allocation</div><div id="allocationContainer"></div></div><div class="attendance-panel"><div class="panel-title"><i class="fas fa-user-tie"></i> Supervisors (from SOD)</div><div id="supervisorSelectPanel"></div></div></div><div id="attendance-tab" class="tab-content"><div class="attendance-panel"><div class="panel-title"><i class="fas fa-calendar-check"></i> Manage Attendance (Delete/Edit)</div><div id="attendanceContainer"></div></div></div><div id="management-tab" class="tab-content"><div class="management-panel"><div class="section-title">Manage Tasks</div><div class="form-group"><label>Category</label><select id="taskCategorySelectMgr"></select></div><div class="form-group"><label>Task Name</label><input type="text" id="newTaskNameMgr"></div><div class="form-group"><label>Task Type</label><select id="taskTypeSelectMgr"><option value="done">Single Staff Done</option><option value="acknowledge">Multi-Acknowledge (SOD)</option><option value="dropdown">Dropdown</option></select></div><div class="form-group"><label>Shift</label><select id="taskShiftSelectMgr"><option value="Both">Both</option><option value="Morning">Morning</option><option value="Evening">Evening</option></select></div><div id="dropdownOptionsDivMgr" style="display:none;"><label>Options (comma)</label><input type="text" id="dropdownOptionsMgr"></div><button id="addTaskBtnMgr" class="btn-primary">Add Task</button><div class="section-title">Existing Tasks</div><div id="taskListManager"></div><div class="section-title">Staff Members</div><div class="form-group"><input type="text" id="newStaffNameMgr" placeholder="Staff name"><button id="addStaffBtnMgr" class="btn-primary">Add Staff</button></div><div id="staffListManager"></div></div></div><div id="break-approve-tab" class="tab-content"><div class="allocation-panel"><div class="panel-title">Break Approvals</div><div id="breakRequestsList"></div></div></div></div></div>
 <div id="passwordModal" class="password-modal hidden"><div class="password-box"><i class="fas fa-lock"></i><h3>Supervisor Access</h3><input type="password" id="supervisorPassword"><button id="verifyPasswordBtn" class="verify-btn">Verify</button><button id="cancelPasswordBtn" class="cancel-btn">Cancel</button><p id="passwordError"></p></div></div>
 <div id="deviceAuthModal" class="device-auth-overlay"><div class="device-auth-card"><i class="fas fa-microchip"></i><h2>Device Authorization</h2><input type="password" id="devicePasswordInput" placeholder="Password"><button id="authorizeDeviceBtn">Authorize</button><div id="deviceAuthError"></div></div></div>
-<div id="taskFullEditModal" class="password-modal hidden"><div class="password-box" style="width:450px"><i class="fas fa-edit"></i><h3>Edit Task</h3><input type="text" id="editTaskNameField" placeholder="Task name"><input type="text" id="editTaskCategoryField" placeholder="Category"><select id="editTaskTypeField"><option value="done">Done</option><option value="acknowledge">Acknowledge</option><option value="dropdown">Dropdown</option></select><select id="editTaskShiftField"><option value="Both">Both</option><option value="Morning">Morning</option><option value="Evening">Evening</option></select><div id="editDropdownOptionsContainer" style="display:none;"><div id="editOptionsListContainer"></div><button id="addEditOptionBtn" class="add-row-btn">+ Add Option</button></div><button id="saveTaskEditBtn" class="verify-btn">Save</button><button id="closeTaskEditModalBtn" class="cancel-btn">Cancel</button><div id="taskEditError"></div></div></div>
+
 <script>
+// ==================== FIREBASE CONFIGURATION ====================
+// IMPORTANT: Replace with your actual Firebase config
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// Initialize Firebase if not already initialized
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
+let firestoreReady = true;
+
+// ==================== DOM ELEMENTS ====================
+const sodStaffListDiv = document.getElementById('sodStaffList');
+const attendanceContainer = document.getElementById('attendanceContainer');
+const staffAttendanceView = document.getElementById('staffAttendanceView');
+const fullAllocationContainer = document.getElementById('fullAllocationContainer');
+const breakRequestContainer = document.getElementById('breakRequestContainer');
+const breakRequestsList = document.getElementById('breakRequestsList');
+const supervisorSelectPanel = document.getElementById('supervisorSelectPanel');
+const taskListManager = document.getElementById('taskListManager');
+const staffListManager = document.getElementById('staffListManager');
+const supervisorsDisplay = document.getElementById('supervisorsDisplay');
+const handoverContainer = document.getElementById('handoverContainer');
+const allocationContainer = document.getElementById('allocationContainer');
+const tasksContainer = document.getElementById('tasksContainer');
+const mainDate = document.getElementById('mainDate');
+const mainShift = document.getElementById('mainShift');
+const shiftStatusBadge = document.getElementById('shiftStatusBadge');
+const closeShiftBtn = document.getElementById('closeShiftBtn');
+const reopenShiftBtn = document.getElementById('reopenShiftBtn');
+const staffRoleBtn = document.getElementById('staffRoleBtn');
+const supervisorRoleBtn = document.getElementById('supervisorRoleBtn');
+const passwordModal = document.getElementById('passwordModal');
+const supervisorPassword = document.getElementById('supervisorPassword');
+const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
+const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
+const passwordError = document.getElementById('passwordError');
+const exportFullPdfBtn = document.getElementById('exportFullPdfBtn');
+const printAllocationBtn = document.getElementById('printAllocationBtn');
+const addTaskBtnMgr = document.getElementById('addTaskBtnMgr');
+const addStaffBtnMgr = document.getElementById('addStaffBtnMgr');
+const newTaskNameMgr = document.getElementById('newTaskNameMgr');
+const newStaffNameMgr = document.getElementById('newStaffNameMgr');
+const taskCategorySelectMgr = document.getElementById('taskCategorySelectMgr');
+const taskTypeSelectMgr = document.getElementById('taskTypeSelectMgr');
+const taskShiftSelectMgr = document.getElementById('taskShiftSelectMgr');
+const dropdownOptionsDivMgr = document.getElementById('dropdownOptionsDivMgr');
+const dropdownOptionsMgr = document.getElementById('dropdownOptionsMgr');
+const shiftFilterIndicator = document.getElementById('shiftFilterIndicator');
+const tasksInfo = document.getElementById('tasksInfo');
+
+// ==================== GLOBAL VARIABLES ====================
 const DEVICE_STORAGE_KEY = "koveli_lounge_device_authorized";
-let DEVICE_MASTER_PASSWORD = (typeof MASTER_PASSWORD_GLOBAL !== 'undefined' && MASTER_PASSWORD_GLOBAL) ? MASTER_PASSWORD_GLOBAL : "Admin123";
-function isDeviceAuthorized() { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
-function authorizeDevice(pwd) { if(pwd === DEVICE_MASTER_PASSWORD) { localStorage.setItem(DEVICE_STORAGE_KEY, "true"); return true; } return false; }
-let db, firestoreReady = false;
-try { if(typeof firebase !== 'undefined' && firebase.apps.length > 0) { db = firebase.firestore(); firestoreReady = true; } } catch(err) { console.error(err); }
-const MORNING_SLOTS = [{ id:"slot1", name:"07:30-10:30", areas:["Welcome/Boarding","Reception","Buffet","Floor","Pantry"] },{ id:"slot2", name:"10:30-13:30" },{ id:"slot3", name:"13:30-15:30" }];
+const DEVICE_MASTER_PASSWORD = "Admin123";
+
+const MORNING_SLOTS = [{ id:"slot1", name:"07:30-10:30" },{ id:"slot2", name:"10:30-13:30" },{ id:"slot3", name:"13:30-15:30" }];
 const EVENING_SLOTS = [{ id:"slot1", name:"15:30-18:30" },{ id:"slot2", name:"18:30-21:00" },{ id:"slot3", name:"21:00-23:30" }];
 const BREAK_MORNING_SLOTS = ["07:30-08:30","08:30-09:30","09:30-10:30","10:30-11:30","11:30-12:30","12:30-13:30","13:30-14:30","14:30-15:30"];
 const BREAK_EVENING_SLOTS = ["15:30-16:30","16:30-17:30","17:30-18:30","18:30-19:30","19:30-20:30","20:30-21:30","21:30-22:30","22:30-23:30"];
-let currentRole = "staff", currentDate = "", currentShift = "", globalTasks = [], staffList = [], sodStaffNames = [], selectedStaffName = "", attendanceRecords = [], supervisorList = [], currentSODRecord = null, currentTaskRecord = null, taskUnsub = null;
+
+let currentRole = "staff";
+let currentDate = "";
+let currentShift = "";
+let globalTasks = [];
+let staffList = [];
+let sodStaffNames = [];
+let selectedStaffName = "";
+let attendanceRecords = [];
+let supervisorList = [];
+let currentSODRecord = null;
+let currentTaskRecord = null;
+let taskUnsub = null;
+let isSupervisorVerified = false;
+
+// ==================== HELPER FUNCTIONS ====================
+function isDeviceAuthorized() { return localStorage.getItem(DEVICE_STORAGE_KEY) === "true"; }
+function authorizeDevice(pwd) { if(pwd === DEVICE_MASTER_PASSWORD) { localStorage.setItem(DEVICE_STORAGE_KEY, "true"); return true; } return false; }
 function getTaskRecordId(d,s) { return `tasks_${d}_${s}`.replace(/\s/g,'_'); }
 function getSODRecordId(d,s) { return `sod_${d}_${s}`.replace(/\s/g,'_'); }
 function getAttendanceRecordId(d,s) { return `attendance_${d}_${s}`.replace(/\s/g,'_'); }
@@ -169,17 +240,18 @@ function getHandoverId(d,s) { return `handover_${d}_${s}`.replace(/\s/g,'_'); }
 function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
 function getTasksForCurrentShift() { if (!currentShift) return globalTasks; return globalTasks.filter(t => (t.shift||"Both") === "Both" || t.shift === currentShift); }
 
-// Attendance: Delete & Edit support
+// ==================== ATTENDANCE FUNCTIONS ====================
 async function deleteAttendanceRecord(recordId, staffName, shift) {
     if(!confirm(`Delete ${staffName} (${shift}) record?`)) return;
     const id = getAttendanceRecordId(currentDate, shift);
     const doc = await db.collection("attendanceRecords").doc(id).get();
     let records = doc.exists ? doc.data().records || [] : [];
-    records = records.filter(r => !(r.staffName === staffName));
+    records = records.filter(r => r.staffName !== staffName);
     await db.collection("attendanceRecords").doc(id).set({ records, date: currentDate, shift, updatedAt: new Date().toISOString() });
     await loadAttendance();
     alert("Deleted");
 }
+
 async function editAttendanceRecord(staffName, shift, oldStatus) {
     const newStatus = prompt("Edit Status: Absent / SL / FRL / Training", oldStatus);
     if(!newStatus) return;
@@ -192,18 +264,23 @@ async function editAttendanceRecord(staffName, shift, oldStatus) {
     await loadAttendance();
     alert("Updated");
 }
+
 async function loadAttendance() {
     if(!currentDate) return;
     const morningId = getAttendanceRecordId(currentDate, "Morning"), eveningId = getAttendanceRecordId(currentDate, "Evening");
     const [mDoc, eDoc] = await Promise.all([db.collection("attendanceRecords").doc(morningId).get(), db.collection("attendanceRecords").doc(eveningId).get()]);
     attendanceRecords = [...(mDoc.exists ? mDoc.data().records || [] : []), ...(eDoc.exists ? eDoc.data().records || [] : [])];
-    renderAttendanceForm(); renderStaffAttendanceView();
+    renderAttendanceForm(); 
+    renderStaffAttendanceView();
 }
+
 function renderAttendanceForm() {
     if(!attendanceContainer || currentRole !== "supervisor") return;
     const recordsForShift = attendanceRecords.filter(r => r.shift === currentShift);
     let html = `<div class="attendance-list"><strong>Records (${currentShift} shift) - Click ✖ to delete, ✎ to edit</strong>`;
-    recordsForShift.forEach(r => { html += `<div class="attendance-record"><strong>${escapeHtml(r.staffName)}</strong> - ${r.status} ${r.reason ? `(${r.reason})` : ''}<div><button class="edit-submit-btn" onclick="editAttendanceRecord('${escapeHtml(r.staffName)}','${r.shift}','${r.status}')">✎</button><button class="delete-attendance-btn" onclick="deleteAttendanceRecord('${r.id || r.staffName}','${escapeHtml(r.staffName)}','${r.shift}')"><i class="fas fa-trash"></i></button></div></div>`; });
+    recordsForShift.forEach(r => { 
+        html += `<div class="attendance-record"><strong>${escapeHtml(r.staffName)}</strong> - ${r.status} ${r.reason ? `(${r.reason})` : ''}<div><button class="edit-submit-btn" onclick="editAttendanceRecord('${escapeHtml(r.staffName)}','${r.shift}','${r.status}')">✎</button><button class="delete-attendance-btn" onclick="deleteAttendanceRecord('${r.id || r.staffName}','${escapeHtml(r.staffName)}','${r.shift}')"><i class="fas fa-trash"></i></button></div></div>`; 
+    });
     if(recordsForShift.length===0) html += '<div class="empty-msg">No attendance records</div>';
     html += `</div><div class="attendance-form"><div class="form-row"><label>Staff</label><select id="attendanceStaffSelect">${staffList.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')}</select></div>
     <div class="form-row"><label>Status</label><select id="attendanceStatusSelect"><option value="Absent">Absent</option><option value="SL">Sick Leave</option><option value="FRL">FRL</option><option value="Training">Training</option></select></div>
@@ -227,6 +304,7 @@ function renderAttendanceForm() {
         alert("Saved");
     });
 }
+
 function renderStaffAttendanceView() {
     if(!staffAttendanceView) return;
     const records = attendanceRecords;
@@ -243,13 +321,66 @@ function renderStaffAttendanceView() {
     staffAttendanceView.innerHTML = html;
 }
 
-// Rest of the core functions (SOD, Tasks, Breaks, Allocation, Handover simplified but fully functional)
-async function loadSODStaff() { const id = getSODStaffRecordId(currentDate, currentShift); const doc = await db.collection("sodStaffRecords").doc(id).get(); sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; renderSODPanel(); renderBreakUI(); renderSupervisorPanel(); }
-async function saveSODStaff(names) { const id = getSODStaffRecordId(currentDate, currentShift); await db.collection("sodStaffRecords").doc(id).set({ staffNames: names }); sodStaffNames = names; renderSODPanel(); renderAllocation(); renderFullAllocation(); renderBreakUI(); renderSupervisorPanel(); }
-function renderSODPanel() { if(!sodStaffListDiv || currentRole!="supervisor") return; sodStaffListDiv.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name)?'selected':''}" data-name="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span>`).join(''); document.querySelectorAll('.sod-staff-badge').forEach(el => el.addEventListener('click', async() => { const name = el.getAttribute('data-name'); let newList = sodStaffNames.includes(name) ? sodStaffNames.filter(n=>n!==name) : [...sodStaffNames, name]; await saveSODStaff(newList); })); }
-async function loadSODAllocation() { const id = getSODRecordId(currentDate, currentShift); const doc = await db.collection("sodRecords").doc(id).get(); if(doc.exists) currentSODRecord=doc.data(); else { currentSODRecord={ allocations:{} }; await db.collection("sodRecords").doc(id).set(currentSODRecord); } renderAllocation(); renderFullAllocation(); }
-async function assignMultipleStaff(slotId,area,staffNames){ if(!currentSODRecord) return; if(!currentSODRecord.allocations[slotId]) currentSODRecord.allocations[slotId]={}; if(!currentSODRecord.allocations[slotId][area]) currentSODRecord.allocations[slotId][area]=[]; staffNames.forEach(s=>{ if(!currentSODRecord.allocations[slotId][area].includes(s)) currentSODRecord.allocations[slotId][area].push(s); }); await db.collection("sodRecords").doc(getSODRecordId(currentDate,currentShift)).set({allocations:currentSODRecord.allocations}); renderAllocation(); renderFullAllocation(); }
-async function removeStaff(slotId,area,staffName){ if(currentSODRecord.allocations[slotId]?.[area]){ currentSODRecord.allocations[slotId][area] = currentSODRecord.allocations[slotId][area].filter(s=>s!==staffName); await db.collection("sodRecords").doc(getSODRecordId(currentDate,currentShift)).set({allocations:currentSODRecord.allocations}); renderAllocation(); renderFullAllocation(); } }
+// ==================== SOD & ALLOCATION FUNCTIONS ====================
+async function loadSODStaff() { 
+    const id = getSODStaffRecordId(currentDate, currentShift); 
+    const doc = await db.collection("sodStaffRecords").doc(id).get(); 
+    sodStaffNames = doc.exists ? doc.data().staffNames || [] : []; 
+    renderSODPanel(); 
+    renderBreakUI(); 
+    renderSupervisorPanel(); 
+}
+
+async function saveSODStaff(names) { 
+    const id = getSODStaffRecordId(currentDate, currentShift); 
+    await db.collection("sodStaffRecords").doc(id).set({ staffNames: names }); 
+    sodStaffNames = names; 
+    renderSODPanel(); 
+    renderAllocation(); 
+    renderFullAllocation(); 
+    renderBreakUI(); 
+    renderSupervisorPanel(); 
+}
+
+function renderSODPanel() { 
+    const sodStaffListDivLocal = document.getElementById('sodStaffList');
+    if(!sodStaffListDivLocal || currentRole!="supervisor") return; 
+    sodStaffListDivLocal.innerHTML = staffList.map(s => `<span class="sod-staff-badge ${sodStaffNames.includes(s.name)?'selected':''}" data-name="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span>`).join(''); 
+    document.querySelectorAll('.sod-staff-badge').forEach(el => el.addEventListener('click', async() => { 
+        const name = el.getAttribute('data-name'); 
+        let newList = sodStaffNames.includes(name) ? sodStaffNames.filter(n=>n!==name) : [...sodStaffNames, name]; 
+        await saveSODStaff(newList); 
+    }));
+}
+
+async function loadSODAllocation() { 
+    const id = getSODRecordId(currentDate, currentShift); 
+    const doc = await db.collection("sodRecords").doc(id).get(); 
+    if(doc.exists) currentSODRecord=doc.data(); 
+    else { currentSODRecord={ allocations:{} }; await db.collection("sodRecords").doc(id).set(currentSODRecord); } 
+    renderAllocation(); 
+    renderFullAllocation(); 
+}
+
+async function assignMultipleStaff(slotId,area,staffNames){ 
+    if(!currentSODRecord) return; 
+    if(!currentSODRecord.allocations[slotId]) currentSODRecord.allocations[slotId]={}; 
+    if(!currentSODRecord.allocations[slotId][area]) currentSODRecord.allocations[slotId][area]=[]; 
+    staffNames.forEach(s=>{ if(!currentSODRecord.allocations[slotId][area].includes(s)) currentSODRecord.allocations[slotId][area].push(s); }); 
+    await db.collection("sodRecords").doc(getSODRecordId(currentDate,currentShift)).set({allocations:currentSODRecord.allocations}); 
+    renderAllocation(); 
+    renderFullAllocation(); 
+}
+
+async function removeStaff(slotId,area,staffName){ 
+    if(currentSODRecord.allocations[slotId] && currentSODRecord.allocations[slotId][area]){ 
+        currentSODRecord.allocations[slotId][area] = currentSODRecord.allocations[slotId][area].filter(s=>s!==staffName); 
+        await db.collection("sodRecords").doc(getSODRecordId(currentDate,currentShift)).set({allocations:currentSODRecord.allocations}); 
+        renderAllocation(); 
+        renderFullAllocation(); 
+    } 
+}
+
 function renderAllocation(){ 
     if(!allocationContainer||!currentSODRecord) return; 
     const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS; 
@@ -258,9 +389,9 @@ function renderAllocation(){
     areas.forEach(area=>{ 
         html+=`<tr><td><strong>${area}</strong></td>`; 
         slots.forEach(slot=>{ 
-            const assigned=currentSODRecord.allocations[slot.id]?.[area]||[]; 
+            const assigned=currentSODRecord.allocations[slot.id] && currentSODRecord.allocations[slot.id][area] ? currentSODRecord.allocations[slot.id][area] : []; 
             const cleanArea = area.replace(/ /g, '_').replace(/\//g, '_');
-            let assignHtml='<div class="assign-wrapper"><select multiple class="staff-multi-select" id="multi_'+slot.id+'_'+cleanArea+'">'+sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')+'</select><button class="assign-multi-btn" data-slot="'+slot.id+'" data-area="'+area+'">Add</button></div>'+assigned.map(s=>`<span class="staff-name-badge">${s} <button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button></span>`).join(''); 
+            let assignHtml='<div class="assign-wrapper"><select multiple class="staff-multi-select" id="multi_'+slot.id+'_'+cleanArea+'">'+sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')+'</select><button class="assign-multi-btn" data-slot="'+slot.id+'" data-area="'+area+'">Add</button></div>'+assigned.map(s=>`<span class="staff-name-badge">${escapeHtml(s)} <button class="remove-staff-btn" data-slot="${slot.id}" data-area="${area}" data-staff="${escapeHtml(s)}">✖</button></span>`).join(''); 
             html+=`<td>${assignHtml}</td>`; 
         }); 
         html+='</tr>'; 
@@ -280,39 +411,391 @@ function renderAllocation(){
     
     document.querySelectorAll('.remove-staff-btn').forEach(btn=>btn.addEventListener('click',()=>removeStaff(btn.dataset.slot,btn.dataset.area,btn.dataset.staff))); 
 }
-function renderFullAllocation(){ if(!fullAllocationContainer||!currentSODRecord) return; const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS, areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; let html='<table class="allocation-table"><tr><th>Area</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</tr>'; areas.forEach(area=>{ html+=`<tr><td><strong>${area}</strong></td>`; slots.forEach(slot=>{ const assigned=currentSODRecord.allocations[slot.id]?.[area]||[]; html+=`<td>${assigned.map(s=>`<span class="staff-name-badge">${escapeHtml(s)}</span>`).join('')||'—'}</td>`; }); html+='</tr>'; }); fullAllocationContainer.innerHTML=html; }
-async function loadTaskRecord(){ if(!currentDate||!currentShift) return; const id=getTaskRecordId(currentDate,currentShift); if(taskUnsub) taskUnsub(); taskUnsub = db.collection("taskRecords").doc(id).onSnapshot(doc=>{ if(doc.exists) currentTaskRecord=doc.data(); else currentTaskRecord={status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[]}; renderTasks(); updateShiftStatusUI(); }); }
-async function completeTask(taskId,staffName){ if(!staffName||!sodStaffNames.includes(staffName)){ alert("Only SOD staff can complete tasks"); return; } if(currentTaskRecord?.status==="closed") return alert("Shift closed"); const id=getTaskRecordId(currentDate,currentShift); await db.collection("taskRecords").doc(id).update({ [`doneTasks.${taskId}`]:{doneBy:staffName,doneAt:new Date().toISOString()}, updatedAt:new Date().toISOString() }); alert("Completed"); }
-async function acknowledgeTask(taskId,staffName){ if(!staffName||!sodStaffNames.includes(staffName)){ alert("Only SOD staff can acknowledge"); return; } const id=getTaskRecordId(currentDate,currentShift); const doc=await db.collection("taskRecords").doc(id).get(); let ack=doc.data()?.acknowledgedTasks||{}; let list=ack[taskId]||[]; if(list.includes(staffName)) list=list.filter(n=>n!==staffName); else list.push(staffName); ack[taskId]=list; await db.collection("taskRecords").doc(id).update({acknowledgedTasks:ack}); }
-async function submitDropdown(taskId,val,note,staffName){ if(!staffName) return; const id=getTaskRecordId(currentDate,currentShift); const doc=await db.collection("taskRecords").doc(id).get(); let subs=doc.data()?.dropdownSelections||[]; const existing=subs.findIndex(s=>s.taskId===taskId && s.staffName===staffName && s.selectedValue===val); if(existing!==-1) subs.splice(existing,1); else subs.push({taskId,staffName,selectedValue:val,additionalText:note,submittedAt:new Date().toISOString()}); await db.collection("taskRecords").doc(id).update({dropdownSelections:subs}); alert("Updated"); }
-function renderTasks(){ if(!tasksContainer||!currentTaskRecord) return; const done=currentTaskRecord.doneTasks||{}, ack=currentTaskRecord.acknowledgedTasks||{}, sel=currentTaskRecord.dropdownSelections||[]; const filtered=getTasksForCurrentShift(); let html=''; filtered.forEach(task=>{ let statusHtml=''; if(task.type==='done') statusHtml=done[task.id]?`✅ Done by ${done[task.id].doneBy}`:'<button class="action-btn complete-btn" data-id="'+task.id+'">Complete</button>'; else if(task.type==='acknowledge'){ const acks=ack[task.id]||[]; statusHtml=`<div>Acknowledged: ${acks.join(', ')}</div><select class="ack-select" data-id="${task.id}"><option value="">Select SOD</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}</select><button class="ack-btn" data-id="${task.id}">Toggle Acknowledge</button>`; } else if(task.type==='dropdown'){ const subs=sel.filter(s=>s.taskId===task.id); statusHtml=`<div>Submissions: ${subs.map(s=>`${s.staffName}:${s.selectedValue}`).join(', ')}</div><select class="drop-select" data-id="${task.id}">${(task.options||[]).map(o=>`<option>${o}</option>`).join('')}</select><input class="drop-note" placeholder="note" data-id="${task.id}"><button class="drop-btn" data-id="${task.id}">Add/Delete</button>`; } html+=`<div class="task-item"><strong>${escapeHtml(task.name)}</strong> ${statusHtml}</div>`; }); tasksContainer.innerHTML=html; document.querySelectorAll('.complete-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const staff=prompt("Enter your name (SOD only)"); if(staff && sodStaffNames.includes(staff)) await completeTask(btn.dataset.id,staff); else alert("Not authorized"); })); document.querySelectorAll('.ack-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const sel=document.querySelector(`.ack-select[data-id="${btn.dataset.id}"]`); if(sel.value) await acknowledgeTask(btn.dataset.id,sel.value); })); document.querySelectorAll('.drop-btn').forEach(btn=>btn.addEventListener('click',async()=>{ const sel=document.querySelector(`.drop-select[data-id="${btn.dataset.id}"]`); const note=document.querySelector(`.drop-note[data-id="${btn.dataset.id}"]`); const staff=prompt("Your name"); if(staff && sel.value) await submitDropdown(btn.dataset.id,sel.value,note?.value||"",staff); })); }
-async function loadSupervisors(){ const id=getSupervisorRecordId(currentDate,currentShift); const doc=await db.collection("supervisorRecords").doc(id).get(); supervisorList=doc.exists?doc.data().supervisors||[]:[]; renderSupervisorPanel(); }
-async function saveSupervisors(list){ await db.collection("supervisorRecords").doc(getSupervisorRecordId(currentDate,currentShift)).set({supervisors:list}); supervisorList=list; renderSupervisorPanel(); }
-function renderSupervisorPanel(){ if(!supervisorSelectPanel) return; let html=`<select id="supSelect">${sodStaffNames.map(s=>`<option>${escapeHtml(s)}</option>`).join('')}</select><button id="addSupBtn">Add Sup</button><div>`+supervisorList.map(s=>`<span class="supervisor-badge">${s} <button class="remove-sup" data-name="${s}">✖</button></span>`).join('')+`</div>`; supervisorSelectPanel.innerHTML=html; document.getElementById('addSupBtn')?.addEventListener('click',async()=>{ const sel=document.getElementById('supSelect'); if(sel.value && !supervisorList.includes(sel.value)) await saveSupervisors([...supervisorList, sel.value]); }); document.querySelectorAll('.remove-sup').forEach(btn=>btn.addEventListener('click',async()=>{ const name=btn.dataset.name; await saveSupervisors(supervisorList.filter(s=>s!==name)); })); document.getElementById('supervisorsDisplay').innerHTML=supervisorList.length?`Supervisors: ${supervisorList.join(', ')}`:'No supervisors'; }
-async function requestBreak(slot){ if(!selectedStaffName||!sodStaffNames.includes(selectedStaffName)) return alert("Select your SOD name"); const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; if(breaks.find(b=>b.staffName===selectedStaffName && b.status==='approved')) return alert("Already approved break"); breaks=breaks.filter(b=>!(b.staffName===selectedStaffName && b.status==='pending')); breaks.push({staffName:selectedStaffName,timeSlot:slot,status:'pending'}); await db.collection("breakRecords").doc(id).set({breaks}); renderBreakUI(); alert("Request sent"); }
-async function renderBreakUI(){ if(!breakRequestContainer) return; const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; const myBreak=breaks.find(b=>b.staffName===selectedStaffName); const slots=currentShift==="Morning"?BREAK_MORNING_SLOTS:BREAK_EVENING_SLOTS; let html=`<select id="staffBreakSelect"><option value="">Select SOD name</option>${sodStaffNames.map(s=>`<option ${selectedStaffName===s?'selected':''} value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}</select><div class="time-slots">${slots.map(s=>`<button class="time-slot-btn" onclick="requestBreak('${s}')" ${myBreak?.status==='approved'?'disabled':''}>${s}</button>`).join('')}</div>`; if(myBreak) html+=`<div class="break-status">${myBreak.status==='pending'?'⏳ Pending':myBreak.status==='approved'?`✅ Approved ${myBreak.timeSlot}`:'❌ Rejected'}</div>`; breakRequestContainer.innerHTML=html; document.getElementById('staffBreakSelect')?.addEventListener('change',e=>{ selectedStaffName=e.target.value; renderBreakUI(); }); }
-async function loadBreakRequests(){ const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let breaks=doc.exists?doc.data().breaks||[]:[]; const pending=breaks.filter(b=>b.status==='pending'); breakRequestsList.innerHTML=pending.map(b=>`<div>${b.staffName} wants ${b.timeSlot}<button class="approve-break" data-name="${b.staffName}" data-slot="${b.timeSlot}">Approve</button><button class="reject-break" data-name="${b.staffName}" data-slot="${b.timeSlot}">Reject</button></div>`).join(''); document.querySelectorAll('.approve-break').forEach(btn=>btn.addEventListener('click',async()=>{ const id=getBreakRecordId(currentDate,currentShift); const doc=await db.collection("breakRecords").doc(id).get(); let br=doc.data().breaks||[]; br=br.map(b=>{ if(b.staffName===btn.dataset.name && b.timeSlot===btn.dataset.slot) b.status='approved'; return b; }); await db.collection("breakRecords").doc(id).set({breaks:br}); loadBreakRequests(); renderBreakUI(); })); }
-// Handover simplified demo
+
+function renderFullAllocation(){ 
+    if(!fullAllocationContainer||!currentSODRecord) return; 
+    const slots=currentShift==="Morning"?MORNING_SLOTS:EVENING_SLOTS; 
+    const areas=["Welcome/Boarding","Reception","Buffet","Floor","Pantry"]; 
+    let html='<table class="allocation-table"><tr><th>Area</th>'+slots.map(s=>`<th>${s.name}</th>`).join('')+'</tr>'; 
+    areas.forEach(area=>{ 
+        html+=`<tr><td><strong>${area}</strong></td>`; 
+        slots.forEach(slot=>{ 
+            const assigned=currentSODRecord.allocations[slot.id] && currentSODRecord.allocations[slot.id][area] ? currentSODRecord.allocations[slot.id][area] : []; 
+            html+=`<td>${assigned.map(s=>`<span class="staff-name-badge">${escapeHtml(s)}</span>`).join('')||'—'}</td>`; 
+        }); 
+        html+='</tr>'; 
+    }); 
+    fullAllocationContainer.innerHTML=html; 
+}
+
+// ==================== TASK FUNCTIONS ====================
+async function loadTaskRecord(){ 
+    if(!currentDate||!currentShift) return; 
+    const id=getTaskRecordId(currentDate,currentShift); 
+    if(taskUnsub) taskUnsub(); 
+    taskUnsub = db.collection("taskRecords").doc(id).onSnapshot(doc=>{ 
+        if(doc.exists) currentTaskRecord=doc.data(); 
+        else currentTaskRecord={status:"open",doneTasks:{},acknowledgedTasks:{},dropdownSelections:[]}; 
+        renderTasks(); 
+        updateShiftStatusUI(); 
+    }); 
+}
+
+async function completeTask(taskId,staffName){ 
+    if(!staffName||!sodStaffNames.includes(staffName)){ alert("Only SOD staff can complete tasks"); return; } 
+    if(currentTaskRecord?.status==="closed") return alert("Shift closed"); 
+    const id=getTaskRecordId(currentDate,currentShift); 
+    await db.collection("taskRecords").doc(id).update({ [`doneTasks.${taskId}`]:{doneBy:staffName,doneAt:new Date().toISOString()}, updatedAt:new Date().toISOString() }); 
+    alert("Completed"); 
+}
+
+async function acknowledgeTask(taskId,staffName){ 
+    if(!staffName||!sodStaffNames.includes(staffName)){ alert("Only SOD staff can acknowledge"); return; } 
+    const id=getTaskRecordId(currentDate,currentShift); 
+    const doc=await db.collection("taskRecords").doc(id).get(); 
+    let ack=doc.data()?.acknowledgedTasks||{}; 
+    let list=ack[taskId]||[]; 
+    if(list.includes(staffName)) list=list.filter(n=>n!==staffName); 
+    else list.push(staffName); 
+    ack[taskId]=list; 
+    await db.collection("taskRecords").doc(id).update({acknowledgedTasks:ack}); 
+}
+
+async function submitDropdown(taskId,val,note,staffName){ 
+    if(!staffName) return; 
+    const id=getTaskRecordId(currentDate,currentShift); 
+    const doc=await db.collection("taskRecords").doc(id).get(); 
+    let subs=doc.data()?.dropdownSelections||[]; 
+    const existing=subs.findIndex(s=>s.taskId===taskId && s.staffName===staffName && s.selectedValue===val); 
+    if(existing!==-1) subs.splice(existing,1); 
+    else subs.push({taskId,staffName,selectedValue:val,additionalText:note,submittedAt:new Date().toISOString()}); 
+    await db.collection("taskRecords").doc(id).update({dropdownSelections:subs}); 
+    alert("Updated"); 
+}
+
+function renderTasks(){ 
+    if(!tasksContainer||!currentTaskRecord) return; 
+    const done=currentTaskRecord.doneTasks||{}, ack=currentTaskRecord.acknowledgedTasks||{}, sel=currentTaskRecord.dropdownSelections||[]; 
+    const filtered=getTasksForCurrentShift(); 
+    let html=''; 
+    filtered.forEach(task=>{ 
+        let statusHtml=''; 
+        if(task.type==='done') statusHtml=done[task.id]?` Done by ${done[task.id].doneBy}`:'<button class="action-btn complete-btn" data-id="'+task.id+'">Complete</button>'; 
+        else if(task.type==='acknowledge'){ 
+            const acks=ack[task.id]||[]; 
+            statusHtml=`<div>Acknowledged: ${acks.join(', ')}</div><select class="ack-select" data-id="${task.id}"><option value="">Select SOD</option>${sodStaffNames.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}</select><button class="ack-btn" data-id="${task.id}">Toggle Acknowledge</button>`; 
+        } else if(task.type==='dropdown'){ 
+            const subs=sel.filter(s=>s.taskId===task.id); 
+            statusHtml=`<div>Submissions: ${subs.map(s=>`${s.staffName}:${s.selectedValue}`).join(', ')}</div><select class="drop-select" data-id="${task.id}">${(task.options||[]).map(o=>`<option>${o}</option>`).join('')}</select><input class="drop-note" placeholder="note" data-id="${task.id}"><button class="drop-btn" data-id="${task.id}">Add/Delete</button>`; 
+        } 
+        html+=`<div class="task-item"><strong>${escapeHtml(task.name)}</strong> ${statusHtml}</div>`; 
+    }); 
+    tasksContainer.innerHTML=html; 
+    
+    document.querySelectorAll('.complete-btn').forEach(btn=>btn.addEventListener('click',async()=>{ 
+        const staff=prompt("Enter your name (SOD only)"); 
+        if(staff && sodStaffNames.includes(staff)) await completeTask(btn.dataset.id,staff); 
+        else alert("Not authorized"); 
+    })); 
+    
+    document.querySelectorAll('.ack-btn').forEach(btn=>btn.addEventListener('click',async()=>{ 
+        const sel=document.querySelector(`.ack-select[data-id="${btn.dataset.id}"]`); 
+        if(sel.value) await acknowledgeTask(btn.dataset.id,sel.value); 
+    })); 
+    
+    document.querySelectorAll('.drop-btn').forEach(btn=>btn.addEventListener('click',async()=>{ 
+        const sel=document.querySelector(`.drop-select[data-id="${btn.dataset.id}"]`); 
+        const note=document.querySelector(`.drop-note[data-id="${btn.dataset.id}"]`); 
+        const staff=prompt("Your name"); 
+        if(staff && sel.value) await submitDropdown(btn.dataset.id,sel.value,note?.value||"",staff); 
+    })); 
+}
+
+// ==================== SUPERVISOR FUNCTIONS ====================
+async function loadSupervisors(){ 
+    const id=getSupervisorRecordId(currentDate,currentShift); 
+    const doc=await db.collection("supervisorRecords").doc(id).get(); 
+    supervisorList=doc.exists?doc.data().supervisors||[]:[]; 
+    renderSupervisorPanel(); 
+}
+
+async function saveSupervisors(list){ 
+    await db.collection("supervisorRecords").doc(getSupervisorRecordId(currentDate,currentShift)).set({supervisors:list}); 
+    supervisorList=list; 
+    renderSupervisorPanel(); 
+}
+
+function renderSupervisorPanel(){ 
+    if(!supervisorSelectPanel) return; 
+    let html=`<select id="supSelect">${sodStaffNames.map(s=>`<option>${escapeHtml(s)}</option>`).join('')}</select><button id="addSupBtn">Add Sup</button><div>`+supervisorList.map(s=>`<span class="supervisor-badge">${escapeHtml(s)} <button class="remove-sup" data-name="${escapeHtml(s)}">✖</button></span>`).join('')+`</div>`; 
+    supervisorSelectPanel.innerHTML=html; 
+    document.getElementById('addSupBtn')?.addEventListener('click',async()=>{ 
+        const sel=document.getElementById('supSelect'); 
+        if(sel.value && !supervisorList.includes(sel.value)) await saveSupervisors([...supervisorList, sel.value]); 
+    }); 
+    document.querySelectorAll('.remove-sup').forEach(btn=>btn.addEventListener('click',async()=>{ 
+        const name=btn.dataset.name; 
+        await saveSupervisors(supervisorList.filter(s=>s!==name)); 
+    })); 
+    if(supervisorsDisplay) supervisorsDisplay.innerHTML=supervisorList.length?`Supervisors: ${supervisorList.join(', ')}`:'No supervisors'; 
+}
+
+// ==================== BREAK FUNCTIONS ====================
+async function requestBreak(slot){ 
+    if(!selectedStaffName||!sodStaffNames.includes(selectedStaffName)) return alert("Select your SOD name"); 
+    const id=getBreakRecordId(currentDate,currentShift); 
+    const doc=await db.collection("breakRecords").doc(id).get(); 
+    let breaks=doc.exists?doc.data().breaks||[]:[]; 
+    if(breaks.find(b=>b.staffName===selectedStaffName && b.status==='approved')) return alert("Already approved break"); 
+    breaks=breaks.filter(b=>!(b.staffName===selectedStaffName && b.status==='pending')); 
+    breaks.push({staffName:selectedStaffName,timeSlot:slot,status:'pending'}); 
+    await db.collection("breakRecords").doc(id).set({breaks}); 
+    renderBreakUI(); 
+    alert("Request sent"); 
+}
+
+async function renderBreakUI(){ 
+    if(!breakRequestContainer) return; 
+    const id=getBreakRecordId(currentDate,currentShift); 
+    const doc=await db.collection("breakRecords").doc(id).get(); 
+    let breaks=doc.exists?doc.data().breaks||[]:[]; 
+    const myBreak=breaks.find(b=>b.staffName===selectedStaffName); 
+    const slots=currentShift==="Morning"?BREAK_MORNING_SLOTS:BREAK_EVENING_SLOTS; 
+    let html=`<select id="staffBreakSelect"><option value="">Select SOD name</option>${sodStaffNames.map(s=>`<option ${selectedStaffName===s?'selected':''} value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}</select><div class="time-slots">${slots.map(s=>`<button class="time-slot-btn" onclick="requestBreak('${s}')" ${myBreak?.status==='approved'?'disabled':''}>${s}</button>`).join('')}</div>`; 
+    if(myBreak) html+=`<div class="break-status">${myBreak.status==='pending'?' Pending':myBreak.status==='approved'?` Approved ${myBreak.timeSlot}`:' Rejected'}</div>`; 
+    breakRequestContainer.innerHTML=html; 
+    document.getElementById('staffBreakSelect')?.addEventListener('change',e=>{ selectedStaffName=e.target.value; renderBreakUI(); }); 
+}
+
+async function loadBreakRequests(){ 
+    const id=getBreakRecordId(currentDate,currentShift); 
+    const doc=await db.collection("breakRecords").doc(id).get(); 
+    let breaks=doc.exists?doc.data().breaks||[]:[]; 
+    const pending=breaks.filter(b=>b.status==='pending'); 
+    breakRequestsList.innerHTML=pending.map(b=>`<div>${b.staffName} wants ${b.timeSlot}<button class="approve-break" data-name="${b.staffName}" data-slot="${b.timeSlot}">Approve</button><button class="reject-break" data-name="${b.staffName}" data-slot="${b.timeSlot}">Reject</button></div>`).join(''); 
+    document.querySelectorAll('.approve-break').forEach(btn=>btn.addEventListener('click',async()=>{ 
+        const id=getBreakRecordId(currentDate,currentShift); 
+        const doc=await db.collection("breakRecords").doc(id).get(); 
+        let br=doc.data().breaks||[]; 
+        br=br.map(b=>{ if(b.staffName===btn.dataset.name && b.timeSlot===btn.dataset.slot) b.status='approved'; return b; }); 
+        await db.collection("breakRecords").doc(id).set({breaks:br}); 
+        loadBreakRequests(); 
+        renderBreakUI(); 
+    })); 
+}
+
+// ==================== HANDOVER FUNCTIONS ====================
 let handoverData = { importantMsg:"" };
-async function loadHandoverLog(){ if(!handoverContainer) return; handoverContainer.innerHTML=`<textarea id="handoverMsg" rows="3" placeholder="Important handover notes..."></textarea><button id="saveHandoverBtn" class="handover-save-btn">Save</button>`; const id=getHandoverId(currentDate,currentShift); const doc=await db.collection("handoverLogs").doc(id).get(); if(doc.exists) handoverData=doc.data(); document.getElementById('handoverMsg').value=handoverData.importantMsg||''; document.getElementById('saveHandoverBtn')?.addEventListener('click',async()=>{ handoverData.importantMsg=document.getElementById('handoverMsg').value; await db.collection("handoverLogs").doc(id).set(handoverData); alert("Saved"); }); }
-async function loadGlobalTasks(){ const doc=await db.collection("globalConfig").doc("tasks").get(); globalTasks=doc.exists?doc.data().tasks||[]:[]; renderTaskManager(); }
-async function saveGlobalTasks(tasks){ await db.collection("globalConfig").doc("tasks").set({tasks}); globalTasks=tasks; renderTaskManager(); }
-function renderTaskManager(){ if(!taskListManager) return; taskListManager.innerHTML=globalTasks.map(t=>`<div>${t.name} (${t.type}) <button class="edit-task-full-btn" data-id="${t.id}">Edit</button><button class="delete-task-btn" data-id="${t.id}">Del</button></div>`).join(''); document.querySelectorAll('.delete-task-btn').forEach(btn=>btn.addEventListener('click',async()=>{ await saveGlobalTasks(globalTasks.filter(t=>t.id!==btn.dataset.id)); })); document.querySelectorAll('.edit-task-full-btn').forEach(btn=>btn.addEventListener('click',()=>{ const task=globalTasks.find(t=>t.id===btn.dataset.id); document.getElementById('editTaskNameField').value=task.name; document.getElementById('editTaskCategoryField').value=task.category||'General'; document.getElementById('editTaskTypeField').value=task.type; document.getElementById('editTaskShiftField').value=task.shift||'Both'; document.getElementById('taskFullEditModal').classList.remove('hidden'); window.currentEditId=task.id; })); }
-async function addTaskMgr(){ const name=newTaskNameMgr.value.trim(); if(!name) return; const newTask={id:Date.now().toString(),name,category:taskCategorySelectMgr.value||"General",type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:taskTypeSelectMgr.value==='dropdown'?dropdownOptionsMgr.value.split(','):null}; await saveGlobalTasks([...globalTasks,newTask]); newTaskNameMgr.value=""; }
-async function loadStaff(){ const snap=await db.collection("staff").get(); staffList=snap.docs.map(d=>({id:d.id,name:d.data().name})); renderStaffManager(); }
-async function addStaffMember(name){ if(!name) return; await db.collection("staff").add({name}); await loadStaff(); }
-function renderStaffManager(){ staffListManager.innerHTML=staffList.map(s=>`<div class="staff-card">${s.name} <button class="delete-staff-mgr" data-id="${s.id}">✖</button></div>`).join(''); document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ await db.collection("staff").doc(btn.dataset.id).delete(); await loadStaff(); })); }
-function updateShiftStatusUI(){ const closed=currentTaskRecord?.status==="closed"; shiftStatusBadge.innerHTML=closed?'Closed':'Open'; closeShiftBtn.classList.toggle('hidden',closed); reopenShiftBtn.classList.toggle('hidden',!closed); }
-async function closeShift(){ if(currentTaskRecord?.status==="closed") return; const id=getTaskRecordId(currentDate,currentShift); await db.collection("taskRecords").doc(id).update({status:"closed"}); alert("Shift closed"); }
-async function reopenShiftFn(){ const id=getTaskRecordId(currentDate,currentShift); await db.collection("taskRecords").doc(id).update({status:"open"}); alert("Reopened"); }
-function exportFullReport(){ if(!currentDate||!currentShift) return alert("Select date/shift"); const win=window.open(); win.document.write(`<html><body><h1>Koveli Lounge Report</h1><p>Date:${currentDate} Shift:${currentShift}</p><pre>Tasks:${JSON.stringify(currentTaskRecord,null,2)}</pre><pre>Attendance:${JSON.stringify(attendanceRecords,null,2)}</pre></body></html>`); win.print(); }
-function printAllocationSheet(){ if(!currentSODRecord) return alert("No allocation"); const win=window.open(); win.document.write(`<html><body><h1>Staff Allocation</h1><pre>${JSON.stringify(currentSODRecord.allocations,null,2)}</pre></body></html>`); win.print(); }
-async function refreshAll(){ if(!currentDate||!currentShift) return; await Promise.all([loadSODStaff(), loadSODAllocation(), loadAttendance(), loadSupervisors(), loadHandoverLog(), loadTaskRecord()]); renderBreakUI(); if(currentRole==="supervisor") loadBreakRequests(); renderFullAllocation(); }
-function setRole(role){ if(role==="supervisor"&&!window.isSupervisorVerified){ passwordModal.classList.remove('hidden'); return; } currentRole=role; document.getElementById('staffViewSection').style.display=role==="staff"?"block":"none"; document.getElementById('supervisorTabs').classList.toggle('hidden',role!=="supervisor"); document.getElementById('staffRoleBtn').classList.toggle('active',role==="staff"); document.getElementById('supervisorRoleBtn').classList.toggle('active',role==="supervisor"); if(role==="supervisor") refreshAll(); else refreshAll(); }
-function verifyPassword(){ if(supervisorPassword.value==="Admin123"){ window.isSupervisorVerified=true; passwordModal.classList.add('hidden'); setRole("supervisor"); } else passwordError.innerText="Wrong"; }
-async function onDateShiftChange(){ currentDate=mainDate.value; currentShift=mainShift.value; localStorage.setItem('selectedDate',currentDate); localStorage.setItem('selectedShift',currentShift); await refreshAll(); }
-async function init(){ currentDate=localStorage.getItem('selectedDate')||new Date().toISOString().slice(0,10); currentShift=localStorage.getItem('selectedShift')||""; mainDate.value=currentDate; mainShift.value=currentShift; if(firestoreReady){ await loadGlobalTasks(); await loadStaff(); await refreshAll(); } mainDate.addEventListener('change',onDateShiftChange); mainShift.addEventListener('change',onDateShiftChange); staffRoleBtn.addEventListener('click',()=>setRole("staff")); supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); addTaskBtnMgr.addEventListener('click',addTaskMgr); addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); closeShiftBtn.addEventListener('click',closeShift); reopenShiftBtn.addEventListener('click',reopenShiftFn); verifyPasswordBtn.addEventListener('click',verifyPassword); cancelPasswordBtn.addEventListener('click',()=>passwordModal.classList.add('hidden')); exportFullPdfBtn.addEventListener('click',exportFullReport); printAllocationBtn.addEventListener('click',printAllocationSheet); document.getElementById('saveTaskEditBtn')?.addEventListener('click',async()=>{ const updated={id:window.currentEditId,name:document.getElementById('editTaskNameField').value,category:document.getElementById('editTaskCategoryField').value,type:document.getElementById('editTaskTypeField').value,shift:document.getElementById('editTaskShiftField').value}; const newTasks=globalTasks.map(t=>t.id===updated.id?updated:t); await saveGlobalTasks(newTasks); document.getElementById('taskFullEditModal').classList.add('hidden'); }); document.getElementById('closeTaskEditModalBtn')?.addEventListener('click',()=>document.getElementById('taskFullEditModal').classList.add('hidden')); setRole("staff"); }
-if(isDeviceAuthorized()){ document.getElementById('deviceAuthModal').style.display='none'; document.getElementById('appContainer').style.display='block'; init(); } else { document.getElementById('deviceAuthModal').style.display='flex'; document.getElementById('authorizeDeviceBtn').addEventListener('click',()=>{ if(authorizeDevice(devicePasswordInput.value)){ location.reload(); } else deviceAuthError.innerText="Invalid"; }); }
+
+async function loadHandoverLog(){ 
+    if(!handoverContainer) return; 
+    handoverContainer.innerHTML=`<textarea id="handoverMsg" rows="3" placeholder="Important handover notes..."></textarea><button id="saveHandoverBtn" class="handover-save-btn">Save</button>`; 
+    const id=getHandoverId(currentDate,currentShift); 
+    const doc=await db.collection("handoverLogs").doc(id).get(); 
+    if(doc.exists) handoverData=doc.data(); 
+    const msgInput = document.getElementById('handoverMsg');
+    if(msgInput) msgInput.value=handoverData.importantMsg||''; 
+    const saveBtn = document.getElementById('saveHandoverBtn');
+    if(saveBtn) saveBtn.addEventListener('click',async()=>{ 
+        const msgInput2 = document.getElementById('handoverMsg');
+        handoverData.importantMsg=msgInput2 ? msgInput2.value : ''; 
+        await db.collection("handoverLogs").doc(id).set(handoverData); 
+        alert("Saved"); 
+    }); 
+}
+
+// ==================== STAFF & TASK MANAGEMENT ====================
+async function loadGlobalTasks(){ 
+    const doc=await db.collection("globalConfig").doc("tasks").get(); 
+    globalTasks=doc.exists?doc.data().tasks||[]:[]; 
+    renderTaskManager(); 
+}
+
+async function saveGlobalTasks(tasks){ 
+    await db.collection("globalConfig").doc("tasks").set({tasks}); 
+    globalTasks=tasks; 
+    renderTaskManager(); 
+}
+
+function renderTaskManager(){ 
+    if(!taskListManager) return; 
+    taskListManager.innerHTML=globalTasks.map(t=>`<div>${escapeHtml(t.name)} (${t.type}) <button class="edit-task-full-btn" data-id="${t.id}">Edit</button><button class="delete-task-btn" data-id="${t.id}">Del</button></div>`).join(''); 
+    document.querySelectorAll('.delete-task-btn').forEach(btn=>btn.addEventListener('click',async()=>{ await saveGlobalTasks(globalTasks.filter(t=>t.id!==btn.dataset.id)); })); 
+}
+
+async function addTaskMgr(){ 
+    const name=newTaskNameMgr.value.trim(); 
+    if(!name) return; 
+    const newTask={id:Date.now().toString(),name,category:taskCategorySelectMgr.value||"General",type:taskTypeSelectMgr.value,shift:taskShiftSelectMgr.value,options:taskTypeSelectMgr.value==='dropdown'?dropdownOptionsMgr.value.split(','):null}; 
+    await saveGlobalTasks([...globalTasks,newTask]); 
+    newTaskNameMgr.value=""; 
+    if(dropdownOptionsMgr) dropdownOptionsMgr.value="";
+}
+
+async function loadStaff(){ 
+    const snap=await db.collection("staff").get(); 
+    staffList=snap.docs.map(d=>({id:d.id,name:d.data().name})); 
+    renderStaffManager(); 
+}
+
+async function addStaffMember(name){ 
+    if(!name) return; 
+    await db.collection("staff").add({name}); 
+    await loadStaff(); 
+}
+
+function renderStaffManager(){ 
+    if(!staffListManager) return;
+    staffListManager.innerHTML=staffList.map(s=>`<div class="staff-card">${escapeHtml(s.name)} <button class="delete-staff-mgr" data-id="${s.id}">✖</button></div>`).join(''); 
+    document.querySelectorAll('.delete-staff-mgr').forEach(btn=>btn.addEventListener('click',async()=>{ 
+        await db.collection("staff").doc(btn.dataset.id).delete(); 
+        await loadStaff(); 
+    })); 
+}
+
+// ==================== SHIFT CONTROL ====================
+function updateShiftStatusUI(){ 
+    const closed=currentTaskRecord?.status==="closed"; 
+    if(shiftStatusBadge) shiftStatusBadge.innerHTML=closed?'Closed':'Open'; 
+    if(closeShiftBtn) closeShiftBtn.classList.toggle('hidden',closed); 
+    if(reopenShiftBtn) reopenShiftBtn.classList.toggle('hidden',!closed); 
+}
+
+async function closeShift(){ 
+    if(currentTaskRecord?.status==="closed") return; 
+    const id=getTaskRecordId(currentDate,currentShift); 
+    await db.collection("taskRecords").doc(id).update({status:"closed"}); 
+    alert("Shift closed"); 
+}
+
+async function reopenShiftFn(){ 
+    const id=getTaskRecordId(currentDate,currentShift); 
+    await db.collection("taskRecords").doc(id).update({status:"open"}); 
+    alert("Reopened"); 
+}
+
+// ==================== REPORTS ====================
+function exportFullReport(){ 
+    if(!currentDate||!currentShift) return alert("Select date/shift"); 
+    const win=window.open(); 
+    win.document.write(`<html><body><h1>Koveli Lounge Report</h1><p>Date:${currentDate} Shift:${currentShift}</p><pre>Tasks:${JSON.stringify(currentTaskRecord,null,2)}</pre><pre>Attendance:${JSON.stringify(attendanceRecords,null,2)}</pre></body></html>`); 
+    win.print(); 
+}
+
+function printAllocationSheet(){ 
+    if(!currentSODRecord) return alert("No allocation"); 
+    const win=window.open(); 
+    win.document.write(`<html><body><h1>Staff Allocation</h1><pre>${JSON.stringify(currentSODRecord.allocations,null,2)}</pre></body></html>`); 
+    win.print(); 
+}
+
+// ==================== REFRESH & INIT ====================
+async function refreshAll(){ 
+    if(!currentDate||!currentShift) return; 
+    await Promise.all([loadSODStaff(), loadSODAllocation(), loadAttendance(), loadSupervisors(), loadHandoverLog(), loadTaskRecord()]); 
+    renderBreakUI(); 
+    if(currentRole==="supervisor") loadBreakRequests(); 
+    renderFullAllocation(); 
+}
+
+function setRole(role){ 
+    if(role==="supervisor" && !isSupervisorVerified){ 
+        if(passwordModal) passwordModal.classList.remove('hidden'); 
+        return; 
+    } 
+    currentRole=role; 
+    const staffView = document.getElementById('staffViewSection');
+    const supervisorTabs = document.getElementById('supervisorTabs');
+    if(staffView) staffView.style.display=role==="staff"?"block":"none"; 
+    if(supervisorTabs) supervisorTabs.classList.toggle('hidden',role!=="supervisor"); 
+    if(staffRoleBtn) staffRoleBtn.classList.toggle('active',role==="staff"); 
+    if(supervisorRoleBtn) supervisorRoleBtn.classList.toggle('active',role==="supervisor"); 
+    refreshAll(); 
+}
+
+function verifyPassword(){ 
+    if(supervisorPassword.value==="Admin123"){ 
+        isSupervisorVerified=true; 
+        if(passwordModal) passwordModal.classList.add('hidden'); 
+        setRole("supervisor"); 
+    } else if(passwordError) passwordError.innerText="Wrong password"; 
+}
+
+async function onDateShiftChange(){ 
+    currentDate=mainDate.value; 
+    currentShift=mainShift.value; 
+    localStorage.setItem('selectedDate',currentDate); 
+    localStorage.setItem('selectedShift',currentShift); 
+    await refreshAll(); 
+}
+
+async function init(){ 
+    currentDate=localStorage.getItem('selectedDate')||new Date().toISOString().slice(0,10); 
+    currentShift=localStorage.getItem('selectedShift')||""; 
+    if(mainDate) mainDate.value=currentDate; 
+    if(mainShift) mainShift.value=currentShift; 
+    
+    await loadGlobalTasks(); 
+    await loadStaff(); 
+    await refreshAll(); 
+    
+    if(mainDate) mainDate.addEventListener('change',onDateShiftChange); 
+    if(mainShift) mainShift.addEventListener('change',onDateShiftChange); 
+    if(staffRoleBtn) staffRoleBtn.addEventListener('click',()=>setRole("staff")); 
+    if(supervisorRoleBtn) supervisorRoleBtn.addEventListener('click',()=>setRole("supervisor")); 
+    if(addTaskBtnMgr) addTaskBtnMgr.addEventListener('click',addTaskMgr); 
+    if(addStaffBtnMgr) addStaffBtnMgr.addEventListener('click',()=>addStaffMember(newStaffNameMgr.value)); 
+    if(closeShiftBtn) closeShiftBtn.addEventListener('click',closeShift); 
+    if(reopenShiftBtn) reopenShiftBtn.addEventListener('click',reopenShiftFn); 
+    if(verifyPasswordBtn) verifyPasswordBtn.addEventListener('click',verifyPassword); 
+    if(cancelPasswordBtn) cancelPasswordBtn.addEventListener('click',()=>{ if(passwordModal) passwordModal.classList.add('hidden'); }); 
+    if(exportFullPdfBtn) exportFullPdfBtn.addEventListener('click',exportFullReport); 
+    if(printAllocationBtn) printAllocationBtn.addEventListener('click',printAllocationSheet); 
+    
+    if(taskTypeSelectMgr) {
+        taskTypeSelectMgr.addEventListener('change', () => { 
+            if(dropdownOptionsDivMgr) dropdownOptionsDivMgr.style.display = taskTypeSelectMgr.value === 'dropdown' ? 'block' : 'none'; 
+        });
+    }
+    
+    setRole("staff"); 
+}
+
+// ==================== DEVICE AUTH ====================
+const deviceAuthModal = document.getElementById('deviceAuthModal');
+const appContainer = document.getElementById('appContainer');
+const devicePasswordInput = document.getElementById('devicePasswordInput');
+const authorizeDeviceBtn = document.getElementById('authorizeDeviceBtn');
+const deviceAuthError = document.getElementById('deviceAuthError');
+
+function handleDeviceAuth() { 
+    if (authorizeDevice(devicePasswordInput.value)) { 
+        if(deviceAuthModal) deviceAuthModal.style.display = 'none'; 
+        if(appContainer) appContainer.style.display = 'block'; 
+        init(); 
+    } else { 
+        if(deviceAuthError) deviceAuthError.textContent = 'Invalid authorization password.'; 
+        if(devicePasswordInput) { devicePasswordInput.value = ''; devicePasswordInput.focus(); }
+    } 
+}
+
+if (isDeviceAuthorized()) { 
+    if(deviceAuthModal) deviceAuthModal.style.display = 'none'; 
+    if(appContainer) appContainer.style.display = 'block'; 
+    init(); 
+} else { 
+    if(deviceAuthModal) deviceAuthModal.style.display = 'flex'; 
+    if(appContainer) appContainer.style.display = 'none'; 
+    if(authorizeDeviceBtn) authorizeDeviceBtn.addEventListener('click', handleDeviceAuth); 
+    if(devicePasswordInput) devicePasswordInput.addEventListener('keypress', e => { if (e.key === 'Enter') handleDeviceAuth(); }); 
+    if(devicePasswordInput) devicePasswordInput.focus(); 
+}
+
+// Make functions available globally for onclick handlers
+window.deleteAttendanceRecord = deleteAttendanceRecord;
+window.editAttendanceRecord = editAttendanceRecord;
+window.requestBreak = requestBreak;
+window.removeStaff = removeStaff;
 </script>
 </body>
 </html>
