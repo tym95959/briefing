@@ -615,6 +615,8 @@ body.supervisor-mode #globalControlBar {
         </div>
         <div style="font-size: 0.7rem; color: #8b6914;">🔒 Read-only</div>
     </div>
+    <!-- Add this hidden element for context -->
+    <span id="staffGlobalContext" style="display: none;"></span>
   
     <div class="sub-tabs">
         <button class="sub-tab-btn active" data-subtab="dailytasks">✅ Daily Tasks</button>
@@ -786,19 +788,23 @@ console.log("🔥 Firebase ready!");
     { value: "evening", label: "Evening Shift", periods: [{ timing: "18:30-20:00" }, { timing: "20:00-21:30" }, { timing: "21:30-23:30" }] }
   ];
 
-  let allocations = new Map();
-  let staffOnDutyIds = new Set();
-  let currentDate = new Date().toISOString().split('T')[0];
-  let currentShift = SHIFTS[0].value;
-  let supervisorLoggedIn = false;
-  let selectedAllocationStaff = new Set();
-  let attendanceRecords = new Map();
-  let breakRequests = new Map();
-  let nextRequestId = 1;
-  let selectedBreakTime = null;
-
-  let staffViewDate = currentDate;
-  let staffViewShift = currentShift;
+    let allocations = new Map();
+    let staffOnDutyIds = new Set();
+    // Initialize with today's date but ensure it's consistent
+    let currentDate = (() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+    })();
+    let currentShift = SHIFTS[0].value;
+    let supervisorLoggedIn = false;
+    let selectedAllocationStaff = new Set();
+    let attendanceRecords = new Map();
+    let breakRequests = new Map();
+    let nextRequestId = 1;
+    let selectedBreakTime = null;
 
   // Preset reasons for attendance
    const PRESET_REASONS = {
@@ -1041,33 +1047,26 @@ async function saveDailyTasks() {
 }
 
 // Add this function to sync staff view with supervisor selections
+// Sync staff view with supervisor selections - NO date changing, just display
 async function syncStaffViewWithSupervisor() {
-  // Only sync if supervisor is logged in (they control the master values)
   if (!supervisorLoggedIn) return;
   
-  // Check if staff view needs to update
-  if (staffViewDate !== currentDate || staffViewShift !== currentShift) {
-    console.log(`🔄 Syncing staff view: ${staffViewDate} → ${currentDate}, ${staffViewShift} → ${currentShift}`);
-    
-    // Update staff view's tracking variables
-    staffViewDate = currentDate;
-    staffViewShift = currentShift;
-    
-    // Refresh staff view display
-    updateStaffDisplay();
-    
-    // Reload data for the new date
-    await loadFromLocalStorage();
-    await loadDailyTasks();
-    
-    // Refresh all staff UI components
-    renderBreakTimeBadges();
-    loadCompleteStaffDashboard();
-    initDailyStaffSelect();
-    renderDailyTasksUI();
-    
-    showMessage(`📅 Staff view synced to: ${currentDate} - ${SHIFTS.find(s => s.value === currentShift)?.label || currentShift}`);
-  }
+  console.log(`🔄 Syncing staff view - Date: ${currentDate}, Shift: ${currentShift}`);
+  
+  // Update staff display to show current supervisor selections
+  updateStaffDisplay();
+  
+  // Reload data for the current date (which is already set by supervisor)
+  await loadFromLocalStorage();
+  await loadDailyTasks();
+  
+  // Refresh all staff UI components
+  renderBreakTimeBadges();
+  loadCompleteStaffDashboard();
+  initDailyStaffSelect();
+  renderDailyTasksUI();
+  
+  console.log(`✅ Staff view synced to: ${currentDate} - ${currentShift}`);
 }
 
   function getSelectedStaff() {
@@ -1757,17 +1756,15 @@ function renderSupervisorDailyTasks() {
   const staffShiftSpan = document.getElementById("staffDisplayShift");
   
   if (staffDateSpan) {
-    // Use currentDate (which is the master date from supervisor)
-    const dateObj = new Date(currentDate);
-    const day = dateObj.getDate();
-    const month = dateObj.toLocaleString('en-GB', { month: 'short' });
-    const year = dateObj.getFullYear();
-    const formattedDate = `${day} ${month} ${year}`;
+    // Parse the date string safely
+    const [year, month, day] = currentDate.split('-');
+    const dateObj = new Date(year, month - 1, day);
+    const monthName = dateObj.toLocaleString('en-GB', { month: 'short' });
+    const formattedDate = `${parseInt(day)} ${monthName} ${year}`;
     staffDateSpan.textContent = formattedDate;
   }
   
   if (staffShiftSpan) {
-    // Use currentShift (which is the master shift from supervisor)
     const shiftLabel = SHIFTS.find(s => s.value === currentShift)?.label || currentShift;
     staffShiftSpan.textContent = shiftLabel;
   }
@@ -2187,26 +2184,23 @@ function isStaffAvailableInPeriod(staffId, period) {
   }
 }
 // Refresh staff view when supervisor changes date or shift
+
+// Refresh staff view when supervisor changes date or shift
+// Refresh staff view when supervisor changes date or shift
 async function refreshStaffView() {
   console.log("Refreshing staff view for date:", currentDate, "shift:", currentShift);
   
-  // Update the display at the top of staff view
   updateStaffDisplay();
   updateStaffContextDisplay();
   
-  // Reload data for the new date (this will get SOD, allocations, attendance for new date)
   await loadFromLocalStorage();
-  
-  // Reload daily tasks for the new date
   await loadDailyTasks();
-  
-  // Refresh all staff view components
+
   renderBreakTimeBadges();
   loadCompleteStaffDashboard();
   initDailyStaffSelect();
   renderDailyTasksUI();
   
-  // Update the staff self-select dropdown (for break requests)
   const selfSelect = document.getElementById("staffSelfSelect");
   if (selfSelect) {
     const sodExcludingHK = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
@@ -2214,17 +2208,14 @@ async function refreshStaffView() {
       sodExcludingHK.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
   }
   
-  // Clear selected break time
   selectedBreakTime = null;
-  
   showMessage(`📅 Staff view updated to ${currentDate} - ${SHIFTS.find(s => s.value === currentShift)?.label || currentShift}`);
 }
 
-  function updateDisplayInfo() {
+function updateDisplayInfo() {
   const displayDate = document.getElementById("displayDate");
   const displayShift = document.getElementById("displayShift");
   const dailyTaskShiftBadge = document.getElementById("dailyTaskShiftBadge");
-  const allSodContainer = document.getElementById("allSodContainer");
   
   if (displayDate) displayDate.innerText = currentDate;
   if (displayShift) displayShift.innerText = SHIFTS.find(s => s.value === currentShift)?.label || currentShift;
@@ -2270,28 +2261,23 @@ async function saveToLocalStorage() {
 
     // Load from Firebase
 // Load from Firebase - PER DATE
-// Load from Firebase - PER DATE
 async function loadFromLocalStorage() {
   try {
-    // Use currentDate as the document ID
     const docRef = db.collection("staffManagement").doc(currentDate);
     const doc = await docRef.get();
     
     if (doc.exists) {
       const d = doc.data();
       
-      // Clear current data
       allocations.clear();
       attendanceRecords.clear();
       breakRequests.clear();
       selectedAllocationStaff.clear();
       
-      // Load data for this specific date
       if (d.allocations) { 
         Object.entries(d.allocations).forEach(([k, v]) => allocations.set(k, new Set(v))); 
       }
       
-      // Load staff on duty - THIS IS CRITICAL
       if (d.staffOnDutyIds) {
         staffOnDutyIds = new Set(d.staffOnDutyIds);
         console.log(`✅ Loaded ${staffOnDutyIds.size} staff on duty for ${currentDate}:`, Array.from(staffOnDutyIds));
@@ -2300,7 +2286,10 @@ async function loadFromLocalStorage() {
         console.log(`No staff on duty saved for ${currentDate}`);
       }
       
-      if (d.currentShift) currentShift = d.currentShift;
+      // Load shift from saved data only if supervisor is NOT logged in
+      if (d.currentShift && !supervisorLoggedIn) {
+        currentShift = d.currentShift;
+      }
       
       if (d.attendanceRecords) { 
         Object.entries(d.attendanceRecords).forEach(([k, v]) => attendanceRecords.set(k, v)); 
@@ -2316,19 +2305,16 @@ async function loadFromLocalStorage() {
       return true;
       
     } else {
-      // New day - reset everything
       console.log(`📅 New day: ${currentDate} - Starting fresh`);
       showMessage(`🆕 New day! Starting fresh for ${currentDate}`, "success");
       
-      // Reset all data for new day
       allocations.clear();
-      staffOnDutyIds.clear();  // Start with empty SOD for new day
+      staffOnDutyIds.clear();
       attendanceRecords.clear();
       breakRequests.clear();
       selectedAllocationStaff.clear();
       nextRequestId = 1;
       
-      // Reset daily tasks for new day
       MAIN_DAILY_TASKS.forEach(task => {
         if (task.type === "signoff") task.signoffs = [];
         if (task.type === "complete") task.completedBy = null;
@@ -2340,8 +2326,8 @@ async function loadFromLocalStorage() {
         if (task.type === "complete") task.completedBy = null;
       });
       
-      await saveDailyTasks(); // Save reset daily tasks
-      await saveToLocalStorage(); // Create empty document for this date
+      await saveDailyTasks();
+      await saveToLocalStorage();
       return false;
     }
   } catch (error) {
@@ -2351,48 +2337,46 @@ async function loadFromLocalStorage() {
   }
 }
 
-
+// Handle date changes - load data for new date
 // Handle date changes - load data for new date
 async function onDateChange(newDate) {
   if (!supervisorLoggedIn) return;
   
-  console.log(`📅 Changing date to: ${newDate}`);
+  console.log(`📅 Supervisor changing date to: ${newDate}`);
+  
+  // Update the master date
   currentDate = newDate;
   
-  showMessage(`Loading data for ${newDate}...`, "success");
+  showMessage(`📅 Date changed to ${currentDate}`, "success");
   
+  // Clear selections
   selectedAllocationStaff.clear();
+  
+  // Load data for the new date
   await loadFromLocalStorage();
   await loadDailyTasks();
   
+  // Update displays
   updateDisplayInfo();
   updateStaffDisplay();
-  updateStaffContextDisplay();
   
-  if (supervisorLoggedIn) { 
-    renderAllSod();
-    renderAllocationPool();
-    renderAllocationTable();
-    renderAttendanceDashboard();
-    renderSupervisorAttendanceDashboard();
-    renderBreakRequestsForSupervisor();
-    renderSupervisorDailyTasks();
-    await syncStaffViewWithSupervisor();
-  }
+  // Refresh supervisor views
+  renderAllSod();
+  renderAllocationPool();
+  renderAllocationTable();
+  renderAttendanceDashboard();
+  renderSupervisorAttendanceDashboard();
+  renderBreakRequestsForSupervisor();
+  renderSupervisorDailyTasks();
   
-  if (document.getElementById("staffMainPane").classList.contains("active-pane")) { 
-    renderBreakTimeBadges();
-    loadCompleteStaffDashboard();
-    initDailyStaffSelect();
-    renderDailyTasksUI();
-  }
+  // Sync staff view to show the same date
+  await syncStaffViewWithSupervisor();
   
-  await refreshStaffView(); // Only call this ONCE
-  
+  // Update the global date input value
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
   
-  console.log(`✅ Loaded data for ${newDate}, SOD count: ${staffOnDutyIds.size}`);
+  console.log(`✅ Loaded data for ${currentDate}, SOD count: ${staffOnDutyIds.size}`);
 }
 
   function initGlobalControls() {
@@ -2408,15 +2392,19 @@ async function onDateChange(newDate) {
   };
   
   // Handle shift change - MODIFY THIS PART
+// Handle shift change
 gs.onchange = async (e) => { 
   if (supervisorLoggedIn) { 
-    currentShift = e.target.value; 
+    const newShift = e.target.value;
+    console.log(`🔄 Supervisor changing shift to: ${newShift}`);
+    
+    currentShift = newShift; 
     await saveToLocalStorage();
     
     // Refresh supervisor views
     refreshAllViews();
     
-    // ALSO sync staff view
+    // Sync staff view
     await syncStaffViewWithSupervisor();
     
     showMessage(`Shift changed to ${currentShift}`); 
@@ -2595,17 +2583,28 @@ function startPeriodicSync() {
 
 // Then in initApp, add this line before the last showMessage:
 async function initApp() {
-  await loadFromLocalStorage();  // Load SOD and other data first
-  await loadDailyTasks();        // Then load tasks for this date
+  // First, ensure currentDate is set correctly
+  console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
+  
+  await loadFromLocalStorage();
+  await loadDailyTasks();
+  
   updateStaffDisplay();
+  updateDisplayInfo();
   populateDropdowns();
   initMainTabs();
   initStaffSubTabs();
   initDailyStaffSelect();
+  
   document.getElementById("superLoginBtn").onclick = loginSupervisor;
   document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
+  
+  // Set the global date input to currentDate
+  const gd = document.getElementById("globalDate");
+  if (gd) gd.value = currentDate;
+  
   refreshAllViews();
-  startPeriodicSync(); // ADD THIS LINE
+  startPeriodicSync(); // ADD THIS LINE - it's defined but never called!
   showMessage("✅ System ready - Data synced with cloud");
 }
   
