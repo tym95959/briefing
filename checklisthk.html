@@ -904,7 +904,7 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
   }
 
   // Load Daily Tasks
-  // Load Daily Tasks from Firebase (per date)
+// Load Daily Tasks from Firebase (per date) - CORRECTED
 async function loadDailyTasks() {
   try {
     const docRef = db.collection("staffManagement").doc(currentDate);
@@ -915,12 +915,20 @@ async function loadDailyTasks() {
       
       // Load main tasks
       if (data.mainTasks) {
+        // Clear existing signoffs first
         MAIN_DAILY_TASKS.forEach(item => {
-          const savedItem = data.mainTasks.find(s => s.id === item.id);
-          if (savedItem) {
-            item.signoffs = savedItem.signoffs || [];
-            item.completedBy = savedItem.completedBy;
-            item.submissions = savedItem.submissions || [];
+          item.signoffs = [];
+          item.completedBy = null;
+          item.submissions = [];
+        });
+        
+        // Load saved data
+        data.mainTasks.forEach(savedItem => {
+          const task = MAIN_DAILY_TASKS.find(t => t.id === savedItem.id);
+          if (task) {
+            task.signoffs = savedItem.signoffs || [];
+            task.completedBy = savedItem.completedBy || null;
+            task.submissions = savedItem.submissions || [];
           }
         });
       }
@@ -928,41 +936,66 @@ async function loadDailyTasks() {
       // Load FB tasks
       if (data.fbTasks) {
         FB_DAILY_TASKS.forEach(item => {
-          const savedItem = data.fbTasks.find(s => s.id === item.id);
-          if (savedItem) {
-            item.signoffs = savedItem.signoffs || [];
-            item.completedBy = savedItem.completedBy;
+          item.signoffs = [];
+          item.completedBy = null;
+        });
+        
+        data.fbTasks.forEach(savedItem => {
+          const task = FB_DAILY_TASKS.find(t => t.id === savedItem.id);
+          if (task) {
+            task.signoffs = savedItem.signoffs || [];
+            task.completedBy = savedItem.completedBy || null;
           }
         });
       }
       
-      console.log("✅ Daily tasks loaded from Firebase");
+      console.log(`✅ Daily tasks loaded from Firebase for ${currentDate}`);
+      return true;
     } else {
-      console.log("No daily tasks found, using defaults");
+      console.log(`No saved tasks for ${currentDate}, using defaults`);
+      // Reset to empty for new day
+      MAIN_DAILY_TASKS.forEach(task => {
+        if (task.type === "signoff") task.signoffs = [];
+        if (task.type === "complete") task.completedBy = null;
+        if (task.type === "submission") task.submissions = [];
+      });
+      FB_DAILY_TASKS.forEach(task => {
+        if (task.type === "signoff") task.signoffs = [];
+        if (task.type === "complete") task.completedBy = null;
+      });
+      return false;
     }
   } catch (error) {
     console.error("Error loading daily tasks:", error);
+    return false;
   }
 }
 
-// Save Daily Tasks to Firebase (per date)
+// Save Daily Tasks to Firebase (per date) - CORRECTED
 async function saveDailyTasks() {
   try {
     const docRef = db.collection("staffManagement").doc(currentDate);
     
     await docRef.set({
       mainTasks: MAIN_DAILY_TASKS.map(({ id, signoffs, completedBy, submissions }) => ({ 
-        id, signoffs, completedBy, submissions 
+        id, 
+        signoffs: signoffs || [], 
+        completedBy: completedBy || null, 
+        submissions: submissions || [] 
       })),
       fbTasks: FB_DAILY_TASKS.map(({ id, signoffs, completedBy }) => ({ 
-        id, signoffs, completedBy 
+        id, 
+        signoffs: signoffs || [], 
+        completedBy: completedBy || null 
       })),
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     
-    console.log("✅ Daily tasks saved to Firebase");
+    console.log(`✅ Daily tasks saved to Firebase for ${currentDate}`);
+    return true;
   } catch (error) {
     console.error("Error saving daily tasks:", error);
+    return false;
   }
 }
 
@@ -2167,9 +2200,10 @@ async function onDateChange(newDate) {
   
   selectedAllocationStaff.clear();
   await loadFromLocalStorage();
+  await loadDailyTasks();  // ADD THIS LINE - reload tasks for new date
   
   updateDisplayInfo();
-  updateStaffDisplay();  // ADD THIS LINE
+  updateStaffDisplay();
   updateStaffContextDisplay();
   
   if (supervisorLoggedIn) { 
@@ -2379,17 +2413,18 @@ async function onDateChange(newDate) {
 
    // Initialize with Firebase
   async function initApp() {
-    await loadFromLocalStorage();
-    updateStaffDisplay();
-    populateDropdowns();
-    initMainTabs();
-    initStaffSubTabs();
-    initDailyStaffSelect();
-    document.getElementById("superLoginBtn").onclick = loginSupervisor;
-    document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
-    refreshAllViews();
-    showMessage("✅ System ready - Data synced with cloud");
-  }
+  await loadFromLocalStorage();  // Load SOD and other data first
+  await loadDailyTasks();        // Then load tasks for this date
+  updateStaffDisplay();
+  populateDropdowns();
+  initMainTabs();
+  initStaffSubTabs();
+  initDailyStaffSelect();
+  document.getElementById("superLoginBtn").onclick = loginSupervisor;
+  document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
+  refreshAllViews();
+  showMessage("✅ System ready - Data synced with cloud");
+}
   
   initApp();
 </script>
