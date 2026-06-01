@@ -622,19 +622,37 @@ body.supervisor-mode #globalControlBar {
     </div>
 
     <div id="subtabAllocations" class="sub-tab-pane">
-      <div class="control-panel">
-        <h3>🍽️ Request Break</h3>
-        <div class="control-row"><label>👤 Your Name:</label> <select id="staffSelfSelect"><option>-- Select --</option></select></div>
-        <div class="control-row"><label>⏰ Break Slots:</label> <div id="breakTimeBadges" class="staff-badge-grid"></div></div>
-        <button id="requestBreakBtn" style="background:#0f5c3b;">📤 Submit Break Request</button>
-      </div>
-      <h3>📋 Staff Allocations</h3>
-      <div id="allStaffAllocationsContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:500px;">Loading...</div>
-      <h3>📊 Attendance Records</h3>
-      <div id="allStaffAttendanceContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:400px;">Loading...</div>
-      <h3>📋 Break Requests</h3>
-      <div id="allStaffBreakRequestsContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:400px;">Loading...</div>
+  <div class="control-panel">
+    <h3>🍽️ Request Break</h3>
+    <div class="control-row"><label>👤 Your Name:</label> <select id="staffSelfSelect"><option>-- Select --</option></select></div>
+    <div class="control-row"><label>⏰ Break Slots:</label> <div id="breakTimeBadges" class="staff-badge-grid"></div></div>
+    <button id="requestBreakBtn" style="background:#0f5c3b;">📤 Submit Break Request</button>
+  </div>
+  <h3>📋 Staff Allocations</h3>
+  <div id="allStaffAllocationsContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:500px;">Loading...</div>
+  <h3>📊 Attendance Records</h3>
+  <div id="allStaffAttendanceContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:400px;">Loading...</div>
+  
+  <!-- ADD THIS - Staff attendance dashboard by shift -->
+  <h3>📋 Attendance by Shift</h3>
+  <div class="attendance-grid">
+    <div class="attendance-card">
+      <div class="card-title morning">🌅 Morning Shift</div>
+      <div id="morningList" style="max-height: 300px; overflow-y: auto;"></div>
     </div>
+    <div class="attendance-card">
+      <div class="card-title evening">🌆 Evening Shift</div>
+      <div id="eveningList" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+    <div class="attendance-card">
+      <div class="card-title night">🌙 Night Shift</div>
+      <div id="nightList" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+  </div>
+  
+  <h3>📋 Break Requests</h3>
+  <div id="allStaffBreakRequestsContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:400px;">Loading...</div>
+</div>
 
     <div id="subtabDailytasks" class="sub-tab-pane active-sub-pane">
       <div class="checklist-header"><span class="checklist-title">📋 Daily Operations Checklist</span><span class="checklist-shift-badge" id="dailyTaskShiftBadge">Morning</span></div>
@@ -1951,39 +1969,42 @@ function isStaffAvailableInPeriod(staffId, period) {
   const evening = records.filter(r => r.dutyShift === "Evening");
   const night = records.filter(r => r.dutyShift === "Night");
   
-  const renderList = (recs, id) => {
-    const container = document.getElementById(id);
+  const renderList = (recs, containerId) => {
+    const container = document.getElementById(containerId);
     if (!container) return;
+    
+    if (recs.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:1rem; color: #94a3b8;">✅ No records - All present</div>';
+      return;
+    }
+    
     container.innerHTML = recs.map(rec => {
       const staff = staffList.find(s => s.id === rec.staffId);
-      return `<div class="attendance-record-item" style="background: ${rec.status === 'Sick Leave' ? '#fee2e2' : (rec.status === 'FRL' ? '#fef3c7' : '#f3f4f6')}; border-radius: 0.8rem; padding: 0.8rem; margin-bottom: 0.5rem;">
-        <div style="flex: 1;">
-          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <strong>${escapeHtml(staff?.name)}</strong>
-            <span class="status-badge ${rec.status === 'Sick Leave' ? 'status-sick' : (rec.status === 'FRL' ? 'status-frl' : 'status-absent')}">${rec.status}</span>
+      let bgColor = rec.status === "Sick Leave" ? "#fee2e2" : (rec.status === "FRL" ? "#fef3c7" : "#f3f4f6");
+      let borderColor = rec.status === 'Sick Leave' ? '#ef4444' : (rec.status === 'FRL' ? '#f59e0b' : '#6b7280');
+      
+      return `<div style="background:${bgColor}; border-radius:0.8rem; padding:0.8rem; margin-bottom:0.5rem; border-left:3px solid ${borderColor};">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <strong style="font-size: 0.9rem;">${escapeHtml(staff?.name)}</strong>
+            <span class="status-badge ${rec.status === 'Sick Leave' ? 'status-sick' : (rec.status === 'FRL' ? 'status-frl' : 'status-absent')}" style="margin-left: 0.5rem; font-size: 0.7rem;">${rec.status}</span>
           </div>
-          ${rec.reason ? `<div><small>📋 ${escapeHtml(rec.reason)}</small></div>` : ''}
-          <div><small>📅 Leave: ${rec.leaveDate || rec.date} | 🕐 Reported: ${rec.reportedTime || '—'}</small></div>
+          <small style="color: #666; font-size: 0.7rem;">${rec.dutyShift}</small>
         </div>
-        <button class="delete-small" data-staff="${rec.staffId}" data-date="${rec.date}" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1.2rem;">✕</button>
+        ${rec.reason ? `<div style="margin-top: 0.3rem;"><small>📋 <strong>Reason:</strong> ${escapeHtml(rec.reason)}</small></div>` : ''}
+        <div style="margin-top: 0.3rem;">
+          <small>📅 <strong>Leave Date:</strong> ${rec.leaveDate || rec.date}</small>
+        </div>
+        <div style="margin-top: 0.2rem;">
+          <small>🕐 <strong>Reported:</strong> ${rec.reportedDate || rec.date} at ${rec.reportedTime || '—'}</small>
+        </div>
       </div>`;
-    }).join('') || '<div style="text-align:center; padding:1rem; color: #94a3b8;">No records</div>';
+    }).join('');
   };
   
   renderList(morning, "morningList");
   renderList(evening, "eveningList");
   renderList(night, "nightList");
-  
-  document.querySelectorAll('#morningList .delete-small, #eveningList .delete-small, #nightList .delete-small').forEach(btn => {
-    btn.onclick = () => {
-      if (confirm("Delete this attendance record?")) {
-        deleteAttendanceRecord(btn.dataset.staff, btn.dataset.date);
-        renderAttendanceDashboard();
-        loadAllStaffAttendance();
-        showMessage("Record deleted");
-      }
-    };
-  });
 }
 
   function addAttendanceFromForm() {
@@ -2011,7 +2032,7 @@ function isStaffAvailableInPeriod(staffId, period) {
   }
   
   let reason = "";
-  let notes = "";
+  let notes = "";  // <-- Make SURE this line exists! It should be there.
   
   // Validate reason for FRL and Sick Leave
   if (status === "Sick Leave" || status === "FRL") {
@@ -2040,7 +2061,7 @@ function isStaffAvailableInPeriod(staffId, period) {
     reportedTime,
     leaveDate: leaveDate || currentDate,
     reason: reason || null,
-    notes,
+    notes,  // This uses the notes variable
     recordedAt: new Date().toISOString()
   };
   
@@ -2048,9 +2069,9 @@ function isStaffAvailableInPeriod(staffId, period) {
   saveToLocalStorage();
   
   // Refresh both dashboards
-  renderSupervisorAttendanceDashboard(); // Update supervisor view
-  loadAllStaffAttendance(); // Update staff view
-  renderAttendanceDashboard(); // Update any other attendance views
+  renderSupervisorAttendanceDashboard();
+  loadAllStaffAttendance();
+  renderAttendanceDashboard();
   
   showMessage(`✅ ${status} recorded for ${staffList.find(s => s.id === staffId)?.name}`);
   
@@ -2129,29 +2150,52 @@ function isStaffAvailableInPeriod(staffId, period) {
   }
 }
 
+// Refresh staff view when supervisor changes date or shift
+async function refreshStaffView() {
+  console.log("Refreshing staff view for date:", currentDate, "shift:", currentShift);
+  
+  // Update the display at the top of staff view
+  updateStaffDisplay();
+  updateStaffContextDisplay();
+  
+  // Reload data for the new date (this will get SOD, allocations, attendance for new date)
+  await loadFromLocalStorage();
+  
+  // Reload daily tasks for the new date
+  await loadDailyTasks();
+  
+  // Refresh all staff view components
+  renderBreakTimeBadges();
+  loadCompleteStaffDashboard();
+  initDailyStaffSelect();
+  renderDailyTasksUI();
+  
+  // Update the staff self-select dropdown (for break requests)
+  const selfSelect = document.getElementById("staffSelfSelect");
+  if (selfSelect) {
+    const sodExcludingHK = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
+    selfSelect.innerHTML = '<option value="">-- Select --</option>' + 
+      sodExcludingHK.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  }
+  
+  // Clear selected break time
+  selectedBreakTime = null;
+  
+  showMessage(`📅 Staff view updated to ${currentDate} - ${SHIFTS.find(s => s.value === currentShift)?.label || currentShift}`);
+}
+
   function updateDisplayInfo() {
   const displayDate = document.getElementById("displayDate");
   const displayShift = document.getElementById("displayShift");
-  const attendanceDateDisplay = document.getElementById("attendanceDateDisplay");
   const dailyTaskShiftBadge = document.getElementById("dailyTaskShiftBadge");
   const allSodContainer = document.getElementById("allSodContainer");
   
   if (displayDate) displayDate.innerText = currentDate;
-  if (displayShift) displayShift.innerText = SHIFTS.find(s => s.value === currentShift)?.label;
-  if (attendanceDateDisplay) attendanceDateDisplay.innerText = currentDate;
+  if (displayShift) displayShift.innerText = SHIFTS.find(s => s.value === currentShift)?.label || currentShift;
   if (dailyTaskShiftBadge) {
     dailyTaskShiftBadge.innerText = currentShift === "morning" ? "🌅 Morning" : (currentShift === "afternoon" ? "🌆 Afternoon" : "🌙 Evening");
   }
-  
-  // Add a subtle hint about the current date in SOD section
-  if (allSodContainer && supervisorLoggedIn) {
-    const dateHint = document.querySelector('.staff-pool-title');
-    if (dateHint && !dateHint.querySelector('.date-badge')) {
-      // Optional: Add date badge to title
-    }
-  }
 }
-
     // Save to Firebase
   // Save to Firebase - PER DATE
 async function saveToLocalStorage() {
@@ -2294,7 +2338,7 @@ async function onDateChange(newDate) {
     renderAllocationPool();
     renderAllocationTable();
     renderAttendanceDashboard();
-    renderSupervisorAttendanceDashboard(); // ADD THIS LINE
+    renderSupervisorAttendanceDashboard();
     renderBreakRequestsForSupervisor();
     renderSupervisorDailyTasks();
   }
@@ -2305,6 +2349,8 @@ async function onDateChange(newDate) {
     initDailyStaffSelect();
     renderDailyTasksUI();
   }
+  
+  await refreshStaffView(); // Only call this ONCE
   
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
@@ -2324,12 +2370,18 @@ async function onDateChange(newDate) {
     } 
   };
   
-  // Handle shift change
+  // Handle shift change - MODIFY THIS PART
   gs.onchange = async (e) => { 
     if (supervisorLoggedIn) { 
       currentShift = e.target.value; 
-      await saveToLocalStorage(); 
-      refreshAllViews(); 
+      await saveToLocalStorage();
+      
+      // Refresh supervisor views
+      refreshAllViews();
+      
+      // ALSO refresh staff view
+      await refreshStaffView();
+      
       showMessage(`Shift changed to ${currentShift}`); 
     } 
   };
