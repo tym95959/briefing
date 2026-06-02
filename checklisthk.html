@@ -2220,13 +2220,13 @@ function showPatternModal(staff, onSuccess, onCancel) {
     const savedPattern = creds?.pattern || staff.pattern || '';
     
     if (enteredPattern === savedPattern) {
-      statusSpan.textContent = '✅ Pattern verified!';
-      statusSpan.className = 'pattern-status success';
-      setTimeout(() => {
+    statusSpan.textContent = '✅ Pattern verified!';
+    statusSpan.className = 'pattern-status success';
+    setTimeout(() => {
         modal.remove();
-        if (onSuccess) onSuccess();
-      }, 500);
-    } else {
+        if (onSuccess) onSuccess();  // This calls callback(true)
+    }, 500);
+} else {
       statusSpan.textContent = '❌ Incorrect pattern! Try again.';
       statusSpan.className = 'pattern-status error';
       resetDrawing();
@@ -2307,6 +2307,7 @@ function initDailyStaffSelect() {
     }
     
     const selectedStaff = staffList.find(s => s.id === selectedStaffId);
+    if (!selectedStaff) return;
     
     // If already authenticated for this staff, just update the display
     if (authenticatedStaffId === selectedStaffId) {
@@ -2330,7 +2331,11 @@ function initDailyStaffSelect() {
     showVerificationOptionsModal(selectedStaff, (success) => {
       if (success) {
         authenticatedStaffId = selectedStaff.id;
-        updateProfileButtonVisibility(); 
+        updateProfileButtonVisibility();
+        
+        // IMPORTANT: Keep the dropdown value as the selected staff
+        select.value = selectedStaffId;
+        
         const nameSpan = document.getElementById("dailyTaskSelectedName");
         if (nameSpan && selectedStaff) {
           nameSpan.textContent = `✓ ${selectedStaff.name} (Verified)`;
@@ -2338,7 +2343,7 @@ function initDailyStaffSelect() {
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
       } else {
-        // Authentication failed - reset dropdown and clear any auth
+        // Authentication failed - reset dropdown
         select.value = "";
         authenticatedStaffId = null;
         const nameSpan = document.getElementById("dailyTaskSelectedName");
@@ -2391,8 +2396,14 @@ function showVerificationOptionsModal(staff, callback) {
   modal.querySelector('#patternOptionBtn').onclick = () => {
     modal.remove();
     showPatternModal(staff, 
-      () => callback(true),  // on success
-      () => callback(false)  // on cancel
+      () => {
+        // On success - call callback with true
+        callback(true);
+      },
+      () => {
+        // On cancel - call callback with false
+        callback(false);
+      }
     );
   };
   
@@ -2439,11 +2450,15 @@ function showPasswordOnlyModal(staff, callback) {
   const passInput = modal.querySelector('#passInput');
   const errorDiv = modal.querySelector('#passError');
   
-  function checkAndSubmit() {
+  async function checkAndSubmit() {
     if (passwordInput.length === expectedLength) {
-      if (passwordInput === expectedPass) {
+      // Load latest credentials from Firebase
+      const creds = await loadUserCredentials(staff.id);
+      const savedPass = creds?.pass || staff.pass || '';
+      
+      if (passwordInput === savedPass) {
         modal.remove();
-        callback(true);
+        callback(true);  // Success
       } else {
         errorDiv.textContent = '❌ Incorrect password. Try again.';
         passwordInput = '';
@@ -2492,7 +2507,8 @@ function showPasswordOnlyModal(staff, callback) {
   // Focus on input
   setTimeout(() => passInput.focus(), 100);
 }
-  // Load Daily Tasks
+
+// Load Daily Tasks
 // Load Daily Tasks from Firebase (per date) - CORRECTED
 async function loadDailyTasks() {
   try {
