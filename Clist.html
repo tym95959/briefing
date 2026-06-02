@@ -826,7 +826,7 @@ body.supervisor-mode #globalControlBar {
       <div class="control-panel"><h4>History</h4><div id="allBreakRequestsList">Loading...</div></div>
       <hr>
       <h3>✅ Daily Tasks Management</h3>
-      <div class="control-panel"><h4>Main Operations</h4><div id="superMainTasksContainer"></div><h4 style="margin-top:1rem;">Food & Beverage</h4><div id="superFbTasksContainer"></div></div>
+      
       <button id="superLogoutBtn" class="danger-btn" style="margin-top:1rem;">🔒 Lock</button>
     </div>
   </div>
@@ -1012,6 +1012,58 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
     recordedAt: new Date().toISOString()
   });
   saveToLocalStorage();
+}
+
+// Add this to your clist.js or create a new staff-firebase.js
+// This saves staff patterns and passwords to Firebase
+
+async function saveStaffToFirebase(staffList) {
+  try {
+    const db = firebase.firestore();
+    const staffCollection = db.collection("staffCredentials");
+    
+    // Save each staff member's credentials
+    for (const staff of staffList) {
+      await staffCollection.doc(staff.id).set({
+        id: staff.id,
+        name: staff.name,
+        role: staff.role,
+        pass: staff.pass,
+        pattern: staff.pattern,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+    console.log("✅ Staff credentials saved to Firebase");
+    return true;
+  } catch (error) {
+    console.error("Error saving staff:", error);
+    return false;
+  }
+}
+
+async function loadStaffFromFirebase(staffList) {
+  try {
+    const db = firebase.firestore();
+    const staffCollection = db.collection("staffCredentials");
+    const snapshot = await staffCollection.get();
+    
+    if (!snapshot.empty) {
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const staff = staffList.find(s => s.id === data.id);
+        if (staff) {
+          if (data.pass) staff.pass = data.pass;
+          if (data.pattern) staff.pattern = data.pattern;
+        }
+      });
+      console.log("✅ Staff credentials loaded from Firebase");
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error("Error loading staff:", error);
+    return false;
+  }
 }
 
 // Supervisor authentication functions
@@ -3230,7 +3282,6 @@ function showProfileModal(staff) {
 function showChangePasswordModal(staff) {
   const modal = document.createElement('div');
   modal.className = 'password-modal';
-  let oldPass = '', newPass = '', confirmPass = '';
   
   modal.innerHTML = `
     <div class="password-modal-content">
@@ -3269,6 +3320,10 @@ function showChangePasswordModal(staff) {
     }
     
     staff.pass = newInput;
+    
+    // SAVE TO FIREBASE HERE
+    await saveStaffToFirebase([staff]);
+    
     msgSpan.textContent = '✅ Password updated!';
     msgSpan.style.color = '#0f5c3b';
     setTimeout(() => modal.remove(), 1500);
@@ -3333,7 +3388,7 @@ function showChangePatternModal(staff) {
     return null;
   }
   
-  verifyBtn.onclick = () => {
+  verifyBtn.onclick = async () => {
     if (verifyInput.value === staff.pass) {
       patternArea.style.display = 'block';
       verifyBtn.disabled = true;
@@ -3365,12 +3420,16 @@ function showChangePatternModal(staff) {
     }
   };
   
-  modal.querySelector('#saveNewPatternBtn').onclick = () => {
+  modal.querySelector('#saveNewPatternBtn').onclick = async () => {
     if (newPattern.length < 3) {
       alert('Pattern must have at least 3 dots');
       return;
     }
     staff.pattern = newPattern.join(',');
+    
+    // SAVE TO FIREBASE HERE
+    await saveStaffToFirebase([staff]);
+    
     alert('Pattern updated successfully!');
     modal.remove();
   };
@@ -3397,6 +3456,9 @@ function startPeriodicSync() {
 async function initApp() {
   console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
   
+  // Load staff credentials from Firebase first
+  await loadStaffFromFirebase(staffList);
+  
   await loadFromLocalStorage();
   await loadDailyTasks();
   
@@ -3406,9 +3468,6 @@ async function initApp() {
   initMainTabs();
   initStaffSubTabs();
   initDailyStaffSelect();
-  
-  // Remove this line - no longer needed
-  // document.getElementById("superLoginBtn").onclick = loginSupervisor;
   
   document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
   
