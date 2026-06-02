@@ -899,6 +899,7 @@ console.log("🔥 Firebase ready!");
     let breakRequests = new Map();
     let nextRequestId = 1;
     let selectedBreakTime = null;
+    let currentLoggedInStaff = null;
 
   // Preset reasons for attendance
    const PRESET_REASONS = {
@@ -1022,6 +1023,11 @@ console.log("🔥 Firebase ready!");
     if (allocations.has(key)) { allocations.get(key).delete(staffId); if (allocations.get(key).size === 0) allocations.delete(key); }
   }
 
+  async function getStaffAuth(staffId) {
+  const doc = await db.collection("staffAuth").doc(staffId).get();
+  return doc.exists ? doc.data() : null;
+}
+
   function getAttendanceKey(staffId, date) { return `${staffId}|${date}`; }
 
 function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
@@ -1045,6 +1051,7 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
 
 
   // Profile Modal Functions
+// Profile Modal Functions
 async function showStaffProfile() {
   if (!currentLoggedInStaff) {
     showMessage("Please login first", "error");
@@ -1091,7 +1098,42 @@ async function showStaffProfile() {
   modal.querySelector(".close-profile-btn").onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 }
-
+function showPinModal(title, onComplete) {
+  const modal = document.createElement("div");
+  modal.className = "auth-overlay";
+  modal.innerHTML = `
+    <div class="auth-modal">
+      <h3>${title}</h3>
+      <input type="password" id="pinInput" class="pin-input" placeholder="Enter PIN" maxlength="8" inputmode="numeric">
+      <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+        <button id="pinCancelBtn" class="auth-toggle-btn secondary">Cancel</button>
+        <button id="pinConfirmBtn" class="auth-toggle-btn">Confirm</button>
+      </div>
+      <div id="pinMessage" class="auth-error"></div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  modal.querySelector("#pinConfirmBtn").onclick = () => {
+    const pin = modal.querySelector("#pinInput").value.trim();
+    if (!pin) {
+      modal.querySelector("#pinMessage").innerHTML = "Please enter PIN";
+      return;
+    }
+    if (!/^\d+$/.test(pin)) {
+      modal.querySelector("#pinMessage").innerHTML = "PIN must contain only numbers";
+      return;
+    }
+    if (pin.length < 4) {
+      modal.querySelector("#pinMessage").innerHTML = "PIN must be at least 4 digits";
+      return;
+    }
+    onComplete(pin);
+    modal.remove();
+  };
+  
+  modal.querySelector("#pinCancelBtn").onclick = () => modal.remove();
+}
 async function showSupervisorProfile() {
   const supervisorAuth = await db.collection("staffAuth").doc("supervisor").get();
   const authData = supervisorAuth.exists ? supervisorAuth.data() : null;
@@ -1148,6 +1190,7 @@ async function showSupervisorProfile() {
   modal.querySelector(".close-profile-btn").onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 }
+
 
   function getBreakTimeSlotsForShift(shiftValue) {
     const slots = [];
