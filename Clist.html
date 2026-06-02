@@ -1277,14 +1277,16 @@ function renderSupervisorAttendanceDashboard() {
     return; 
   }
 
+  // Re-verify authentication before allowing signoff
   if (authenticatedStaffId !== staff.id) {
-    mainContainer.innerHTML = '<div class="info-card">🔐 Please verify your identity first...</div>';
-    fbContainer.innerHTML = '<div class="info-card">🔐 Please verify your identity first...</div>';
+    showMessage(`🔐 Please verify your identity for ${staff.name} first`, "error");
+    document.getElementById("dailyTaskStaffSelect").value = "";
+    authenticatedStaffId = null;
+    updateProfileButtonVisibility();
+    document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Please select and verify again";
+    renderDailyTasksUI();
     return;
   }
-  
-  // Re-verify authentication before allowing signoff
-  
   
   // Check if staff is on duty (SOD)
   if (!staffOnDutyIds.has(staff.id)) {
@@ -1325,12 +1327,6 @@ function renderSupervisorAttendanceDashboard() {
     else if (item) { const completer = staffList.find(s => s.id === item.completedBy); showMessage(`Already completed by ${completer?.name || "someone"}`, "error"); }
   }
 
-  // Check if staff is authenticated
-if (authenticatedStaffId !== staff.id) {
-  mainContainer.innerHTML = '<div class="info-card" style="background: #fef3c7; border-left-color: #f59e0b;">🔐 Please verify your identity first by selecting your name from the dropdown above.</div>';
-  fbContainer.innerHTML = '<div class="info-card" style="background: #fef3c7; border-left-color: #f59e0b;">🔐 Please verify your identity first by selecting your name from the dropdown above.</div>';
-  return;
-}
 
   function resetTaskHandler(task, isFb) {
   if (confirm("Reset this task? This will clear ALL signoffs and completions for this task.")) {
