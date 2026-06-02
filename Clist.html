@@ -1276,17 +1276,15 @@ function renderSupervisorAttendanceDashboard() {
     showMessage("❌ Please select your name from the dropdown first", "error"); 
     return; 
   }
-  
-  // Re-verify authentication before allowing signoff
+
   if (authenticatedStaffId !== staff.id) {
-    showMessage(`🔐 Please re-verify your identity for ${staff.name}`, "error");
-    document.getElementById("dailyTaskStaffSelect").value = "";
-    authenticatedStaffId = null;
-    updateProfileButtonVisibility();
-    document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Please select and verify again";
-    renderDailyTasksUI();
+    mainContainer.innerHTML = '<div class="info-card">🔐 Please verify your identity first...</div>';
+    fbContainer.innerHTML = '<div class="info-card">🔐 Please verify your identity first...</div>';
     return;
   }
+  
+  // Re-verify authentication before allowing signoff
+  
   
   // Check if staff is on duty (SOD)
   if (!staffOnDutyIds.has(staff.id)) {
