@@ -1417,6 +1417,7 @@ function showPatternModal(staff, onSuccess, onCancel) {
 }
 
 // Update initDailyStaffSelect to include Pattern option
+// Update initDailyStaffSelect to auto-logout previous user
 function initDailyStaffSelect() {
   const select = document.getElementById("dailyTaskStaffSelect");
   if (!select) return;
@@ -1436,7 +1437,11 @@ function initDailyStaffSelect() {
     const selectedStaffId = select.value;
     
     if (!selectedStaffId) {
-      authenticatedStaffId = null;
+      // If no staff selected, just clear authentication
+      if (authenticatedStaffId) {
+        console.log(`User ${authenticatedStaffId} logged out (deselected)`);
+        authenticatedStaffId = null;
+      }
       const nameSpan = document.getElementById("dailyTaskSelectedName");
       if (nameSpan) nameSpan.textContent = "⚠️ Select your name";
       renderDailyTasksUI();
@@ -1445,6 +1450,7 @@ function initDailyStaffSelect() {
     
     const selectedStaff = staffList.find(s => s.id === selectedStaffId);
     
+    // If already authenticated for this staff, just update the display
     if (authenticatedStaffId === selectedStaffId) {
       const nameSpan = document.getElementById("dailyTaskSelectedName");
       if (nameSpan && selectedStaff) {
@@ -1452,6 +1458,14 @@ function initDailyStaffSelect() {
       }
       renderDailyTasksUI();
       return;
+    }
+    
+    // ✅ AUTO-LOGOUT PREVIOUS USER
+    if (authenticatedStaffId) {
+      const previousStaff = staffList.find(s => s.id === authenticatedStaffId);
+      console.log(`Auto-logout: ${previousStaff?.name} replaced by ${selectedStaff.name}`);
+      showMessage(`👋 ${previousStaff?.name} logged out automatically`, "info");
+      authenticatedStaffId = null;
     }
     
     // Show verification options modal (Password OR Pattern)
@@ -1465,6 +1479,7 @@ function initDailyStaffSelect() {
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
       } else {
+        // Authentication failed - reset dropdown and clear any auth
         select.value = "";
         authenticatedStaffId = null;
         const nameSpan = document.getElementById("dailyTaskSelectedName");
@@ -1475,7 +1490,7 @@ function initDailyStaffSelect() {
     });
   };
 }
-
+// Show verification options (Password OR Pattern)
 // Show verification options (Password OR Pattern)
 function showVerificationOptionsModal(staff, callback) {
   const existingModal = document.querySelector('.pattern-modal');
@@ -1506,6 +1521,9 @@ function showVerificationOptionsModal(staff, callback) {
   
   document.body.appendChild(modal);
   
+  // Prevent click propagation
+  modal.querySelector('.pattern-modal-content').onclick = (e) => e.stopPropagation();
+  
   modal.querySelector('#passwordOptionBtn').onclick = () => {
     modal.remove();
     showPasswordOnlyModal(staff, callback);
@@ -1523,27 +1541,35 @@ function showVerificationOptionsModal(staff, callback) {
     modal.remove();
     callback(false);
   };
+  
+  // Close on outside click
+  modal.onclick = () => {
+    modal.remove();
+    callback(false);
+  };
 }
 
-// Password only modal (simplified)
+// Password only modal - Auto-submit when 4 digits entered
 function showPasswordOnlyModal(staff, callback) {
   const modal = document.createElement('div');
   modal.className = 'pattern-modal';
   
   let passwordInput = '';
+  const expectedPass = staff.pass || '';
+  const expectedLength = expectedPass.length;
   
   modal.innerHTML = `
     <div class="pattern-modal-content">
       <h3>🔑 Enter Password</h3>
       <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <input type="password" id="passInput" placeholder="Enter Password" style="width: 100%; padding: 0.8rem; margin: 1rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center;">
+      <p style="font-size: 0.8rem; color: #666;">Enter your ${expectedLength}-digit password</p>
+      <input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off" style="width: 100%; padding: 0.8rem; margin: 1rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.5rem; letter-spacing: 4px;">
       <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 1rem 0;">
-        ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem;">${n}</button>`).join('')}
-        <button data-num="clear" class="clear-pass" style="background: #ef4444; color: white;">⌫</button>
+        ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem;">${n}</button>`).join('')}
+        <button data-num="clear" class="clear-pass" style="background: #ef4444; color: white; padding: 0.8rem;">⌫</button>
       </div>
       <div id="passError" style="color: #ef4444; font-size: 0.8rem;"></div>
       <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-        <button id="submitPassBtn" style="flex:1; background: #0f5c3b; color: white; padding: 0.6rem; border: none; border-radius: 1rem;">✓ Verify</button>
         <button id="cancelPassBtn" style="flex:1; background: #94a3b8; color: white; padding: 0.6rem; border: none; border-radius: 1rem;">Cancel</button>
       </div>
     </div>
@@ -1554,41 +1580,59 @@ function showPasswordOnlyModal(staff, callback) {
   const passInput = modal.querySelector('#passInput');
   const errorDiv = modal.querySelector('#passError');
   
+  function checkAndSubmit() {
+    if (passwordInput.length === expectedLength) {
+      if (passwordInput === expectedPass) {
+        modal.remove();
+        callback(true);
+      } else {
+        errorDiv.textContent = '❌ Incorrect password. Try again.';
+        passwordInput = '';
+        passInput.value = '';
+        passInput.focus();
+      }
+    }
+  }
+  
+  // Number pad functionality
   modal.querySelectorAll('[data-num]').forEach(btn => {
     btn.onclick = () => {
       const num = btn.dataset.num;
       if (num === 'clear') {
         passwordInput = passwordInput.slice(0, -1);
-      } else {
+      } else if (passwordInput.length < expectedLength) {
         passwordInput += num;
       }
       passInput.value = '*'.repeat(passwordInput.length);
       errorDiv.textContent = '';
+      
+      // Auto-submit when reached expected length
+      checkAndSubmit();
     };
   });
   
+  // Keyboard input with auto-submit
   passInput.oninput = (e) => {
     passwordInput = e.target.value;
-    e.target.value = '*'.repeat(passwordInput.length);
-  };
-  
-  modal.querySelector('#submitPassBtn').onclick = () => {
-    if (passwordInput === staff.pass) {
-      modal.remove();
-      callback(true);
-    } else {
-      errorDiv.textContent = '❌ Incorrect password';
-      passwordInput = '';
-      passInput.value = '';
+    if (passwordInput.length > expectedLength) {
+      passwordInput = passwordInput.slice(0, expectedLength);
     }
+    e.target.value = '*'.repeat(passwordInput.length);
+    errorDiv.textContent = '';
+    
+    // Auto-submit when reached expected length
+    checkAndSubmit();
   };
   
+  // Cancel button
   modal.querySelector('#cancelPassBtn').onclick = () => {
     modal.remove();
     callback(false);
   };
+  
+  // Focus on input
+  setTimeout(() => passInput.focus(), 100);
 }
-
   // Load Daily Tasks
 // Load Daily Tasks from Firebase (per date) - CORRECTED
 async function loadDailyTasks() {
