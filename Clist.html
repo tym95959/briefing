@@ -593,124 +593,90 @@ body.supervisor-mode #globalControlBar {
   display: flex;
 }
 
-/* Password & Pattern Modal Styles */
-.auth-overlay {
+/* Profile Modal Styles */
+.profile-modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   background: rgba(0,0,0,0.95);
-  z-index: 10000;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(10px);
 }
 
-.auth-modal {
+.profile-content {
   background: white;
   border-radius: 2rem;
   padding: 2rem;
-  max-width: 450px;
+  max-width: 500px;
   width: 90%;
   text-align: center;
   box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
 }
 
-.pattern-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin: 1.5rem 0;
-  justify-items: center;
+.profile-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #ecd9a8;
 }
 
-.pattern-dot {
-  width: 65px;
-  height: 65px;
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  background: #b8860b;
   border-radius: 50%;
-  background: #f1f5f9;
-  border: 2px solid #cbd5e1;
-  cursor: pointer;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #b8860b;
-}
-
-.pattern-dot.selected {
-  background: #b8860b;
-  border-color: #b8860b;
+  margin: 0 auto 1rem;
+  font-size: 2.5rem;
   color: white;
-  transform: scale(1.1);
 }
 
-.pattern-dot:hover {
-  background: #e2e8f0;
-  transform: scale(1.05);
-}
-
-.pattern-preview {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin: 1rem 0;
-}
-
-.preview-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #cbd5e1;
-}
-
-.preview-dot.filled {
-  background: #b8860b;
-}
-
-.pin-input {
-  width: 200px;
-  padding: 0.8rem;
-  font-size: 1.2rem;
-  text-align: center;
-  letter-spacing: 5px;
+.profile-info {
+  text-align: left;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8fafc;
   border-radius: 1rem;
-  border: 2px solid #ecd9a8;
-  margin: 1rem 0;
 }
 
-.auth-toggle-btn {
-  background: #b8860b;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 2rem;
-  cursor: pointer;
-  margin: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.auth-toggle-btn.secondary {
-  background: #6b7280;
-}
-
-.auth-error {
-  color: #ef4444;
-  font-size: 0.85rem;
+.profile-info p {
   margin: 0.5rem 0;
 }
 
-.staff-select-auth {
+.auth-method-badge {
+  display: inline-block;
+  padding: 0.2rem 0.8rem;
+  border-radius: 2rem;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+}
+
+.auth-pin { background: #d1fae5; color: #065f46; }
+.auth-pattern { background: #fef3c7; color: #92400e; }
+.auth-none { background: #fee2e2; color: #991b1b; }
+
+.profile-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.profile-buttons button {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.close-profile-btn {
+  background: #6b7280;
+  margin-top: 1rem;
   width: 100%;
-  padding: 0.8rem;
-  border-radius: 1rem;
-  border: 2px solid #ecd9a8;
-  margin: 1rem 0;
-  font-size: 1rem;
 }
   </style>
 </head>
@@ -724,215 +690,189 @@ body.supervisor-mode #globalControlBar {
   
 
   <!-- STAFF VIEW -->
-  <!-- STAFF VIEW -->
-<div id="staffMainPane" class="main-tab-pane active-pane">
-  <h2>👥 Staff Dashboard</h2>
+  <div id="staffMainPane" class="main-tab-pane active-pane">
+    <h2>👥 Staff Dashboard</h2>
+    
+     <!-- Staff info bar (read-only) -->
+        <div style="background: #fef8e8; padding: 0.8rem 1.5rem; border-radius: 1rem; margin-bottom: 1.5rem; border-left: 4px solid #d4a017; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                <div><span style="font-weight: 600;">📅 Date:</span> <span id="staffDisplayDate" style="font-weight: 500; margin-left: 0.5rem;">Loading...</span></div>
+                <div><span style="font-weight: 600;">🕒 Shift:</span> <span id="staffDisplayShift" style="font-weight: 500; margin-left: 0.5rem;">Loading...</span></div>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button id="staffProfileBtn" style="background: #b8860b; padding: 0.3rem 1rem; font-size: 0.8rem;">👤 My Profile</button>
+                <div style="font-size: 0.7rem; color: #8b6914;">🔒 Read-only</div>
+            </div>
+        </div>
+    <!-- Add this hidden element for context -->
+    <span id="staffGlobalContext" style="display: none;"></span>
   
-  <!-- Staff Authentication Section -->
-  <div id="staffAuthSection" style="background: #fef8e8; padding: 1rem 1.5rem; border-radius: 1rem; margin-bottom: 1.5rem; border-left: 4px solid #d4a017;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-      <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-        <select id="staffSelectForAuth" class="staff-select-auth" style="width: auto; min-width: 180px;">
-          <option value="">-- Select Staff --</option>
-        </select>
-        <button id="staffLoginBtn" style="background: #0f5c3b;">🔐 Login</button>
-        <button id="staffRegisterBtn" style="background: #6b7280;">📝 Register/Change Password</button>
-      </div>
-      <div id="staffAuthStatus" style="font-size: 0.85rem; color: #b8860b;">
-        ⚠️ Please login to continue
-      </div>
-    </div>
-    <div id="staffLoggedInInfo" style="display: none; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #ecd9a8;">
-      <span>✅ Logged in as: <strong id="loggedInStaffName"></strong></span>
-      <button id="staffLogoutBtn" style="background: #ef4444; padding: 0.2rem 0.8rem; margin-left: 1rem;">Logout</button>
-    </div>
-  </div>
-  
-  <!-- Staff info bar (hidden until login) -->
-  <div id="staffInfoBar" style="background: #fef8e8; padding: 0.8rem 1.5rem; border-radius: 1rem; margin-bottom: 1.5rem; border-left: 4px solid #d4a017; display: none;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-      <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
-        <div><span style="font-weight: 600;">📅 Date:</span> <span id="staffDisplayDate" style="font-weight: 500; margin-left: 0.5rem;">Loading...</span></div>
-        <div><span style="font-weight: 600;">🕒 Shift:</span> <span id="staffDisplayShift" style="font-weight: 500; margin-left: 0.5rem;">Loading...</span></div>
-      </div>
-      <div style="font-size: 0.7rem; color: #8b6914;">🔒 Read-only</div>
-    </div>
-  </div>
-  
-  <!-- Staff Content (hidden until login) -->
-  <div id="staffContent" style="display: none;">
     <div class="sub-tabs">
-      <button class="sub-tab-btn active" data-subtab="dailytasks">✅ Daily Tasks</button>
-      <button class="sub-tab-btn" data-subtab="allocations">📋 Allocations & Attendance</button>
+        <button class="sub-tab-btn active" data-subtab="dailytasks">✅ Daily Tasks</button>
+        <button class="sub-tab-btn" data-subtab="allocations">📋 Allocations & Attendance</button>
     </div>
 
     <div id="subtabAllocations" class="sub-tab-pane">
-      <div class="control-panel">
-        <h3>🍽️ Request Break</h3>
-        <div class="control-row"><label>👤 Your Name:</label> <select id="staffSelfSelect"><option>-- Select --</option></select></div>
-        <div class="control-row"><label>⏰ Break Slots:</label> <div id="breakTimeBadges" class="staff-badge-grid"></div></div>
-        <button id="requestBreakBtn" style="background:#0f5c3b;">📤 Submit Break Request</button>
-      </div>
-      <h3>📋 Staff Allocations</h3>
-      <div id="allStaffAllocationsContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:500px;">Loading...</div>
-      <h3>📊 Attendance Records</h3>
-      <div id="allStaffAttendanceContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:400px;">Loading...</div>
-      
-      <h3>📋 Attendance by Shift</h3>
-      <div class="attendance-grid">
-        <div class="attendance-card">
-          <div class="card-title morning">🌅 Morning Shift</div>
-          <div id="morningList" style="max-height: 300px; overflow-y: auto;"></div>
-        </div>
-        <div class="attendance-card">
-          <div class="card-title evening">🌆 Evening Shift</div>
-          <div id="eveningList" style="max-height: 300px; overflow-y: auto;"></div>
-        </div>
-        <div class="attendance-card">
-          <div class="card-title night">🌙 Night Shift</div>
-          <div id="nightList" style="max-height: 300px; overflow-y: auto;"></div>
-        </div>
-      </div>
-      
-      <h3>📋 Break Requests</h3>
-      <div id="allStaffBreakRequestsContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:400px;">Loading...</div>
+  <div class="control-panel">
+    <h3>🍽️ Request Break</h3>
+    <div class="control-row"><label>👤 Your Name:</label> <select id="staffSelfSelect"><option>-- Select --</option></select></div>
+    <div class="control-row"><label>⏰ Break Slots:</label> <div id="breakTimeBadges" class="staff-badge-grid"></div></div>
+    <button id="requestBreakBtn" style="background:#0f5c3b;">📤 Submit Break Request</button>
+  </div>
+  <h3>📋 Staff Allocations</h3>
+  <div id="allStaffAllocationsContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:500px;">Loading...</div>
+  <h3>📊 Attendance Records</h3>
+  <div id="allStaffAttendanceContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:400px;">Loading...</div>
+  
+  <!-- ADD THIS - Staff attendance dashboard by shift -->
+  <h3>📋 Attendance by Shift</h3>
+  <div class="attendance-grid">
+    <div class="attendance-card">
+      <div class="card-title morning">🌅 Morning Shift</div>
+      <div id="morningList" style="max-height: 300px; overflow-y: auto;"></div>
     </div>
+    <div class="attendance-card">
+      <div class="card-title evening">🌆 Evening Shift</div>
+      <div id="eveningList" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+    <div class="attendance-card">
+      <div class="card-title night">🌙 Night Shift</div>
+      <div id="nightList" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+  </div>
+  
+  <h3>📋 Break Requests</h3>
+  <div id="allStaffBreakRequestsContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:400px;">Loading...</div>
+</div>
 
     <div id="subtabDailytasks" class="sub-tab-pane active-sub-pane">
       <div class="checklist-header"><span class="checklist-title">📋 Daily Operations Checklist</span><span class="checklist-shift-badge" id="dailyTaskShiftBadge">Morning</span></div>
       <div class="control-panel" style="display: flex; justify-content: flex-end; align-items: center; padding: 0.8rem 1.2rem;">
         <div style="display: flex; align-items: center; gap: 0.8rem;">
-          <label style="font-weight: 600; color: #8b6914; margin: 0;">👤 Staff:</label>
-          <select id="dailyTaskStaffSelect" style="width: 180px; padding: 0.4rem 0.8rem; font-size: 0.8rem;"><option>-- Select --</option></select>
-          <span id="dailyTaskSelectedName" style="font-size: 0.75rem; color: #b8860b; font-weight: 500;"></span>
+            <label style="font-weight: 600; color: #8b6914; margin: 0;">👤 Staff:</label>
+            <select id="dailyTaskStaffSelect" style="width: 180px; padding: 0.4rem 0.8rem; font-size: 0.8rem;"><option>-- Select --</option></select>
+            <span id="dailyTaskSelectedName" style="font-size: 0.75rem; color: #b8860b; font-weight: 500;"></span>
         </div>
-      </div>
+        </div>
       <div class="checklist-section"><h3>📋 Main Operations</h3><div id="dailyMainTasksContainer"></div></div>
       <div class="checklist-section"><h3>🍽️ Food & Beverage</h3><div id="dailyFbTasksContainer"></div></div>
     </div>
   </div>
-</div>
 
   <!-- SUPERVISOR VIEW -->
-  <!-- SUPERVISOR VIEW -->
-<div id="supervisorMainPane" class="main-tab-pane">
-  <h2>🛡️ Supervisor Control Panel</h2>
-  
-  <!-- Supervisor Authentication Section -->
-  <div id="superAuthArea" style="background: #fef8e8; padding: 1rem 1.5rem; border-radius: 1rem; margin-bottom: 1rem;">
-    <div class="info-card">🔐 Supervisor access required</div>
-    <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-      <input type="password" id="superPassword" placeholder="Enter PIN (4-8 digits)" style="flex:1; min-width: 150px;">
-      <button id="superLoginBtn" style="background: #b8860b;">Unlock with PIN</button>
-      <button id="superPatternLoginBtn" style="background: #6b7280;">Unlock with Pattern</button>
-    </div>
-    <div id="superErrorMsg" style="color:#b91c1c; margin-top: 0.5rem;"></div>
-  </div>
-  
-  <div id="superDashboard" style="display: none;">
-  <!-- Global Control Bar -->
+  <div id="supervisorMainPane" class="main-tab-pane">
+    <h2>🛡️ Supervisor Control Panel</h2>
+     <!-- PASTE THE CONTROL BAR HERE -->
   <div id="globalControlBar" style="background: linear-gradient(135deg, #b8860b 0%, #8b6914 100%); color: white; padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; border-radius: 1rem;">
     <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
-      <div><span>📅 DATE:</span> <input type="date" id="globalDate" style="padding: 0.3rem 0.8rem; border-radius: 0.5rem; border: none;"> <span id="dateLockIcon">🔒</span></div>
-      <div><span>🕒 SHIFT:</span> <select id="globalShift" style="padding: 0.3rem 0.8rem; border-radius: 0.5rem; border: none;"><option value="morning">🌅 Morning</option><option value="afternoon">🌆 Afternoon</option><option value="evening">🌙 Evening</option></select> <span id="shiftLockIcon">🔒</span></div>
+      <div><span>📅 DATE:</span> <input type="date" id="globalDate" style="padding: 0.3rem 0.8rem; border-radius: 0.5rem; border: none;" disabled> <span id="dateLockIcon">🔒</span></div>
+      <div><span>🕒 SHIFT:</span> <select id="globalShift" style="padding: 0.3rem 0.8rem; border-radius: 0.5rem; border: none;" disabled><option value="morning">🌅 Morning</option><option value="afternoon">🌆 Afternoon</option><option value="evening">🌙 Evening</option></select> <span id="shiftLockIcon">🔒</span></div>
     </div>
     <div style="font-size: 0.75rem;">⚡ Only Supervisor can change</div>
   </div>
   
-  <div class="control-panel">
-    <div class="info-card">📍 Date: <strong id="displayDate"></strong> | Shift: <strong id="displayShift"></strong></div>
-    <div class="control-row"><button id="printAllocationBtn" class="success-btn" style="background:#1e4a76;">🖨️ Print Allocation (2 Copies)</button> <button id="printDailyReportBtn" class="success-btn" style="background:#0f5c3b;">📄 Print Daily Tasks Report</button></div>
-    <button id="superLogoutBtn" class="danger-btn" style="margin-top: 0.5rem;">🔒 Lock</button>
-  </div>
-  
-  <!-- Rest of your supervisor content stays the same -->
-  <div class="staff-pool"><div class="staff-pool-title">⭐ STAFF ON DUTY</div><div id="allSodContainer" class="staff-badge-grid"></div></div>
-  <div class="staff-pool"><div class="staff-pool-title">📋 AVAILABLE FOR ALLOCATION</div><div id="allocationPoolContainer" class="staff-badge-grid"></div><button id="clearSelectionBtn" style="background:#6b7280; margin-top:0.5rem;">Clear Selection</button> <span id="selectedCount" style="margin-left:1rem;">Selected: 0</span></div>
-  <h3>📊 AREA ALLOCATION</h3>
-  <div class="allocation-table-wrapper"><table class="allocation-table" id="allocationTable"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody></table></div>
-  <hr>
-  <h3>📋 ATTENDANCE</h3>
-  
-  <!-- Attendance Entry Form -->
-  <div class="control-panel">
+  <div id="superAuthArea">
+      <div class="info-card">🔐 Password required.</div>
+      <div class="control-row"><input type="password" id="superPassword" placeholder="Password" style="flex:1;"> <button id="superLoginBtn">Unlock</button></div>
+      <div id="superErrorMsg" style="color:#b91c1c;"></div>
+    </div>
+    <div id="superDashboard" style="display: none;">
+      <div class="control-panel">
+        <div class="info-card">📍 Date: <strong id="displayDate"></strong> | Shift: <strong id="displayShift"></strong></div>
+        <div class="control-row">
+            <button id="printAllocationBtn" class="success-btn" style="background:#1e4a76;">🖨️ Print Allocation (2 Copies)</button>
+            <button id="printDailyReportBtn" class="success-btn" style="background:#0f5c3b;">📄 Print Daily Tasks Report</button>
+            <button id="supervisorProfileBtn" style="background: #b8860b;">👤 Profile</button>
+        </div>
+        <button id="superLogoutBtn" class="danger-btn" style="margin-top: 0.5rem;">🔒 Lock</button>
+    </div>
+      <div class="staff-pool"><div class="staff-pool-title">⭐ STAFF ON DUTY</div><div id="allSodContainer" class="staff-badge-grid"></div></div>
+      <div class="staff-pool"><div class="staff-pool-title">📋 AVAILABLE FOR ALLOCATION</div><div id="allocationPoolContainer" class="staff-badge-grid"></div><button id="clearSelectionBtn" style="background:#6b7280; margin-top:0.5rem;">Clear Selection</button> <span id="selectedCount" style="margin-left:1rem;">Selected: 0</span></div>
+      <h3>📊 AREA ALLOCATION</h3>
+      <div class="allocation-table-wrapper"><table class="allocation-table" id="allocationTable"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody></table></div>
+      <hr>
+      <!-- Replace the attendance section with this complete version -->
+<h3>📋 ATTENDANCE</h3>
+
+    <!-- Attendance Entry Form -->
+    <div class="control-panel">
     <div class="control-row">
-      <select id="attendanceStaffSelect" style="flex:1;"></select>
-      <select id="attendanceDutyShift">
+        <select id="attendanceStaffSelect" style="flex:1;"></select>
+        <select id="attendanceDutyShift">
         <option value="Morning">🌅 Morning</option>
         <option value="Evening">🌆 Evening</option>
         <option value="Night">🌙 Night</option>
-      </select>
-      <select id="attendanceStatus">
+        </select>
+        <select id="attendanceStatus">
         <option value="Absent">❌ Absent</option>
         <option value="Sick Leave">🤒 Sick Leave</option>
         <option value="FRL">👨‍👩‍👧 FRL</option>
-      </select>
+        </select>
     </div>
     
     <!-- Reason Dropdown - hidden initially -->
     <div id="reasonContainer" style="display: none;">
-      <div class="control-row">
+        <div class="control-row">
         <label style="min-width: 80px;">📋 Reason:</label>
         <select id="attendanceReason" style="flex:1; max-width: 300px;">
-          <option value="">-- Select Reason --</option>
+            <option value="">-- Select Reason --</option>
         </select>
-      </div>
+        </div>
     </div>
     
     <div class="control-row">
-      <label style="min-width: 80px;">📅 Reported Date:</label>
-      <input type="date" id="attendanceReportedDate" style="flex:1; max-width: 200px;">
-      <label style="min-width: 60px;">🕐 Time:</label>
-      <input type="time" id="attendanceTime" style="width: 130px;">
+        <label style="min-width: 80px;">📅 Reported Date:</label>
+        <input type="date" id="attendanceReportedDate" style="flex:1; max-width: 200px;">
+        <label style="min-width: 60px;">🕐 Time:</label>
+        <input type="time" id="attendanceTime" style="width: 130px;">
     </div>
     
     <div class="control-row">
-      <label style="min-width: 80px;">📅 Leave Date:</label>
-      <input type="date" id="attendanceLeaveDate" style="flex:1; max-width: 200px;">
-      <span style="font-size: 0.7rem; color: #8b6914;">(Date when absent/sick)</span>
+        <label style="min-width: 80px;">📅 Leave Date:</label>
+        <input type="date" id="attendanceLeaveDate" style="flex:1; max-width: 200px;">
+        <span style="font-size: 0.7rem; color: #8b6914;">(Date when absent/sick)</span>
     </div>
     
     <button id="addAttendanceBtn" class="success-btn" style="width: 100%; margin-top: 0.5rem;">💾 Save Attendance Record</button>
-  </div>
+    </div>
 
-  <!-- Attendance Summary Dashboard for Supervisor -->
-  <div style="margin-top: 1.5rem;">
+    <!-- ADD THIS - Attendance Summary Dashboard for Supervisor -->
+    <div style="margin-top: 1.5rem;">
     <h4>📊 Today's Attendance Records</h4>
     <div class="attendance-grid">
-      <div class="attendance-card">
+        <div class="attendance-card">
         <div class="card-title morning">🌅 Morning Shift</div>
         <div id="superMorningList" style="max-height: 300px; overflow-y: auto;"></div>
-      </div>
-      <div class="attendance-card">
+        </div>
+        <div class="attendance-card">
         <div class="card-title evening">🌆 Evening Shift</div>
         <div id="superEveningList" style="max-height: 300px; overflow-y: auto;"></div>
-      </div>
-      <div class="attendance-card">
+        </div>
+        <div class="attendance-card">
         <div class="card-title night">🌙 Night Shift</div>
         <div id="superNightList" style="max-height: 300px; overflow-y: auto;"></div>
-      </div>
+        </div>
     </div>
-  </div>
+    </div>
 
-  <hr>
-  <h3>⏰ Break Requests</h3>
-  <div class="control-panel"><h4>Pending</h4><div id="pendingBreakRequestsList">Loading...</div></div>
-  <div class="control-panel"><h4>History</h4><div id="allBreakRequestsList">Loading...</div></div>
-  <hr>
-  <h3>✅ Daily Tasks Management</h3>
-  <div class="control-panel"><h4>Main Operations</h4><div id="superMainTasksContainer"></div><h4 style="margin-top:1rem;">Food & Beverage</h4><div id="superFbTasksContainer"></div></div>
-</div>
+    <hr>
+    <h3>⏰ Break Requests</h3>
+      <div class="control-panel"><h4>Pending</h4><div id="pendingBreakRequestsList">Loading...</div></div>
+      <div class="control-panel"><h4>History</h4><div id="allBreakRequestsList">Loading...</div></div>
+      <hr>
+      <h3>✅ Daily Tasks Management</h3>
+      <div class="control-panel"><h4>Main Operations</h4><div id="superMainTasksContainer"></div><h4 style="margin-top:1rem;">Food & Beverage</h4><div id="superFbTasksContainer"></div></div>
+      <button id="superLogoutBtn" class="danger-btn" style="margin-top:1rem;">🔒 Lock</button>
+    </div>
   </div>
   <footer>Complete Staff Management System</footer>
 </div>
 
 <script type="module">
   import { staffList } from './staff.js';
-  
 
 const db = firebase.firestore();
 console.log("🔥 Firebase ready!");
-console.log("📋 Staff loaded:", staffList.length, "staff members");
 
   const SUPERVISOR_PASS = "admin123";
   const AREAS = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
@@ -1084,328 +1024,6 @@ console.log("📋 Staff loaded:", staffList.length, "staff members");
 
   function getAttendanceKey(staffId, date) { return `${staffId}|${date}`; }
 
-  async function getStaffAuth(staffId) {
-    const doc = await db.collection("staffAuth").doc(staffId).get();
-    return doc.exists ? doc.data() : null;
-  }
-
-  // Initialize supervisor auth
-  async function initSupervisorAuth() {
-    const supervisorRef = db.collection("staffAuth").doc("supervisor");
-    const doc = await supervisorRef.get();
-    if (!doc.exists) {
-      const supervisor = staffList.find(s => s.role === "Supervisor");
-      if (supervisor) {
-        await supervisorRef.set({
-          pin: "1234",
-          pattern: null,
-          hasAuth: true,
-          staffId: supervisor.id,
-          name: supervisor.name
-        });
-      }
-    }
-  }
-
-  // Pattern modal functions
-  function showPatternModal(title, onComplete, onCancel) {
-    const modal = document.createElement("div");
-    modal.className = "auth-overlay";
-    modal.innerHTML = `
-      <div class="auth-modal">
-        <h3>${title}</h3>
-        <div class="pattern-preview" id="patternPreview"></div>
-        <div class="pattern-grid" id="patternGrid">
-          ${[1,2,3,4,5,6,7,8,9].map(n => `<div class="pattern-dot" data-num="${n}">${n}</div>`).join('')}
-        </div>
-        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
-          <button id="patternClearBtn" class="auth-toggle-btn secondary">Clear</button>
-          <button id="patternCancelBtn" class="auth-toggle-btn secondary">Cancel</button>
-          <button id="patternConfirmBtn" class="auth-toggle-btn">Confirm</button>
-        </div>
-        <div id="patternMessage" class="auth-error"></div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    
-    let currentSequence = [];
-    
-    const updatePreview = () => {
-      const preview = modal.querySelector("#patternPreview");
-      preview.innerHTML = '';
-      for (let i = 0; i < currentSequence.length; i++) {
-        const dot = document.createElement("div");
-        dot.className = "preview-dot filled";
-        preview.appendChild(dot);
-      }
-      for (let i = currentSequence.length; i < 4; i++) {
-        const dot = document.createElement("div");
-        dot.className = "preview-dot";
-        preview.appendChild(dot);
-      }
-    };
-    
-    modal.querySelectorAll(".pattern-dot").forEach(dot => {
-      dot.onclick = () => {
-        currentSequence.push(parseInt(dot.dataset.num));
-        updatePreview();
-        if (currentSequence.length === 4) {
-          onComplete(currentSequence.join(''));
-          modal.remove();
-        }
-      };
-    });
-    
-    modal.querySelector("#patternClearBtn").onclick = () => {
-      currentSequence = [];
-      updatePreview();
-    };
-    
-    modal.querySelector("#patternCancelBtn").onclick = () => {
-      if (onCancel) onCancel();
-      modal.remove();
-    };
-    
-    modal.querySelector("#patternConfirmBtn").onclick = () => {
-      if (currentSequence.length < 4) {
-        modal.querySelector("#patternMessage").innerHTML = "Please select at least 4 dots";
-        return;
-      }
-      onComplete(currentSequence.join(''));
-      modal.remove();
-    };
-    
-    updatePreview();
-  }
-
-  async function saveStaffAuth(staffId, authData) {
-  try {
-    await db.collection("staffAuth").doc(staffId).set(authData, { merge: true });
-    console.log("Auth saved for staff:", staffId);
-    return true;
-  } catch (error) {
-    console.error("Error saving auth:", error);
-    return false;
-  }
-}
-
-  function showPinModal(title, onComplete) {
-    const modal = document.createElement("div");
-    modal.className = "auth-overlay";
-    modal.innerHTML = `
-      <div class="auth-modal">
-        <h3>${title}</h3>
-        <input type="password" id="pinInput" class="pin-input" placeholder="Enter PIN" maxlength="8" inputmode="numeric">
-        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
-          <button id="pinCancelBtn" class="auth-toggle-btn secondary">Cancel</button>
-          <button id="pinConfirmBtn" class="auth-toggle-btn">Confirm</button>
-        </div>
-        <div id="pinMessage" class="auth-error"></div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    
-    modal.querySelector("#pinConfirmBtn").onclick = () => {
-      const pin = modal.querySelector("#pinInput").value.trim();
-      if (!pin) {
-        modal.querySelector("#pinMessage").innerHTML = "Please enter PIN";
-        return;
-      }
-      if (!/^\d+$/.test(pin)) {
-        modal.querySelector("#pinMessage").innerHTML = "PIN must contain only numbers";
-        return;
-      }
-      if (pin.length < 4) {
-        modal.querySelector("#pinMessage").innerHTML = "PIN must be at least 4 digits";
-        return;
-      }
-      onComplete(pin);
-      modal.remove();
-    };
-    
-    modal.querySelector("#pinCancelBtn").onclick = () => modal.remove();
-  }
-
-  let currentLoggedInStaff = null;
-
-  async function staffRegister(staffId, staffName) {
-    const chooseModal = document.createElement("div");
-    chooseModal.className = "auth-overlay";
-    chooseModal.innerHTML = `
-      <div class="auth-modal">
-        <h3>Set Authentication for ${staffName}</h3>
-        <button id="setPinBtn" class="auth-toggle-btn" style="width: 100%; margin-bottom: 0.5rem;">🔢 Set PIN (4-8 digits)</button>
-        <button id="setPatternBtn" class="auth-toggle-btn" style="width: 100%;">🎨 Set Pattern (4+ dots)</button>
-        <button id="cancelAuthBtn" class="auth-toggle-btn secondary" style="width: 100%; margin-top: 0.5rem;">Cancel</button>
-      </div>
-    `;
-    document.body.appendChild(chooseModal);
-    
-    chooseModal.querySelector("#setPinBtn").onclick = async () => {
-      chooseModal.remove();
-      showPinModal("Set your PIN (4-8 digits)", async (pin) => {
-        await saveStaffAuth(staffId, { pin: pin, pattern: null, hasAuth: true });
-        alert(`✅ PIN set successfully for ${staffName}`);
-      });
-    };
-    
-    chooseModal.querySelector("#setPatternBtn").onclick = () => {
-      chooseModal.remove();
-      showPatternModal("Draw your pattern (4+ dots)", async (pattern) => {
-        await saveStaffAuth(staffId, { pin: null, pattern: pattern, hasAuth: true });
-        alert(`✅ Pattern set successfully for ${staffName}`);
-      });
-    };
-    
-    chooseModal.querySelector("#cancelAuthBtn").onclick = () => chooseModal.remove();
-  }
-
-  async function staffLogin(staffId, staffName) {
-    const authData = await getStaffAuth(staffId);
-    
-    if (!authData || !authData.hasAuth) {
-      if (confirm(`${staffName} has no password set. Set one now?`)) {
-        await staffRegister(staffId, staffName);
-        await staffLogin(staffId, staffName);
-      }
-      return;
-    }
-    
-    const loginModal = document.createElement("div");
-    loginModal.className = "auth-overlay";
-    loginModal.innerHTML = `
-      <div class="auth-modal">
-        <h3>Login as ${staffName}</h3>
-        <button id="loginPinBtn" class="auth-toggle-btn" style="width: 100%; margin-bottom: 0.5rem;">🔢 Login with PIN</button>
-        <button id="loginPatternBtn" class="auth-toggle-btn" style="width: 100%;">🎨 Login with Pattern</button>
-        <button id="cancelLoginBtn" class="auth-toggle-btn secondary" style="width: 100%; margin-top: 0.5rem;">Cancel</button>
-      </div>
-    `;
-    document.body.appendChild(loginModal);
-    
-    loginModal.querySelector("#loginPinBtn").onclick = () => {
-      loginModal.remove();
-      showPinModal(`Enter PIN for ${staffName}`, async (pin) => {
-        if (authData.pin === pin) {
-          currentLoggedInStaff = { id: staffId, name: staffName };
-          document.getElementById("staffAuthSection").style.display = "none";
-          document.getElementById("staffInfoBar").style.display = "block";
-          document.getElementById("staffContent").style.display = "block";
-          document.getElementById("loggedInStaffName").innerText = staffName;
-          document.getElementById("staffLoggedInInfo").style.display = "block";
-          showMessage(`Welcome ${staffName}!`);
-          loadCompleteStaffDashboard();
-        } else {
-          alert("❌ Invalid PIN");
-        }
-      });
-    };
-    
-    loginModal.querySelector("#loginPatternBtn").onclick = () => {
-      loginModal.remove();
-      showPatternModal(`Draw your pattern for ${staffName}`, async (pattern) => {
-        if (authData.pattern === pattern) {
-          currentLoggedInStaff = { id: staffId, name: staffName };
-          document.getElementById("staffAuthSection").style.display = "none";
-          document.getElementById("staffInfoBar").style.display = "block";
-          document.getElementById("staffContent").style.display = "block";
-          document.getElementById("loggedInStaffName").innerText = staffName;
-          document.getElementById("staffLoggedInInfo").style.display = "block";
-          showMessage(`Welcome ${staffName}!`);
-          loadCompleteStaffDashboard();
-        } else {
-          alert("❌ Invalid pattern");
-        }
-      });
-    };
-    
-    loginModal.querySelector("#cancelLoginBtn").onclick = () => loginModal.remove();
-  }
-
-  function staffLogout() {
-    currentLoggedInStaff = null;
-    document.getElementById("staffAuthSection").style.display = "block";
-    document.getElementById("staffInfoBar").style.display = "none";
-    document.getElementById("staffContent").style.display = "none";
-    document.getElementById("staffLoggedInInfo").style.display = "none";
-    document.getElementById("staffSelectForAuth").value = "";
-    showMessage("Logged out");
-  }
-
-  async function supervisorLoginWithPin() {
-    const pin = document.getElementById("superPassword").value;
-    const supervisorAuth = await db.collection("staffAuth").doc("supervisor").get();
-    if (supervisorAuth.exists && supervisorAuth.data().pin === pin) {
-      supervisorLoggedIn = true;
-      document.body.classList.add('supervisor-mode');
-      document.getElementById("superAuthArea").style.display = "none";
-      document.getElementById("superDashboard").style.display = "block";
-      setGlobalControlsEnabled(true);
-      refreshAllViews();
-      showMessage("Supervisor logged in");
-    } else {
-      document.getElementById("superErrorMsg").innerText = "❌ Wrong PIN";
-    }
-  }
-
-  async function supervisorLoginWithPattern() {
-    const supervisorAuth = await db.collection("staffAuth").doc("supervisor").get();
-    const savedPattern = supervisorAuth.exists ? supervisorAuth.data().pattern : null;
-    
-    if (!savedPattern) {
-      showPatternModal("Set supervisor pattern (4+ dots)", async (pattern) => {
-        await db.collection("staffAuth").doc("supervisor").set({ pattern: pattern, pin: "1234", hasAuth: true });
-        alert("Supervisor pattern set!");
-        supervisorLoginWithPattern();
-      });
-      return;
-    }
-    
-    showPatternModal("Draw supervisor pattern", async (pattern) => {
-      if (savedPattern === pattern) {
-        supervisorLoggedIn = true;
-        document.body.classList.add('supervisor-mode');
-        document.getElementById("superAuthArea").style.display = "none";
-        document.getElementById("superDashboard").style.display = "block";
-        setGlobalControlsEnabled(true);
-        refreshAllViews();
-        showMessage("Supervisor logged in");
-      } else {
-        document.getElementById("superErrorMsg").innerText = "❌ Wrong pattern";
-      }
-    });
-  }
-
-  // Update populateDropdowns to include auth buttons
-  const originalPopulateDropdowns = populateDropdowns;
-  populateDropdowns = function() {
-    originalPopulateDropdowns();
-    
-    const staffSelect = document.getElementById("staffSelectForAuth");
-    if (staffSelect) {
-      staffSelect.innerHTML = '<option value="">-- Select Staff --</option>' + 
-        staffList.map(s => `<option value="${s.id}">${s.name} (${s.role})</option>`).join('');
-    }
-    
-    document.getElementById("staffLoginBtn").onclick = () => {
-      const staffId = document.getElementById("staffSelectForAuth").value;
-      if (!staffId) { alert("Select staff"); return; }
-      const staff = staffList.find(s => s.id === staffId);
-      staffLogin(staffId, staff.name);
-    };
-    
-    document.getElementById("staffRegisterBtn").onclick = () => {
-      const staffId = document.getElementById("staffSelectForAuth").value;
-      if (!staffId) { alert("Select staff"); return; }
-      const staff = staffList.find(s => s.id === staffId);
-      staffRegister(staffId, staff.name);
-    };
-    
-    document.getElementById("staffLogoutBtn").onclick = staffLogout;
-    document.getElementById("superLoginBtn").onclick = supervisorLoginWithPin;
-    document.getElementById("superPatternLoginBtn").onclick = supervisorLoginWithPattern;
-  };
-
 function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
   // This is kept for compatibility but main logic is in addAttendanceFromForm
   const reportedDate = new Date().toISOString().split('T')[0];
@@ -1424,6 +1042,112 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
     for (let [key, record] of attendanceRecords.entries()) if (record.date === date) records.push(record);
     return records;
   }
+
+
+  // Profile Modal Functions
+async function showStaffProfile() {
+  if (!currentLoggedInStaff) {
+    showMessage("Please login first", "error");
+    return;
+  }
+  
+  const staff = staffList.find(s => s.id === currentLoggedInStaff.id);
+  const authData = await getStaffAuth(currentLoggedInStaff.id);
+  
+  let authMethod = '<span class="auth-method-badge auth-none">❌ No authentication set</span>';
+  if (authData && authData.hasAuth) {
+    if (authData.pin) authMethod = '<span class="auth-method-badge auth-pin">🔢 PIN Login</span>';
+    else if (authData.pattern) authMethod = '<span class="auth-method-badge auth-pattern">🎨 Pattern Login</span>';
+  }
+  
+  const modal = document.createElement("div");
+  modal.className = "profile-modal";
+  modal.innerHTML = `
+    <div class="profile-content">
+      <div class="profile-header">
+        <div class="profile-avatar">👤</div>
+        <h3 style="color: #b8860b;">${escapeHtml(staff?.name)}</h3>
+        <p style="color: #666;">${escapeHtml(staff?.role || 'Staff')}</p>
+      </div>
+      <div class="profile-info">
+        <p><strong>📧 Email:</strong> ${escapeHtml(staff?.email || 'Not provided')}</p>
+        <p><strong>📱 Contact:</strong> ${escapeHtml(staff?.contact || 'Not provided')}</p>
+        <p><strong>🔐 Authentication:</strong> ${authMethod}</p>
+      </div>
+      <div class="profile-buttons">
+        <button id="profileChangePasswordBtn" style="background: #b8860b;">🔑 Change Password/Pattern</button>
+      </div>
+      <button class="close-profile-btn" style="background: #6b7280;">Close</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  modal.querySelector("#profileChangePasswordBtn").onclick = async () => {
+    modal.remove();
+    await staffRegister(currentLoggedInStaff.id, staff.name);
+    setTimeout(() => showStaffProfile(), 500);
+  };
+  
+  modal.querySelector(".close-profile-btn").onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+async function showSupervisorProfile() {
+  const supervisorAuth = await db.collection("staffAuth").doc("supervisor").get();
+  const authData = supervisorAuth.exists ? supervisorAuth.data() : null;
+  
+  let authMethod = '<span class="auth-method-badge auth-none">❌ No authentication set</span>';
+  if (authData && authData.hasAuth) {
+    if (authData.pin) authMethod = '<span class="auth-method-badge auth-pin">🔢 PIN Login</span>';
+    if (authData.pattern) authMethod += ' <span class="auth-method-badge auth-pattern">🎨 Pattern Login</span>';
+  }
+  
+  const supervisor = staffList.find(s => s.role === "Supervisor") || { name: "Supervisor", email: "admin@system.com", contact: "N/A" };
+  
+  const modal = document.createElement("div");
+  modal.className = "profile-modal";
+  modal.innerHTML = `
+    <div class="profile-content">
+      <div class="profile-header">
+        <div class="profile-avatar">🛡️</div>
+        <h3 style="color: #b8860b;">${escapeHtml(supervisor.name)}</h3>
+        <p style="color: #666;">Supervisor / Administrator</p>
+      </div>
+      <div class="profile-info">
+        <p><strong>📧 Email:</strong> ${escapeHtml(supervisor.email || 'admin@system.com')}</p>
+        <p><strong>🔐 Authentication:</strong> ${authMethod}</p>
+        <p><strong>👑 Permissions:</strong> Full access - Manage all staff, allocations, attendance</p>
+      </div>
+      <div class="profile-buttons">
+        <button id="profileChangePinBtn" style="background: #b8860b;">🔢 Change PIN</button>
+        <button id="profileChangePatternBtn" style="background: #b8860b;">🎨 Change Pattern</button>
+      </div>
+      <button class="close-profile-btn" style="background: #6b7280;">Close</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  modal.querySelector("#profileChangePinBtn").onclick = async () => {
+    modal.remove();
+    showPinModal("Set Supervisor PIN (4-8 digits)", async (pin) => {
+      await db.collection("staffAuth").doc("supervisor").set({ pin: pin, hasAuth: true }, { merge: true });
+      alert("✅ Supervisor PIN updated successfully!");
+      showSupervisorProfile();
+    });
+  };
+  
+  modal.querySelector("#profileChangePatternBtn").onclick = () => {
+    modal.remove();
+    showPatternModal("Draw supervisor pattern (4+ dots)", async (pattern) => {
+      await db.collection("staffAuth").doc("supervisor").set({ pattern: pattern, hasAuth: true }, { merge: true });
+      alert("✅ Supervisor pattern updated successfully!");
+      showSupervisorProfile();
+    });
+  };
+  
+  modal.querySelector(".close-profile-btn").onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
 
   function getBreakTimeSlotsForShift(shiftValue) {
     const slots = [];
@@ -2984,6 +2708,17 @@ gs.onchange = async (e) => {
       showMessage("Selection cleared"); 
     };
   }
+
+  // Add profile button handlers
+const staffProfileBtn = document.getElementById("staffProfileBtn");
+if (staffProfileBtn) {
+  staffProfileBtn.onclick = showStaffProfile;
+}
+
+const supervisorProfileBtn = document.getElementById("supervisorProfileBtn");
+if (supervisorProfileBtn) {
+  supervisorProfileBtn.onclick = showSupervisorProfile;
+}
   
   const printAllocBtn = document.getElementById("printAllocationBtn");
   if (printAllocBtn) printAllocBtn.onclick = printAllocation;
@@ -3136,23 +2871,30 @@ function startPeriodicSync() {
 
 // Then in initApp, add this line before the last showMessage:
 async function initApp() {
-    await initSupervisorAuth();
-    await loadFromLocalStorage();
-    await loadDailyTasks();
-    updateStaffDisplay();
-    updateDisplayInfo();
-    populateDropdowns();
-    initMainTabs();
-    initStaffSubTabs();
-    initDailyStaffSelect();
-    
-    const gd = document.getElementById("globalDate");
-    if (gd) gd.value = currentDate;
-    
-    refreshAllViews();
-    startPeriodicSync();
-    showMessage("✅ System ready - Please login to continue");
-  }
+  // First, ensure currentDate is set correctly
+  console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
+  
+  await loadFromLocalStorage();
+  await loadDailyTasks();
+  
+  updateStaffDisplay();
+  updateDisplayInfo();
+  populateDropdowns();
+  initMainTabs();
+  initStaffSubTabs();
+  initDailyStaffSelect();
+  
+  document.getElementById("superLoginBtn").onclick = loginSupervisor;
+  document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
+  
+  // Set the global date input to currentDate
+  const gd = document.getElementById("globalDate");
+  if (gd) gd.value = currentDate;
+  
+  refreshAllViews();
+  startPeriodicSync(); // ADD THIS LINE - it's defined but never called!
+  showMessage("✅ System ready - Data synced with cloud");
+}
   
   initApp();
 </script>
