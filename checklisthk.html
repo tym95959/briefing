@@ -1957,18 +1957,54 @@ function updateStaffContextDisplay() {
   const duplicateStaff = [];
   const successfullyAssigned = [];
   
-  // Check each selected staff for duplicate assignments in the same period
+  // Define areas where a staff CAN work simultaneously (Floor and Pantry)
+  const ALLOW_MULTIPLE_AREAS = ["Floor", "Pantry"];
+  
+  // Define areas where a staff CANNOT be assigned to multiple areas in same period
+  const RESTRICTED_AREAS = ["Welcome/Boarding", "Reception", "Buffet"];
+  
+  // Check each selected staff for duplicate assignments
   selectedAllocationStaff.forEach(staffId => {
     let isDuplicate = false;
+    let conflictArea = "";
     
-    // Check all areas for this staff in the same period
+    // Get all areas this staff is already assigned to in this period
+    const assignedAreas = [];
     for (let checkArea of AREAS) {
       const allocatedInThisPeriod = getAllocatedStaffForSlot(currentDate, currentShift, period, checkArea);
       if (allocatedInThisPeriod.has(staffId)) {
+        assignedAreas.push(checkArea);
+      }
+    }
+    
+    // If staff is already assigned to some areas, check for conflicts
+    if (assignedAreas.length > 0) {
+      // Case 1: Trying to assign to Floor or Pantry when already in Floor/Pantry
+      // This is ALLOWED - same staff can work in Floor AND Pantry together
+      if (ALLOW_MULTIPLE_AREAS.includes(area) && assignedAreas.every(a => ALLOW_MULTIPLE_AREAS.includes(a))) {
+        // ALLOWED: Staff can be in Floor and Pantry simultaneously
+        isDuplicate = false;
+        console.log(`Allowed: Staff can work in ${assignedAreas.join(', ')} and ${area} together`);
+      }
+      // Case 2: Staff already in a restricted area (Welcome/Boarding, Reception, Buffet)
+      else if (assignedAreas.some(a => RESTRICTED_AREAS.includes(a))) {
+        isDuplicate = true;
+        conflictArea = assignedAreas.find(a => RESTRICTED_AREAS.includes(a));
+        const staff = staffList.find(s => s.id === staffId);
+        duplicateStaff.push(`${staff?.name} (already in ${conflictArea})`);
+      }
+      // Case 3: Trying to assign to restricted area when already in ANY area (including Floor/Pantry)
+      else if (RESTRICTED_AREAS.includes(area)) {
+        isDuplicate = true;
+        conflictArea = assignedAreas[0];
+        const staff = staffList.find(s => s.id === staffId);
+        duplicateStaff.push(`${staff?.name} (already in ${conflictArea})`);
+      }
+      // Case 4: Any other combination (should be rare)
+      else {
         isDuplicate = true;
         const staff = staffList.find(s => s.id === staffId);
-        duplicateStaff.push(staff?.name || staffId);
-        break;
+        duplicateStaff.push(`${staff?.name} (already in ${assignedAreas.join(', ')})`);
       }
     }
     
@@ -1979,7 +2015,7 @@ function updateStaffContextDisplay() {
   });
   
   if (duplicateStaff.length > 0) {
-    showMessage(`⚠️ Cannot assign: ${duplicateStaff.join(', ')} - already assigned in this period`, "error");
+    showMessage(`⚠️ Cannot assign: ${duplicateStaff.join(', ')} - these areas cannot be combined in same period.`, "error");
   }
   
   if (successfullyAssigned.length > 0) {
