@@ -681,8 +681,6 @@ body.supervisor-mode #globalControlBar {
 }
 
 /* Pattern Lock Styles */
-/* Pattern Lock Styles - Clean version without lines */
-/* Pattern Lock Styles - NO LINES EVER */
 .pattern-modal {
   position: fixed;
   top: 0;
@@ -748,23 +746,17 @@ body.supervisor-mode #globalControlBar {
   font-size: 1.2rem;
 }
 
-/* NO LINES - Remove any line-related styles */
-.pattern-dot::before,
-.pattern-dot::after {
-  display: none !important;
-}
-
-canvas, svg, .pattern-line {
-  display: none !important;
+.pattern-dot.drag-over {
+  background: #d4a017;
+  transform: scale(1.05);
 }
 
 .pattern-preview {
   font-family: monospace;
-  font-size: 1rem;
+  font-size: 1.2rem;
   letter-spacing: 4px;
   margin: 0.5rem 0;
   color: #1e4a76;
-  word-break: break-all;
 }
 
 .pattern-status {
@@ -782,19 +774,17 @@ canvas, svg, .pattern-line {
 
 .pattern-buttons {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
   justify-content: center;
   margin-top: 1rem;
-  flex-wrap: wrap;
 }
 
 .pattern-buttons button {
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.2rem;
   border: none;
   border-radius: 2rem;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.8rem;
 }
 
 .reset-pattern-btn {
@@ -2068,9 +2058,8 @@ async function refreshStaffCredentials() {
   console.log("✅ Staff credentials refreshed from Firebase");
 }
 
-
-// Show Pattern Lock Modal - NO LINES, only dots
-// Show Pattern Lock Modal - Drag to draw, NO LINES, only dots highlight
+// Show Pattern Lock Modal
+// Show Pattern Lock Modal - Auto-verify on pattern complete
 function showPatternModal(staff, onSuccess, onCancel) {
   const existingModal = document.querySelector('.pattern-modal');
   if (existingModal) existingModal.remove();
@@ -2082,8 +2071,8 @@ function showPatternModal(staff, onSuccess, onCancel) {
     <div class="pattern-modal-content">
       <h3>🎨 Pattern Lock</h3>
       <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <p style="font-size: 0.8rem; color: #666;">Drag your finger across the dots to draw pattern</p>
-      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release when pattern is complete</p>
+      <p style="font-size: 0.8rem; color: #666;">Draw your pattern by connecting dots</p>
+      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse when pattern is complete</p>
       
       <div class="pattern-grid" id="patternGrid">
         ${[1,2,3,4,5,6,7,8,9].map(i => `
@@ -2108,13 +2097,13 @@ function showPatternModal(staff, onSuccess, onCancel) {
   const previewSpan = modal.querySelector('#patternPreview');
   const statusSpan = modal.querySelector('#patternStatus');
   let patternSequence = [];
-  let isDragging = false;
+  let isDrawing = false;
   let verificationInProgress = false;
   
   // Helper to update preview display
   function updatePreview() {
     if (patternSequence.length === 0) {
-      previewSpan.textContent = 'Drag to draw pattern...';
+      previewSpan.textContent = 'Draw your pattern...';
     } else {
       previewSpan.textContent = patternSequence.map(n => `●`).join(' → ');
     }
@@ -2123,27 +2112,53 @@ function showPatternModal(staff, onSuccess, onCancel) {
   // Helper to reset current drawing
   function resetDrawing() {
     patternSequence = [];
-    dots.forEach(dot => dot.classList.remove('selected'));
+    dots.forEach(dot => dot.classList.remove('selected', 'drag-over'));
     updatePreview();
     statusSpan.textContent = '';
     statusSpan.className = 'pattern-status';
     verificationInProgress = false;
   }
   
-  // Add dot to pattern (no lines, just highlight)
+  // Helper to add a dot to pattern
   function addDot(dotNum, element) {
-    if (verificationInProgress) return;
-    
-    // Don't add if already in sequence
-    if (patternSequence.includes(dotNum)) return;
-    
-    patternSequence.push(dotNum);
-    element.classList.add('selected');
-    updatePreview();
-    statusSpan.textContent = '';
+    if (!patternSequence.includes(dotNum)) {
+      patternSequence.push(dotNum);
+      element.classList.add('selected');
+      updatePreview();
+    }
   }
   
-  // Get dot from event (mouse or touch)
+  // Verify the pattern and close modal if correct
+  function verifyAndClose() {
+    if (verificationInProgress) return;
+    verificationInProgress = true;
+    
+    if (patternSequence.length < 3) {
+      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
+      statusSpan.className = 'pattern-status error';
+      verificationInProgress = false;
+      return;
+    }
+    
+    const enteredPattern = patternToString(patternSequence);
+    const savedPattern = staff.pattern || '';
+    
+    if (enteredPattern === savedPattern) {
+      statusSpan.textContent = '✅ Pattern verified!';
+      statusSpan.className = 'pattern-status success';
+      setTimeout(() => {
+        modal.remove();
+        if (onSuccess) onSuccess();
+      }, 500);
+    } else {
+      statusSpan.textContent = '❌ Incorrect pattern! Try again.';
+      statusSpan.className = 'pattern-status error';
+      resetDrawing();
+      verificationInProgress = false;
+    }
+  }
+  
+  // Mouse/Touch events for drawing
   function getDotFromEvent(e) {
     const rect = grid.getBoundingClientRect();
     let clientX, clientY;
@@ -2166,12 +2181,11 @@ function showPatternModal(staff, onSuccess, onCancel) {
     return null;
   }
   
-  // Start dragging
-  function startDrag(e) {
+  // Start drawing
+  function startDraw(e) {
     e.preventDefault();
     if (verificationInProgress) return;
-    isDragging = true;
-    
+    isDrawing = true;
     const dotInfo = getDotFromEvent(e);
     if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
       patternSequence = [dotInfo.dotNum];
@@ -2180,10 +2194,10 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   }
   
-  // During drag - add dots as user passes over them
-  function onDrag(e) {
+  // During drawing
+  function draw(e) {
     e.preventDefault();
-    if (!isDragging || verificationInProgress) return;
+    if (!isDrawing || verificationInProgress) return;
     
     const dotInfo = getDotFromEvent(e);
     if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
@@ -2193,61 +2207,36 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   }
   
-  // End drag - auto verify pattern
-  async function endDrag(e) {
+  // End drawing - AUTO VERIFY when user releases
+  function endDraw(e) {
     e.preventDefault();
-    if (!isDragging || verificationInProgress) {
-      isDragging = false;
+    if (!isDrawing || verificationInProgress) {
+      isDrawing = false;
       return;
     }
-    isDragging = false;
+    isDrawing = false;
     
-    if (patternSequence.length < 3) {
+    // Auto-verify the pattern when drawing ends
+    if (patternSequence.length >= 3) {
+      verifyAndClose();
+    } else if (patternSequence.length > 0 && patternSequence.length < 3) {
       statusSpan.textContent = '❌ Pattern must have at least 3 dots';
       statusSpan.className = 'pattern-status error';
       setTimeout(() => {
         resetDrawing();
       }, 1000);
-      return;
-    }
-    
-    // Auto-verify the pattern
-    verificationInProgress = true;
-    
-    const enteredPattern = patternToString(patternSequence);
-    // Load latest credentials from Firebase
-    const creds = await loadUserCredentials(staff.id);
-    const savedPattern = creds?.pattern || staff.pattern || '';
-    
-    if (enteredPattern === savedPattern) {
-    statusSpan.textContent = '✅ Pattern verified!';
-    statusSpan.className = 'pattern-status success';
-    setTimeout(() => {
-        modal.remove();
-        if (onSuccess) onSuccess();  // This calls callback(true)
-    }, 500);
-} else {
-      statusSpan.textContent = '❌ Incorrect pattern! Try again.';
-      statusSpan.className = 'pattern-status error';
-      resetDrawing();
-      verificationInProgress = false;
     }
   }
   
   // Add event listeners for mouse
-  grid.addEventListener('mousedown', startDrag);
-  window.addEventListener('mousemove', onDrag);
-  window.addEventListener('mouseup', endDrag);
+  grid.addEventListener('mousedown', startDraw);
+  window.addEventListener('mousemove', draw);
+  window.addEventListener('mouseup', endDraw);
   
-  // Add event listeners for touch (iPad/phone)
-  grid.addEventListener('touchstart', startDrag);
-  window.addEventListener('touchmove', onDrag);
-  window.addEventListener('touchend', endDrag);
-  
-  // Prevent touch scrolling while drawing
-  grid.addEventListener('touchmove', (e) => {
-    if (isDragging) e.preventDefault();
-  }, { passive: false });
+  // Add event listeners for touch
+  grid.addEventListener('touchstart', startDraw);
+  window.addEventListener('touchmove', draw);
+  window.addEventListener('touchend', endDraw);
   
   // Reset button
   modal.querySelector('#resetPatternBtn').onclick = () => {
@@ -2307,7 +2296,6 @@ function initDailyStaffSelect() {
     }
     
     const selectedStaff = staffList.find(s => s.id === selectedStaffId);
-    if (!selectedStaff) return;
     
     // If already authenticated for this staff, just update the display
     if (authenticatedStaffId === selectedStaffId) {
@@ -2331,11 +2319,7 @@ function initDailyStaffSelect() {
     showVerificationOptionsModal(selectedStaff, (success) => {
       if (success) {
         authenticatedStaffId = selectedStaff.id;
-        updateProfileButtonVisibility();
-        
-        // IMPORTANT: Keep the dropdown value as the selected staff
-        select.value = selectedStaffId;
-        
+        updateProfileButtonVisibility(); 
         const nameSpan = document.getElementById("dailyTaskSelectedName");
         if (nameSpan && selectedStaff) {
           nameSpan.textContent = `✓ ${selectedStaff.name} (Verified)`;
@@ -2343,7 +2327,7 @@ function initDailyStaffSelect() {
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
       } else {
-        // Authentication failed - reset dropdown
+        // Authentication failed - reset dropdown and clear any auth
         select.value = "";
         authenticatedStaffId = null;
         const nameSpan = document.getElementById("dailyTaskSelectedName");
@@ -2396,14 +2380,8 @@ function showVerificationOptionsModal(staff, callback) {
   modal.querySelector('#patternOptionBtn').onclick = () => {
     modal.remove();
     showPatternModal(staff, 
-      () => {
-        // On success - call callback with true
-        callback(true);
-      },
-      () => {
-        // On cancel - call callback with false
-        callback(false);
-      }
+      () => callback(true),  // on success
+      () => callback(false)  // on cancel
     );
   };
   
@@ -2450,15 +2428,11 @@ function showPasswordOnlyModal(staff, callback) {
   const passInput = modal.querySelector('#passInput');
   const errorDiv = modal.querySelector('#passError');
   
-  async function checkAndSubmit() {
+  function checkAndSubmit() {
     if (passwordInput.length === expectedLength) {
-      // Load latest credentials from Firebase
-      const creds = await loadUserCredentials(staff.id);
-      const savedPass = creds?.pass || staff.pass || '';
-      
-      if (passwordInput === savedPass) {
+      if (passwordInput === expectedPass) {
         modal.remove();
-        callback(true);  // Success
+        callback(true);
       } else {
         errorDiv.textContent = '❌ Incorrect password. Try again.';
         passwordInput = '';
@@ -2507,8 +2481,7 @@ function showPasswordOnlyModal(staff, callback) {
   // Focus on input
   setTimeout(() => passInput.focus(), 100);
 }
-
-// Load Daily Tasks
+  // Load Daily Tasks
 // Load Daily Tasks from Firebase (per date) - CORRECTED
 async function loadDailyTasks() {
   try {
@@ -4033,7 +4006,17 @@ gs.onchange = async (e) => {
     document.getElementById("shiftLockIcon").innerText = en ? "🔓" : "🔒";
   }
 
- 
+  function loginSupervisor() {
+  if (document.getElementById("superPassword").value === SUPERVISOR_PASS) {
+    supervisorLoggedIn = true;
+    document.body.classList.add('supervisor-mode');  // ADD THIS LINE
+    document.getElementById("superAuthArea").style.display = "none";
+    document.getElementById("superDashboard").style.display = "block";
+    setGlobalControlsEnabled(true);
+    refreshAllViews();
+    showMessage("Supervisor logged in");
+  } else document.getElementById("superErrorMsg").innerText = "Wrong password";
+}
 
   function logoutSupervisor() {
   supervisorLoggedIn = false;
