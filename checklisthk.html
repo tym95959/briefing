@@ -1212,6 +1212,7 @@ function stringToPattern(str) {
 }
 
 // Show Pattern Lock Modal
+// Show Pattern Lock Modal - Auto-verify on pattern complete
 function showPatternModal(staff, onSuccess, onCancel) {
   const existingModal = document.querySelector('.pattern-modal');
   if (existingModal) existingModal.remove();
@@ -1224,6 +1225,7 @@ function showPatternModal(staff, onSuccess, onCancel) {
       <h3>🎨 Pattern Lock</h3>
       <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
       <p style="font-size: 0.8rem; color: #666;">Draw your pattern by connecting dots</p>
+      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse when pattern is complete</p>
       
       <div class="pattern-grid" id="patternGrid">
         ${[1,2,3,4,5,6,7,8,9].map(i => `
@@ -1236,7 +1238,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
       
       <div class="pattern-buttons">
         <button class="reset-pattern-btn" id="resetPatternBtn">⟳ Reset</button>
-        <button class="confirm-pattern-btn" id="confirmPatternBtn">✓ Verify</button>
         <button class="cancel-pattern-btn" id="cancelPatternBtn">✗ Cancel</button>
       </div>
     </div>
@@ -1249,6 +1250,8 @@ function showPatternModal(staff, onSuccess, onCancel) {
   const previewSpan = modal.querySelector('#patternPreview');
   const statusSpan = modal.querySelector('#patternStatus');
   let patternSequence = [];
+  let isDrawing = false;
+  let verificationInProgress = false;
   
   // Helper to update preview display
   function updatePreview() {
@@ -1266,6 +1269,7 @@ function showPatternModal(staff, onSuccess, onCancel) {
     updatePreview();
     statusSpan.textContent = '';
     statusSpan.className = 'pattern-status';
+    verificationInProgress = false;
   }
   
   // Helper to add a dot to pattern
@@ -1277,88 +1281,15 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   }
   
-  // Mouse/Touch events for drawing
-  function getDotFromEvent(e) {
-    const rect = grid.getBoundingClientRect();
-    let clientX, clientY;
+  // Verify the pattern and close modal if correct
+  function verifyAndClose() {
+    if (verificationInProgress) return;
+    verificationInProgress = true;
     
-    if (e.touches) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    // Find which dot was clicked
-    for (let dot of dots) {
-      const dotRect = dot.getBoundingClientRect();
-      if (clientX >= dotRect.left && clientX <= dotRect.right &&
-          clientY >= dotRect.top && clientY <= dotRect.bottom) {
-        return { dotNum: parseInt(dot.dataset.num), element: dot };
-      }
-    }
-    return null;
-  }
-  
-  // Start drawing
-  function startDraw(e) {
-    e.preventDefault();
-    isDrawing = true;
-    const dotInfo = getDotFromEvent(e);
-    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
-      patternSequence = [dotInfo.dotNum];
-      dotInfo.element.classList.add('selected');
-      updatePreview();
-      lastDot = dotInfo;
-    }
-  }
-  
-  // During drawing
-  function draw(e) {
-    e.preventDefault();
-    if (!isDrawing) return;
-    
-    const dotInfo = getDotFromEvent(e);
-    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
-      patternSequence.push(dotInfo.dotNum);
-      dotInfo.element.classList.add('selected');
-      updatePreview();
-      lastDot = dotInfo;
-    }
-  }
-  
-  // End drawing
-  function endDraw(e) {
-    e.preventDefault();
-    isDrawing = false;
-    lastDot = null;
-  }
-  
-  // Add event listeners for mouse
-  grid.addEventListener('mousedown', startDraw);
-  window.addEventListener('mousemove', draw);
-  window.addEventListener('mouseup', endDraw);
-  
-  // Add event listeners for touch
-  grid.addEventListener('touchstart', startDraw);
-  window.addEventListener('touchmove', draw);
-  window.addEventListener('touchend', endDraw);
-  
-  // Reset button
-  modal.querySelector('#resetPatternBtn').onclick = resetDrawing;
-  
-  // Cancel button
-  modal.querySelector('#cancelPatternBtn').onclick = () => {
-    modal.remove();
-    if (onCancel) onCancel();
-  };
-  
-  // Confirm/Verify button
-  modal.querySelector('#confirmPatternBtn').onclick = () => {
     if (patternSequence.length < 3) {
       statusSpan.textContent = '❌ Pattern must have at least 3 dots';
       statusSpan.className = 'pattern-status error';
+      verificationInProgress = false;
       return;
     }
     
@@ -1376,6 +1307,111 @@ function showPatternModal(staff, onSuccess, onCancel) {
       statusSpan.textContent = '❌ Incorrect pattern! Try again.';
       statusSpan.className = 'pattern-status error';
       resetDrawing();
+      verificationInProgress = false;
+    }
+  }
+  
+  // Mouse/Touch events for drawing
+  function getDotFromEvent(e) {
+    const rect = grid.getBoundingClientRect();
+    let clientX, clientY;
+    
+    if (e.touches) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    for (let dot of dots) {
+      const dotRect = dot.getBoundingClientRect();
+      if (clientX >= dotRect.left && clientX <= dotRect.right &&
+          clientY >= dotRect.top && clientY <= dotRect.bottom) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
+      }
+    }
+    return null;
+  }
+  
+  // Start drawing
+  function startDraw(e) {
+    e.preventDefault();
+    if (verificationInProgress) return;
+    isDrawing = true;
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      updatePreview();
+    }
+  }
+  
+  // During drawing
+  function draw(e) {
+    e.preventDefault();
+    if (!isDrawing || verificationInProgress) return;
+    
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence.push(dotInfo.dotNum);
+      dotInfo.element.classList.add('selected');
+      updatePreview();
+    }
+  }
+  
+  // End drawing - AUTO VERIFY when user releases
+  function endDraw(e) {
+    e.preventDefault();
+    if (!isDrawing || verificationInProgress) {
+      isDrawing = false;
+      return;
+    }
+    isDrawing = false;
+    
+    // Auto-verify the pattern when drawing ends
+    if (patternSequence.length >= 3) {
+      verifyAndClose();
+    } else if (patternSequence.length > 0 && patternSequence.length < 3) {
+      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
+      statusSpan.className = 'pattern-status error';
+      setTimeout(() => {
+        resetDrawing();
+      }, 1000);
+    }
+  }
+  
+  // Add event listeners for mouse
+  grid.addEventListener('mousedown', startDraw);
+  window.addEventListener('mousemove', draw);
+  window.addEventListener('mouseup', endDraw);
+  
+  // Add event listeners for touch
+  grid.addEventListener('touchstart', startDraw);
+  window.addEventListener('touchmove', draw);
+  window.addEventListener('touchend', endDraw);
+  
+  // Reset button
+  modal.querySelector('#resetPatternBtn').onclick = () => {
+    resetDrawing();
+  };
+  
+  // Cancel button
+  modal.querySelector('#cancelPatternBtn').onclick = () => {
+    modal.remove();
+    if (onCancel) onCancel();
+  };
+  
+  // Prevent modal from closing when clicking inside
+  modal.querySelector('.pattern-modal-content').onclick = (e) => {
+    e.stopPropagation();
+  };
+  
+  // Close on outside click
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      modal.remove();
+      if (onCancel) onCancel();
     }
   };
 }
