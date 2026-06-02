@@ -3,7 +3,7 @@
 
 // Staff data - can be extended or loaded from Firestore
 export const staffList = [
-  { id: "623", name: "Mohamed", role: "officer", contact: "", pass:"1234" },
+  { id: "623", name: "Mohamed", role: "officer", contact: "", pass:"1234",lineCode: "111111" },
   { id: "A-10567", name: "Tholal", role: "officer", contact: "", pass:"1234" },
   { id: "A-7503", name: "Shiara", role: "officer", contact: "", pass:"1234" },
   { id: "T-0160", name: "Sobah", role: "officer", contact: "", pass:"1234" },
