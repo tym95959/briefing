@@ -1216,6 +1216,26 @@ canvas, svg {
 <script type="module">
   import { staffList } from './staff.js';
 
+
+  // Add this function after staffList is defined
+async function loadAllCredentialsIntoStaffList() {
+  console.log("🔄 Loading Firebase credentials into staff list...");
+  
+  for (const staff of staffList) {
+    const creds = await loadUserCredentials(staff.id);
+    if (creds) {
+      // Override with Firebase credentials
+      staff.pass = creds.pass;
+      staff.pattern = creds.pattern;
+      console.log(`✅ Loaded Firebase credentials for: ${staff.name}`);
+    } else {
+      console.log(`📝 Using default credentials for: ${staff.name}`);
+    }
+  }
+  
+  console.log("✅ All credentials loaded from Firebase");
+}
+
 const db = firebase.firestore();
 console.log("🔥 Firebase ready!");
 
@@ -4260,9 +4280,12 @@ function showPasswordModal(staff, callback) {
 
 // Then in initApp, add this line before the last showMessage:
 async function initApp() {
-  // First, ensure currentDate is set correctly
-  console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
+  console.log(`🟢 Initializing app...`);
   
+  // 🔴 IMPORTANT: Load Firebase credentials FIRST
+  await loadAllCredentialsIntoStaffList();
+  
+  // Now proceed with normal initialization
   await loadFromLocalStorage();
   await loadDailyTasks();
   
@@ -4273,15 +4296,13 @@ async function initApp() {
   initStaffSubTabs();
   initDailyStaffSelect();
   
-  
   document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
   
-  // Set the global date input to currentDate
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
   
   refreshAllViews();
-  
+  // startPeriodicSync(); // Still commented out
   showMessage("✅ System ready - Data synced with cloud");
 }
   
