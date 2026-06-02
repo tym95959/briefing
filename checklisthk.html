@@ -826,6 +826,141 @@ body.supervisor-mode #globalControlBar {
   background: #b8860b;
   color: white;
 }
+
+/* Profile Modal Styles */
+.profile-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+.profile-modal-content {
+  background: white;
+  border-radius: 2rem;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+}
+
+.profile-modal-content h3 {
+  color: #b8860b;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.profile-tab {
+  flex: 1;
+  padding: 0.5rem;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 2rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.profile-tab.active {
+  background: #b8860b;
+  color: white;
+}
+
+.profile-section {
+  margin-bottom: 1.5rem;
+}
+
+.profile-section label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #1e293b;
+}
+
+.profile-section input {
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 1rem;
+  font-size: 1rem;
+}
+
+.profile-btn {
+  width: 100%;
+  padding: 0.8rem;
+  background: #0f5c3b;
+  color: white;
+  border: none;
+  border-radius: 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.profile-btn-danger {
+  background: #ef4444;
+}
+
+.profile-btn-warning {
+  background: #d97706;
+}
+
+.profile-message {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.profile-message.success {
+  color: #0f5c3b;
+}
+
+.profile-message.error {
+  color: #ef4444;
+}
+
+.staff-profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.profile-icon-btn {
+  background: #1e4a76;
+  color: white;
+  border: none;
+  border-radius: 2rem;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.profile-icon-btn:hover {
+  background: #b8860b;
+}
   </style>
 </head>
 <body>
@@ -901,6 +1036,9 @@ body.supervisor-mode #globalControlBar {
         </div>
       <div class="checklist-section"><h3>📋 Main Operations</h3><div id="dailyMainTasksContainer"></div></div>
       <div class="checklist-section"><h3>🍽️ Food & Beverage</h3><div id="dailyFbTasksContainer"></div></div>
+      </div>
+    <button id="profileSettingsBtn" class="profile-icon-btn" style="display: none;">⚙️ Profile</button>
+    </div>
     </div>
   </div>
 
@@ -1195,6 +1333,327 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
     return slots;
   }
 
+  // ============ PROFILE MANAGEMENT ============
+
+let currentProfileStaff = null;
+
+// Show profile management modal
+async function showProfileModal(staff) {
+  currentProfileStaff = staff;
+  const modal = document.createElement('div');
+  modal.className = 'profile-modal';
+  
+  modal.innerHTML = `
+    <div class="profile-modal-content">
+      <h3>👤 Staff Profile</h3>
+      <p style="text-align: center; margin-bottom: 1rem;"><strong>${escapeHtml(staff.name)}</strong> (${staff.role})</p>
+      
+      <div class="profile-tabs">
+        <button class="profile-tab active" data-tab="password">🔑 Change Password</button>
+        <button class="profile-tab" data-tab="pattern">🎨 Change Pattern</button>
+      </div>
+      
+      <!-- Password Change Section -->
+      <div id="passwordSection" class="profile-section">
+        <label>Current Password:</label>
+        <input type="password" id="currentPass" placeholder="Enter current password" maxlength="10">
+        
+        <label style="margin-top: 1rem;">New Password:</label>
+        <input type="password" id="newPass" placeholder="Enter new password" maxlength="10">
+        
+        <label style="margin-top: 1rem;">Confirm New Password:</label>
+        <input type="password" id="confirmPass" placeholder="Confirm new password" maxlength="10">
+        
+        <button id="updatePasswordBtn" class="profile-btn">✓ Update Password</button>
+        <div id="passwordMessage" class="profile-message"></div>
+      </div>
+      
+      <!-- Pattern Change Section -->
+      <div id="patternSection" class="profile-section" style="display: none;">
+        <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Verify current password first, then draw your new pattern</p>
+        
+        <label>Current Password (Required):</label>
+        <input type="password" id="patternCurrentPass" placeholder="Enter current password to change pattern" maxlength="10">
+        
+        <button id="verifyForPatternBtn" class="profile-btn-warning" style="background: #d97706;">✓ Verify & Start Pattern Change</button>
+        
+        <div id="patternChangeArea" style="display: none; margin-top: 1rem;">
+          <p style="font-size: 0.8rem; color: #b8860b; margin-bottom: 0.5rem;">Draw your NEW pattern (at least 3 dots):</p>
+          <div class="pattern-grid" id="newPatternGrid" style="margin: 0.5rem auto; width: 200px; gap: 0.5rem;">
+            ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
+          </div>
+          <div id="newPatternPreview" style="font-size: 0.7rem; text-align: center; margin: 0.5rem 0;">Draw your pattern...</div>
+          <button id="savePatternBtn" class="profile-btn" style="background: #0f5c3b; margin-top: 0.5rem;">💾 Save New Pattern</button>
+        </div>
+        
+        <div id="patternMessage" class="profile-message"></div>
+      </div>
+      
+      <button id="closeProfileBtn" class="profile-btn profile-btn-danger" style="margin-top: 1rem; background: #94a3b8;">Close</button>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  let newPatternSequence = [];
+  let isDrawingNew = false;
+  
+  // Tab switching
+  const tabs = modal.querySelectorAll('.profile-tab');
+  const passwordSection = modal.querySelector('#passwordSection');
+  const patternSection = modal.querySelector('#patternSection');
+  
+  tabs.forEach(tab => {
+    tab.onclick = () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      if (tab.dataset.tab === 'password') {
+        passwordSection.style.display = 'block';
+        patternSection.style.display = 'none';
+      } else {
+        passwordSection.style.display = 'none';
+        patternSection.style.display = 'block';
+      }
+    };
+  });
+  
+  // Update Password
+  const updateBtn = modal.querySelector('#updatePasswordBtn');
+  const currentPassInput = modal.querySelector('#currentPass');
+  const newPassInput = modal.querySelector('#newPass');
+  const confirmPassInput = modal.querySelector('#confirmPass');
+  const passwordMsg = modal.querySelector('#passwordMessage');
+  
+  updateBtn.onclick = async () => {
+    const currentPass = currentPassInput.value;
+    const newPass = newPassInput.value;
+    const confirmPass = confirmPassInput.value;
+    
+    if (!currentPass || !newPass || !confirmPass) {
+      passwordMsg.textContent = '❌ Please fill all fields';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    
+    if (newPass !== confirmPass) {
+      passwordMsg.textContent = '❌ New passwords do not match';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    
+    if (newPass.length < 4) {
+      passwordMsg.textContent = '❌ Password must be at least 4 digits';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    
+    // Verify current password
+    if (currentPass !== staff.pass) {
+      passwordMsg.textContent = '❌ Current password is incorrect';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    
+    // Update in Firebase
+    const success = await saveUserCredentials(staff.id, {
+      pass: newPass,
+      pattern: staff.pattern
+    });
+    
+    if (success) {
+      staff.pass = newPass;
+      passwordMsg.textContent = '✅ Password updated successfully!';
+      passwordMsg.className = 'profile-message success';
+      currentPassInput.value = '';
+      newPassInput.value = '';
+      confirmPassInput.value = '';
+      showMessage(`Password updated for ${staff.name}`);
+    } else {
+      passwordMsg.textContent = '❌ Failed to update password';
+      passwordMsg.className = 'profile-message error';
+    }
+  };
+  
+  // Pattern change with verification
+  const verifyPatternBtn = modal.querySelector('#verifyForPatternBtn');
+  const patternCurrentPass = modal.querySelector('#patternCurrentPass');
+  const patternChangeArea = modal.querySelector('#patternChangeArea');
+  const patternMsg = modal.querySelector('#patternMessage');
+  const savePatternBtn = modal.querySelector('#savePatternBtn');
+  const newPatternGrid = modal.querySelector('#newPatternGrid');
+  const newPatternPreview = modal.querySelector('#newPatternPreview');
+  const newDots = modal.querySelectorAll('#newPatternGrid .pattern-dot');
+  
+  function resetNewPatternDrawing() {
+    newPatternSequence = [];
+    newDots.forEach(dot => dot.classList.remove('selected'));
+    newPatternPreview.textContent = 'Draw your pattern...';
+  }
+  
+  function updateNewPatternPreview() {
+    if (newPatternSequence.length === 0) {
+      newPatternPreview.textContent = 'Draw your pattern...';
+    } else {
+      newPatternPreview.textContent = newPatternSequence.map(n => '●').join(' → ');
+    }
+  }
+  
+  // Pattern drawing for new pattern
+  function getNewDotFromEvent(e) {
+    const rect = newPatternGrid.getBoundingClientRect();
+    let clientX, clientY;
+    
+    if (e.touches) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    for (let dot of newDots) {
+      const dotRect = dot.getBoundingClientRect();
+      if (clientX >= dotRect.left && clientX <= dotRect.right &&
+          clientY >= dotRect.top && clientY <= dotRect.bottom) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
+      }
+    }
+    return null;
+  }
+  
+  function startNewDraw(e) {
+    e.preventDefault();
+    if (!patternChangeArea.style.display === 'none') return;
+    isDrawingNew = true;
+    const dotInfo = getNewDotFromEvent(e);
+    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
+      newPatternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      updateNewPatternPreview();
+    }
+  }
+  
+  function drawNew(e) {
+    e.preventDefault();
+    if (!isDrawingNew) return;
+    const dotInfo = getNewDotFromEvent(e);
+    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
+      newPatternSequence.push(dotInfo.dotNum);
+      dotInfo.element.classList.add('selected');
+      updateNewPatternPreview();
+    }
+  }
+  
+  function endNewDraw(e) {
+    e.preventDefault();
+    isDrawingNew = false;
+  }
+  
+  // Verify current password to enable pattern change
+  verifyPatternBtn.onclick = async () => {
+    const currentPass = patternCurrentPass.value;
+    
+    if (!currentPass) {
+      patternMsg.textContent = '❌ Please enter current password';
+      patternMsg.className = 'profile-message error';
+      return;
+    }
+    
+    if (currentPass !== staff.pass) {
+      patternMsg.textContent = '❌ Incorrect password';
+      patternMsg.className = 'profile-message error';
+      return;
+    }
+    
+    // Password verified, show pattern drawing area
+    patternMsg.textContent = '✅ Password verified! Draw your new pattern below';
+    patternMsg.className = 'profile-message success';
+    patternChangeArea.style.display = 'block';
+    verifyPatternBtn.disabled = true;
+    verifyPatternBtn.style.opacity = '0.5';
+    
+    // Initialize pattern drawing
+    resetNewPatternDrawing();
+    newPatternGrid.addEventListener('mousedown', startNewDraw);
+    window.addEventListener('mousemove', drawNew);
+    window.addEventListener('mouseup', endNewDraw);
+    newPatternGrid.addEventListener('touchstart', startNewDraw);
+    window.addEventListener('touchmove', drawNew);
+    window.addEventListener('touchend', endNewDraw);
+  };
+  
+  // Save new pattern
+  savePatternBtn.onclick = async () => {
+    if (newPatternSequence.length < 3) {
+      patternMsg.textContent = '❌ Pattern must have at least 3 dots';
+      patternMsg.className = 'profile-message error';
+      return;
+    }
+    
+    const newPattern = patternToString(newPatternSequence);
+    
+    const success = await saveUserCredentials(staff.id, {
+      pass: staff.pass,
+      pattern: newPattern
+    });
+    
+    if (success) {
+      staff.pattern = newPattern;
+      patternMsg.textContent = '✅ Pattern updated successfully!';
+      patternMsg.className = 'profile-message success';
+      resetNewPatternDrawing();
+      showMessage(`Pattern updated for ${staff.name}`);
+      
+      // Close modal after 1.5 seconds
+      setTimeout(() => {
+        modal.remove();
+      }, 1500);
+    } else {
+      patternMsg.textContent = '❌ Failed to update pattern';
+      patternMsg.className = 'profile-message error';
+    }
+  };
+  
+  // Close modal
+  modal.querySelector('#closeProfileBtn').onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+// Show profile button when staff is authenticated
+function updateProfileButtonVisibility() {
+  const profileBtn = document.getElementById('profileSettingsBtn');
+  if (profileBtn) {
+    if (authenticatedStaffId) {
+      profileBtn.style.display = 'inline-flex';
+      profileBtn.onclick = () => {
+        const staff = staffList.find(s => s.id === authenticatedStaffId);
+        if (staff) showProfileModal(staff);
+      };
+    } else {
+      profileBtn.style.display = 'none';
+    }
+  }
+}
+
+// In showPasswordOnlyModal, update the checkAndSubmit function:
+async function checkAndSubmit() {
+  if (passwordInput.length === expectedLength) {
+    // Load latest credentials from Firebase
+    const creds = await loadUserCredentials(staff.id);
+    const savedPass = creds?.pass || staff.pass || '';
+    
+    if (passwordInput === savedPass) {
+      modal.remove();
+      callback(true);
+    } else {
+      errorDiv.textContent = '❌ Incorrect password. Try again.';
+      passwordInput = '';
+      passInput.value = '';
+      passInput.focus();
+    }
+  }
+}
+
   // Pattern Lock Variables
 let currentPattern = [];
 let isDrawing = false;
@@ -1209,6 +1668,80 @@ function patternToString(pattern) {
 function stringToPattern(str) {
   if (!str) return [];
   return str.split(',').map(Number);
+}
+
+
+// ============ FIREBASE USER AUTH STORAGE ============
+
+// Collection for user credentials
+const USERS_COLLECTION = "staffCredentials";
+
+// Save user credentials to Firebase
+async function saveUserCredentials(staffId, credentials) {
+  try {
+    const docRef = db.collection(USERS_COLLECTION).doc(staffId);
+    await docRef.set({
+      staffId: staffId,
+      pass: credentials.pass,
+      pattern: credentials.pattern || null,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: staffId
+    }, { merge: true });
+    console.log(`✅ Credentials saved for ${staffId}`);
+    return true;
+  } catch (error) {
+    console.error("Error saving credentials:", error);
+    showMessage("Failed to save credentials", "error");
+    return false;
+  }
+}
+
+// Load user credentials from Firebase
+async function loadUserCredentials(staffId) {
+  try {
+    const docRef = db.collection(USERS_COLLECTION).doc(staffId);
+    const doc = await docRef.get();
+    
+    if (doc.exists) {
+      const data = doc.data();
+      return {
+        pass: data.pass,
+        pattern: data.pattern
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error loading credentials:", error);
+    return null;
+  }
+}
+
+// Get staff with credentials (merge local staffList with Firebase credentials)
+async function getStaffWithCredentials() {
+  const staffWithCreds = [];
+  
+  for (const staff of staffList) {
+    const creds = await loadUserCredentials(staff.id);
+    staffWithCreds.push({
+      ...staff,
+      pass: creds?.pass || staff.pass || "0000",
+      pattern: creds?.pattern || staff.pattern || null
+    });
+  }
+  
+  return staffWithCreds;
+}
+
+// Update staff in memory after credential change
+async function refreshStaffCredentials() {
+  for (const staff of staffList) {
+    const creds = await loadUserCredentials(staff.id);
+    if (creds) {
+      staff.pass = creds.pass;
+      staff.pattern = creds.pattern;
+    }
+  }
+  console.log("✅ Staff credentials refreshed from Firebase");
 }
 
 // Show Pattern Lock Modal
@@ -1472,6 +2005,7 @@ function initDailyStaffSelect() {
     showVerificationOptionsModal(selectedStaff, (success) => {
       if (success) {
         authenticatedStaffId = selectedStaff.id;
+        updateProfileButtonVisibility(); 
         const nameSpan = document.getElementById("dailyTaskSelectedName");
         if (nameSpan && selectedStaff) {
           nameSpan.textContent = `✓ ${selectedStaff.name} (Verified)`;
@@ -1965,6 +2499,7 @@ function renderSupervisorAttendanceDashboard() {
 }
 
   function renderDailyTasksUI() {
+  updateProfileButtonVisibility();  
   const mainContainer = document.getElementById("dailyMainTasksContainer");
   const fbContainer = document.getElementById("dailyFbTasksContainer");
   const shiftBadge = document.getElementById("dailyTaskShiftBadge");
