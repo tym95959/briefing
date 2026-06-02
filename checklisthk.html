@@ -2442,7 +2442,7 @@ gs.onchange = async (e) => {
 
   function logoutSupervisor() {
   supervisorLoggedIn = false;
-  document.body.classList.remove('supervisor-mode');  // ADD THIS LINE
+  document.body.classList.remove('supervisor-mode');  
   document.getElementById("superAuthArea").style.display = "block";
   document.getElementById("superDashboard").style.display = "none";
   setGlobalControlsEnabled(false);
@@ -2496,25 +2496,53 @@ gs.onchange = async (e) => {
   }
   
   // Attendance status change - show/hide reason dropdown
-  const statusSelect = document.getElementById("attendanceStatus");
-  const reasonContainer = document.getElementById("reasonContainer");
-  const reasonSelect = document.getElementById("attendanceReason");
+  // Attendance status change - show/hide reason dropdown with proper reset
+const statusSelect = document.getElementById("attendanceStatus");
+const reasonContainer = document.getElementById("reasonContainer");
+const reasonSelect = document.getElementById("attendanceReason");
+
+if (statusSelect) {
+  // Store initial state
+  let previousStatus = statusSelect.value;
   
-  if (statusSelect) {
-    statusSelect.onchange = function() {
-      const selectedStatus = this.value;
-      if (selectedStatus === "Sick Leave" || selectedStatus === "FRL") {
-        // Populate reasons based on selection
-        const reasons = PRESET_REASONS[selectedStatus] || [];
+  statusSelect.onchange = function() {
+    const selectedStatus = this.value;
+    
+    // Reset reason select first
+    reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>';
+    reasonSelect.value = "";
+    
+    if (selectedStatus === "Sick Leave" || selectedStatus === "FRL") {
+      // Populate reasons based on selection
+      const reasons = PRESET_REASONS[selectedStatus] || [];
+      if (reasons.length > 0) {
         reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>' + 
           reasons.map(r => `<option value="${r}">${r}</option>`).join('');
-        reasonContainer.style.display = "block";
       } else {
-        reasonContainer.style.display = "none";
-        reasonSelect.value = "";
+        reasonSelect.innerHTML = '<option value="">-- No reasons available --</option>';
       }
-    };
+      reasonContainer.style.display = "block";
+      previousStatus = selectedStatus;
+    } else {
+      reasonContainer.style.display = "none";
+      reasonSelect.value = "";
+      previousStatus = selectedStatus;
+    }
+  };
+  
+  // Also trigger on page load to set initial state correctly
+  // This ensures if default selection is SL/FRL, reasons show immediately
+  if (statusSelect.value === "Sick Leave" || statusSelect.value === "FRL") {
+    const reasons = PRESET_REASONS[statusSelect.value] || [];
+    reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>' + 
+      reasons.map(r => `<option value="${r}">${r}</option>`).join('');
+    reasonContainer.style.display = "block";
+  } else {
+    reasonContainer.style.display = "none";
   }
+}
+
+
   
   // ============ END ATTENDANCE FIELDS ============
   
