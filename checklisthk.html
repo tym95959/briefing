@@ -1027,6 +1027,35 @@ canvas, svg, .pattern-line {
 canvas, svg {
   display: none;
 }
+
+/* iPad Touch Optimizations */
+.pattern-dot {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pattern-dot.selected {
+  background: #b8860b;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px #fef3c7, 0 0 0 6px #b8860b;
+}
+
+/* Make pattern grid more touch-friendly */
+.pattern-grid {
+  gap: 1.2rem;
+  padding: 1rem;
+}
+
+@media (max-width: 768px) {
+  .pattern-dot {
+    min-width: 55px;
+    min-height: 55px;
+  }
+  
+  .pattern-grid {
+    gap: 0.8rem;
+  }
+}
   </style>
 </head>
 <body>
@@ -1418,6 +1447,7 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
 let currentProfileStaff = null;
 
 // Show profile management modal
+// Show profile management modal - iPad Optimized
 async function showProfileModal(staff) {
   currentProfileStaff = staff;
   const modal = document.createElement('div');
@@ -1436,13 +1466,13 @@ async function showProfileModal(staff) {
       <!-- Password Change Section -->
       <div id="passwordSection" class="profile-section">
         <label>Current Password:</label>
-        <input type="password" id="currentPass" placeholder="Enter current password" maxlength="10">
+        <input type="password" id="currentPass" placeholder="Enter current password" maxlength="10" style="font-size: 16px;">
         
         <label style="margin-top: 1rem;">New Password:</label>
-        <input type="password" id="newPass" placeholder="Enter new password" maxlength="10">
+        <input type="password" id="newPass" placeholder="Enter new password" maxlength="10" style="font-size: 16px;">
         
         <label style="margin-top: 1rem;">Confirm New Password:</label>
-        <input type="password" id="confirmPass" placeholder="Confirm new password" maxlength="10">
+        <input type="password" id="confirmPass" placeholder="Confirm new password" maxlength="10" style="font-size: 16px;">
         
         <button id="updatePasswordBtn" class="profile-btn">✓ Update Password</button>
         <div id="passwordMessage" class="profile-message"></div>
@@ -1453,7 +1483,7 @@ async function showProfileModal(staff) {
         <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Verify current password first, then draw your new pattern</p>
         
         <label>Current Password (Required):</label>
-        <input type="password" id="patternCurrentPass" placeholder="Enter current password to change pattern" maxlength="10">
+        <input type="password" id="patternCurrentPass" placeholder="Enter current password to change pattern" maxlength="10" style="font-size: 16px;">
         
         <button id="verifyForPatternBtn" class="profile-btn-warning" style="background: #d97706;">✓ Verify & Start Pattern Change</button>
         
@@ -1477,6 +1507,7 @@ async function showProfileModal(staff) {
   
   let newPatternSequence = [];
   let isDrawingNew = false;
+  let lastNewDot = null;
   
   // Tab switching
   const tabs = modal.querySelectorAll('.profile-tab');
@@ -1527,8 +1558,11 @@ async function showProfileModal(staff) {
       return;
     }
     
-    // Verify current password
-    if (currentPass !== staff.pass) {
+    // Verify current password (check Firebase first, then staff.js)
+    const creds = await loadUserCredentials(staff.id);
+    const savedPass = creds?.pass || staff.pass;
+    
+    if (currentPass !== savedPass) {
       passwordMsg.textContent = '❌ Current password is incorrect';
       passwordMsg.className = 'profile-message error';
       return;
@@ -1548,6 +1582,10 @@ async function showProfileModal(staff) {
       newPassInput.value = '';
       confirmPassInput.value = '';
       showMessage(`Password updated for ${staff.name}`);
+      
+      setTimeout(() => {
+        modal.remove();
+      }, 1500);
     } else {
       passwordMsg.textContent = '❌ Failed to update password';
       passwordMsg.className = 'profile-message error';
@@ -1568,6 +1606,7 @@ async function showProfileModal(staff) {
     newPatternSequence = [];
     newDots.forEach(dot => dot.classList.remove('selected'));
     newPatternPreview.textContent = 'Draw your pattern...';
+    lastNewDot = null;
   }
   
   function updateNewPatternPreview() {
@@ -1578,9 +1617,8 @@ async function showProfileModal(staff) {
     }
   }
   
-  // Pattern drawing for new pattern
+  // Pattern drawing for new pattern (iPad optimized)
   function getNewDotFromEvent(e) {
-    const rect = newPatternGrid.getBoundingClientRect();
     let clientX, clientY;
     
     if (e.touches) {
@@ -1593,8 +1631,9 @@ async function showProfileModal(staff) {
     
     for (let dot of newDots) {
       const dotRect = dot.getBoundingClientRect();
-      if (clientX >= dotRect.left && clientX <= dotRect.right &&
-          clientY >= dotRect.top && clientY <= dotRect.bottom) {
+      const padding = 15;
+      if (clientX >= dotRect.left - padding && clientX <= dotRect.right + padding &&
+          clientY >= dotRect.top - padding && clientY <= dotRect.bottom + padding) {
         return { dotNum: parseInt(dot.dataset.num), element: dot };
       }
     }
@@ -1610,6 +1649,7 @@ async function showProfileModal(staff) {
       newPatternSequence = [dotInfo.dotNum];
       dotInfo.element.classList.add('selected');
       updateNewPatternPreview();
+      lastNewDot = dotInfo.dotNum;
     }
   }
   
@@ -1617,10 +1657,11 @@ async function showProfileModal(staff) {
     e.preventDefault();
     if (!isDrawingNew) return;
     const dotInfo = getNewDotFromEvent(e);
-    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
+    if (dotInfo && dotInfo.dotNum !== lastNewDot && !newPatternSequence.includes(dotInfo.dotNum)) {
       newPatternSequence.push(dotInfo.dotNum);
       dotInfo.element.classList.add('selected');
       updateNewPatternPreview();
+      lastNewDot = dotInfo.dotNum;
     }
   }
   
@@ -1639,7 +1680,11 @@ async function showProfileModal(staff) {
       return;
     }
     
-    if (currentPass !== staff.pass) {
+    // Check Firebase first, then staff.js
+    const creds = await loadUserCredentials(staff.id);
+    const savedPass = creds?.pass || staff.pass;
+    
+    if (currentPass !== savedPass) {
       patternMsg.textContent = '❌ Incorrect password';
       patternMsg.className = 'profile-message error';
       return;
@@ -1652,13 +1697,13 @@ async function showProfileModal(staff) {
     verifyPatternBtn.disabled = true;
     verifyPatternBtn.style.opacity = '0.5';
     
-    // Initialize pattern drawing
+    // Initialize pattern drawing with iPad touch events
     resetNewPatternDrawing();
     newPatternGrid.addEventListener('mousedown', startNewDraw);
     window.addEventListener('mousemove', drawNew);
     window.addEventListener('mouseup', endNewDraw);
-    newPatternGrid.addEventListener('touchstart', startNewDraw);
-    window.addEventListener('touchmove', drawNew);
+    newPatternGrid.addEventListener('touchstart', startNewDraw, { passive: false });
+    window.addEventListener('touchmove', drawNew, { passive: false });
     window.addEventListener('touchend', endNewDraw);
   };
   
@@ -1684,7 +1729,6 @@ async function showProfileModal(staff) {
       resetNewPatternDrawing();
       showMessage(`Pattern updated for ${staff.name}`);
       
-      // Close modal after 1.5 seconds
       setTimeout(() => {
         modal.remove();
       }, 1500);
@@ -2368,7 +2412,20 @@ function initDailyStaffSelect() {
     });
   };
 }
-// Show verification options (Password OR Pattern)
+
+
+// Add this to initApp after loading other data
+async function loadAllCredentials() {
+  for (const staff of staffList) {
+    const creds = await loadUserCredentials(staff.id);
+    if (creds) {
+      staff.pass = creds.pass;
+      staff.pattern = creds.pattern;
+    }
+  }
+  console.log("✅ All credentials loaded from Firebase");
+}
+
 // Show verification options (Password OR Pattern)
 function showVerificationOptionsModal(staff, callback) {
   const existingModal = document.querySelector('.pattern-modal');
@@ -2434,19 +2491,19 @@ function showVerificationOptionsModal(staff, callback) {
 }
 
 // Password only modal - Auto-submit when 4 digits entered
+// Password only modal - Auto-submit when correct digits entered (Firebase first)
 function showPasswordOnlyModal(staff, callback) {
   const modal = document.createElement('div');
   modal.className = 'pattern-modal';
   
   let passwordInput = '';
-  const expectedPass = staff.pass || '';
-  const expectedLength = expectedPass.length;
+  let expectedLength = 4; // Default, will update after loading
   
   modal.innerHTML = `
     <div class="pattern-modal-content">
       <h3>🔑 Enter Password</h3>
       <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <p style="font-size: 0.8rem; color: #666;">Enter your ${expectedLength}-digit password</p>
+      <p style="font-size: 0.8rem; color: #666;" id="passHint">Loading password requirements...</p>
       <input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off" style="width: 100%; padding: 0.8rem; margin: 1rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.5rem; letter-spacing: 4px;">
       <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 1rem 0;">
         ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem;">${n}</button>`).join('')}
@@ -2463,16 +2520,24 @@ function showPasswordOnlyModal(staff, callback) {
   
   const passInput = modal.querySelector('#passInput');
   const errorDiv = modal.querySelector('#passError');
+  const passHint = modal.querySelector('#passHint');
+  
+  let savedPass = null;
+  
+  // Load credentials immediately
+  (async () => {
+    const creds = await loadUserCredentials(staff.id);
+    savedPass = creds?.pass || staff.pass || '';
+    expectedLength = savedPass.length;
+    passHint.textContent = `Enter your ${expectedLength}-digit password`;
+  })();
   
   async function checkAndSubmit() {
     if (passwordInput.length === expectedLength) {
-      // Load latest credentials from Firebase
-      const creds = await loadUserCredentials(staff.id);
-      const savedPass = creds?.pass || staff.pass || '';
-      
+      // Use already loaded savedPass
       if (passwordInput === savedPass) {
         modal.remove();
-        callback(true);  // Success
+        callback(true);
       } else {
         errorDiv.textContent = '❌ Incorrect password. Try again.';
         passwordInput = '';
@@ -2493,13 +2558,10 @@ function showPasswordOnlyModal(staff, callback) {
       }
       passInput.value = '*'.repeat(passwordInput.length);
       errorDiv.textContent = '';
-      
-      // Auto-submit when reached expected length
       checkAndSubmit();
     };
   });
   
-  // Keyboard input with auto-submit
   passInput.oninput = (e) => {
     passwordInput = e.target.value;
     if (passwordInput.length > expectedLength) {
@@ -2507,18 +2569,14 @@ function showPasswordOnlyModal(staff, callback) {
     }
     e.target.value = '*'.repeat(passwordInput.length);
     errorDiv.textContent = '';
-    
-    // Auto-submit when reached expected length
     checkAndSubmit();
   };
   
-  // Cancel button
   modal.querySelector('#cancelPassBtn').onclick = () => {
     modal.remove();
     callback(false);
   };
   
-  // Focus on input
   setTimeout(() => passInput.focus(), 100);
 }
 
@@ -4303,7 +4361,7 @@ async function initApp() {
   
   await loadFromLocalStorage();
   await loadDailyTasks();
-  
+  await loadAllCredentials();
   updateStaffDisplay();
   updateDisplayInfo();
   populateDropdowns();
