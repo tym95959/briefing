@@ -730,10 +730,22 @@ body.supervisor-mode #globalControlBar {
   </div>
   
   <div id="superAuthArea">
-      <div class="info-card">🔐 Password required.</div>
-      <div class="control-row"><input type="password" id="superPassword" placeholder="Password" style="flex:1;"> <button id="superLoginBtn">Unlock</button></div>
-      <div id="superErrorMsg" style="color:#b91c1c;"></div>
+  <div class="info-card">🔐 Supervisor Login</div>
+  <div class="control-row">
+    <label style="min-width: 100px;">👤 Select Name:</label>
+    <select id="supervisorSelect" style="flex:1;">
+      <option value="">-- Select Supervisor --</option>
+    </select>
+  </div>
+  <div id="superVerificationArea" style="display: none;">
+    <div class="control-row">
+      <button id="superPasswordBtn" style="background: #1e4a76;">🔑 Use Password</button>
+      <button id="superPatternBtn" style="background: #b8860b;">🎨 Use Pattern Lock</button>
     </div>
+    <div id="superVerificationContainer"></div>
+  </div>
+  <div id="superErrorMsg" style="color:#b91c1c; margin-top: 0.5rem;"></div>
+</div>
     <div id="superDashboard" style="display: none;">
       <div class="control-panel">
         <div class="info-card">📍 Date: <strong id="displayDate"></strong> | Shift: <strong id="displayShift"></strong></div>
@@ -828,6 +840,7 @@ const db = firebase.firestore();
 console.log("🔥 Firebase ready!");
 
 // Initialize default credentials for staff
+// In the staff initialization section
 staffList.forEach((staff, idx) => {
   if (!staff.pass) {
     staff.pass = String(1000 + idx).slice(-4); // Default 4-digit password
@@ -999,6 +1012,229 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
     recordedAt: new Date().toISOString()
   });
   saveToLocalStorage();
+}
+
+// Supervisor authentication functions
+function initSupervisorLogin() {
+  const supervisorSelect = document.getElementById('supervisorSelect');
+  if (!supervisorSelect) return;
+  
+  // Populate supervisors from staffList
+  const supervisors = staffList.filter(s => s.role === "Supervisor");
+  supervisorSelect.innerHTML = '<option value="">-- Select Supervisor --</option>' + 
+    supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  
+  supervisorSelect.onchange = async () => {
+    const staffId = supervisorSelect.value;
+    const errorMsg = document.getElementById('superErrorMsg');
+    const verificationArea = document.getElementById('superVerificationArea');
+    const container = document.getElementById('superVerificationContainer');
+    
+    if (!staffId) {
+      verificationArea.style.display = 'none';
+      container.innerHTML = '';
+      return;
+    }
+    
+    const selectedStaff = staffList.find(s => s.id === staffId);
+    if (selectedStaff) {
+      errorMsg.textContent = '';
+      showSupervisorVerification(selectedStaff);
+    }
+  };
+}
+
+function showSupervisorVerification(staff) {
+  const container = document.getElementById('superVerificationContainer');
+  const errorMsg = document.getElementById('superErrorMsg');
+  const verificationArea = document.getElementById('superVerificationArea');
+  
+  verificationArea.style.display = 'block';
+  
+  container.innerHTML = `
+    <div class="super-login-method" id="superLoginMethod">
+      <div id="superMethodContent"></div>
+    </div>
+  `;
+  
+  const methodContent = document.getElementById('superMethodContent');
+  
+  // Show password input
+  const showPasswordInput = () => {
+    methodContent.innerHTML = `
+      <div style="text-align: center; margin-top: 1rem;">
+        <p>Enter your password:</p>
+        <input type="password" id="superPassInput" placeholder="••••" maxlength="10" 
+               style="width: 100%; padding: 0.8rem; margin: 0.5rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.2rem;">
+        <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0.5rem 0;">
+          ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.6rem;">${n}</button>`).join('')}
+          <button data-num="clear" class="clear-pass" style="background: #ef4444; color: white;">⌫</button>
+        </div>
+        <button id="superSubmitPass" style="background: #0f5c3b; color: white; padding: 0.6rem 1.5rem; margin-top: 0.5rem;">Verify</button>
+        <button id="superCancelVerify" style="background: #94a3b8; color: white; padding: 0.6rem 1.5rem; margin-top: 0.5rem;">Cancel</button>
+      </div>
+    `;
+    
+    let passwordInput = '';
+    const passInput = methodContent.querySelector('#superPassInput');
+    
+    methodContent.querySelectorAll('[data-num]').forEach(btn => {
+      btn.onclick = () => {
+        const num = btn.dataset.num;
+        if (num === 'clear') {
+          passwordInput = passwordInput.slice(0, -1);
+        } else {
+          passwordInput += num;
+        }
+        passInput.value = '*'.repeat(passwordInput.length);
+        errorMsg.textContent = '';
+      };
+    });
+    
+    methodContent.querySelector('#superSubmitPass').onclick = async () => {
+      const savedPass = staff.pass;
+      
+      if (passwordInput === savedPass) {
+        supervisorLoggedIn = true;
+        document.body.classList.add('supervisor-mode');
+        document.getElementById("superAuthArea").style.display = "none";
+        document.getElementById("superDashboard").style.display = "block";
+        setGlobalControlsEnabled(true);
+        refreshAllViews();
+        showMessage(`✅ Welcome Supervisor ${staff.name}`);
+      } else {
+        errorMsg.textContent = '❌ Incorrect password. Try again.';
+        passwordInput = '';
+        passInput.value = '';
+      }
+    };
+    
+    methodContent.querySelector('#superCancelVerify').onclick = () => {
+      container.innerHTML = '';
+      verificationArea.style.display = 'none';
+      document.getElementById('supervisorSelect').value = '';
+      errorMsg.textContent = '';
+    };
+  };
+  
+  // Show pattern input
+  const showPatternInput = () => {
+    let patternSequence = [];
+    let isDrawing = false;
+    const savedPattern = staff.pattern || '';
+    
+    methodContent.innerHTML = `
+      <div style="text-align: center; margin-top: 1rem;">
+        <p>Draw your pattern:</p>
+        <div class="pattern-grid" id="superPatternGrid" style="margin: 0.5rem auto; max-width: 200px; gap: 0.5rem;">
+          ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
+        </div>
+        <div id="superPatternPreview" style="font-size: 0.7rem; margin: 0.5rem 0;">Draw your pattern...</div>
+        <button id="superResetPattern" style="background: #6b7280; color: white; padding: 0.4rem 1rem; margin-right: 0.5rem;">⟳ Reset</button>
+        <button id="superCancelPattern" style="background: #94a3b8; color: white; padding: 0.4rem 1rem;">Cancel</button>
+      </div>
+    `;
+    
+    const grid = methodContent.querySelector('#superPatternGrid');
+    const dots = grid.querySelectorAll('.pattern-dot');
+    const previewSpan = methodContent.querySelector('#superPatternPreview');
+    
+    function updatePreview() {
+      if (patternSequence.length === 0) {
+        previewSpan.textContent = 'Draw your pattern...';
+      } else {
+        previewSpan.textContent = patternSequence.map(() => '●').join(' → ');
+      }
+    }
+    
+    function resetDrawing() {
+      patternSequence = [];
+      dots.forEach(dot => dot.classList.remove('selected'));
+      updatePreview();
+      errorMsg.textContent = '';
+    }
+    
+    function getDotFromEvent(e) {
+      const rect = grid.getBoundingClientRect();
+      let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      
+      for (let dot of dots) {
+        const dotRect = dot.getBoundingClientRect();
+        if (clientX >= dotRect.left && clientX <= dotRect.right &&
+            clientY >= dotRect.top && clientY <= dotRect.bottom) {
+          return { dotNum: parseInt(dot.dataset.num), element: dot };
+        }
+      }
+      return null;
+    }
+    
+    function startDraw(e) {
+      e.preventDefault();
+      isDrawing = true;
+      const dotInfo = getDotFromEvent(e);
+      if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+        patternSequence = [dotInfo.dotNum];
+        dotInfo.element.classList.add('selected');
+        updatePreview();
+      }
+    }
+    
+    function draw(e) {
+      e.preventDefault();
+      if (!isDrawing) return;
+      const dotInfo = getDotFromEvent(e);
+      if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+        patternSequence.push(dotInfo.dotNum);
+        dotInfo.element.classList.add('selected');
+        updatePreview();
+      }
+    }
+    
+    function endDraw(e) {
+      e.preventDefault();
+      if (!isDrawing) return;
+      isDrawing = false;
+      
+      if (patternSequence.length >= 3) {
+        const enteredPattern = patternSequence.join(',');
+        if (enteredPattern === savedPattern) {
+          supervisorLoggedIn = true;
+          document.body.classList.add('supervisor-mode');
+          document.getElementById("superAuthArea").style.display = "none";
+          document.getElementById("superDashboard").style.display = "block";
+          setGlobalControlsEnabled(true);
+          refreshAllViews();
+          showMessage(`✅ Welcome Supervisor ${staff.name}`);
+        } else {
+          errorMsg.textContent = '❌ Incorrect pattern! Try again.';
+          resetDrawing();
+        }
+      } else if (patternSequence.length > 0 && patternSequence.length < 3) {
+        errorMsg.textContent = '❌ Pattern must have at least 3 dots';
+        setTimeout(() => resetDrawing(), 1000);
+      }
+    }
+    
+    grid.addEventListener('mousedown', startDraw);
+    window.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', endDraw);
+    grid.addEventListener('touchstart', startDraw);
+    window.addEventListener('touchmove', draw);
+    window.addEventListener('touchend', endDraw);
+    
+    methodContent.querySelector('#superResetPattern').onclick = resetDrawing;
+    methodContent.querySelector('#superCancelPattern').onclick = () => {
+      container.innerHTML = '';
+      verificationArea.style.display = 'none';
+      document.getElementById('supervisorSelect').value = '';
+      errorMsg.textContent = '';
+    };
+  };
+  
+  // Set up method buttons
+  document.getElementById('superPasswordBtn').onclick = showPasswordInput;
+  document.getElementById('superPatternBtn').onclick = showPatternInput;
 }
   function deleteAttendanceRecord(staffId, date) { attendanceRecords.delete(getAttendanceKey(staffId, date)); saveToLocalStorage(); }
   function getAttendanceForDate(date) {
@@ -2544,13 +2780,22 @@ gs.onchange = async (e) => {
 
   function logoutSupervisor() {
   supervisorLoggedIn = false;
-  document.body.classList.remove('supervisor-mode');  
+  document.body.classList.remove('supervisor-mode');
   document.getElementById("superAuthArea").style.display = "block";
   document.getElementById("superDashboard").style.display = "none";
   setGlobalControlsEnabled(false);
+  
+  // Reset supervisor dropdown and verification area
+  const supervisorSelect = document.getElementById('supervisorSelect');
+  if (supervisorSelect) supervisorSelect.value = '';
+  document.getElementById('superVerificationArea').style.display = 'none';
+  document.getElementById('superVerificationContainer').innerHTML = '';
+  document.getElementById('superErrorMsg').textContent = '';
+  
   showMessage("Logged out");
 }
   function populateDropdowns() {
+    initSupervisorLogin();
   const attSel = document.getElementById("attendanceStaffSelect");
   if (attSel) {
     attSel.innerHTML = '<option value="">-- Select --</option>' + staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
@@ -2744,12 +2989,15 @@ function initDailyStaffSelect() {
 function updateProfileButtonVisibility() {
   const profileBtn = document.getElementById('profileSettingsBtn');
   if (profileBtn) {
-    profileBtn.style.display = authenticatedStaffId ? 'inline-flex' : 'none';
-    if (authenticatedStaffId) {
+    // Only show profile button for authenticated staff (non-supervisor)
+    if (authenticatedStaffId && !supervisorLoggedIn) {
+      profileBtn.style.display = 'inline-flex';
       profileBtn.onclick = () => {
         const staff = staffList.find(s => s.id === authenticatedStaffId);
         if (staff) showProfileModal(staff);
       };
+    } else {
+      profileBtn.style.display = 'none';
     }
   }
 }
@@ -3139,8 +3387,14 @@ function startPeriodicSync() {
 }
 
 // Then in initApp, add this line before the last showMessage:
+// Remove or comment out this old function:
+// function loginSupervisor() {
+//   if (document.getElementById("superPassword").value === SUPERVISOR_PASS) {
+//     ...
+//   }
+// }
+
 async function initApp() {
-  // First, ensure currentDate is set correctly
   console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
   
   await loadFromLocalStorage();
@@ -3153,15 +3407,16 @@ async function initApp() {
   initStaffSubTabs();
   initDailyStaffSelect();
   
-  document.getElementById("superLoginBtn").onclick = loginSupervisor;
+  // Remove this line - no longer needed
+  // document.getElementById("superLoginBtn").onclick = loginSupervisor;
+  
   document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
   
-  // Set the global date input to currentDate
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
   
   refreshAllViews();
-  startPeriodicSync(); // ADD THIS LINE - it's defined but never called!
+  startPeriodicSync();
   showMessage("✅ System ready - Data synced with cloud");
 }
   
