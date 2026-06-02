@@ -830,90 +830,98 @@ body.supervisor-mode #globalControlBar {
   </div>
   
   <div id="superDashboard" style="display: none;">
-    <div class="control-panel">
-      <div class="info-card">📍 Date: <strong id="displayDate"></strong> | Shift: <strong id="displayShift"></strong></div>
-      <div class="control-row"><button id="printAllocationBtn" class="success-btn" style="background:#1e4a76;">🖨️ Print Allocation (2 Copies)</button> <button id="printDailyReportBtn" class="success-btn" style="background:#0f5c3b;">📄 Print Daily Tasks Report</button></div>
-      <button id="superLogoutBtn" class="danger-btn" style="margin-top: 0.5rem;">🔒 Lock</button>
+  <!-- Global Control Bar -->
+  <div id="globalControlBar" style="background: linear-gradient(135deg, #b8860b 0%, #8b6914 100%); color: white; padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; border-radius: 1rem;">
+    <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+      <div><span>📅 DATE:</span> <input type="date" id="globalDate" style="padding: 0.3rem 0.8rem; border-radius: 0.5rem; border: none;"> <span id="dateLockIcon">🔒</span></div>
+      <div><span>🕒 SHIFT:</span> <select id="globalShift" style="padding: 0.3rem 0.8rem; border-radius: 0.5rem; border: none;"><option value="morning">🌅 Morning</option><option value="afternoon">🌆 Afternoon</option><option value="evening">🌙 Evening</option></select> <span id="shiftLockIcon">🔒</span></div>
     </div>
-    <!-- Rest of your supervisor content stays the same -->
-    <div class="staff-pool"><div class="staff-pool-title">⭐ STAFF ON DUTY</div><div id="allSodContainer" class="staff-badge-grid"></div></div>
-    <div class="staff-pool"><div class="staff-pool-title">📋 AVAILABLE FOR ALLOCATION</div><div id="allocationPoolContainer" class="staff-badge-grid"></div><button id="clearSelectionBtn" style="background:#6b7280; margin-top:0.5rem;">Clear Selection</button> <span id="selectedCount" style="margin-left:1rem;">Selected: 0</span></div>
-    <h3>📊 AREA ALLOCATION</h3>
-    <div class="allocation-table-wrapper"><table class="allocation-table" id="allocationTable"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody></table></div>
-    <hr>
-    <h3>📋 ATTENDANCE</h3>
-    
-
-    <!-- Attendance Entry Form -->
-    <div class="control-panel">
+    <div style="font-size: 0.75rem;">⚡ Only Supervisor can change</div>
+  </div>
+  
+  <div class="control-panel">
+    <div class="info-card">📍 Date: <strong id="displayDate"></strong> | Shift: <strong id="displayShift"></strong></div>
+    <div class="control-row"><button id="printAllocationBtn" class="success-btn" style="background:#1e4a76;">🖨️ Print Allocation (2 Copies)</button> <button id="printDailyReportBtn" class="success-btn" style="background:#0f5c3b;">📄 Print Daily Tasks Report</button></div>
+    <button id="superLogoutBtn" class="danger-btn" style="margin-top: 0.5rem;">🔒 Lock</button>
+  </div>
+  
+  <!-- Rest of your supervisor content stays the same -->
+  <div class="staff-pool"><div class="staff-pool-title">⭐ STAFF ON DUTY</div><div id="allSodContainer" class="staff-badge-grid"></div></div>
+  <div class="staff-pool"><div class="staff-pool-title">📋 AVAILABLE FOR ALLOCATION</div><div id="allocationPoolContainer" class="staff-badge-grid"></div><button id="clearSelectionBtn" style="background:#6b7280; margin-top:0.5rem;">Clear Selection</button> <span id="selectedCount" style="margin-left:1rem;">Selected: 0</span></div>
+  <h3>📊 AREA ALLOCATION</h3>
+  <div class="allocation-table-wrapper"><table class="allocation-table" id="allocationTable"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody></table></div>
+  <hr>
+  <h3>📋 ATTENDANCE</h3>
+  
+  <!-- Attendance Entry Form -->
+  <div class="control-panel">
     <div class="control-row">
-        <select id="attendanceStaffSelect" style="flex:1;"></select>
-        <select id="attendanceDutyShift">
+      <select id="attendanceStaffSelect" style="flex:1;"></select>
+      <select id="attendanceDutyShift">
         <option value="Morning">🌅 Morning</option>
         <option value="Evening">🌆 Evening</option>
         <option value="Night">🌙 Night</option>
-        </select>
-        <select id="attendanceStatus">
+      </select>
+      <select id="attendanceStatus">
         <option value="Absent">❌ Absent</option>
         <option value="Sick Leave">🤒 Sick Leave</option>
         <option value="FRL">👨‍👩‍👧 FRL</option>
-        </select>
+      </select>
     </div>
     
     <!-- Reason Dropdown - hidden initially -->
     <div id="reasonContainer" style="display: none;">
-        <div class="control-row">
+      <div class="control-row">
         <label style="min-width: 80px;">📋 Reason:</label>
         <select id="attendanceReason" style="flex:1; max-width: 300px;">
-            <option value="">-- Select Reason --</option>
+          <option value="">-- Select Reason --</option>
         </select>
-        </div>
+      </div>
     </div>
     
     <div class="control-row">
-        <label style="min-width: 80px;">📅 Reported Date:</label>
-        <input type="date" id="attendanceReportedDate" style="flex:1; max-width: 200px;">
-        <label style="min-width: 60px;">🕐 Time:</label>
-        <input type="time" id="attendanceTime" style="width: 130px;">
+      <label style="min-width: 80px;">📅 Reported Date:</label>
+      <input type="date" id="attendanceReportedDate" style="flex:1; max-width: 200px;">
+      <label style="min-width: 60px;">🕐 Time:</label>
+      <input type="time" id="attendanceTime" style="width: 130px;">
     </div>
     
     <div class="control-row">
-        <label style="min-width: 80px;">📅 Leave Date:</label>
-        <input type="date" id="attendanceLeaveDate" style="flex:1; max-width: 200px;">
-        <span style="font-size: 0.7rem; color: #8b6914;">(Date when absent/sick)</span>
+      <label style="min-width: 80px;">📅 Leave Date:</label>
+      <input type="date" id="attendanceLeaveDate" style="flex:1; max-width: 200px;">
+      <span style="font-size: 0.7rem; color: #8b6914;">(Date when absent/sick)</span>
     </div>
     
     <button id="addAttendanceBtn" class="success-btn" style="width: 100%; margin-top: 0.5rem;">💾 Save Attendance Record</button>
-    </div>
+  </div>
 
-    <!-- ADD THIS - Attendance Summary Dashboard for Supervisor -->
-    <div style="margin-top: 1.5rem;">
+  <!-- Attendance Summary Dashboard for Supervisor -->
+  <div style="margin-top: 1.5rem;">
     <h4>📊 Today's Attendance Records</h4>
     <div class="attendance-grid">
-        <div class="attendance-card">
+      <div class="attendance-card">
         <div class="card-title morning">🌅 Morning Shift</div>
         <div id="superMorningList" style="max-height: 300px; overflow-y: auto;"></div>
-        </div>
-        <div class="attendance-card">
+      </div>
+      <div class="attendance-card">
         <div class="card-title evening">🌆 Evening Shift</div>
         <div id="superEveningList" style="max-height: 300px; overflow-y: auto;"></div>
-        </div>
-        <div class="attendance-card">
+      </div>
+      <div class="attendance-card">
         <div class="card-title night">🌙 Night Shift</div>
         <div id="superNightList" style="max-height: 300px; overflow-y: auto;"></div>
-        </div>
+      </div>
     </div>
-    </div>
+  </div>
 
-    <hr>
-    <h3>⏰ Break Requests</h3>
-      <div class="control-panel"><h4>Pending</h4><div id="pendingBreakRequestsList">Loading...</div></div>
-      <div class="control-panel"><h4>History</h4><div id="allBreakRequestsList">Loading...</div></div>
-      <hr>
-      <h3>✅ Daily Tasks Management</h3>
-      <div class="control-panel"><h4>Main Operations</h4><div id="superMainTasksContainer"></div><h4 style="margin-top:1rem;">Food & Beverage</h4><div id="superFbTasksContainer"></div></div>
-      
-    </div>
+  <hr>
+  <h3>⏰ Break Requests</h3>
+  <div class="control-panel"><h4>Pending</h4><div id="pendingBreakRequestsList">Loading...</div></div>
+  <div class="control-panel"><h4>History</h4><div id="allBreakRequestsList">Loading...</div></div>
+  <hr>
+  <h3>✅ Daily Tasks Management</h3>
+  <div class="control-panel"><h4>Main Operations</h4><div id="superMainTasksContainer"></div><h4 style="margin-top:1rem;">Food & Beverage</h4><div id="superFbTasksContainer"></div></div>
+</div>
   </div>
   <footer>Complete Staff Management System</footer>
 </div>
