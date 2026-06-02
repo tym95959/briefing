@@ -2070,7 +2070,7 @@ async function refreshStaffCredentials() {
 
 
 // Show Pattern Lock Modal - NO LINES, only dots
-// Show Pattern Lock Modal - Drag to draw, NO LINES, only dots highlight
+// Show Pattern Lock Modal - iPad Optimized (Drag to draw, NO LINES)
 function showPatternModal(staff, onSuccess, onCancel) {
   const existingModal = document.querySelector('.pattern-modal');
   if (existingModal) existingModal.remove();
@@ -2110,6 +2110,7 @@ function showPatternModal(staff, onSuccess, onCancel) {
   let patternSequence = [];
   let isDragging = false;
   let verificationInProgress = false;
+  let lastAddedDot = null;
   
   // Helper to update preview display
   function updatePreview() {
@@ -2128,12 +2129,12 @@ function showPatternModal(staff, onSuccess, onCancel) {
     statusSpan.textContent = '';
     statusSpan.className = 'pattern-status';
     verificationInProgress = false;
+    lastAddedDot = null;
   }
   
   // Add dot to pattern (no lines, just highlight)
   function addDot(dotNum, element) {
     if (verificationInProgress) return;
-    
     // Don't add if already in sequence
     if (patternSequence.includes(dotNum)) return;
     
@@ -2141,32 +2142,38 @@ function showPatternModal(staff, onSuccess, onCancel) {
     element.classList.add('selected');
     updatePreview();
     statusSpan.textContent = '';
+    lastAddedDot = dotNum;
   }
   
-  // Get dot from event (mouse or touch)
+  // Get dot from touch/mouse event
   function getDotFromEvent(e) {
-    const rect = grid.getBoundingClientRect();
+    // Get the actual touch point or mouse coordinates
     let clientX, clientY;
     
     if (e.touches) {
+      // Touch event
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
     } else {
+      // Mouse event
       clientX = e.clientX;
       clientY = e.clientY;
     }
     
+    // Find which dot contains these coordinates
     for (let dot of dots) {
-      const dotRect = dot.getBoundingClientRect();
-      if (clientX >= dotRect.left && clientX <= dotRect.right &&
-          clientY >= dotRect.top && clientY <= dotRect.bottom) {
+      const rect = dot.getBoundingClientRect();
+      // Add small padding for easier touch
+      const padding = 15;
+      if (clientX >= rect.left - padding && clientX <= rect.right + padding &&
+          clientY >= rect.top - padding && clientY <= rect.bottom + padding) {
         return { dotNum: parseInt(dot.dataset.num), element: dot };
       }
     }
     return null;
   }
   
-  // Start dragging
+  // Start dragging (touch start or mouse down)
   function startDrag(e) {
     e.preventDefault();
     if (verificationInProgress) return;
@@ -2174,29 +2181,32 @@ function showPatternModal(staff, onSuccess, onCancel) {
     
     const dotInfo = getDotFromEvent(e);
     if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      // Start new pattern with first dot
       patternSequence = [dotInfo.dotNum];
       dotInfo.element.classList.add('selected');
       updatePreview();
+      lastAddedDot = dotInfo.dotNum;
     }
   }
   
-  // During drag - add dots as user passes over them
+  // During drag (touch move or mouse move)
   function onDrag(e) {
     e.preventDefault();
     if (!isDragging || verificationInProgress) return;
     
     const dotInfo = getDotFromEvent(e);
-    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+    if (dotInfo && dotInfo.dotNum !== lastAddedDot && !patternSequence.includes(dotInfo.dotNum)) {
       patternSequence.push(dotInfo.dotNum);
       dotInfo.element.classList.add('selected');
       updatePreview();
+      lastAddedDot = dotInfo.dotNum;
     }
   }
   
-  // End drag - auto verify pattern
+  // End drag (touch end or mouse up) - auto verify pattern
   async function endDrag(e) {
     e.preventDefault();
-    if (!isDragging || verificationInProgress) {
+    if (!isDragging) {
       isDragging = false;
       return;
     }
@@ -2220,13 +2230,13 @@ function showPatternModal(staff, onSuccess, onCancel) {
     const savedPattern = creds?.pattern || staff.pattern || '';
     
     if (enteredPattern === savedPattern) {
-    statusSpan.textContent = '✅ Pattern verified!';
-    statusSpan.className = 'pattern-status success';
-    setTimeout(() => {
+      statusSpan.textContent = '✅ Pattern verified!';
+      statusSpan.className = 'pattern-status success';
+      setTimeout(() => {
         modal.remove();
-        if (onSuccess) onSuccess();  // This calls callback(true)
-    }, 500);
-} else {
+        if (onSuccess) onSuccess();
+      }, 500);
+    } else {
       statusSpan.textContent = '❌ Incorrect pattern! Try again.';
       statusSpan.className = 'pattern-status error';
       resetDrawing();
@@ -2234,20 +2244,25 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   }
   
-  // Add event listeners for mouse
+  // Prevent touch scrolling on the whole page while drawing
+  function preventBodyScroll(e) {
+    if (isDragging) {
+      e.preventDefault();
+    }
+  }
+  
+  // === Mouse Events (for PC/Desktop) ===
   grid.addEventListener('mousedown', startDrag);
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', endDrag);
   
-  // Add event listeners for touch (iPad/phone)
-  grid.addEventListener('touchstart', startDrag);
-  window.addEventListener('touchmove', onDrag);
-  window.addEventListener('touchend', endDrag);
+  // === Touch Events (for iPad/Phone) ===
+  grid.addEventListener('touchstart', startDrag, { passive: false });
+  grid.addEventListener('touchmove', onDrag, { passive: false });
+  grid.addEventListener('touchend', endDrag);
   
-  // Prevent touch scrolling while drawing
-  grid.addEventListener('touchmove', (e) => {
-    if (isDragging) e.preventDefault();
-  }, { passive: false });
+  // Also prevent body scroll when dragging on grid
+  grid.addEventListener('touchmove', preventBodyScroll, { passive: false });
   
   // Reset button
   modal.querySelector('#resetPatternBtn').onclick = () => {
@@ -2273,7 +2288,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   };
 }
-
 // Update initDailyStaffSelect to include Pattern option
 // Update initDailyStaffSelect to auto-logout previous user
 function initDailyStaffSelect() {
