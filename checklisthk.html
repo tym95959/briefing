@@ -1285,6 +1285,8 @@ console.log("🔥 Firebase ready!");
     let selectedBreakTime = null;
     let authenticatedStaffId = null;  // Track which staff is currently authenticated
     let pendingStaffAuth = null; 
+    let dataLoadedForDate = null;  // Track which date data is loaded for
+    let isLoading = false;  // Prevent multiple simultaneous loads
 
     let supervisorAuthStaffId = null;  // Track which supervisor is authenticated
     let supervisorAuthMethod = null; 
@@ -2588,7 +2590,34 @@ function showPasswordOnlyModal(staff, callback) {
 
 // Load Daily Tasks
 // Load Daily Tasks from Firebase (per date) - CORRECTED
-async function loadDailyTasks() {
+// Load Daily Tasks from Firebase (per date) - WITH CACHING
+let dailyTasksCache = {};
+
+async function loadDailyTasks(forceReload = false) {
+  // Check cache first
+  if (!forceReload && dailyTasksCache[currentDate]) {
+    console.log(`📦 Using cached daily tasks for ${currentDate}`);
+    const cached = dailyTasksCache[currentDate];
+    
+    // Restore from cache
+    MAIN_DAILY_TASKS.forEach((task, idx) => {
+      if (cached.mainTasks[idx]) {
+        task.signoffs = cached.mainTasks[idx].signoffs || [];
+        task.completedBy = cached.mainTasks[idx].completedBy || null;
+        task.submissions = cached.mainTasks[idx].submissions || [];
+      }
+    });
+    
+    FB_DAILY_TASKS.forEach((task, idx) => {
+      if (cached.fbTasks[idx]) {
+        task.signoffs = cached.fbTasks[idx].signoffs || [];
+        task.completedBy = cached.fbTasks[idx].completedBy || null;
+      }
+    });
+    
+    return true;
+  }
+  
   try {
     const docRef = db.collection("staffManagement").doc(currentDate);
     const doc = await docRef.get();
@@ -2598,14 +2627,12 @@ async function loadDailyTasks() {
       
       // Load main tasks
       if (data.mainTasks) {
-        // Clear existing signoffs first
         MAIN_DAILY_TASKS.forEach(item => {
           item.signoffs = [];
           item.completedBy = null;
           item.submissions = [];
         });
         
-        // Load saved data
         data.mainTasks.forEach(savedItem => {
           const task = MAIN_DAILY_TASKS.find(t => t.id === savedItem.id);
           if (task) {
@@ -2632,11 +2659,25 @@ async function loadDailyTasks() {
         });
       }
       
+      // Save to cache
+      dailyTasksCache[currentDate] = {
+        mainTasks: MAIN_DAILY_TASKS.map(t => ({
+          id: t.id,
+          signoffs: t.signoffs,
+          completedBy: t.completedBy,
+          submissions: t.submissions
+        })),
+        fbTasks: FB_DAILY_TASKS.map(t => ({
+          id: t.id,
+          signoffs: t.signoffs,
+          completedBy: t.completedBy
+        }))
+      };
+      
       console.log(`✅ Daily tasks loaded from Firebase for ${currentDate}`);
       return true;
     } else {
       console.log(`No saved tasks for ${currentDate}, using defaults`);
-      // Reset to empty for new day
       MAIN_DAILY_TASKS.forEach(task => {
         if (task.type === "signoff") task.signoffs = [];
         if (task.type === "complete") task.completedBy = null;
@@ -2674,6 +2715,21 @@ async function saveDailyTasks() {
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     
+    // Update cache after save
+    dailyTasksCache[currentDate] = {
+      mainTasks: MAIN_DAILY_TASKS.map(t => ({
+        id: t.id,
+        signoffs: t.signoffs,
+        completedBy: t.completedBy,
+        submissions: t.submissions
+      })),
+      fbTasks: FB_DAILY_TASKS.map(t => ({
+        id: t.id,
+        signoffs: t.signoffs,
+        completedBy: t.completedBy
+      }))
+    };
+    
     console.log(`✅ Daily tasks saved to Firebase for ${currentDate}`);
     return true;
   } catch (error) {
@@ -2681,7 +2737,6 @@ async function saveDailyTasks() {
     return false;
   }
 }
-
 // Add this function to sync staff view with supervisor selections
 // Sync staff view with supervisor selections - NO date changing, just display
 // Sync staff view with supervisor selections - MANUAL only, not automatic
@@ -2690,20 +2745,16 @@ async function syncStaffViewWithSupervisor() {
   
   console.log(`🔄 Syncing staff view - Date: ${currentDate}, Shift: ${currentShift}`);
   
-  // Update staff display to show current supervisor selections
   updateStaffDisplay();
   
-  // Reload data for the current date (only when supervisor changes date/shift)
+  // Use cached data if available
   await loadFromLocalStorage();
   await loadDailyTasks();
   
-  // Refresh all staff UI components
   renderBreakTimeBadges();
   loadCompleteStaffDashboard();
   initDailyStaffSelect();
   renderDailyTasksUI();
-  
-  console.log(`✅ Staff view synced to: ${currentDate} - ${currentShift}`);
 }
 
   function getSelectedStaff() {
@@ -3951,7 +4002,30 @@ async function saveToLocalStorage() {
 
     // Load from Firebase
 // Load from Firebase - PER DATE
-async function loadFromLocalStorage() {
+// Load from Firebase - PER DATE with caching
+async function loadFromLocalStorage(forceReload = false) {
+  // Don't reload if already loaded for this date and not forced
+  if (!forceReload && dataLoadedForDate === currentDate && allocations.size > 0) {
+    console.log(`📦 Using cached data for ${currentDate}`);
+    return true;
+  }
+  
+  if (isLoading) {
+    console.log("⏳ Already loading, waiting...");
+    // Wait for existing load to complete
+    await new Promise(resolve => {
+      const checkInterval = setInterval(() => {
+        if (!isLoading) {
+          clearInterval(checkInterval);
+          resolve();
+        }
+      }, 100);
+    });
+    return true;
+  }
+  
+  isLoading = true;
+  
   try {
     const docRef = db.collection("staffManagement").doc(currentDate);
     const doc = await docRef.get();
@@ -3970,10 +4044,9 @@ async function loadFromLocalStorage() {
       
       if (d.staffOnDutyIds) {
         staffOnDutyIds = new Set(d.staffOnDutyIds);
-        console.log(`✅ Loaded ${staffOnDutyIds.size} staff on duty for ${currentDate}:`, Array.from(staffOnDutyIds));
+        console.log(`✅ Loaded ${staffOnDutyIds.size} staff on duty for ${currentDate}`);
       } else {
         staffOnDutyIds.clear();
-        console.log(`No staff on duty saved for ${currentDate}`);
       }
       
       // Load shift from saved data only if supervisor is NOT logged in
@@ -3990,13 +4063,13 @@ async function loadFromLocalStorage() {
         if (d.nextRequestId) nextRequestId = d.nextRequestId; 
       }
       
-      console.log(`✅ Loaded existing data for ${currentDate} from Firebase`);
-      showMessage(`📅 Loaded data for ${currentDate} - ${staffOnDutyIds.size} staff on duty`, "success");
+      dataLoadedForDate = currentDate;
+      console.log(`✅ Loaded data for ${currentDate} from Firebase`);
+      showMessage(`📅 Loaded data for ${currentDate}`, "success");
       return true;
       
     } else {
       console.log(`📅 New day: ${currentDate} - Starting fresh`);
-      showMessage(`🆕 New day! Starting fresh for ${currentDate}`, "success");
       
       allocations.clear();
       staffOnDutyIds.clear();
@@ -4018,17 +4091,21 @@ async function loadFromLocalStorage() {
       
       await saveDailyTasks();
       await saveToLocalStorage();
+      
+      dataLoadedForDate = currentDate;
       return false;
     }
   } catch (error) {
     console.error("❌ Firebase load error:", error);
     showMessage("Failed to load from cloud: " + error.message, "error");
     return false;
+  } finally {
+    isLoading = false;
   }
 }
-
 // Handle date changes - load data for new date
 // Handle date changes - load data for new date
+// Handle date changes - load data for new date (with cache reset)
 async function onDateChange(newDate) {
   if (!supervisorLoggedIn) return;
   
@@ -4037,13 +4114,16 @@ async function onDateChange(newDate) {
   // Update the master date
   currentDate = newDate;
   
+  // Reset cache for new date
+  dataLoadedForDate = null;
+  
   showMessage(`📅 Date changed to ${currentDate}`, "success");
   
   // Clear selections
   selectedAllocationStaff.clear();
   
   // Load data for the new date
-  await loadFromLocalStorage();
+  await loadFromLocalStorage(true); // Force reload
   await loadDailyTasks();
   
   // Update displays
@@ -4066,8 +4146,9 @@ async function onDateChange(newDate) {
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
   
-  console.log(`✅ Loaded data for ${currentDate}, SOD count: ${staffOnDutyIds.size}`);
+  console.log(`✅ Loaded data for ${currentDate}`);
 }
+
 
   function initGlobalControls() {
   const gd = document.getElementById("globalDate"), gs = document.getElementById("globalShift");
@@ -4353,12 +4434,16 @@ function showPasswordModal(staff, callback) {
 
 // Then in initApp, add this line before the last showMessage:
 async function initApp() {
-  // First, ensure currentDate is set correctly
   console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
+  
+  // Clear caches on fresh load
+  dataLoadedForDate = null;
+  dailyTasksCache = {};
+  credentialsLoaded = false;
   
   await loadFromLocalStorage();
   await loadDailyTasks();
-  await loadAllCredentials(); // Load credentials ONCE
+  await loadAllCredentials();
   
   updateStaffDisplay();
   updateDisplayInfo();
@@ -4369,12 +4454,10 @@ async function initApp() {
   
   document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
   
-  // Set the global date input to currentDate
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
   
   refreshAllViews();
-  // REMOVED: startPeriodicSync(); // NO MORE PERIODIC SYNC!
   showMessage("✅ System ready - Data synced with cloud");
 }
   
