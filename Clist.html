@@ -912,7 +912,7 @@ body.supervisor-mode #globalControlBar {
       <hr>
       <h3>✅ Daily Tasks Management</h3>
       <div class="control-panel"><h4>Main Operations</h4><div id="superMainTasksContainer"></div><h4 style="margin-top:1rem;">Food & Beverage</h4><div id="superFbTasksContainer"></div></div>
-      <button id="superLogoutBtn" class="danger-btn" style="margin-top:1rem;">🔒 Lock</button>
+      
     </div>
   </div>
   <footer>Complete Staff Management System</footer>
@@ -1169,6 +1169,17 @@ console.log("📋 Staff loaded:", staffList.length, "staff members");
     
     updatePreview();
   }
+
+  async function saveStaffAuth(staffId, authData) {
+  try {
+    await db.collection("staffAuth").doc(staffId).set(authData, { merge: true });
+    console.log("Auth saved for staff:", staffId);
+    return true;
+  } catch (error) {
+    console.error("Error saving auth:", error);
+    return false;
+  }
+}
 
   function showPinModal(title, onComplete) {
     const modal = document.createElement("div");
