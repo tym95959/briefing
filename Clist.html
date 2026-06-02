@@ -592,92 +592,6 @@
 body.supervisor-mode #globalControlBar {
   display: flex;
 }
-
-/* Profile Modal Styles */
-.profile-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.95);
-  z-index: 10001;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(10px);
-}
-
-.profile-content {
-  background: white;
-  border-radius: 2rem;
-  padding: 2rem;
-  max-width: 500px;
-  width: 90%;
-  text-align: center;
-  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-}
-
-.profile-header {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid #ecd9a8;
-}
-
-.profile-avatar {
-  width: 80px;
-  height: 80px;
-  background: #b8860b;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1rem;
-  font-size: 2.5rem;
-  color: white;
-}
-
-.profile-info {
-  text-align: left;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: 1rem;
-}
-
-.profile-info p {
-  margin: 0.5rem 0;
-}
-
-.auth-method-badge {
-  display: inline-block;
-  padding: 0.2rem 0.8rem;
-  border-radius: 2rem;
-  font-size: 0.75rem;
-  margin-left: 0.5rem;
-}
-
-.auth-pin { background: #d1fae5; color: #065f46; }
-.auth-pattern { background: #fef3c7; color: #92400e; }
-.auth-none { background: #fee2e2; color: #991b1b; }
-
-.profile-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin-top: 1rem;
-}
-
-.profile-buttons button {
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
-}
-
-.close-profile-btn {
-  background: #6b7280;
-  margin-top: 1rem;
-  width: 100%;
-}
   </style>
 </head>
 <body>
@@ -694,16 +608,13 @@ body.supervisor-mode #globalControlBar {
     <h2>👥 Staff Dashboard</h2>
     
      <!-- Staff info bar (read-only) -->
-        <div style="background: #fef8e8; padding: 0.8rem 1.5rem; border-radius: 1rem; margin-bottom: 1.5rem; border-left: 4px solid #d4a017; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-            <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
-                <div><span style="font-weight: 600;">📅 Date:</span> <span id="staffDisplayDate" style="font-weight: 500; margin-left: 0.5rem;">Loading...</span></div>
-                <div><span style="font-weight: 600;">🕒 Shift:</span> <span id="staffDisplayShift" style="font-weight: 500; margin-left: 0.5rem;">Loading...</span></div>
-            </div>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <button id="staffProfileBtn" style="background: #b8860b; padding: 0.3rem 1rem; font-size: 0.8rem;">👤 My Profile</button>
-                <div style="font-size: 0.7rem; color: #8b6914;">🔒 Read-only</div>
-            </div>
+    <div style="background: #fef8e8; padding: 0.8rem 1.5rem; border-radius: 1rem; margin-bottom: 1.5rem; border-left: 4px solid #d4a017; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+        <div><span style="font-weight: 600;">📅 Date:</span> <span id="staffDisplayDate" style="font-weight: 500; margin-left: 0.5rem;">Loading...</span></div>
+        <div><span style="font-weight: 600;">🕒 Shift:</span> <span id="staffDisplayShift" style="font-weight: 500; margin-left: 0.5rem;">Loading...</span></div>
         </div>
+        <div style="font-size: 0.7rem; color: #8b6914;">🔒 Read-only</div>
+    </div>
     <!-- Add this hidden element for context -->
     <span id="staffGlobalContext" style="display: none;"></span>
   
@@ -744,6 +655,29 @@ body.supervisor-mode #globalControlBar {
   <h3>📋 Break Requests</h3>
   <div id="allStaffBreakRequestsContainer" style="background:#f8fafc; border-radius:1rem; padding:1rem; overflow-y: auto; max-height:400px;">Loading...</div>
 </div>
+<div id="staffPasskeyModal" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:2rem; padding:2rem; width:90%; max-width:400px; text-align:center;">
+    <h3 style="color:#b8860b;">🔐 Passkey Required</h3>
+    <p id="staffPasskeyName" style="margin:1rem 0;">Verifying identity...</p>
+    
+    <!-- Numeric PIN input -->
+    <div style="margin-bottom:1.5rem;">
+      <input type="password" id="staffPinInput" maxlength="6" placeholder="Enter 6-digit PIN" style="width:100%; padding:0.8rem; font-size:1.2rem; text-align:center; letter-spacing:4px; border-radius:1rem; border:2px solid #ecd9a8;">
+    </div>
+    
+    <!-- Line Pattern Canvas -->
+    <div style="margin:1rem 0;">
+      <canvas id="staffPatternCanvas" width="250" height="250" style="width:250px; height:250px; background:#f8fafc; border-radius:1rem; border:2px solid #d4a017; cursor:crosshair; touch-action: none;"></canvas>
+      <p style="font-size:0.7rem; color:#8b6914; margin-top:0.5rem;">Draw your pattern (connect at least 3 dots)</p>
+    </div>
+    
+    <div style="display:flex; gap:1rem; justify-content:center;">
+      <button id="staffCancelPasskey" style="background:#94a3b8;">Cancel</button>
+      <button id="staffSubmitPasskey" style="background:#0f5c3b;">Verify & Login</button>
+    </div>
+    <div id="staffPasskeyError" style="color:#c0392b; font-size:0.8rem; margin-top:0.8rem;"></div>
+  </div>
+</div>
 
     <div id="subtabDailytasks" class="sub-tab-pane active-sub-pane">
       <div class="checklist-header"><span class="checklist-title">📋 Daily Operations Checklist</span><span class="checklist-shift-badge" id="dailyTaskShiftBadge">Morning</span></div>
@@ -771,21 +705,32 @@ body.supervisor-mode #globalControlBar {
     <div style="font-size: 0.75rem;">⚡ Only Supervisor can change</div>
   </div>
   
-  <div id="superAuthArea">
-      <div class="info-card">🔐 Password required.</div>
-      <div class="control-row"><input type="password" id="superPassword" placeholder="Password" style="flex:1;"> <button id="superLoginBtn">Unlock</button></div>
-      <div id="superErrorMsg" style="color:#b91c1c;"></div>
+  <div id="superPasskeyModal" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10001; align-items:center; justify-content:center;">
+  <div style="background:white; border-radius:2rem; padding:2rem; width:90%; max-width:400px; text-align:center;">
+    <h3 style="color:#b8860b;">🛡️ Supervisor Authentication</h3>
+    <p style="margin:1rem 0;">Enter your passkey to unlock supervisor controls</p>
+    
+    <div style="margin-bottom:1.5rem;">
+      <input type="password" id="superPinInput" maxlength="6" placeholder="Enter 6-digit PIN" style="width:100%; padding:0.8rem; font-size:1.2rem; text-align:center; letter-spacing:4px; border-radius:1rem; border:2px solid #ecd9a8;">
     </div>
+    
+    <div style="margin:1rem 0;">
+      <canvas id="superPatternCanvas" width="250" height="250" style="width:250px; height:250px; background:#f8fafc; border-radius:1rem; border:2px solid #d4a017; cursor:crosshair;"></canvas>
+      <p style="font-size:0.7rem; color:#8b6914; margin-top:0.5rem;">Draw your supervisor pattern</p>
+    </div>
+    
+    <div style="display:flex; gap:1rem; justify-content:center;">
+      <button id="superCancelPasskey" style="background:#94a3b8;">Cancel</button>
+      <button id="superSubmitPasskey" style="background:#0f5c3b;">Verify</button>
+    </div>
+    <div id="superPasskeyError" style="color:#c0392b; font-size:0.8rem; margin-top:0.8rem;"></div>
+  </div>
+</div>
     <div id="superDashboard" style="display: none;">
       <div class="control-panel">
         <div class="info-card">📍 Date: <strong id="displayDate"></strong> | Shift: <strong id="displayShift"></strong></div>
-        <div class="control-row">
-            <button id="printAllocationBtn" class="success-btn" style="background:#1e4a76;">🖨️ Print Allocation (2 Copies)</button>
-            <button id="printDailyReportBtn" class="success-btn" style="background:#0f5c3b;">📄 Print Daily Tasks Report</button>
-            <button id="supervisorProfileBtn" style="background: #b8860b;">👤 Profile</button>
-        </div>
-        <button id="superLogoutBtn" class="danger-btn" style="margin-top: 0.5rem;">🔒 Lock</button>
-    </div>
+        <div class="control-row"><button id="printAllocationBtn" class="success-btn" style="background:#1e4a76;">🖨️ Print Allocation (2 Copies)</button> <button id="printDailyReportBtn" class="success-btn" style="background:#0f5c3b;">📄 Print Daily Tasks Report</button></div>
+      </div>
       <div class="staff-pool"><div class="staff-pool-title">⭐ STAFF ON DUTY</div><div id="allSodContainer" class="staff-badge-grid"></div></div>
       <div class="staff-pool"><div class="staff-pool-title">📋 AVAILABLE FOR ALLOCATION</div><div id="allocationPoolContainer" class="staff-badge-grid"></div><button id="clearSelectionBtn" style="background:#6b7280; margin-top:0.5rem;">Clear Selection</button> <span id="selectedCount" style="margin-left:1rem;">Selected: 0</span></div>
       <h3>📊 AREA ALLOCATION</h3>
@@ -899,7 +844,6 @@ console.log("🔥 Firebase ready!");
     let breakRequests = new Map();
     let nextRequestId = 1;
     let selectedBreakTime = null;
-    let currentLoggedInStaff = null;
 
   // Preset reasons for attendance
    const PRESET_REASONS = {
@@ -1023,11 +967,6 @@ console.log("🔥 Firebase ready!");
     if (allocations.has(key)) { allocations.get(key).delete(staffId); if (allocations.get(key).size === 0) allocations.delete(key); }
   }
 
-  async function getStaffAuth(staffId) {
-  const doc = await db.collection("staffAuth").doc(staffId).get();
-  return doc.exists ? doc.data() : null;
-}
-
   function getAttendanceKey(staffId, date) { return `${staffId}|${date}`; }
 
 function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
@@ -1042,155 +981,45 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
   });
   saveToLocalStorage();
 }
+
+// COMPLETE REPLACEMENT for initDailyStaffSelect function
+function initDailyStaffSelect() {
+  const select = document.getElementById("dailyTaskStaffSelect");
+  if (!select) return;
+  
+  const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
+  
+  if (sodStaff.length === 0) {
+    select.innerHTML = '<option value="">-- No staff on duty --</option>';
+    document.getElementById("dailyTaskSelectedName").textContent = "⚠️ No staff on duty today";
+  } else {
+    select.innerHTML = '<option value="">-- Select Staff --</option>' + 
+      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  }
+  
+  // SHOW PASSKEY MODAL WHEN STAFF SELECTED
+  select.onchange = async () => {
+    const selectedStaffId = select.value;
+    if (!selectedStaffId) return;
+    
+    const selectedStaff = staffList.find(s => s.id === selectedStaffId);
+    if (!selectedStaff) return;
+    
+    // Show passkey modal
+    await showStaffPasskeyModal(selectedStaff);
+    
+    // After verification, refresh the display
+    renderDailyTasksUI();
+  };
+}
+
+
   function deleteAttendanceRecord(staffId, date) { attendanceRecords.delete(getAttendanceKey(staffId, date)); saveToLocalStorage(); }
   function getAttendanceForDate(date) {
     const records = [];
     for (let [key, record] of attendanceRecords.entries()) if (record.date === date) records.push(record);
     return records;
   }
-
-
-  // Profile Modal Functions
-// Profile Modal Functions
-async function showStaffProfile() {
-  if (!currentLoggedInStaff) {
-    showMessage("Please login first", "error");
-    return;
-  }
-  
-  const staff = staffList.find(s => s.id === currentLoggedInStaff.id);
-  const authData = await getStaffAuth(currentLoggedInStaff.id);
-  
-  let authMethod = '<span class="auth-method-badge auth-none">❌ No authentication set</span>';
-  if (authData && authData.hasAuth) {
-    if (authData.pin) authMethod = '<span class="auth-method-badge auth-pin">🔢 PIN Login</span>';
-    else if (authData.pattern) authMethod = '<span class="auth-method-badge auth-pattern">🎨 Pattern Login</span>';
-  }
-  
-  const modal = document.createElement("div");
-  modal.className = "profile-modal";
-  modal.innerHTML = `
-    <div class="profile-content">
-      <div class="profile-header">
-        <div class="profile-avatar">👤</div>
-        <h3 style="color: #b8860b;">${escapeHtml(staff?.name)}</h3>
-        <p style="color: #666;">${escapeHtml(staff?.role || 'Staff')}</p>
-      </div>
-      <div class="profile-info">
-        <p><strong>📧 Email:</strong> ${escapeHtml(staff?.email || 'Not provided')}</p>
-        <p><strong>📱 Contact:</strong> ${escapeHtml(staff?.contact || 'Not provided')}</p>
-        <p><strong>🔐 Authentication:</strong> ${authMethod}</p>
-      </div>
-      <div class="profile-buttons">
-        <button id="profileChangePasswordBtn" style="background: #b8860b;">🔑 Change Password/Pattern</button>
-      </div>
-      <button class="close-profile-btn" style="background: #6b7280;">Close</button>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  
-  modal.querySelector("#profileChangePasswordBtn").onclick = async () => {
-    modal.remove();
-    await staffRegister(currentLoggedInStaff.id, staff.name);
-    setTimeout(() => showStaffProfile(), 500);
-  };
-  
-  modal.querySelector(".close-profile-btn").onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-}
-function showPinModal(title, onComplete) {
-  const modal = document.createElement("div");
-  modal.className = "auth-overlay";
-  modal.innerHTML = `
-    <div class="auth-modal">
-      <h3>${title}</h3>
-      <input type="password" id="pinInput" class="pin-input" placeholder="Enter PIN" maxlength="8" inputmode="numeric">
-      <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
-        <button id="pinCancelBtn" class="auth-toggle-btn secondary">Cancel</button>
-        <button id="pinConfirmBtn" class="auth-toggle-btn">Confirm</button>
-      </div>
-      <div id="pinMessage" class="auth-error"></div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  
-  modal.querySelector("#pinConfirmBtn").onclick = () => {
-    const pin = modal.querySelector("#pinInput").value.trim();
-    if (!pin) {
-      modal.querySelector("#pinMessage").innerHTML = "Please enter PIN";
-      return;
-    }
-    if (!/^\d+$/.test(pin)) {
-      modal.querySelector("#pinMessage").innerHTML = "PIN must contain only numbers";
-      return;
-    }
-    if (pin.length < 4) {
-      modal.querySelector("#pinMessage").innerHTML = "PIN must be at least 4 digits";
-      return;
-    }
-    onComplete(pin);
-    modal.remove();
-  };
-  
-  modal.querySelector("#pinCancelBtn").onclick = () => modal.remove();
-}
-async function showSupervisorProfile() {
-  const supervisorAuth = await db.collection("staffAuth").doc("supervisor").get();
-  const authData = supervisorAuth.exists ? supervisorAuth.data() : null;
-  
-  let authMethod = '<span class="auth-method-badge auth-none">❌ No authentication set</span>';
-  if (authData && authData.hasAuth) {
-    if (authData.pin) authMethod = '<span class="auth-method-badge auth-pin">🔢 PIN Login</span>';
-    if (authData.pattern) authMethod += ' <span class="auth-method-badge auth-pattern">🎨 Pattern Login</span>';
-  }
-  
-  const supervisor = staffList.find(s => s.role === "Supervisor") || { name: "Supervisor", email: "admin@system.com", contact: "N/A" };
-  
-  const modal = document.createElement("div");
-  modal.className = "profile-modal";
-  modal.innerHTML = `
-    <div class="profile-content">
-      <div class="profile-header">
-        <div class="profile-avatar">🛡️</div>
-        <h3 style="color: #b8860b;">${escapeHtml(supervisor.name)}</h3>
-        <p style="color: #666;">Supervisor / Administrator</p>
-      </div>
-      <div class="profile-info">
-        <p><strong>📧 Email:</strong> ${escapeHtml(supervisor.email || 'admin@system.com')}</p>
-        <p><strong>🔐 Authentication:</strong> ${authMethod}</p>
-        <p><strong>👑 Permissions:</strong> Full access - Manage all staff, allocations, attendance</p>
-      </div>
-      <div class="profile-buttons">
-        <button id="profileChangePinBtn" style="background: #b8860b;">🔢 Change PIN</button>
-        <button id="profileChangePatternBtn" style="background: #b8860b;">🎨 Change Pattern</button>
-      </div>
-      <button class="close-profile-btn" style="background: #6b7280;">Close</button>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  
-  modal.querySelector("#profileChangePinBtn").onclick = async () => {
-    modal.remove();
-    showPinModal("Set Supervisor PIN (4-8 digits)", async (pin) => {
-      await db.collection("staffAuth").doc("supervisor").set({ pin: pin, hasAuth: true }, { merge: true });
-      alert("✅ Supervisor PIN updated successfully!");
-      showSupervisorProfile();
-    });
-  };
-  
-  modal.querySelector("#profileChangePatternBtn").onclick = () => {
-    modal.remove();
-    showPatternModal("Draw supervisor pattern (4+ dots)", async (pattern) => {
-      await db.collection("staffAuth").doc("supervisor").set({ pattern: pattern, hasAuth: true }, { merge: true });
-      alert("✅ Supervisor pattern updated successfully!");
-      showSupervisorProfile();
-    });
-  };
-  
-  modal.querySelector(".close-profile-btn").onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-}
-
 
   function getBreakTimeSlotsForShift(shiftValue) {
     const slots = [];
@@ -2707,20 +2536,16 @@ gs.onchange = async (e) => {
     document.getElementById("shiftLockIcon").innerText = en ? "🔓" : "🔒";
   }
 
-  async function loginSupervisor() {
-  const pin = document.getElementById("superPassword").value;
-  const supervisorAuth = await db.collection("staffAuth").doc("supervisor").get();
-  if (supervisorAuth.exists && supervisorAuth.data().pin === pin) {
+  function loginSupervisor() {
+  if (document.getElementById("superPassword").value === SUPERVISOR_PASS) {
     supervisorLoggedIn = true;
-    document.body.classList.add('supervisor-mode');
+    document.body.classList.add('supervisor-mode');  // ADD THIS LINE
     document.getElementById("superAuthArea").style.display = "none";
     document.getElementById("superDashboard").style.display = "block";
     setGlobalControlsEnabled(true);
     refreshAllViews();
     showMessage("Supervisor logged in");
-  } else {
-    document.getElementById("superErrorMsg").innerText = "❌ Wrong PIN";
-  }
+  } else document.getElementById("superErrorMsg").innerText = "Wrong password";
 }
 
   function logoutSupervisor() {
@@ -2751,17 +2576,6 @@ gs.onchange = async (e) => {
       showMessage("Selection cleared"); 
     };
   }
-
-  // Add profile button handlers
-const staffProfileBtn = document.getElementById("staffProfileBtn");
-if (staffProfileBtn) {
-  staffProfileBtn.onclick = showStaffProfile;
-}
-
-const supervisorProfileBtn = document.getElementById("supervisorProfileBtn");
-if (supervisorProfileBtn) {
-  supervisorProfileBtn.onclick = showSupervisorProfile;
-}
   
   const printAllocBtn = document.getElementById("printAllocationBtn");
   if (printAllocBtn) printAllocBtn.onclick = printAllocation;
@@ -2912,9 +2726,372 @@ function startPeriodicSync() {
   }, 5000); // Sync every 5 seconds
 }
 
+
+// ============ PATTERN DRAWING SYSTEM ============
+class PatternDrawer {
+  constructor(canvasId, onComplete) {
+    this.canvas = document.getElementById(canvasId);
+    this.ctx = this.canvas?.getContext('2d');
+    this.onComplete = onComplete;
+    this.points = [];
+    this.dragging = false;
+    this.selectedSequence = [];
+    this.init();
+  }
+  
+  init() {
+    if (!this.canvas || !this.ctx) return;
+    this.setupPoints();
+    this.drawGrid();
+    this.addEventListeners();
+  }
+  
+  setupPoints() {
+    const size = 250;
+    const step = size / 4;
+    this.points = [];
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) {
+        this.points.push({
+          x: step + col * step,
+          y: step + row * step,
+          index: row * 3 + col,
+          radius: 18
+        });
+      }
+    }
+  }
+  
+  drawGrid() {
+    if (!this.ctx) return;
+    this.ctx.clearRect(0, 0, 250, 250);
+    this.ctx.fillStyle = '#f8fafc';
+    this.ctx.fillRect(0, 0, 250, 250);
+    
+    // Draw lines between selected points
+    for (let i = 0; i < this.selectedSequence.length - 1; i++) {
+      const p1 = this.points[this.selectedSequence[i]];
+      const p2 = this.points[this.selectedSequence[i + 1]];
+      if (p1 && p2) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(p1.x, p1.y);
+        this.ctx.lineTo(p2.x, p2.y);
+        this.ctx.strokeStyle = '#d4a017';
+        this.ctx.lineWidth = 4;
+        this.ctx.stroke();
+      }
+    }
+    
+    // Draw dots
+    this.points.forEach((point, idx) => {
+      this.ctx.beginPath();
+      this.ctx.arc(point.x, point.y, point.radius, 0, 2 * Math.PI);
+      const isSelected = this.selectedSequence.includes(idx);
+      this.ctx.fillStyle = isSelected ? '#d4a017' : '#cbd5e1';
+      this.ctx.fill();
+      this.ctx.strokeStyle = isSelected ? '#b8860b' : '#94a3b8';
+      this.ctx.stroke();
+      
+      if (isSelected) {
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = 'bold 14px sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText((this.selectedSequence.indexOf(idx) + 1).toString(), point.x, point.y);
+      }
+    });
+  }
+  
+  addEventListeners() {
+    const getTouchPoint = (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    };
+    
+    const handleStart = (e) => {
+      e.preventDefault();
+      this.dragging = true;
+      const point = getTouchPoint(e);
+      this.checkAndAddPoint(point.x, point.y);
+    };
+    
+    const handleMove = (e) => {
+      if (!this.dragging) return;
+      e.preventDefault();
+      const point = getTouchPoint(e);
+      this.checkAndAddPoint(point.x, point.y);
+    };
+    
+    const handleEnd = (e) => {
+      e.preventDefault();
+      this.dragging = false;
+      if (this.selectedSequence.length >= 3 && this.onComplete) {
+        const patternStr = this.selectedSequence.join(',');
+        this.onComplete(patternStr);
+      }
+      this.selectedSequence = [];
+      this.drawGrid();
+    };
+    
+    this.canvas.addEventListener('mousedown', handleStart);
+    this.canvas.addEventListener('mousemove', handleMove);
+    this.canvas.addEventListener('mouseup', handleEnd);
+    this.canvas.addEventListener('touchstart', handleStart);
+    this.canvas.addEventListener('touchmove', handleMove);
+    this.canvas.addEventListener('touchend', handleEnd);
+  }
+  
+  checkAndAddPoint(mouseX, mouseY) {
+    for (let i = 0; i < this.points.length; i++) {
+      const p = this.points[i];
+      const dx = mouseX - p.x;
+      const dy = mouseY - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < p.radius && !this.selectedSequence.includes(i)) {
+        this.selectedSequence.push(i);
+        this.drawGrid();
+        break;
+      }
+    }
+  }
+  
+  reset() {
+    this.selectedSequence = [];
+    this.dragging = false;
+    this.drawGrid();
+  }
+}
+
+// Staff credentials storage (in production, this would be in Firebase)
+const STAFF_CREDENTIALS = new Map(); // staffId -> { pin: "123456", pattern: "0,1,2" }
+
+// Initialize default credentials for staff
+function initStaffCredentials() {
+  staffList.forEach((staff, idx) => {
+    const defaultPin = String(100000 + idx).slice(-6);
+    const defaultPattern = `${idx % 9},${(idx+1) % 9},${(idx+2) % 9}`;
+    STAFF_CREDENTIALS.set(staff.id, {
+      pin: defaultPin,
+      pattern: defaultPattern
+    });
+  });
+  
+  // Supervisor credentials
+  window.SUPERVISOR_CREDENTIALS = {
+    pin: "123456",
+    pattern: "0,4,8"
+  };
+}
+
+// Show staff passkey modal
+let currentStaffPatternDrawer = null;
+let pendingStaffId = null;
+
+async function showStaffPasskeyModal(staff) {
+  return new Promise((resolve) => {
+    pendingStaffId = staff.id;
+    const modal = document.getElementById("staffPasskeyModal");
+    const nameSpan = document.getElementById("staffPasskeyName");
+    const pinInput = document.getElementById("staffPinInput");
+    const errorSpan = document.getElementById("staffPasskeyError");
+    const canvas = document.getElementById("staffPatternCanvas");
+    
+    nameSpan.innerHTML = `👤 ${escapeHtml(staff.name)}<br><small>Enter PIN or draw pattern</small>`;
+    pinInput.value = "";
+    errorSpan.textContent = "";
+    
+    // Reset canvas
+    if (currentStaffPatternDrawer) {
+      currentStaffPatternDrawer.reset();
+    }
+    currentStaffPatternDrawer = new PatternDrawer("staffPatternCanvas", (patternStr) => {
+      verifyStaffPattern(staff.id, patternStr).then(success => {
+        if (success) {
+          modal.style.display = "none";
+          document.getElementById("dailyTaskStaffSelect").value = staff.id;
+          document.getElementById("dailyTaskSelectedName").textContent = `✓ ${staff.name}`;
+          showMessage(`✅ Welcome ${staff.name}`, "success");
+          resolve(true);
+        } else {
+          errorSpan.textContent = "❌ Pattern incorrect. Try again.";
+          currentStaffPatternDrawer.reset();
+        }
+      });
+    });
+    
+    modal.style.display = "flex";
+    
+    // PIN auto-verify on input
+    pinInput.oninput = async (e) => {
+      const pin = e.target.value;
+      if (pin.length === 6 && /^\d+$/.test(pin)) {
+        const success = await verifyStaffPin(staff.id, pin);
+        if (success) {
+          modal.style.display = "none";
+          document.getElementById("dailyTaskStaffSelect").value = staff.id;
+          document.getElementById("dailyTaskSelectedName").textContent = `✓ ${staff.name}`;
+          showMessage(`✅ Welcome ${staff.name}`, "success");
+          resolve(true);
+        } else {
+          errorSpan.textContent = "❌ Incorrect PIN. Try again.";
+          pinInput.value = "";
+        }
+      }
+    };
+    
+    document.getElementById("staffSubmitPasskey").onclick = async () => {
+      const pin = pinInput.value;
+      if (pin.length === 6 && /^\d+$/.test(pin)) {
+        const success = await verifyStaffPin(staff.id, pin);
+        if (success) {
+          modal.style.display = "none";
+          document.getElementById("dailyTaskStaffSelect").value = staff.id;
+          document.getElementById("dailyTaskSelectedName").textContent = `✓ ${staff.name}`;
+          showMessage(`✅ Welcome ${staff.name}`, "success");
+          resolve(true);
+        } else {
+          errorSpan.textContent = "❌ Incorrect PIN. Try again.";
+        }
+      } else {
+        errorSpan.textContent = "❌ Please enter 6-digit PIN or draw pattern";
+      }
+    };
+    
+    document.getElementById("staffCancelPasskey").onclick = () => {
+      modal.style.display = "none";
+      document.getElementById("dailyTaskStaffSelect").value = "";
+      document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Login cancelled";
+      resolve(false);
+    };
+  });
+}
+
+async function verifyStaffPin(staffId, pin) {
+  const creds = STAFF_CREDENTIALS.get(staffId);
+  if (creds && creds.pin === pin) {
+    // Update session
+    sessionStorage.setItem(`staff_auth_${staffId}`, Date.now().toString());
+    return true;
+  }
+  return false;
+}
+
+async function verifyStaffPattern(staffId, patternStr) {
+  const creds = STAFF_CREDENTIALS.get(staffId);
+  if (creds && creds.pattern === patternStr) {
+    sessionStorage.setItem(`staff_auth_${staffId}`, Date.now().toString());
+    return true;
+  }
+  return false;
+}
+
+// Supervisor pattern drawer
+let superPatternDrawer = null;
+
+function showSupervisorPasskeyModal() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("superPasskeyModal");
+    const pinInput = document.getElementById("superPinInput");
+    const errorSpan = document.getElementById("superPasskeyError");
+    
+    pinInput.value = "";
+    errorSpan.textContent = "";
+    
+    if (superPatternDrawer) {
+      superPatternDrawer.reset();
+    }
+    superPatternDrawer = new PatternDrawer("superPatternCanvas", (patternStr) => {
+      if (verifySupervisorPattern(patternStr)) {
+        modal.style.display = "none";
+        resolve(true);
+      } else {
+        errorSpan.textContent = "❌ Pattern incorrect. Try again.";
+        superPatternDrawer.reset();
+      }
+    });
+    
+    modal.style.display = "flex";
+    
+    pinInput.oninput = (e) => {
+      const pin = e.target.value;
+      if (pin.length === 6 && /^\d+$/.test(pin)) {
+        if (verifySupervisorPin(pin)) {
+          modal.style.display = "none";
+          resolve(true);
+        } else {
+          errorSpan.textContent = "❌ Incorrect PIN. Try again.";
+          pinInput.value = "";
+        }
+      }
+    };
+    
+    document.getElementById("superSubmitPasskey").onclick = () => {
+      const pin = pinInput.value;
+      if (pin.length === 6 && /^\d+$/.test(pin)) {
+        if (verifySupervisorPin(pin)) {
+          modal.style.display = "none";
+          resolve(true);
+        } else {
+          errorSpan.textContent = "❌ Incorrect PIN. Try again.";
+        }
+      } else {
+        errorSpan.textContent = "❌ Enter 6-digit PIN or draw pattern";
+      }
+    };
+    
+    document.getElementById("superCancelPasskey").onclick = () => {
+      modal.style.display = "none";
+      resolve(false);
+    };
+  });
+}
+
+function verifySupervisorPin(pin) {
+  return pin === window.SUPERVISOR_CREDENTIALS.pin;
+}
+
+function verifySupervisorPattern(patternStr) {
+  return patternStr === window.SUPERVISOR_CREDENTIALS.pattern;
+}
+
+// Replace the original loginSupervisor function
+const originalLoginSupervisor = loginSupervisor;
+window.loginSupervisor = async function() {
+  const success = await showSupervisorPasskeyModal();
+  if (success) {
+    supervisorLoggedIn = true;
+    document.body.classList.add('supervisor-mode');
+    document.getElementById("superAuthArea").style.display = "none";
+    document.getElementById("superDashboard").style.display = "block";
+    setGlobalControlsEnabled(true);
+    refreshAllViews();
+    showMessage("Supervisor logged in with passkey");
+  } else {
+    document.getElementById("superErrorMsg").innerText = "Authentication cancelled";
+  }
+};
+
+// Override the login button
+document.addEventListener('DOMContentLoaded', () => {
+  const loginBtn = document.getElementById("superLoginBtn");
+  if (loginBtn) {
+    loginBtn.onclick = window.loginSupervisor;
+  }
+});
+
 // Then in initApp, add this line before the last showMessage:
 async function initApp() {
-  // First, ensure currentDate is set correctly
+  // Initialize staff credentials FIRST
+  initStaffCredentials();
+  
   console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
   
   await loadFromLocalStorage();
@@ -2925,18 +3102,17 @@ async function initApp() {
   populateDropdowns();
   initMainTabs();
   initStaffSubTabs();
-  initDailyStaffSelect();
+  initDailyStaffSelect(); // This now shows passkey modal
   
-  document.getElementById("superLoginBtn").onclick = loginSupervisor;
-  document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
+  
   
   // Set the global date input to currentDate
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
   
   refreshAllViews();
-  startPeriodicSync(); // ADD THIS LINE - it's defined but never called!
-  showMessage("✅ System ready - Data synced with cloud");
+  startPeriodicSync();
+  showMessage("✅ System ready - Select your name and verify with PIN or pattern");
 }
   
   initApp();
