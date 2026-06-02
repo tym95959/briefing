@@ -2327,8 +2327,7 @@ async function refreshStaffCredentials() {
 }
 
 
-// Update initDailyStaffSelect to include Pattern option
-// Update initDailyStaffSelect to auto-logout previous user
+
 function initDailyStaffSelect() {
   const select = document.getElementById("dailyTaskStaffSelect");
   if (!select) return;
@@ -2339,19 +2338,38 @@ function initDailyStaffSelect() {
     select.innerHTML = '<option value="">-- No staff on duty --</option>';
     const nameSpan = document.getElementById("dailyTaskSelectedName");
     if (nameSpan) nameSpan.textContent = "⚠️ No staff on duty today";
+    return;
+  }
+  
+  // Store current value before rebuilding
+  const currentValue = select.value;
+  
+  select.innerHTML = '<option value="">-- Select Staff --</option>' + 
+    sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  
+  // Restore previous selection if it still exists
+  if (currentValue && sodStaff.some(s => s.id === currentValue)) {
+    select.value = currentValue;
   } else {
-    select.innerHTML = '<option value="">-- Select Staff --</option>' + 
-      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+    select.value = "";
+    if (authenticatedStaffId) {
+      authenticatedStaffId = null;
+      const nameSpan = document.getElementById("dailyTaskSelectedName");
+      if (nameSpan) nameSpan.textContent = "⚠️ Select your name";
+      renderDailyTasksUI();
+    }
   }
   
   select.onchange = async () => {
     const selectedStaffId = select.value;
     
     if (!selectedStaffId) {
-      // If no staff selected, just clear authentication
+      // Logout current user when "Select Staff" is chosen
       if (authenticatedStaffId) {
-        console.log(`User ${authenticatedStaffId} logged out (deselected)`);
+        const previousStaff = staffList.find(s => s.id === authenticatedStaffId);
+        showMessage(`👋 ${previousStaff?.name} logged out`, "info");
         authenticatedStaffId = null;
+        updateProfileButtonVisibility();
       }
       const nameSpan = document.getElementById("dailyTaskSelectedName");
       if (nameSpan) nameSpan.textContent = "⚠️ Select your name";
@@ -2360,26 +2378,16 @@ function initDailyStaffSelect() {
     }
     
     const selectedStaff = staffList.find(s => s.id === selectedStaffId);
+    if (!selectedStaff) return;
     
-    // If already authenticated for this staff, just update the display
-    if (authenticatedStaffId === selectedStaffId) {
-      const nameSpan = document.getElementById("dailyTaskSelectedName");
-      if (nameSpan && selectedStaff) {
-        nameSpan.textContent = `✓ ${selectedStaff.name} (Verified)`;
-      }
-      renderDailyTasksUI();
-      return;
-    }
-    
-    // ✅ AUTO-LOGOUT PREVIOUS USER
-    if (authenticatedStaffId) {
+    // Auto-logout previous user when selecting a different staff
+    if (authenticatedStaffId && authenticatedStaffId !== selectedStaffId) {
       const previousStaff = staffList.find(s => s.id === authenticatedStaffId);
-      console.log(`Auto-logout: ${previousStaff?.name} replaced by ${selectedStaff.name}`);
-      showMessage(`👋 ${previousStaff?.name} logged out automatically`, "info");
+      console.log(`Auto-logout: ${previousStaff?.name} -> ${selectedStaff.name}`);
       authenticatedStaffId = null;
     }
     
-    // Show verification options modal (Password OR Pattern)
+    // Show verification (Password OR Pattern)
     showVerificationOptionsModal(selectedStaff, (success) => {
       if (success) {
         authenticatedStaffId = selectedStaff.id;
@@ -2391,9 +2399,10 @@ function initDailyStaffSelect() {
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
       } else {
-        // Authentication failed - reset dropdown and clear any auth
+        // Verification failed - clear selection
         select.value = "";
         authenticatedStaffId = null;
+        updateProfileButtonVisibility();
         const nameSpan = document.getElementById("dailyTaskSelectedName");
         if (nameSpan) nameSpan.textContent = "⚠️ Verification failed";
         renderDailyTasksUI();
@@ -2402,6 +2411,8 @@ function initDailyStaffSelect() {
     });
   };
 }
+
+
 // Show verification options (Password OR Pattern)
 // Show verification options (Password OR Pattern)
 function showVerificationOptionsModal(staff, callback) {
@@ -2488,15 +2499,12 @@ function showPasswordOnlyModal(staff, callback) {
     <div style="background: white; border-radius: 2rem; padding: 2rem; width: 90%; max-width: 400px; text-align: center;">
       <h3 style="color: #b8860b; margin-bottom: 0.5rem;">🔑 Enter Password</h3>
       <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <input type="password" id="passInput" placeholder="Enter your password" maxlength="10" style="width: 100%; padding: 0.8rem; margin: 1rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.2rem; letter-spacing: 4px;">
+      <input type="password" id="passInput" placeholder="Enter your password" maxlength="10" autocomplete="off" style="width: 100%; padding: 0.8rem; margin: 1rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.2rem; letter-spacing: 4px;">
       <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1rem 0;">
         ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 1rem; cursor: pointer;">${n}</button>`).join('')}
         <button data-num="clear" style="background: #ef4444; color: white; padding: 0.8rem; border: none; border-radius: 1rem; cursor: pointer;">⌫ Clear</button>
       </div>
       <div id="passError" style="color: #ef4444; font-size: 0.8rem; margin: 0.5rem 0;"></div>
-      <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-        <button id="cancelPassBtn" style="flex: 1; background: #94a3b8; color: white; padding: 0.6rem; border: none; border-radius: 1rem; cursor: pointer;">Cancel</button>
-      </div>
     </div>
   `;
   
@@ -2514,7 +2522,6 @@ function showPasswordOnlyModal(staff, callback) {
     errorDiv.textContent = '🔐 Verifying...';
     errorDiv.style.color = '#b8860b';
     
-    // Load latest from Firebase
     const creds = await loadUserCredentials(staff.id);
     const savedPass = creds?.pass || staff.pass;
     
@@ -2529,7 +2536,7 @@ function showPasswordOnlyModal(staff, callback) {
     }
   }
   
-  // Number pad buttons
+  // Number pad buttons - auto submit when enough digits entered
   modal.querySelectorAll('[data-num]').forEach(btn => {
     btn.onclick = () => {
       const num = btn.dataset.num;
@@ -2540,30 +2547,36 @@ function showPasswordOnlyModal(staff, callback) {
       }
       passInput.value = '*'.repeat(passwordInput.length);
       errorDiv.textContent = '';
+      
+      // Auto-submit when password length is 4 digits (or any length > 0)
+      if (passwordInput.length >= 4) {
+        verifyAndSubmit();
+      }
     };
   });
   
-  // Keyboard input
+  // Keyboard input - auto submit on Enter or when 4 digits entered
   passInput.oninput = (e) => {
     passwordInput = e.target.value;
     e.target.value = '*'.repeat(passwordInput.length);
     errorDiv.textContent = '';
+    
+    // Auto-submit when 4 digits entered
+    if (passwordInput.length >= 4) {
+      verifyAndSubmit();
+    }
   };
   
-  // Enter key
   passInput.onkeypress = (e) => {
-    if (e.key === 'Enter') verifyAndSubmit();
-  };
-  
-  // Cancel button
-  modal.querySelector('#cancelPassBtn').onclick = () => {
-    modal.remove();
-    callback(false);
+    if (e.key === 'Enter') {
+      verifyAndSubmit();
+    }
   };
   
   // Focus on input
   setTimeout(() => passInput.focus(), 100);
 }
+
 // Load Daily Tasks
 // Load Daily Tasks from Firebase (per date) - CORRECTED
 async function loadDailyTasks() {
