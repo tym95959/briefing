@@ -592,6 +592,9 @@
 body.supervisor-mode #globalControlBar {
   display: flex;
 }
+
+#staffMainPane { display: none; }
+#staffMainPane.visible { display: block; }
   </style>
 </head>
 <body>
@@ -615,6 +618,34 @@ body.supervisor-mode #globalControlBar {
         </div>
         <div style="font-size: 0.7rem; color: #8b6914;">🔒 Read-only</div>
     </div>
+
+    <!-- Staff Login Overlay -->
+<div id="staffLoginOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+  <div style="background: white; border-radius: 2rem; padding: 2rem; max-width: 450px; width: 90%;">
+    <h2 style="color: #b8860b;">🔐 Staff Login</h2>
+    <div id="staffLoginError" style="color: #dc2626; margin: 0.5rem 0;"></div>
+    <div class="control-row"><label>👤 Select Staff:</label> <select id="staffLoginSelect"></select></div>
+    <div class="control-row"><label>🔑 Password:</label> <input type="password" id="staffLoginPassword" placeholder="Enter password"></div>
+    <div class="control-row"><label>✏️ Draw Pattern:</label> <div id="patternGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; max-width: 200px; margin: 0.5rem 0;"></div></div>
+    <button id="staffLoginBtn" style="width: 100%; margin-top: 1rem;">🔓 Login</button>
+    <hr style="margin: 1rem 0;">
+    <button id="openProfileSetupBtn" style="background: #6b7280;">📝 First time? Setup Profile</button>
+  </div>
+</div>
+
+<!-- Profile Setup Modal -->
+<div id="profileModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center;">
+  <div style="background: white; border-radius: 2rem; padding: 2rem; max-width: 500px; width: 90%;">
+    <h2>📝 Staff Profile Setup</h2>
+    <div class="control-row"><label>👤 Staff:</label> <select id="profileStaffSelect"></select></div>
+    <div class="control-row"><label>🔑 Set Password (numbers only):</label> <input type="password" id="profilePassword" placeholder="4-8 digits"></div>
+    <div class="control-row"><label>✏️ Draw Pattern (tap 3-6 dots):</label> <div id="patternDrawGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; max-width: 250px; margin: 0.5rem auto;"></div></div>
+    <div id="patternStatus" style="font-size: 0.8rem; color: #666;"></div>
+    <div class="control-row"><label>✅ Confirm Pattern:</label> <div id="patternConfirmGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; max-width: 250px; margin: 0.5rem auto;"></div></div>
+    <button id="saveProfileBtn" style="background: #0f5c3b; margin-top: 1rem;">💾 Save Profile</button>
+    <button id="closeProfileBtn" style="background: #9ca3af; margin-top: 0.5rem;">Cancel</button>
+  </div>
+</div>
     <!-- Add this hidden element for context -->
     <span id="staffGlobalContext" style="display: none;"></span>
   
@@ -683,10 +714,15 @@ body.supervisor-mode #globalControlBar {
   </div>
   
   <div id="superAuthArea">
-      <div class="info-card">🔐 Password required.</div>
-      <div class="control-row"><input type="password" id="superPassword" placeholder="Password" style="flex:1;"> <button id="superLoginBtn">Unlock</button></div>
-      <div id="superErrorMsg" style="color:#b91c1c;"></div>
-    </div>
+  <div class="info-card">🔐 Supervisor/Manager Login</div>
+  <div class="control-row"><label>👤 Staff:</label> <select id="superStaffSelect" style="flex:1;"></select></div>
+  <div class="control-row"><label>🔑 Password (digits):</label> <input type="password" id="superPassword" placeholder="4-8 digits" style="flex:1;"></div>
+  <div class="control-row"><label>✏️ Pattern:</label> <div id="superPatternGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; max-width: 200px;"></div></div>
+  <button id="superLoginBtn" style="margin-top: 0.5rem;">🔓 Login</button>
+  <div id="superErrorMsg" style="color:#b91c1c; margin-top: 0.5rem;"></div>
+  <hr style="margin: 1rem 0;">
+  <button id="superProfileSetupBtn" style="background: #6b7280;">📝 Setup/Update Profile</button>
+</div>
     <div id="superDashboard" style="display: none;">
       <div class="control-panel">
         <div class="info-card">📍 Date: <strong id="displayDate"></strong> | Shift: <strong id="displayShift"></strong></div>
@@ -805,6 +841,7 @@ console.log("🔥 Firebase ready!");
     let breakRequests = new Map();
     let nextRequestId = 1;
     let selectedBreakTime = null;
+    
 
   // Preset reasons for attendance
    const PRESET_REASONS = {
@@ -2464,17 +2501,21 @@ gs.onchange = async (e) => {
     document.getElementById("shiftLockIcon").innerText = en ? "🔓" : "🔒";
   }
 
-  function loginSupervisor() {
-  if (document.getElementById("superPassword").value === SUPERVISOR_PASS) {
-    supervisorLoggedIn = true;
-    document.body.classList.add('supervisor-mode');  // ADD THIS LINE
-    document.getElementById("superAuthArea").style.display = "none";
-    document.getElementById("superDashboard").style.display = "block";
-    setGlobalControlsEnabled(true);
-    refreshAllViews();
-    showMessage("Supervisor logged in");
-  } else document.getElementById("superErrorMsg").innerText = "Wrong password";
+ let currentSuperPattern = [];
+
+// Setup supervisor pattern grid with variable storage
+function setupSuperPatternGrid() {
+  currentSuperPattern = [];
+  setupPatternGrid("superPatternGrid", (dot) => {
+    if (currentSuperPattern.includes(dot)) {
+      currentSuperPattern = currentSuperPattern.filter(d => d !== dot);
+    } else if (currentSuperPattern.length < 6) {
+      currentSuperPattern.push(dot);
+    }
+    setupPatternGrid("superPatternGrid", arguments.callee, currentSuperPattern);
+  }, currentSuperPattern);
 }
+
 
   function logoutSupervisor() {
   supervisorLoggedIn = false;
@@ -2614,6 +2655,210 @@ if (statusSelect) {
     });
   }
 
+  // Replace SUPERVISOR_PASS with this:
+const SUPERVISOR_CREDENTIALS = { password: "admin123", pattern: [1,2,3] }; // Default: top row pattern
+
+// Add these global variables
+let loggedInStaff = null;
+let staffCredentials = new Map(); // Store { passwordHash, pattern }
+
+// Add this function to hash passwords (simple but effective)
+function hashPassword(pwd) { return btoa(pwd + "salt2026"); }
+
+// Load staff credentials from Firebase
+async function loadStaffCredentials() {
+  try {
+    const docRef = db.collection("staffManagement").doc("_system_credentials");
+    const doc = await docRef.get();
+    if (doc.exists) {
+      const data = doc.data();
+      if (data.staffCreds) {
+        staffCredentials.clear();
+        Object.entries(data.staffCreds).forEach(([id, cred]) => {
+          staffCredentials.set(id, cred);
+        });
+      }
+    }
+    return true;
+  } catch (err) { console.error("Error loading credentials:", err); return false; }
+}
+
+// Save staff credentials to Firebase
+async function saveStaffCredentials() {
+  try {
+    const credsObj = {};
+    for (let [id, cred] of staffCredentials.entries()) {
+      credsObj[id] = cred;
+    }
+    await db.collection("staffManagement").doc("_system_credentials").set({
+      staffCreds: credsObj,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    return true;
+  } catch (err) { console.error("Error saving credentials:", err); return false; }
+}
+
+// Check if staff has credentials
+function hasStaffCredentials(staffId) {
+  return staffCredentials.has(staffId);
+}
+
+// Verify staff login
+function verifyStaffLogin(staffId, password, pattern) {
+  const cred = staffCredentials.get(staffId);
+  if (!cred) return false;
+  
+  const passwordMatch = (cred.password === hashPassword(password));
+  const patternMatch = JSON.stringify(cred.pattern) === JSON.stringify(pattern);
+  
+  return passwordMatch && patternMatch;
+}
+
+// Setup pattern grid UI
+function setupPatternGrid(containerId, onDotClick, selectedDots = []) {
+  const container = document.getElementById(containerId);
+  if (!container) return [];
+  container.innerHTML = '';
+  const dots = [];
+  for (let i = 1; i <= 9; i++) {
+    const dot = document.createElement('div');
+    dot.style.cssText = `width: 45px; height: 45px; border-radius: 50%; background: ${selectedDots.includes(i) ? '#b8860b' : '#e5e7eb'}; border: 2px solid #d4a017; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; font-weight: bold; color: ${selectedDots.includes(i) ? 'white' : '#666'};`;
+    dot.textContent = i;
+    dot.onclick = () => onDotClick(i);
+    container.appendChild(dot);
+    dots.push(dot);
+  }
+  return dots;
+}
+
+// Show staff login overlay
+
+let currentStaffPattern = [];
+function showStaffLogin() {
+  const overlay = document.getElementById("staffLoginOverlay");
+  if (overlay) overlay.style.display = "flex";
+  
+  const select = document.getElementById("staffLoginSelect");
+  if (select) {
+    select.innerHTML = '<option value="">-- Select Staff --</option>' + 
+      staffList.map(s => `<option value="${s.id}">${s.name} (${s.role})</option>`).join('');
+  }
+  
+  currentStaffPattern = [];
+  setupPatternGrid("patternGrid", (dotNum) => {
+    if (currentStaffPattern.includes(dotNum)) {
+      currentStaffPattern = currentStaffPattern.filter(d => d !== dotNum);
+    } else if (currentStaffPattern.length < 6) {
+      currentStaffPattern.push(dotNum);
+    }
+    setupPatternGrid("patternGrid", arguments.callee, currentStaffPattern);
+  }, currentStaffPattern);
+}
+
+// Show profile setup modal
+function showProfileSetup() {
+  const modal = document.getElementById("profileModal");
+  modal.style.display = "flex";
+  
+  const staffSelect = document.getElementById("profileStaffSelect");
+  staffSelect.innerHTML = '<option value="">-- Select Staff --</option>' + 
+    staffList.map(s => `<option value="${s.id}">${s.name} (${s.role})</option>`).join('');
+  
+  let pattern1 = [], pattern2 = [];
+  let patternStep = 1;
+  
+  const updatePatternDisplay = () => {
+    setupPatternGrid("patternDrawGrid", (dot) => {
+      if (pattern1.includes(dot)) pattern1 = pattern1.filter(d => d !== dot);
+      else if (pattern1.length < 6) pattern1.push(dot);
+      document.getElementById("patternStatus").innerText = `Pattern: ${pattern1.join(',')} (${pattern1.length} dots)`;
+      setupPatternGrid("patternDrawGrid", arguments.callee, pattern1);
+    }, pattern1);
+  };
+  
+  setupPatternGrid("patternDrawGrid", (dot) => {
+    if (pattern1.includes(dot)) pattern1 = pattern1.filter(d => d !== dot);
+    else if (pattern1.length < 6) pattern1.push(dot);
+    document.getElementById("patternStatus").innerText = `Pattern: ${pattern1.join(',')} (${pattern1.length} dots)`;
+    setupPatternGrid("patternDrawGrid", arguments.callee, pattern1);
+  }, pattern1);
+  
+  setupPatternGrid("patternConfirmGrid", (dot) => {
+    if (pattern2.includes(dot)) pattern2 = pattern2.filter(d => d !== dot);
+    else if (pattern2.length < 6) pattern2.push(dot);
+    setupPatternGrid("patternConfirmGrid", arguments.callee, pattern2);
+  }, pattern2);
+  
+  document.getElementById("saveProfileBtn").onclick = async () => {
+    const staffId = staffSelect.value;
+    const password = document.getElementById("profilePassword").value;
+    
+    if (!staffId) { alert("Select staff"); return; }
+    if (!password.match(/^\d{4,8}$/)) { alert("Password must be 4-8 digits only"); return; }
+    if (pattern1.length < 3) { alert("Select at least 3 dots for pattern"); return; }
+    if (JSON.stringify(pattern1) !== JSON.stringify(pattern2)) { alert("Patterns do not match"); return; }
+    
+    staffCredentials.set(staffId, {
+      password: hashPassword(password),
+      pattern: pattern1,
+      createdAt: new Date().toISOString()
+    });
+    
+    await saveStaffCredentials();
+    alert("✅ Profile saved! You can now login.");
+    modal.style.display = "none";
+    document.getElementById("profilePassword").value = "";
+  };
+  
+  document.getElementById("closeProfileBtn").onclick = () => modal.style.display = "none";
+}
+
+// Modified supervisor login (individual credentials)
+async function loginSupervisor() {
+  const staffId = document.getElementById("superStaffSelect").value;
+  const password = document.getElementById("superPassword").value;
+  let pattern = [];
+  
+  // Get pattern from grid
+  document.querySelectorAll('#superPatternGrid div').forEach((div, idx) => {
+    if (div.style.background === 'rgb(184, 134, 11)' || div.style.background === '#b8860b') pattern.push(idx+1);
+  });
+  
+  if (!staffId) { document.getElementById("superErrorMsg").innerText = "Select staff"; return; }
+  
+  const staff = staffList.find(s => s.id === staffId);
+  if (staff.role !== "Supervisor" && staff.role !== "Manager") {
+    document.getElementById("superErrorMsg").innerText = "Only Supervisors/Managers can access this view";
+    return;
+  }
+  
+  if (verifyStaffLogin(staffId, password, pattern)) {
+    supervisorLoggedIn = true;
+    loggedInStaff = staff;
+    document.body.classList.add('supervisor-mode');
+    document.getElementById("superAuthArea").style.display = "none";
+    document.getElementById("superDashboard").style.display = "block";
+    setGlobalControlsEnabled(true);
+    refreshAllViews();
+    showMessage(`Welcome ${staff.name}`);
+  } else {
+    document.getElementById("superErrorMsg").innerText = "Invalid credentials";
+  }
+}
+
+// Replace the supervisor login UI section (around line 280-300 in HTML)
+// Add this HTML inside supervisor view where password field is:
+/*
+<div id="superAuthArea">
+  <div class="info-card">🔐 Staff Login Required (Supervisor/Manager only)</div>
+  <div class="control-row"><label>👤 Staff:</label> <select id="superStaffSelect"></select></div>
+  <div class="control-row"><label>🔑 Password:</label> <input type="password" id="superPassword" placeholder="Numbers only"></div>
+  <div class="control-row"><label>✏️ Pattern:</label> <div id="superPatternGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; max-width: 200px;"></div></div>
+  <button id="superLoginBtn">Unlock</button>
+  <div id="superErrorMsg" style="color:#b91c1c;"></div>
+</div>
+*/
+
   function initDailyStaffSelect() {
   const select = document.getElementById("dailyTaskStaffSelect");
   if (!select) return;
@@ -2661,6 +2906,7 @@ async function initApp() {
   
   await loadFromLocalStorage();
   await loadDailyTasks();
+  await loadStaffCredentials();
   
   updateStaffDisplay();
   updateDisplayInfo();
@@ -2668,6 +2914,9 @@ async function initApp() {
   initMainTabs();
   initStaffSubTabs();
   initDailyStaffSelect();
+  
+  // Setup supervisor pattern grid using the global variable
+  setupSuperPatternGrid();
   
   document.getElementById("superLoginBtn").onclick = loginSupervisor;
   document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
@@ -2677,8 +2926,48 @@ async function initApp() {
   if (gd) gd.value = currentDate;
   
   refreshAllViews();
-  startPeriodicSync(); // ADD THIS LINE - it's defined but never called!
+  startPeriodicSync();
   showMessage("✅ System ready - Data synced with cloud");
+
+  // Staff login variables
+  let currentStaffPattern = [];
+
+  document.getElementById("staffLoginBtn").onclick = async () => {
+    const staffId = document.getElementById("staffLoginSelect").value;
+    const password = document.getElementById("staffLoginPassword").value;
+    const pattern = currentStaffPattern;
+    
+    if (!staffId) { 
+      document.getElementById("staffLoginError").innerText = "Select staff"; 
+      return; 
+    }
+    if (verifyStaffLogin(staffId, password, pattern)) {
+      loggedInStaff = staffList.find(s => s.id === staffId);
+      document.getElementById("staffLoginOverlay").style.display = "none";
+      document.getElementById("staffMainPane").classList.add("visible");
+      showMessage(`Welcome ${loggedInStaff.name}`);
+      await loadFromLocalStorage();
+      await loadDailyTasks();
+      refreshAllViews();
+    } else {
+      document.getElementById("staffLoginError").innerText = "Invalid password or pattern";
+    }
+  };
+  
+  document.getElementById("openProfileSetupBtn").onclick = showProfileSetup;
+  document.getElementById("superProfileSetupBtn").onclick = showProfileSetup;
+  
+  // Hide staff main pane initially until login
+  document.getElementById("staffMainPane").style.display = "none";
+  
+  // Populate supervisor staff select
+  const superStaffSelect = document.getElementById("superStaffSelect");
+  if (superStaffSelect) {
+    superStaffSelect.innerHTML = staffList.map(s => `<option value="${s.id}">${s.name} (${s.role})</option>`).join('');
+  }
+  
+  // Show staff login overlay on page load
+  showStaffLogin();
 }
   
   initApp();
