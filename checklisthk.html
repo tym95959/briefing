@@ -682,6 +682,7 @@ body.supervisor-mode #globalControlBar {
 
 /* Pattern Lock Styles */
 /* Pattern Lock Styles - Clean version without lines */
+/* Pattern Lock Styles - NO LINES EVER */
 .pattern-modal {
   position: fixed;
   top: 0;
@@ -747,18 +748,23 @@ body.supervisor-mode #globalControlBar {
   font-size: 1.2rem;
 }
 
-/* Remove drag-over effect completely */
-.pattern-dot.drag-over {
-  background: #e2e8f0;
-  transform: scale(1);
+/* NO LINES - Remove any line-related styles */
+.pattern-dot::before,
+.pattern-dot::after {
+  display: none !important;
+}
+
+canvas, svg, .pattern-line {
+  display: none !important;
 }
 
 .pattern-preview {
   font-family: monospace;
-  font-size: 1.2rem;
-  letter-spacing: 8px;
+  font-size: 1rem;
+  letter-spacing: 4px;
   margin: 0.5rem 0;
   color: #1e4a76;
+  word-break: break-all;
 }
 
 .pattern-status {
@@ -776,21 +782,28 @@ body.supervisor-mode #globalControlBar {
 
 .pattern-buttons {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   justify-content: center;
   margin-top: 1rem;
+  flex-wrap: wrap;
 }
 
 .pattern-buttons button {
-  padding: 0.6rem 1.2rem;
+  padding: 0.5rem 1rem;
   border: none;
   border-radius: 2rem;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.8rem;
 }
 
 .reset-pattern-btn {
   background: #6b7280;
+  color: white;
+}
+
+.confirm-pattern-btn {
+  background: #0f5c3b;
   color: white;
 }
 
@@ -2055,8 +2068,8 @@ async function refreshStaffCredentials() {
   console.log("✅ Staff credentials refreshed from Firebase");
 }
 
-// Show Pattern Lock Modal
-// Show Pattern Lock Modal - Auto-verify on pattern complete
+
+// Show Pattern Lock Modal - NO LINES, only dots
 function showPatternModal(staff, onSuccess, onCancel) {
   const existingModal = document.querySelector('.pattern-modal');
   if (existingModal) existingModal.remove();
@@ -2068,8 +2081,8 @@ function showPatternModal(staff, onSuccess, onCancel) {
     <div class="pattern-modal-content">
       <h3>🎨 Pattern Lock</h3>
       <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <p style="font-size: 0.8rem; color: #666;">Draw your pattern by connecting dots</p>
-      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse when pattern is complete</p>
+      <p style="font-size: 0.8rem; color: #666;">Tap dots in sequence to create your pattern</p>
+      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Tap dots one by one (no dragging needed)</p>
       
       <div class="pattern-grid" id="patternGrid">
         ${[1,2,3,4,5,6,7,8,9].map(i => `
@@ -2082,6 +2095,7 @@ function showPatternModal(staff, onSuccess, onCancel) {
       
       <div class="pattern-buttons">
         <button class="reset-pattern-btn" id="resetPatternBtn">⟳ Reset</button>
+        <button class="confirm-pattern-btn" id="confirmPatternBtn">✓ Verify Pattern</button>
         <button class="cancel-pattern-btn" id="cancelPatternBtn">✗ Cancel</button>
       </div>
     </div>
@@ -2089,18 +2103,16 @@ function showPatternModal(staff, onSuccess, onCancel) {
   
   document.body.appendChild(modal);
   
-  const grid = modal.querySelector('#patternGrid');
   const dots = modal.querySelectorAll('.pattern-dot');
   const previewSpan = modal.querySelector('#patternPreview');
   const statusSpan = modal.querySelector('#patternStatus');
   let patternSequence = [];
-  let isDrawing = false;
   let verificationInProgress = false;
   
   // Helper to update preview display
   function updatePreview() {
     if (patternSequence.length === 0) {
-      previewSpan.textContent = 'Draw your pattern...';
+      previewSpan.textContent = 'Tap dots to create pattern...';
     } else {
       previewSpan.textContent = patternSequence.map(n => `●`).join(' → ');
     }
@@ -2109,24 +2121,39 @@ function showPatternModal(staff, onSuccess, onCancel) {
   // Helper to reset current drawing
   function resetDrawing() {
     patternSequence = [];
-    dots.forEach(dot => dot.classList.remove('selected', 'drag-over'));
+    dots.forEach(dot => dot.classList.remove('selected'));
     updatePreview();
     statusSpan.textContent = '';
     statusSpan.className = 'pattern-status';
     verificationInProgress = false;
   }
   
-  // Helper to add a dot to pattern
+  // Add dot to pattern (tap only, no dragging)
   function addDot(dotNum, element) {
-    if (!patternSequence.includes(dotNum)) {
-      patternSequence.push(dotNum);
-      element.classList.add('selected');
-      updatePreview();
+    if (verificationInProgress) return;
+    
+    // Check if dot already in sequence
+    if (patternSequence.includes(dotNum)) {
+      // If already selected, do nothing or show message
+      statusSpan.textContent = '⚠️ Dot already selected';
+      statusSpan.className = 'pattern-status error';
+      setTimeout(() => {
+        if (statusSpan.textContent === '⚠️ Dot already selected') {
+          statusSpan.textContent = '';
+          statusSpan.className = 'pattern-status';
+        }
+      }, 1000);
+      return;
     }
+    
+    patternSequence.push(dotNum);
+    element.classList.add('selected');
+    updatePreview();
+    statusSpan.textContent = '';
   }
   
-  // Verify the pattern and close modal if correct
-  function verifyAndClose() {
+  // Verify the pattern
+  function verifyPattern() {
     if (verificationInProgress) return;
     verificationInProgress = true;
     
@@ -2155,89 +2182,23 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   }
   
-  // Mouse/Touch events for drawing
-  function getDotFromEvent(e) {
-    const rect = grid.getBoundingClientRect();
-    let clientX, clientY;
-    
-    if (e.touches) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    for (let dot of dots) {
-      const dotRect = dot.getBoundingClientRect();
-      if (clientX >= dotRect.left && clientX <= dotRect.right &&
-          clientY >= dotRect.top && clientY <= dotRect.bottom) {
-        return { dotNum: parseInt(dot.dataset.num), element: dot };
-      }
-    }
-    return null;
-  }
-  
-  // Start drawing
-  function startDraw(e) {
-    e.preventDefault();
-    if (verificationInProgress) return;
-    isDrawing = true;
-    const dotInfo = getDotFromEvent(e);
-    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
-      patternSequence = [dotInfo.dotNum];
-      dotInfo.element.classList.add('selected');
-      updatePreview();
-    }
-  }
-  
-  // During drawing
-  function draw(e) {
-    e.preventDefault();
-    if (!isDrawing || verificationInProgress) return;
-    
-    const dotInfo = getDotFromEvent(e);
-    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
-      patternSequence.push(dotInfo.dotNum);
-      dotInfo.element.classList.add('selected');
-      updatePreview();
-    }
-  }
-  
-  // End drawing - AUTO VERIFY when user releases
-  function endDraw(e) {
-    e.preventDefault();
-    if (!isDrawing || verificationInProgress) {
-      isDrawing = false;
-      return;
-    }
-    isDrawing = false;
-    
-    // Auto-verify the pattern when drawing ends
-    if (patternSequence.length >= 3) {
-      verifyAndClose();
-    } else if (patternSequence.length > 0 && patternSequence.length < 3) {
-      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
-      statusSpan.className = 'pattern-status error';
-      setTimeout(() => {
-        resetDrawing();
-      }, 1000);
-    }
-  }
-  
-  // Add event listeners for mouse
-  grid.addEventListener('mousedown', startDraw);
-  window.addEventListener('mousemove', draw);
-  window.addEventListener('mouseup', endDraw);
-  
-  // Add event listeners for touch
-  grid.addEventListener('touchstart', startDraw);
-  window.addEventListener('touchmove', draw);
-  window.addEventListener('touchend', endDraw);
+  // Add click/tap event listeners to dots
+  dots.forEach(dot => {
+    dot.onclick = (e) => {
+      e.stopPropagation();
+      const dotNum = parseInt(dot.dataset.num);
+      addDot(dotNum, dot);
+    };
+  });
   
   // Reset button
   modal.querySelector('#resetPatternBtn').onclick = () => {
     resetDrawing();
+  };
+  
+  // Confirm button
+  modal.querySelector('#confirmPatternBtn').onclick = () => {
+    verifyPattern();
   };
   
   // Cancel button
@@ -2259,7 +2220,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   };
 }
-
 // Update initDailyStaffSelect to include Pattern option
 // Update initDailyStaffSelect to auto-logout previous user
 function initDailyStaffSelect() {
