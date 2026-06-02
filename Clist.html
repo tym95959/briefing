@@ -1222,42 +1222,26 @@ canvas, svg {
 // Verify pattern with Firebase (returns true/false) - MUST BE OUTSIDE the other function
 async function verifyPatternWithFirebase(staff, enteredPatternSequence) {
   try {
-    // Load latest credentials from Firebase
     const creds = await loadUserCredentials(staff.id);
-    
-    // Get saved pattern (Firebase first, then fallback to staff.js)
     const savedPattern = creds?.pattern || staff.pattern;
     
     if (!savedPattern) {
-      console.log(`⚠️ No pattern saved for ${staff.name}`);
       return false;
     }
     
-    // Convert entered sequence to string format
     const enteredPatternStr = enteredPatternSequence.join(',');
-    
-    console.log(`🔐 Pattern verification for ${staff.name}:`);
-    console.log(`   Entered: ${enteredPatternStr}`);
-    console.log(`   Saved:   ${savedPattern}`);
-    console.log(`   Source:  ${creds?.pattern ? 'Firebase' : 'staff.js'}`);
-    
     return enteredPatternStr === savedPattern;
     
   } catch (error) {
-    console.error("Pattern verification error:", error);
     return false;
   }
 }
 
 async function loadAllCredentialsIntoStaffList() {
-  console.log("🔄 Loading ALL Firebase credentials in batch...");
-  
   try {
-    // Get ALL staff credentials in ONE Firebase query
     const snapshot = await db.collection("staffCredentials").get();
-    
-    // Create a Map for quick lookup
     const credentialsMap = new Map();
+    
     snapshot.forEach(doc => {
       const data = doc.data();
       credentialsMap.set(doc.id, {
@@ -1266,22 +1250,16 @@ async function loadAllCredentialsIntoStaffList() {
       });
     });
     
-    // Update staffList in memory (instant, no await inside loop)
     for (const staff of staffList) {
       const fbCreds = credentialsMap.get(staff.id);
       if (fbCreds) {
         staff.pass = fbCreds.pass;
         staff.pattern = fbCreds.pattern;
-        console.log(`✅ Loaded: ${staff.name} (from Firebase)`);
-      } else {
-        console.log(`📝 Using default: ${staff.name} (from staff.js)`);
       }
     }
     
-    console.log(`✅ Loaded ${credentialsMap.size} credentials in batch!`);
     return true;
   } catch (error) {
-    console.error("Error loading credentials:", error);
     return false;
   }
 }
@@ -2486,8 +2464,8 @@ function showVerificationOptionsModal(staff, callback) {
     }
   };
 }
-// Password only modal - Auto-submit when 4 digits entered
-// Show password only modal with Firebase verification
+
+// Show password only modal with Firebase verification - NO CONSOLE LOGS
 function showPasswordOnlyModal(staff, callback) {
   const modal = document.createElement('div');
   modal.className = 'password-modal';
@@ -2540,9 +2518,6 @@ function showPasswordOnlyModal(staff, callback) {
     const creds = await loadUserCredentials(staff.id);
     const savedPass = creds?.pass || staff.pass;
     
-    console.log(`Password verification for ${staff.name}:`);
-    console.log(`  Source: ${creds?.pass ? 'Firebase' : 'staff.js'}`);
-    
     if (passwordInput === savedPass) {
       modal.remove();
       callback(true);
@@ -2589,7 +2564,6 @@ function showPasswordOnlyModal(staff, callback) {
   // Focus on input
   setTimeout(() => passInput.focus(), 100);
 }
-
 // Load Daily Tasks
 // Load Daily Tasks from Firebase (per date) - CORRECTED
 async function loadDailyTasks() {
@@ -4267,103 +4241,6 @@ if (statusSelect) {
   }
 
  
-// Function to show password modal with number pad
-function showPasswordModal(staff, callback) {
-  // Remove any existing modal
-  const existingModal = document.querySelector('.password-modal');
-  if (existingModal) existingModal.remove();
-  
-  const modal = document.createElement('div');
-  modal.className = 'password-modal';
-  
-  let passwordInput = '';
-  
-  modal.innerHTML = `
-    <div class="password-modal-content">
-      <h3>🔐 Verify Identity</h3>
-      <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Enter your password to continue</p>
-      <input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off">
-      <div class="numpad" id="numpad">
-        <button data-num="1">1</button>
-        <button data-num="2">2</button>
-        <button data-num="3">3</button>
-        <button data-num="4">4</button>
-        <button data-num="5">5</button>
-        <button data-num="6">6</button>
-        <button data-num="7">7</button>
-        <button data-num="8">8</button>
-        <button data-num="9">9</button>
-        <button data-num="0">0</button>
-        <button data-num="clear" class="clear-pass">⌫ Clear</button>
-      </div>
-      <div id="passError" class="password-error"></div>
-      <div style="margin-top: 1rem;">
-        <button class="submit-pass">✓ Submit</button>
-        <button class="cancel-pass">✗ Cancel</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  
-  const passInput = modal.querySelector('#passInput');
-  const errorDiv = modal.querySelector('#passError');
-  
-  // Number pad functionality
-  modal.querySelectorAll('[data-num]').forEach(btn => {
-    btn.onclick = () => {
-      const num = btn.dataset.num;
-      if (num === 'clear') {
-        passwordInput = passwordInput.slice(0, -1);
-      } else {
-        passwordInput += num;
-      }
-      passInput.value = '*'.repeat(passwordInput.length);
-      errorDiv.textContent = '';
-    };
-  });
-  
-  // Also allow keyboard input
-  passInput.oninput = (e) => {
-    passwordInput = e.target.value;
-    e.target.value = '*'.repeat(passwordInput.length);
-    errorDiv.textContent = '';
-  };
-  
-  // Submit button
-  modal.querySelector('.submit-pass').onclick = () => {
-    const expectedPass = staff.pass || '';
-    
-    if (passwordInput === expectedPass) {
-      modal.remove();
-      callback(true);
-    } else {
-      errorDiv.textContent = '❌ Incorrect password. Please try again.';
-      passwordInput = '';
-      passInput.value = '';
-      passInput.focus();
-      callback(false);
-    }
-  };
-  
-  // Cancel button
-  modal.querySelector('.cancel-pass').onclick = () => {
-    modal.remove();
-    callback(false);
-  };
-  
-  // Close on outside click
-  modal.onclick = (e) => {
-    if (e.target === modal) {
-      modal.remove();
-      callback(false);
-    }
-  };
-  
-  // Focus on input
-  setTimeout(() => passInput.focus(), 100);
-}
 
 
 
