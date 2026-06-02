@@ -3447,28 +3447,32 @@ function updateStaffContextDisplay() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    // Direct onclick handler
-    badge.onclick = (function(staffId, staffName) {
-      return async function() {
-        console.log("Clicked staff ID:", staffId);
-        
-        if (staffOnDutyIds.has(staffId)) {
-          staffOnDutyIds.delete(staffId);
-          showMessage(staffName + " removed from SOD for " + currentDate);
-        } else {
-          staffOnDutyIds.add(staffId);
-          showMessage(staffName + " added to SOD for " + currentDate);
-        }
-        
-        console.log("Updated SOD IDs:", Array.from(staffOnDutyIds));
-        
-        // Re-render both sections
-        renderAllSod();
-        renderAllocationPool();
-        initDailyStaffSelect();  // Update staff dropdown for daily tasks
-        await saveToLocalStorage();  // Save the change to Firebase
-      };
-    })(staff.id, staff.name);
+    // Use both click AND touchstart for iPad compatibility
+    const handleTap = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Tapped staff ID:", staff.id);
+      
+      if (staffOnDutyIds.has(staff.id)) {
+        staffOnDutyIds.delete(staff.id);
+        showMessage(staff.name + " removed from SOD for " + currentDate);
+      } else {
+        staffOnDutyIds.add(staff.id);
+        showMessage(staff.name + " added to SOD for " + currentDate);
+      }
+      
+      console.log("Updated SOD IDs:", Array.from(staffOnDutyIds));
+      
+      // Re-render both sections
+      renderAllSod();
+      renderAllocationPool();
+      initDailyStaffSelect();
+      await saveToLocalStorage();
+    };
+    
+    // Add both event listeners for cross-device compatibility
+    badge.addEventListener('click', handleTap);
+    badge.addEventListener('touchstart', handleTap, { passive: false });
     
     container.appendChild(badge);
   });
@@ -3478,11 +3482,6 @@ function updateStaffContextDisplay() {
   const container = document.getElementById("allocationPoolContainer");
   if (!container || !supervisorLoggedIn) return;
   
-  console.log("=== renderAllocationPool called ===");
-  console.log("staffOnDutyIds size:", staffOnDutyIds.size);
-  console.log("staffOnDutyIds values:", Array.from(staffOnDutyIds));
-  
-  // Convert to array and find staff members
   const sodStaffIds = Array.from(staffOnDutyIds);
   const sodStaff = [];
   
@@ -3490,14 +3489,11 @@ function updateStaffContextDisplay() {
     const staff = staffList.find(s => s.id === id);
     if (staff) {
       sodStaff.push(staff);
-      console.log("Found staff:", staff.name);
-    } else {
-      console.log("Staff not found for ID:", id);
     }
   }
   
   if (sodStaff.length === 0) {
-    container.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">⚠️ No staff on duty. Click on staff badges in "STAFF ON DUTY" section above first.</div>';
+    container.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">⚠️ No staff on duty. Tap on staff badges in "STAFF ON DUTY" section above first.</div>';
     document.getElementById("selectedCount").innerText = `Selected: 0`;
     return;
   }
@@ -3518,27 +3514,30 @@ function updateStaffContextDisplay() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    badge.onclick = (function(staffId) {
-      return function(e) {
-        e.stopPropagation();
-        console.log("Selected staff for allocation:", staffId);
-        
-        if (selectedAllocationStaff.has(staffId)) {
-          selectedAllocationStaff.delete(staffId);
-        } else {
-          selectedAllocationStaff.add(staffId);
-        }
-        
-        renderAllocationPool();
-        document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
-      };
-    })(staff.id);
+    const handleTap = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Selected staff for allocation:", staff.id);
+      
+      if (selectedAllocationStaff.has(staff.id)) {
+        selectedAllocationStaff.delete(staff.id);
+      } else {
+        selectedAllocationStaff.add(staff.id);
+      }
+      
+      renderAllocationPool();
+      document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
+    };
+    
+    badge.addEventListener('click', handleTap);
+    badge.addEventListener('touchstart', handleTap, { passive: false });
     
     container.appendChild(badge);
   });
   
   document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
 }
+
 
 
   function renderAllocationTable() {
