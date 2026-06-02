@@ -681,8 +681,6 @@ body.supervisor-mode #globalControlBar {
 }
 
 /* Pattern Lock Styles */
-/* Pattern Lock Styles - Clean version without lines */
-/* Pattern Lock Styles - NO LINES EVER */
 .pattern-modal {
   position: fixed;
   top: 0;
@@ -748,23 +746,17 @@ body.supervisor-mode #globalControlBar {
   font-size: 1.2rem;
 }
 
-/* NO LINES - Remove any line-related styles */
-.pattern-dot::before,
-.pattern-dot::after {
-  display: none !important;
-}
-
-canvas, svg, .pattern-line {
-  display: none !important;
+.pattern-dot.drag-over {
+  background: #d4a017;
+  transform: scale(1.05);
 }
 
 .pattern-preview {
   font-family: monospace;
-  font-size: 1rem;
+  font-size: 1.2rem;
   letter-spacing: 4px;
   margin: 0.5rem 0;
   color: #1e4a76;
-  word-break: break-all;
 }
 
 .pattern-status {
@@ -782,19 +774,17 @@ canvas, svg, .pattern-line {
 
 .pattern-buttons {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
   justify-content: center;
   margin-top: 1rem;
-  flex-wrap: wrap;
 }
 
 .pattern-buttons button {
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.2rem;
   border: none;
   border-radius: 2rem;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.8rem;
 }
 
 .reset-pattern-btn {
@@ -1028,33 +1018,39 @@ canvas, svg {
   display: none;
 }
 
-/* iPad Touch Optimizations */
+/* Hide any connecting lines between pattern dots */
+.pattern-grid {
+  position: relative;
+}
+
+.pattern-dot::before,
+.pattern-dot::after {
+  display: none !important;
+}
+
+/* Remove any SVG lines that might be added */
+canvas, svg {
+  display: none;
+}
+
+/* Pattern dots - clean look without numbers */
 .pattern-dot {
+  background: #e2e8f0;
+  border-radius: 50%;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 .pattern-dot.selected {
   background: #b8860b;
   transform: scale(1.1);
-  box-shadow: 0 0 0 4px #fef3c7, 0 0 0 6px #b8860b;
+  box-shadow: 0 0 0 3px #fef3c7;
 }
 
-/* Make pattern grid more touch-friendly */
-.pattern-grid {
-  gap: 1.2rem;
-  padding: 1rem;
-}
-
-@media (max-width: 768px) {
-  .pattern-dot {
-    min-width: 55px;
-    min-height: 55px;
-  }
-  
-  .pattern-grid {
-    gap: 0.8rem;
-  }
+/* Remove any text/numbers from dots */
+.pattern-dot::after {
+  display: none !important;
 }
   </style>
 </head>
@@ -1255,6 +1251,54 @@ canvas, svg {
 <script type="module">
   import { staffList } from './staff.js';
 
+
+  // Add this function after staffList is defined
+// REPLACE the slow loadAllCredentialsIntoStaffList with this FAST version:
+// Verify pattern with Firebase (returns true/false) - MUST BE OUTSIDE the other function
+async function verifyPatternWithFirebase(staff, enteredPatternSequence) {
+  try {
+    const creds = await loadUserCredentials(staff.id);
+    const savedPattern = creds?.pattern || staff.pattern;
+    
+    if (!savedPattern) {
+      return false;
+    }
+    
+    const enteredPatternStr = enteredPatternSequence.join(',');
+    return enteredPatternStr === savedPattern;
+    
+  } catch (error) {
+    return false;
+  }
+}
+
+async function loadAllCredentialsIntoStaffList() {
+  try {
+    const snapshot = await db.collection("staffCredentials").get();
+    const credentialsMap = new Map();
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      credentialsMap.set(doc.id, {
+        pass: data.pass,
+        pattern: data.pattern
+      });
+    });
+    
+    for (const staff of staffList) {
+      const fbCreds = credentialsMap.get(staff.id);
+      if (fbCreds) {
+        staff.pass = fbCreds.pass;
+        staff.pattern = fbCreds.pattern;
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 const db = firebase.firestore();
 console.log("🔥 Firebase ready!");
 
@@ -1285,8 +1329,6 @@ console.log("🔥 Firebase ready!");
     let selectedBreakTime = null;
     let authenticatedStaffId = null;  // Track which staff is currently authenticated
     let pendingStaffAuth = null; 
-    let dataLoadedForDate = null;  // Track which date data is loaded for
-    let isLoading = false;  // Prevent multiple simultaneous loads
 
     let supervisorAuthStaffId = null;  // Track which supervisor is authenticated
     let supervisorAuthMethod = null; 
@@ -1449,7 +1491,6 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
 let currentProfileStaff = null;
 
 // Show profile management modal
-// Show profile management modal - iPad Optimized
 async function showProfileModal(staff) {
   currentProfileStaff = staff;
   const modal = document.createElement('div');
@@ -1468,13 +1509,13 @@ async function showProfileModal(staff) {
       <!-- Password Change Section -->
       <div id="passwordSection" class="profile-section">
         <label>Current Password:</label>
-        <input type="password" id="currentPass" placeholder="Enter current password" maxlength="10" style="font-size: 16px;">
+        <input type="password" id="currentPass" placeholder="Enter current password" maxlength="10">
         
         <label style="margin-top: 1rem;">New Password:</label>
-        <input type="password" id="newPass" placeholder="Enter new password" maxlength="10" style="font-size: 16px;">
+        <input type="password" id="newPass" placeholder="Enter new password" maxlength="10">
         
         <label style="margin-top: 1rem;">Confirm New Password:</label>
-        <input type="password" id="confirmPass" placeholder="Confirm new password" maxlength="10" style="font-size: 16px;">
+        <input type="password" id="confirmPass" placeholder="Confirm new password" maxlength="10">
         
         <button id="updatePasswordBtn" class="profile-btn">✓ Update Password</button>
         <div id="passwordMessage" class="profile-message"></div>
@@ -1485,7 +1526,7 @@ async function showProfileModal(staff) {
         <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Verify current password first, then draw your new pattern</p>
         
         <label>Current Password (Required):</label>
-        <input type="password" id="patternCurrentPass" placeholder="Enter current password to change pattern" maxlength="10" style="font-size: 16px;">
+        <input type="password" id="patternCurrentPass" placeholder="Enter current password to change pattern" maxlength="10">
         
         <button id="verifyForPatternBtn" class="profile-btn-warning" style="background: #d97706;">✓ Verify & Start Pattern Change</button>
         
@@ -1509,7 +1550,6 @@ async function showProfileModal(staff) {
   
   let newPatternSequence = [];
   let isDrawingNew = false;
-  let lastNewDot = null;
   
   // Tab switching
   const tabs = modal.querySelectorAll('.profile-tab');
@@ -1560,11 +1600,8 @@ async function showProfileModal(staff) {
       return;
     }
     
-    // Verify current password (check Firebase first, then staff.js)
-    const creds = await loadUserCredentials(staff.id);
-    const savedPass = creds?.pass || staff.pass;
-    
-    if (currentPass !== savedPass) {
+    // Verify current password
+    if (currentPass !== staff.pass) {
       passwordMsg.textContent = '❌ Current password is incorrect';
       passwordMsg.className = 'profile-message error';
       return;
@@ -1584,10 +1621,6 @@ async function showProfileModal(staff) {
       newPassInput.value = '';
       confirmPassInput.value = '';
       showMessage(`Password updated for ${staff.name}`);
-      
-      setTimeout(() => {
-        modal.remove();
-      }, 1500);
     } else {
       passwordMsg.textContent = '❌ Failed to update password';
       passwordMsg.className = 'profile-message error';
@@ -1608,7 +1641,6 @@ async function showProfileModal(staff) {
     newPatternSequence = [];
     newDots.forEach(dot => dot.classList.remove('selected'));
     newPatternPreview.textContent = 'Draw your pattern...';
-    lastNewDot = null;
   }
   
   function updateNewPatternPreview() {
@@ -1619,8 +1651,9 @@ async function showProfileModal(staff) {
     }
   }
   
-  // Pattern drawing for new pattern (iPad optimized)
+  // Pattern drawing for new pattern
   function getNewDotFromEvent(e) {
+    const rect = newPatternGrid.getBoundingClientRect();
     let clientX, clientY;
     
     if (e.touches) {
@@ -1633,9 +1666,8 @@ async function showProfileModal(staff) {
     
     for (let dot of newDots) {
       const dotRect = dot.getBoundingClientRect();
-      const padding = 15;
-      if (clientX >= dotRect.left - padding && clientX <= dotRect.right + padding &&
-          clientY >= dotRect.top - padding && clientY <= dotRect.bottom + padding) {
+      if (clientX >= dotRect.left && clientX <= dotRect.right &&
+          clientY >= dotRect.top && clientY <= dotRect.bottom) {
         return { dotNum: parseInt(dot.dataset.num), element: dot };
       }
     }
@@ -1651,7 +1683,6 @@ async function showProfileModal(staff) {
       newPatternSequence = [dotInfo.dotNum];
       dotInfo.element.classList.add('selected');
       updateNewPatternPreview();
-      lastNewDot = dotInfo.dotNum;
     }
   }
   
@@ -1659,11 +1690,10 @@ async function showProfileModal(staff) {
     e.preventDefault();
     if (!isDrawingNew) return;
     const dotInfo = getNewDotFromEvent(e);
-    if (dotInfo && dotInfo.dotNum !== lastNewDot && !newPatternSequence.includes(dotInfo.dotNum)) {
+    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
       newPatternSequence.push(dotInfo.dotNum);
       dotInfo.element.classList.add('selected');
       updateNewPatternPreview();
-      lastNewDot = dotInfo.dotNum;
     }
   }
   
@@ -1682,11 +1712,7 @@ async function showProfileModal(staff) {
       return;
     }
     
-    // Check Firebase first, then staff.js
-    const creds = await loadUserCredentials(staff.id);
-    const savedPass = creds?.pass || staff.pass;
-    
-    if (currentPass !== savedPass) {
+    if (currentPass !== staff.pass) {
       patternMsg.textContent = '❌ Incorrect password';
       patternMsg.className = 'profile-message error';
       return;
@@ -1699,13 +1725,13 @@ async function showProfileModal(staff) {
     verifyPatternBtn.disabled = true;
     verifyPatternBtn.style.opacity = '0.5';
     
-    // Initialize pattern drawing with iPad touch events
+    // Initialize pattern drawing
     resetNewPatternDrawing();
     newPatternGrid.addEventListener('mousedown', startNewDraw);
     window.addEventListener('mousemove', drawNew);
     window.addEventListener('mouseup', endNewDraw);
-    newPatternGrid.addEventListener('touchstart', startNewDraw, { passive: false });
-    window.addEventListener('touchmove', drawNew, { passive: false });
+    newPatternGrid.addEventListener('touchstart', startNewDraw);
+    window.addEventListener('touchmove', drawNew);
     window.addEventListener('touchend', endNewDraw);
   };
   
@@ -1731,6 +1757,7 @@ async function showProfileModal(staff) {
       resetNewPatternDrawing();
       showMessage(`Pattern updated for ${staff.name}`);
       
+      // Close modal after 1.5 seconds
       setTimeout(() => {
         modal.remove();
       }, 1500);
@@ -1745,6 +1772,243 @@ async function showProfileModal(staff) {
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 }
 
+
+// Complete Pattern Modal with working verification
+function showPatternModal(staff, onSuccess, onCancel) {
+  // Remove any existing modal
+  const existingModal = document.querySelector('.pattern-modal');
+  if (existingModal) existingModal.remove();
+  
+  const modal = document.createElement('div');
+  modal.className = 'pattern-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  `;
+  
+  modal.innerHTML = `
+    <div style="background: white; border-radius: 2rem; padding: 2rem; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+      <h3 style="color: #b8860b; margin-bottom: 0.5rem;">🎨 Pattern Lock</h3>
+      <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
+      <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Draw your pattern by connecting dots (3+ dots)</p>
+      
+      <!-- Pattern Grid -->
+      <div class="pattern-grid" id="patternGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; width: 260px; margin: 1rem auto; background: #f8fafc; padding: 1rem; border-radius: 1.5rem;">
+        ${[1,2,3,4,5,6,7,8,9].map(i => `
+          <div class="pattern-dot" data-num="${i}" style="width: 60px; height: 60px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 1.2rem; font-weight: bold; color: #64748b;">
+            ${i}
+          </div>
+        `).join('')}
+      </div>
+      
+      <!-- Preview -->
+      <div id="patternPreview" style="font-family: monospace; font-size: 1.2rem; letter-spacing: 4px; margin: 0.5rem 0; color: #1e4a76;"></div>
+      
+      <!-- Status Message -->
+      <div id="patternStatus" style="margin: 0.5rem 0; font-size: 0.85rem;"></div>
+      
+      <!-- Buttons -->
+      <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+        <button id="resetPatternBtn" style="padding: 0.6rem 1.2rem; background: #6b7280; color: white; border: none; border-radius: 2rem; cursor: pointer; font-weight: 600;">⟳ Reset</button>
+        <button id="cancelPatternBtn" style="padding: 0.6rem 1.2rem; background: #94a3b8; color: white; border: none; border-radius: 2rem; cursor: pointer; font-weight: 600;">✗ Cancel</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  let patternSequence = [];
+  let isDrawing = false;
+  
+  const grid = modal.querySelector('#patternGrid');
+  const dots = modal.querySelectorAll('.pattern-dot');
+  const previewSpan = modal.querySelector('#patternPreview');
+  const statusSpan = modal.querySelector('#patternStatus');
+  
+  // Update preview display
+  function updatePreview() {
+    if (patternSequence.length === 0) {
+      previewSpan.textContent = '⚫ Draw your pattern...';
+    } else {
+      const dotsDisplay = patternSequence.map(() => '●').join(' → ');
+      previewSpan.textContent = dotsDisplay;
+    }
+  }
+  
+  // Reset current drawing
+  function resetDrawing() {
+    patternSequence = [];
+    dots.forEach(dot => {
+      dot.classList.remove('selected');
+      dot.style.background = '#e2e8f0';
+      dot.style.color = '#64748b';
+      dot.style.transform = 'scale(1)';
+    });
+    updatePreview();
+    statusSpan.textContent = '';
+    statusSpan.style.color = '';
+  }
+  
+  // Add dot to pattern
+  function addDot(dotNum, element) {
+    if (!patternSequence.includes(dotNum)) {
+      patternSequence.push(dotNum);
+      element.classList.add('selected');
+      element.style.background = '#b8860b';
+      element.style.color = 'white';
+      element.style.transform = 'scale(1.1)';
+      element.style.boxShadow = '0 0 0 3px #fef3c7';
+      updatePreview();
+      return true;
+    }
+    return false;
+  }
+  
+  // Get dot from event
+  function getDotFromEvent(e) {
+    const rect = grid.getBoundingClientRect();
+    let clientX, clientY;
+    
+    if (e.touches) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    for (let dot of dots) {
+      const dotRect = dot.getBoundingClientRect();
+      if (clientX >= dotRect.left && clientX <= dotRect.right &&
+          clientY >= dotRect.top && clientY <= dotRect.bottom) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
+      }
+    }
+    return null;
+  }
+  
+  // Start drawing
+  function startDraw(e) {
+    e.preventDefault();
+    isDrawing = true;
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      dotInfo.element.style.background = '#b8860b';
+      dotInfo.element.style.color = 'white';
+      dotInfo.element.style.transform = 'scale(1.1)';
+      updatePreview();
+      statusSpan.textContent = '';
+    }
+  }
+  
+  // During drawing
+  function draw(e) {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence.push(dotInfo.dotNum);
+      dotInfo.element.classList.add('selected');
+      dotInfo.element.style.background = '#b8860b';
+      dotInfo.element.style.color = 'white';
+      dotInfo.element.style.transform = 'scale(1.1)';
+      updatePreview();
+    }
+  }
+  
+  // End drawing and VERIFY pattern
+  async function endDraw(e) {
+    e.preventDefault();
+    if (!isDrawing) {
+      isDrawing = false;
+      return;
+    }
+    isDrawing = false;
+    
+    // Check minimum dots
+    if (patternSequence.length < 3) {
+      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
+      statusSpan.style.color = '#ef4444';
+      setTimeout(resetDrawing, 1500);
+      return;
+    }
+    
+    // Show verifying message
+    statusSpan.textContent = '🔐 Verifying pattern...';
+    statusSpan.style.color = '#b8860b';
+    
+    // Verify with Firebase
+    const isValid = await verifyPatternWithFirebase(staff, patternSequence);
+    
+    if (isValid) {
+      statusSpan.textContent = '✅ Pattern verified! Redirecting...';
+      statusSpan.style.color = '#0f5c3b';
+      
+      // Success animation on dots
+      dots.forEach(dot => {
+        dot.style.transition = 'all 0.3s';
+        dot.style.background = '#0f5c3b';
+      });
+      
+      setTimeout(() => {
+        modal.remove();
+        if (onSuccess) onSuccess(true);
+      }, 500);
+    } else {
+      statusSpan.textContent = '❌ Incorrect pattern! Try again.';
+      statusSpan.style.color = '#ef4444';
+      
+      // Flash red on dots
+      dots.forEach(dot => {
+        dot.style.background = '#fee2e2';
+        setTimeout(() => {
+          if (dot.style.background === 'rgb(254, 226, 226)') {
+            dot.style.background = '#e2e8f0';
+          }
+        }, 300);
+      });
+      
+      setTimeout(resetDrawing, 1500);
+    }
+  }
+  
+  // Add event listeners for mouse
+  grid.addEventListener('mousedown', startDraw);
+  window.addEventListener('mousemove', draw);
+  window.addEventListener('mouseup', endDraw);
+  
+  // Add event listeners for touch
+  grid.addEventListener('touchstart', startDraw);
+  window.addEventListener('touchmove', draw);
+  window.addEventListener('touchend', endDraw);
+  
+  // Reset button
+  modal.querySelector('#resetPatternBtn').onclick = resetDrawing;
+  
+  // Cancel button
+  modal.querySelector('#cancelPatternBtn').onclick = () => {
+    modal.remove();
+    if (onCancel) onCancel(false);
+  };
+  
+  // Close on outside click
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      modal.remove();
+      if (onCancel) onCancel(false);
+    }
+  };
+}
 // ============ SUPERVISOR AUTHENTICATION FUNCTIONS ============
 
 // Show supervisor verification based on selected method
@@ -2005,24 +2269,7 @@ function updateProfileButtonVisibility() {
   }
 }
 
-// In showPasswordOnlyModal, update the checkAndSubmit function:
-async function checkAndSubmit() {
-  if (passwordInput.length === expectedLength) {
-    // Load latest credentials from Firebase
-    const creds = await loadUserCredentials(staff.id);
-    const savedPass = creds?.pass || staff.pass || '';
-    
-    if (passwordInput === savedPass) {
-      modal.remove();
-      callback(true);
-    } else {
-      errorDiv.textContent = '❌ Incorrect password. Try again.';
-      passwordInput = '';
-      passInput.value = '';
-      passInput.focus();
-    }
-  }
-}
+
 
   // Pattern Lock Variables
 let currentPattern = [];
@@ -2115,227 +2362,7 @@ async function refreshStaffCredentials() {
 }
 
 
-// Show Pattern Lock Modal - NO LINES, only dots
-// Show Pattern Lock Modal - iPad Optimized (Drag to draw, NO LINES)
-function showPatternModal(staff, onSuccess, onCancel) {
-  const existingModal = document.querySelector('.pattern-modal');
-  if (existingModal) existingModal.remove();
-  
-  const modal = document.createElement('div');
-  modal.className = 'pattern-modal';
-  
-  modal.innerHTML = `
-    <div class="pattern-modal-content">
-      <h3>🎨 Pattern Lock</h3>
-      <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <p style="font-size: 0.8rem; color: #666;">Drag your finger across the dots to draw pattern</p>
-      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release when pattern is complete</p>
-      
-      <div class="pattern-grid" id="patternGrid">
-        ${[1,2,3,4,5,6,7,8,9].map(i => `
-          <div class="pattern-dot" data-num="${i}"></div>
-        `).join('')}
-      </div>
-      
-      <div class="pattern-preview" id="patternPreview"></div>
-      <div class="pattern-status" id="patternStatus"></div>
-      
-      <div class="pattern-buttons">
-        <button class="reset-pattern-btn" id="resetPatternBtn">⟳ Reset</button>
-        <button class="cancel-pattern-btn" id="cancelPatternBtn">✗ Cancel</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  
-  const grid = modal.querySelector('#patternGrid');
-  const dots = modal.querySelectorAll('.pattern-dot');
-  const previewSpan = modal.querySelector('#patternPreview');
-  const statusSpan = modal.querySelector('#patternStatus');
-  let patternSequence = [];
-  let isDragging = false;
-  let verificationInProgress = false;
-  let lastAddedDot = null;
-  
-  // Helper to update preview display
-  function updatePreview() {
-    if (patternSequence.length === 0) {
-      previewSpan.textContent = 'Drag to draw pattern...';
-    } else {
-      previewSpan.textContent = patternSequence.map(n => `●`).join(' → ');
-    }
-  }
-  
-  // Helper to reset current drawing
-  function resetDrawing() {
-    patternSequence = [];
-    dots.forEach(dot => dot.classList.remove('selected'));
-    updatePreview();
-    statusSpan.textContent = '';
-    statusSpan.className = 'pattern-status';
-    verificationInProgress = false;
-    lastAddedDot = null;
-  }
-  
-  // Add dot to pattern (no lines, just highlight)
-  function addDot(dotNum, element) {
-    if (verificationInProgress) return;
-    // Don't add if already in sequence
-    if (patternSequence.includes(dotNum)) return;
-    
-    patternSequence.push(dotNum);
-    element.classList.add('selected');
-    updatePreview();
-    statusSpan.textContent = '';
-    lastAddedDot = dotNum;
-  }
-  
-  // Get dot from touch/mouse event
-  function getDotFromEvent(e) {
-    // Get the actual touch point or mouse coordinates
-    let clientX, clientY;
-    
-    if (e.touches) {
-      // Touch event
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      // Mouse event
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-    
-    // Find which dot contains these coordinates
-    for (let dot of dots) {
-      const rect = dot.getBoundingClientRect();
-      // Add small padding for easier touch
-      const padding = 15;
-      if (clientX >= rect.left - padding && clientX <= rect.right + padding &&
-          clientY >= rect.top - padding && clientY <= rect.bottom + padding) {
-        return { dotNum: parseInt(dot.dataset.num), element: dot };
-      }
-    }
-    return null;
-  }
-  
-  // Start dragging (touch start or mouse down)
-  function startDrag(e) {
-    e.preventDefault();
-    if (verificationInProgress) return;
-    isDragging = true;
-    
-    const dotInfo = getDotFromEvent(e);
-    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
-      // Start new pattern with first dot
-      patternSequence = [dotInfo.dotNum];
-      dotInfo.element.classList.add('selected');
-      updatePreview();
-      lastAddedDot = dotInfo.dotNum;
-    }
-  }
-  
-  // During drag (touch move or mouse move)
-  function onDrag(e) {
-    e.preventDefault();
-    if (!isDragging || verificationInProgress) return;
-    
-    const dotInfo = getDotFromEvent(e);
-    if (dotInfo && dotInfo.dotNum !== lastAddedDot && !patternSequence.includes(dotInfo.dotNum)) {
-      patternSequence.push(dotInfo.dotNum);
-      dotInfo.element.classList.add('selected');
-      updatePreview();
-      lastAddedDot = dotInfo.dotNum;
-    }
-  }
-  
-  // End drag (touch end or mouse up) - auto verify pattern
-  async function endDrag(e) {
-    e.preventDefault();
-    if (!isDragging) {
-      isDragging = false;
-      return;
-    }
-    isDragging = false;
-    
-    if (patternSequence.length < 3) {
-      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
-      statusSpan.className = 'pattern-status error';
-      setTimeout(() => {
-        resetDrawing();
-      }, 1000);
-      return;
-    }
-    
-    // Auto-verify the pattern
-    verificationInProgress = true;
-    
-    const enteredPattern = patternToString(patternSequence);
-    // Load latest credentials from Firebase
-    const creds = await loadUserCredentials(staff.id);
-    const savedPattern = creds?.pattern || staff.pattern || '';
-    
-    if (enteredPattern === savedPattern) {
-      statusSpan.textContent = '✅ Pattern verified!';
-      statusSpan.className = 'pattern-status success';
-      setTimeout(() => {
-        modal.remove();
-        if (onSuccess) onSuccess();
-      }, 500);
-    } else {
-      statusSpan.textContent = '❌ Incorrect pattern! Try again.';
-      statusSpan.className = 'pattern-status error';
-      resetDrawing();
-      verificationInProgress = false;
-    }
-  }
-  
-  // Prevent touch scrolling on the whole page while drawing
-  function preventBodyScroll(e) {
-    if (isDragging) {
-      e.preventDefault();
-    }
-  }
-  
-  // === Mouse Events (for PC/Desktop) ===
-  grid.addEventListener('mousedown', startDrag);
-  window.addEventListener('mousemove', onDrag);
-  window.addEventListener('mouseup', endDrag);
-  
-  // === Touch Events (for iPad/Phone) ===
-  grid.addEventListener('touchstart', startDrag, { passive: false });
-  grid.addEventListener('touchmove', onDrag, { passive: false });
-  grid.addEventListener('touchend', endDrag);
-  
-  // Also prevent body scroll when dragging on grid
-  grid.addEventListener('touchmove', preventBodyScroll, { passive: false });
-  
-  // Reset button
-  modal.querySelector('#resetPatternBtn').onclick = () => {
-    resetDrawing();
-  };
-  
-  // Cancel button
-  modal.querySelector('#cancelPatternBtn').onclick = () => {
-    modal.remove();
-    if (onCancel) onCancel();
-  };
-  
-  // Prevent modal from closing when clicking inside
-  modal.querySelector('.pattern-modal-content').onclick = (e) => {
-    e.stopPropagation();
-  };
-  
-  // Close on outside click
-  modal.onclick = (e) => {
-    if (e.target === modal) {
-      modal.remove();
-      if (onCancel) onCancel();
-    }
-  };
-}
-// Update initDailyStaffSelect to include Pattern option
-// Update initDailyStaffSelect to auto-logout previous user
+
 function initDailyStaffSelect() {
   const select = document.getElementById("dailyTaskStaffSelect");
   if (!select) return;
@@ -2346,19 +2373,38 @@ function initDailyStaffSelect() {
     select.innerHTML = '<option value="">-- No staff on duty --</option>';
     const nameSpan = document.getElementById("dailyTaskSelectedName");
     if (nameSpan) nameSpan.textContent = "⚠️ No staff on duty today";
+    return;
+  }
+  
+  // Store current value before rebuilding
+  const currentValue = select.value;
+  
+  select.innerHTML = '<option value="">-- Select Staff --</option>' + 
+    sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  
+  // Restore previous selection if it still exists
+  if (currentValue && sodStaff.some(s => s.id === currentValue)) {
+    select.value = currentValue;
   } else {
-    select.innerHTML = '<option value="">-- Select Staff --</option>' + 
-      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+    select.value = "";
+    if (authenticatedStaffId) {
+      authenticatedStaffId = null;
+      const nameSpan = document.getElementById("dailyTaskSelectedName");
+      if (nameSpan) nameSpan.textContent = "⚠️ Select your name";
+      renderDailyTasksUI();
+    }
   }
   
   select.onchange = async () => {
     const selectedStaffId = select.value;
     
     if (!selectedStaffId) {
-      // If no staff selected, just clear authentication
+      // Logout current user when "Select Staff" is chosen
       if (authenticatedStaffId) {
-        console.log(`User ${authenticatedStaffId} logged out (deselected)`);
+        const previousStaff = staffList.find(s => s.id === authenticatedStaffId);
+        showMessage(`👋 ${previousStaff?.name} logged out`, "info");
         authenticatedStaffId = null;
+        updateProfileButtonVisibility();
       }
       const nameSpan = document.getElementById("dailyTaskSelectedName");
       if (nameSpan) nameSpan.textContent = "⚠️ Select your name";
@@ -2369,33 +2415,18 @@ function initDailyStaffSelect() {
     const selectedStaff = staffList.find(s => s.id === selectedStaffId);
     if (!selectedStaff) return;
     
-    // If already authenticated for this staff, just update the display
-    if (authenticatedStaffId === selectedStaffId) {
-      const nameSpan = document.getElementById("dailyTaskSelectedName");
-      if (nameSpan && selectedStaff) {
-        nameSpan.textContent = `✓ ${selectedStaff.name} (Verified)`;
-      }
-      renderDailyTasksUI();
-      return;
-    }
-    
-    // ✅ AUTO-LOGOUT PREVIOUS USER
-    if (authenticatedStaffId) {
+    // Auto-logout previous user when selecting a different staff
+    if (authenticatedStaffId && authenticatedStaffId !== selectedStaffId) {
       const previousStaff = staffList.find(s => s.id === authenticatedStaffId);
-      console.log(`Auto-logout: ${previousStaff?.name} replaced by ${selectedStaff.name}`);
-      showMessage(`👋 ${previousStaff?.name} logged out automatically`, "info");
+      console.log(`Auto-logout: ${previousStaff?.name} -> ${selectedStaff.name}`);
       authenticatedStaffId = null;
     }
     
-    // Show verification options modal (Password OR Pattern)
+    // Show verification (Password OR Pattern)
     showVerificationOptionsModal(selectedStaff, (success) => {
       if (success) {
         authenticatedStaffId = selectedStaff.id;
-        updateProfileButtonVisibility();
-        
-        // IMPORTANT: Keep the dropdown value as the selected staff
-        select.value = selectedStaffId;
-        
+        updateProfileButtonVisibility(); 
         const nameSpan = document.getElementById("dailyTaskSelectedName");
         if (nameSpan && selectedStaff) {
           nameSpan.textContent = `✓ ${selectedStaff.name} (Verified)`;
@@ -2403,9 +2434,10 @@ function initDailyStaffSelect() {
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
       } else {
-        // Authentication failed - reset dropdown
+        // Verification failed - clear selection
         select.value = "";
         authenticatedStaffId = null;
+        updateProfileButtonVisibility();
         const nameSpan = document.getElementById("dailyTaskSelectedName");
         if (nameSpan) nameSpan.textContent = "⚠️ Verification failed";
         renderDailyTasksUI();
@@ -2416,111 +2448,357 @@ function initDailyStaffSelect() {
 }
 
 
-// Add this to initApp after loading other data
-// Load credentials ONCE at startup only - NO continuous loading
-let credentialsLoaded = false;
-
-async function loadAllCredentials() {
-  if (credentialsLoaded) return; // Only load once
-  
-  for (const staff of staffList) {
-    const creds = await loadUserCredentials(staff.id);
-    if (creds) {
-      staff.pass = creds.pass;
-      staff.pattern = creds.pattern;
-    }
-  }
-  credentialsLoaded = true;
-  console.log("✅ All credentials loaded from Firebase (once)");
-}
-
 // Show verification options (Password OR Pattern)
+// Show verification options (Password OR Pattern)
+// Show verification options - Pattern first, with option to switch to Password
+// Show verification options - Pattern first, with option to switch to Password
 function showVerificationOptionsModal(staff, callback) {
-  const existingModal = document.querySelector('.pattern-modal');
-  if (existingModal) existingModal.remove();
-  
   const modal = document.createElement('div');
   modal.className = 'pattern-modal';
-  
-  modal.innerHTML = `
-    <div class="pattern-modal-content">
-      <h3>🔐 Verify Identity</h3>
-      <p style="margin-bottom: 1rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Choose verification method:</p>
-      
-      <div style="display: flex; gap: 1rem; flex-direction: column;">
-        <button id="passwordOptionBtn" style="padding: 1rem; background: #1e4a76; color: white; border: none; border-radius: 1rem; font-size: 1rem; cursor: pointer;">
-          🔑 Use Password
-        </button>
-        <button id="patternOptionBtn" style="padding: 1rem; background: #b8860b; color: white; border: none; border-radius: 1rem; font-size: 1rem; cursor: pointer;">
-          🎨 Use Pattern Lock
-        </button>
-        <button id="cancelOptionBtn" style="padding: 0.8rem; background: #94a3b8; color: white; border: none; border-radius: 1rem; cursor: pointer;">
-          ✗ Cancel
-        </button>
-      </div>
-    </div>
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
   `;
   
-  document.body.appendChild(modal);
+  let currentMode = 'pattern'; // 'pattern' or 'password'
   
-  // Prevent click propagation
-  modal.querySelector('.pattern-modal-content').onclick = (e) => e.stopPropagation();
+  function renderModal() {
+    if (currentMode === 'pattern') {
+      modal.innerHTML = `
+        <div style="background: white; border-radius: 2rem; padding: 2rem; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+          <h3 style="color: #b8860b; margin-bottom: 0.5rem;">🎨 Pattern Lock</h3>
+          <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Draw your pattern by connecting dots (3+ dots)</p>
+          <p style="font-size: 0.7rem; color: #999; margin-bottom: 1rem;">Release when pattern is complete</p>
+          
+          <div class="pattern-grid" id="patternGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; width: 260px; margin: 1rem auto; background: #f8fafc; padding: 1rem; border-radius: 1.5rem;">
+            ${[1,2,3,4,5,6,7,8,9].map(i => `
+              <div class="pattern-dot" data-num="${i}" style="width: 60px; height: 60px; background: #e2e8f0; border-radius: 50%; cursor: pointer; transition: all 0.2s;"></div>
+            `).join('')}
+          </div>
+          
+          <div id="patternPreview" style="font-family: monospace; font-size: 1rem; letter-spacing: 6px; margin: 0.5rem 0; color: #1e4a76;"></div>
+          <div id="patternStatus" style="margin: 0.5rem 0; font-size: 0.85rem;"></div>
+          
+          <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+            <button id="switchToPasswordBtn" style="padding: 0.6rem 1.2rem; background: #1e4a76; color: white; border: none; border-radius: 2rem; cursor: pointer; font-weight: 600;">🔑 Use Password Instead</button>
+            <button id="cancelPatternBtn" style="padding: 0.6rem 1.2rem; background: #94a3b8; color: white; border: none; border-radius: 2rem; cursor: pointer; font-weight: 600;">✗ Cancel</button>
+          </div>
+        </div>
+      `;
+      initializePatternMode(staff, callback, modal);
+    } else {
+      modal.innerHTML = `
+        <div style="background: white; border-radius: 2rem; padding: 2rem; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+          <h3 style="color: #b8860b; margin-bottom: 0.5rem;">🔑 Enter Password</h3>
+          <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
+          <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Enter your password (auto-submit after 4 digits)</p>
+          <input type="password" id="passInput" placeholder="Enter your password" maxlength="10" autocomplete="off" style="width: 100%; padding: 0.8rem; margin: 1rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.2rem; letter-spacing: 4px;">
+          <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1rem 0;">
+            ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 1rem; cursor: pointer;">${n}</button>`).join('')}
+            <button data-num="clear" style="background: #ef4444; color: white; padding: 0.8rem; border: none; border-radius: 1rem; cursor: pointer;">⌫ Clear</button>
+          </div>
+          <div id="passError" style="color: #ef4444; font-size: 0.8rem; margin: 0.5rem 0;"></div>
+          
+          <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+            <button id="switchToPatternBtn" style="padding: 0.6rem 1.2rem; background: #b8860b; color: white; border: none; border-radius: 2rem; cursor: pointer; font-weight: 600;">🎨 Use Pattern Instead</button>
+            <button id="cancelPasswordBtn" style="padding: 0.6rem 1.2rem; background: #94a3b8; color: white; border: none; border-radius: 2rem; cursor: pointer; font-weight: 600;">✗ Cancel</button>
+          </div>
+        </div>
+      `;
+      initializePasswordMode(staff, callback, modal);
+    }
+  }
   
-  modal.querySelector('#passwordOptionBtn').onclick = () => {
-    modal.remove();
-    showPasswordOnlyModal(staff, callback);
-  };
-  
-  modal.querySelector('#patternOptionBtn').onclick = () => {
-    modal.remove();
-    showPatternModal(staff, 
-      () => {
-        // On success - call callback with true
-        callback(true);
-      },
-      () => {
-        // On cancel - call callback with false
-        callback(false);
+  function initializePatternMode(staff, callback, modal) {
+    let patternSequence = [];
+    let isDrawing = false;
+    
+    const grid = modal.querySelector('#patternGrid');
+    const dots = modal.querySelectorAll('.pattern-dot');
+    const previewSpan = modal.querySelector('#patternPreview');
+    const statusSpan = modal.querySelector('#patternStatus');
+    
+    function updatePreview() {
+      if (patternSequence.length === 0) {
+        previewSpan.textContent = '⚫ Draw your pattern...';
+      } else {
+        // Show dots without numbers
+        previewSpan.textContent = patternSequence.map(() => '●').join(' → ');
       }
-    );
-  };
+    }
+    
+    function resetDrawing() {
+      patternSequence = [];
+      dots.forEach(dot => {
+        dot.classList.remove('selected');
+        dot.style.background = '#e2e8f0';
+        dot.style.transform = 'scale(1)';
+        dot.style.boxShadow = 'none';
+      });
+      updatePreview();
+      if (statusSpan) {
+        statusSpan.textContent = '';
+        statusSpan.style.color = '';
+      }
+    }
+    
+    function getDotFromEvent(e) {
+      const rect = grid.getBoundingClientRect();
+      let clientX, clientY;
+      
+      if (e.touches) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      for (let dot of dots) {
+        const dotRect = dot.getBoundingClientRect();
+        if (clientX >= dotRect.left && clientX <= dotRect.right &&
+            clientY >= dotRect.top && clientY <= dotRect.bottom) {
+          return { dotNum: parseInt(dot.dataset.num), element: dot };
+        }
+      }
+      return null;
+    }
+    
+    function startDraw(e) {
+      e.preventDefault();
+      isDrawing = true;
+      const dotInfo = getDotFromEvent(e);
+      if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+        patternSequence = [dotInfo.dotNum];
+        dotInfo.element.classList.add('selected');
+        dotInfo.element.style.background = '#b8860b';
+        dotInfo.element.style.transform = 'scale(1.1)';
+        dotInfo.element.style.boxShadow = '0 0 0 3px #fef3c7';
+        updatePreview();
+        if (statusSpan) statusSpan.textContent = '';
+      }
+    }
+    
+    function draw(e) {
+      e.preventDefault();
+      if (!isDrawing) return;
+      const dotInfo = getDotFromEvent(e);
+      if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+        patternSequence.push(dotInfo.dotNum);
+        dotInfo.element.classList.add('selected');
+        dotInfo.element.style.background = '#b8860b';
+        dotInfo.element.style.transform = 'scale(1.1)';
+        dotInfo.element.style.boxShadow = '0 0 0 3px #fef3c7';
+        updatePreview();
+      }
+    }
+    
+    async function endDraw(e) {
+      e.preventDefault();
+      if (!isDrawing) {
+        isDrawing = false;
+        return;
+      }
+      isDrawing = false;
+      
+      if (patternSequence.length < 3) {
+        if (statusSpan) {
+          statusSpan.textContent = '❌ Pattern must have at least 3 dots';
+          statusSpan.style.color = '#ef4444';
+        }
+        setTimeout(resetDrawing, 1500);
+        return;
+      }
+      
+      if (statusSpan) {
+        statusSpan.textContent = '🔐 Verifying...';
+        statusSpan.style.color = '#b8860b';
+      }
+      
+      const isValid = await verifyPatternWithFirebase(staff, patternSequence);
+      
+      if (isValid) {
+        if (statusSpan) {
+          statusSpan.textContent = '✅ Verified!';
+          statusSpan.style.color = '#0f5c3b';
+        }
+        setTimeout(() => {
+          modal.remove();
+          callback(true);
+        }, 500);
+      } else {
+        if (statusSpan) {
+          statusSpan.textContent = '❌ Incorrect pattern! Try again.';
+          statusSpan.style.color = '#ef4444';
+        }
+        setTimeout(resetDrawing, 1500);
+      }
+    }
+    
+    // Add event listeners
+    grid.addEventListener('mousedown', startDraw);
+    window.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', endDraw);
+    grid.addEventListener('touchstart', startDraw);
+    window.addEventListener('touchmove', draw);
+    window.addEventListener('touchend', endDraw);
+    
+    const switchBtn = modal.querySelector('#switchToPasswordBtn');
+    if (switchBtn) {
+      switchBtn.onclick = () => {
+        // Clean up event listeners before switching
+        grid.removeEventListener('mousedown', startDraw);
+        window.removeEventListener('mousemove', draw);
+        window.removeEventListener('mouseup', endDraw);
+        grid.removeEventListener('touchstart', startDraw);
+        window.removeEventListener('touchmove', draw);
+        window.removeEventListener('touchend', endDraw);
+        currentMode = 'password';
+        renderModal();
+      };
+    }
+    
+    const cancelBtn = modal.querySelector('#cancelPatternBtn');
+    if (cancelBtn) {
+      cancelBtn.onclick = () => {
+        modal.remove();
+        callback(false);
+      };
+    }
+  }
   
-  modal.querySelector('#cancelOptionBtn').onclick = () => {
-    modal.remove();
-    callback(false);
-  };
+  function initializePasswordMode(staff, callback, modal) {
+    let passwordInput = '';
+    const passInput = modal.querySelector('#passInput');
+    const errorDiv = modal.querySelector('#passError');
+    
+    async function verifyAndSubmit() {
+      if (passwordInput.length === 0) {
+        if (errorDiv) errorDiv.textContent = '❌ Please enter your password';
+        return;
+      }
+      
+      if (errorDiv) {
+        errorDiv.textContent = '🔐 Verifying...';
+        errorDiv.style.color = '#b8860b';
+      }
+      
+      const creds = await loadUserCredentials(staff.id);
+      const savedPass = creds?.pass || staff.pass;
+      
+      if (passwordInput === savedPass) {
+        modal.remove();
+        callback(true);
+      } else {
+        if (errorDiv) {
+          errorDiv.textContent = '❌ Incorrect password. Try again.';
+          errorDiv.style.color = '#ef4444';
+        }
+        passwordInput = '';
+        if (passInput) passInput.value = '';
+      }
+    }
+    
+    if (modal.querySelectorAll('[data-num]')) {
+      modal.querySelectorAll('[data-num]').forEach(btn => {
+        btn.onclick = () => {
+          const num = btn.dataset.num;
+          if (num === 'clear') {
+            passwordInput = passwordInput.slice(0, -1);
+          } else {
+            passwordInput += num;
+          }
+          if (passInput) passInput.value = '*'.repeat(passwordInput.length);
+          if (errorDiv) errorDiv.textContent = '';
+          
+          if (passwordInput.length >= 4) {
+            verifyAndSubmit();
+          }
+        };
+      });
+    }
+    
+    if (passInput) {
+      passInput.oninput = (e) => {
+        passwordInput = e.target.value;
+        e.target.value = '*'.repeat(passwordInput.length);
+        if (errorDiv) errorDiv.textContent = '';
+        
+        if (passwordInput.length >= 4) {
+          verifyAndSubmit();
+        }
+      };
+      
+      passInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+          verifyAndSubmit();
+        }
+      };
+    }
+    
+    const switchBtn = modal.querySelector('#switchToPatternBtn');
+    if (switchBtn) {
+      switchBtn.onclick = () => {
+        currentMode = 'pattern';
+        renderModal();
+      };
+    }
+    
+    const cancelBtn = modal.querySelector('#cancelPasswordBtn');
+    if (cancelBtn) {
+      cancelBtn.onclick = () => {
+        modal.remove();
+        callback(false);
+      };
+    }
+    
+    setTimeout(() => {
+      if (passInput) passInput.focus();
+    }, 100);
+  }
   
-  // Close on outside click
-  modal.onclick = () => {
-    modal.remove();
-    callback(false);
-  };
+  renderModal();
+  document.body.appendChild(modal);
 }
 
-// Password only modal - Auto-submit when 4 digits entered
-// Password only modal - Auto-submit when correct digits entered (Firebase first)
+// Show password only modal with Firebase verification - NO CONSOLE LOGS
 function showPasswordOnlyModal(staff, callback) {
   const modal = document.createElement('div');
-  modal.className = 'pattern-modal';
+  modal.className = 'password-modal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  `;
   
   let passwordInput = '';
-  let expectedLength = 4; // Default, will update after loading
   
   modal.innerHTML = `
-    <div class="pattern-modal-content">
-      <h3>🔑 Enter Password</h3>
+    <div style="background: white; border-radius: 2rem; padding: 2rem; width: 90%; max-width: 400px; text-align: center;">
+      <h3 style="color: #b8860b; margin-bottom: 0.5rem;">🔑 Enter Password</h3>
       <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <p style="font-size: 0.8rem; color: #666;" id="passHint">Loading password requirements...</p>
-      <input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off" style="width: 100%; padding: 0.8rem; margin: 1rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.5rem; letter-spacing: 4px;">
-      <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 1rem 0;">
-        ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem;">${n}</button>`).join('')}
-        <button data-num="clear" class="clear-pass" style="background: #ef4444; color: white; padding: 0.8rem;">⌫</button>
+      <input type="password" id="passInput" placeholder="Enter your password" maxlength="10" autocomplete="off" style="width: 100%; padding: 0.8rem; margin: 1rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.2rem; letter-spacing: 4px;">
+      <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1rem 0;">
+        ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 1rem; cursor: pointer;">${n}</button>`).join('')}
+        <button data-num="clear" style="background: #ef4444; color: white; padding: 0.8rem; border: none; border-radius: 1rem; cursor: pointer;">⌫ Clear</button>
       </div>
-      <div id="passError" style="color: #ef4444; font-size: 0.8rem;"></div>
-      <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-        <button id="cancelPassBtn" style="flex:1; background: #94a3b8; color: white; padding: 0.6rem; border: none; border-radius: 1rem;">Cancel</button>
-      </div>
+      <div id="passError" style="color: #ef4444; font-size: 0.8rem; margin: 0.5rem 0;"></div>
     </div>
   `;
   
@@ -2528,96 +2806,74 @@ function showPasswordOnlyModal(staff, callback) {
   
   const passInput = modal.querySelector('#passInput');
   const errorDiv = modal.querySelector('#passError');
-  const passHint = modal.querySelector('#passHint');
   
-  let savedPass = null;
-  
-  // Load credentials immediately
-  (async () => {
+  async function verifyAndSubmit() {
+    if (passwordInput.length === 0) {
+      errorDiv.textContent = '❌ Please enter your password';
+      return;
+    }
+    
+    errorDiv.textContent = '🔐 Verifying...';
+    errorDiv.style.color = '#b8860b';
+    
     const creds = await loadUserCredentials(staff.id);
-    savedPass = creds?.pass || staff.pass || '';
-    expectedLength = savedPass.length;
-    passHint.textContent = `Enter your ${expectedLength}-digit password`;
-  })();
-  
-  async function checkAndSubmit() {
-    if (passwordInput.length === expectedLength) {
-      // Use already loaded savedPass
-      if (passwordInput === savedPass) {
-        modal.remove();
-        callback(true);
-      } else {
-        errorDiv.textContent = '❌ Incorrect password. Try again.';
-        passwordInput = '';
-        passInput.value = '';
-        passInput.focus();
-      }
+    const savedPass = creds?.pass || staff.pass;
+    
+    if (passwordInput === savedPass) {
+      modal.remove();
+      callback(true);
+    } else {
+      errorDiv.textContent = '❌ Incorrect password. Try again.';
+      errorDiv.style.color = '#ef4444';
+      passwordInput = '';
+      passInput.value = '';
     }
   }
   
-  // Number pad functionality
+  // Number pad buttons - auto submit when enough digits entered
   modal.querySelectorAll('[data-num]').forEach(btn => {
     btn.onclick = () => {
       const num = btn.dataset.num;
       if (num === 'clear') {
         passwordInput = passwordInput.slice(0, -1);
-      } else if (passwordInput.length < expectedLength) {
+      } else {
         passwordInput += num;
       }
       passInput.value = '*'.repeat(passwordInput.length);
       errorDiv.textContent = '';
-      checkAndSubmit();
+      
+      // Auto-submit when password length is 4 digits (or any length > 0)
+      if (passwordInput.length >= 4) {
+        verifyAndSubmit();
+      }
     };
   });
   
+  // Keyboard input - auto submit on Enter or when 4 digits entered
   passInput.oninput = (e) => {
     passwordInput = e.target.value;
-    if (passwordInput.length > expectedLength) {
-      passwordInput = passwordInput.slice(0, expectedLength);
-    }
     e.target.value = '*'.repeat(passwordInput.length);
     errorDiv.textContent = '';
-    checkAndSubmit();
+    
+    // Auto-submit when 4 digits entered
+    if (passwordInput.length >= 4) {
+      verifyAndSubmit();
+    }
   };
   
-  modal.querySelector('#cancelPassBtn').onclick = () => {
-    modal.remove();
-    callback(false);
+  passInput.onkeypress = (e) => {
+    if (e.key === 'Enter') {
+      verifyAndSubmit();
+    }
   };
   
+  // Focus on input
   setTimeout(() => passInput.focus(), 100);
 }
 
 // Load Daily Tasks
 // Load Daily Tasks from Firebase (per date) - CORRECTED
-// Load Daily Tasks from Firebase (per date) - WITH CACHING
-let dailyTasksCache = {};
-
-async function loadDailyTasks(forceReload = false) {
-  // Check cache first
-  if (!forceReload && dailyTasksCache[currentDate]) {
-    console.log(`📦 Using cached daily tasks for ${currentDate}`);
-    const cached = dailyTasksCache[currentDate];
-    
-    // Restore from cache
-    MAIN_DAILY_TASKS.forEach((task, idx) => {
-      if (cached.mainTasks[idx]) {
-        task.signoffs = cached.mainTasks[idx].signoffs || [];
-        task.completedBy = cached.mainTasks[idx].completedBy || null;
-        task.submissions = cached.mainTasks[idx].submissions || [];
-      }
-    });
-    
-    FB_DAILY_TASKS.forEach((task, idx) => {
-      if (cached.fbTasks[idx]) {
-        task.signoffs = cached.fbTasks[idx].signoffs || [];
-        task.completedBy = cached.fbTasks[idx].completedBy || null;
-      }
-    });
-    
-    return true;
-  }
-  
+async function loadDailyTasks() {
   try {
     const docRef = db.collection("staffManagement").doc(currentDate);
     const doc = await docRef.get();
@@ -2627,12 +2883,14 @@ async function loadDailyTasks(forceReload = false) {
       
       // Load main tasks
       if (data.mainTasks) {
+        // Clear existing signoffs first
         MAIN_DAILY_TASKS.forEach(item => {
           item.signoffs = [];
           item.completedBy = null;
           item.submissions = [];
         });
         
+        // Load saved data
         data.mainTasks.forEach(savedItem => {
           const task = MAIN_DAILY_TASKS.find(t => t.id === savedItem.id);
           if (task) {
@@ -2659,25 +2917,11 @@ async function loadDailyTasks(forceReload = false) {
         });
       }
       
-      // Save to cache
-      dailyTasksCache[currentDate] = {
-        mainTasks: MAIN_DAILY_TASKS.map(t => ({
-          id: t.id,
-          signoffs: t.signoffs,
-          completedBy: t.completedBy,
-          submissions: t.submissions
-        })),
-        fbTasks: FB_DAILY_TASKS.map(t => ({
-          id: t.id,
-          signoffs: t.signoffs,
-          completedBy: t.completedBy
-        }))
-      };
-      
       console.log(`✅ Daily tasks loaded from Firebase for ${currentDate}`);
       return true;
     } else {
       console.log(`No saved tasks for ${currentDate}, using defaults`);
+      // Reset to empty for new day
       MAIN_DAILY_TASKS.forEach(task => {
         if (task.type === "signoff") task.signoffs = [];
         if (task.type === "complete") task.completedBy = null;
@@ -2715,21 +2959,6 @@ async function saveDailyTasks() {
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     
-    // Update cache after save
-    dailyTasksCache[currentDate] = {
-      mainTasks: MAIN_DAILY_TASKS.map(t => ({
-        id: t.id,
-        signoffs: t.signoffs,
-        completedBy: t.completedBy,
-        submissions: t.submissions
-      })),
-      fbTasks: FB_DAILY_TASKS.map(t => ({
-        id: t.id,
-        signoffs: t.signoffs,
-        completedBy: t.completedBy
-      }))
-    };
-    
     console.log(`✅ Daily tasks saved to Firebase for ${currentDate}`);
     return true;
   } catch (error) {
@@ -2737,24 +2966,28 @@ async function saveDailyTasks() {
     return false;
   }
 }
+
 // Add this function to sync staff view with supervisor selections
 // Sync staff view with supervisor selections - NO date changing, just display
-// Sync staff view with supervisor selections - MANUAL only, not automatic
 async function syncStaffViewWithSupervisor() {
   if (!supervisorLoggedIn) return;
   
   console.log(`🔄 Syncing staff view - Date: ${currentDate}, Shift: ${currentShift}`);
   
+  // Update staff display to show current supervisor selections
   updateStaffDisplay();
   
-  // Use cached data if available
+  // Reload data for the current date (which is already set by supervisor)
   await loadFromLocalStorage();
   await loadDailyTasks();
   
+  // Refresh all staff UI components
   renderBreakTimeBadges();
   loadCompleteStaffDashboard();
   initDailyStaffSelect();
   renderDailyTasksUI();
+  
+  console.log(`✅ Staff view synced to: ${currentDate} - ${currentShift}`);
 }
 
   function getSelectedStaff() {
@@ -3508,28 +3741,32 @@ function updateStaffContextDisplay() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    // Direct onclick handler
-    badge.onclick = (function(staffId, staffName) {
-      return async function() {
-        console.log("Clicked staff ID:", staffId);
-        
-        if (staffOnDutyIds.has(staffId)) {
-          staffOnDutyIds.delete(staffId);
-          showMessage(staffName + " removed from SOD for " + currentDate);
-        } else {
-          staffOnDutyIds.add(staffId);
-          showMessage(staffName + " added to SOD for " + currentDate);
-        }
-        
-        console.log("Updated SOD IDs:", Array.from(staffOnDutyIds));
-        
-        // Re-render both sections
-        renderAllSod();
-        renderAllocationPool();
-        initDailyStaffSelect();  // Update staff dropdown for daily tasks
-        await saveToLocalStorage();  // Save the change to Firebase
-      };
-    })(staff.id, staff.name);
+    // Use both click AND touchstart for iPad compatibility
+    const handleTap = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Tapped staff ID:", staff.id);
+      
+      if (staffOnDutyIds.has(staff.id)) {
+        staffOnDutyIds.delete(staff.id);
+        showMessage(staff.name + " removed from SOD for " + currentDate);
+      } else {
+        staffOnDutyIds.add(staff.id);
+        showMessage(staff.name + " added to SOD for " + currentDate);
+      }
+      
+      console.log("Updated SOD IDs:", Array.from(staffOnDutyIds));
+      
+      // Re-render both sections
+      renderAllSod();
+      renderAllocationPool();
+      initDailyStaffSelect();
+      await saveToLocalStorage();
+    };
+    
+    // Add both event listeners for cross-device compatibility
+    badge.addEventListener('click', handleTap);
+    badge.addEventListener('touchstart', handleTap, { passive: false });
     
     container.appendChild(badge);
   });
@@ -3539,11 +3776,6 @@ function updateStaffContextDisplay() {
   const container = document.getElementById("allocationPoolContainer");
   if (!container || !supervisorLoggedIn) return;
   
-  console.log("=== renderAllocationPool called ===");
-  console.log("staffOnDutyIds size:", staffOnDutyIds.size);
-  console.log("staffOnDutyIds values:", Array.from(staffOnDutyIds));
-  
-  // Convert to array and find staff members
   const sodStaffIds = Array.from(staffOnDutyIds);
   const sodStaff = [];
   
@@ -3551,14 +3783,11 @@ function updateStaffContextDisplay() {
     const staff = staffList.find(s => s.id === id);
     if (staff) {
       sodStaff.push(staff);
-      console.log("Found staff:", staff.name);
-    } else {
-      console.log("Staff not found for ID:", id);
     }
   }
   
   if (sodStaff.length === 0) {
-    container.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">⚠️ No staff on duty. Click on staff badges in "STAFF ON DUTY" section above first.</div>';
+    container.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">⚠️ No staff on duty. Tap on staff badges in "STAFF ON DUTY" section above first.</div>';
     document.getElementById("selectedCount").innerText = `Selected: 0`;
     return;
   }
@@ -3579,27 +3808,30 @@ function updateStaffContextDisplay() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    badge.onclick = (function(staffId) {
-      return function(e) {
-        e.stopPropagation();
-        console.log("Selected staff for allocation:", staffId);
-        
-        if (selectedAllocationStaff.has(staffId)) {
-          selectedAllocationStaff.delete(staffId);
-        } else {
-          selectedAllocationStaff.add(staffId);
-        }
-        
-        renderAllocationPool();
-        document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
-      };
-    })(staff.id);
+    const handleTap = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Selected staff for allocation:", staff.id);
+      
+      if (selectedAllocationStaff.has(staff.id)) {
+        selectedAllocationStaff.delete(staff.id);
+      } else {
+        selectedAllocationStaff.add(staff.id);
+      }
+      
+      renderAllocationPool();
+      document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
+    };
+    
+    badge.addEventListener('click', handleTap);
+    badge.addEventListener('touchstart', handleTap, { passive: false });
     
     container.appendChild(badge);
   });
   
   document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
 }
+
 
 
   function renderAllocationTable() {
@@ -3899,6 +4131,9 @@ function isStaffAvailableInPeriod(staffId, period) {
     renderSupervisorAttendanceDashboard();
     renderBreakRequestsForSupervisor(); 
     renderSupervisorDailyTasks(); 
+    
+    // ADD THIS LINE - Sync staff view with supervisor changes
+    syncStaffViewWithSupervisor();
   }
   
   if (document.getElementById("staffMainPane").classList.contains("active-pane")) { 
@@ -4002,30 +4237,7 @@ async function saveToLocalStorage() {
 
     // Load from Firebase
 // Load from Firebase - PER DATE
-// Load from Firebase - PER DATE with caching
-async function loadFromLocalStorage(forceReload = false) {
-  // Don't reload if already loaded for this date and not forced
-  if (!forceReload && dataLoadedForDate === currentDate && allocations.size > 0) {
-    console.log(`📦 Using cached data for ${currentDate}`);
-    return true;
-  }
-  
-  if (isLoading) {
-    console.log("⏳ Already loading, waiting...");
-    // Wait for existing load to complete
-    await new Promise(resolve => {
-      const checkInterval = setInterval(() => {
-        if (!isLoading) {
-          clearInterval(checkInterval);
-          resolve();
-        }
-      }, 100);
-    });
-    return true;
-  }
-  
-  isLoading = true;
-  
+async function loadFromLocalStorage() {
   try {
     const docRef = db.collection("staffManagement").doc(currentDate);
     const doc = await docRef.get();
@@ -4044,9 +4256,10 @@ async function loadFromLocalStorage(forceReload = false) {
       
       if (d.staffOnDutyIds) {
         staffOnDutyIds = new Set(d.staffOnDutyIds);
-        console.log(`✅ Loaded ${staffOnDutyIds.size} staff on duty for ${currentDate}`);
+        console.log(`✅ Loaded ${staffOnDutyIds.size} staff on duty for ${currentDate}:`, Array.from(staffOnDutyIds));
       } else {
         staffOnDutyIds.clear();
+        console.log(`No staff on duty saved for ${currentDate}`);
       }
       
       // Load shift from saved data only if supervisor is NOT logged in
@@ -4063,13 +4276,13 @@ async function loadFromLocalStorage(forceReload = false) {
         if (d.nextRequestId) nextRequestId = d.nextRequestId; 
       }
       
-      dataLoadedForDate = currentDate;
-      console.log(`✅ Loaded data for ${currentDate} from Firebase`);
-      showMessage(`📅 Loaded data for ${currentDate}`, "success");
+      console.log(`✅ Loaded existing data for ${currentDate} from Firebase`);
+      showMessage(`📅 Loaded data for ${currentDate} - ${staffOnDutyIds.size} staff on duty`, "success");
       return true;
       
     } else {
       console.log(`📅 New day: ${currentDate} - Starting fresh`);
+      showMessage(`🆕 New day! Starting fresh for ${currentDate}`, "success");
       
       allocations.clear();
       staffOnDutyIds.clear();
@@ -4091,21 +4304,17 @@ async function loadFromLocalStorage(forceReload = false) {
       
       await saveDailyTasks();
       await saveToLocalStorage();
-      
-      dataLoadedForDate = currentDate;
       return false;
     }
   } catch (error) {
     console.error("❌ Firebase load error:", error);
     showMessage("Failed to load from cloud: " + error.message, "error");
     return false;
-  } finally {
-    isLoading = false;
   }
 }
+
 // Handle date changes - load data for new date
 // Handle date changes - load data for new date
-// Handle date changes - load data for new date (with cache reset)
 async function onDateChange(newDate) {
   if (!supervisorLoggedIn) return;
   
@@ -4114,16 +4323,13 @@ async function onDateChange(newDate) {
   // Update the master date
   currentDate = newDate;
   
-  // Reset cache for new date
-  dataLoadedForDate = null;
-  
   showMessage(`📅 Date changed to ${currentDate}`, "success");
   
   // Clear selections
   selectedAllocationStaff.clear();
   
   // Load data for the new date
-  await loadFromLocalStorage(true); // Force reload
+  await loadFromLocalStorage();
   await loadDailyTasks();
   
   // Update displays
@@ -4146,9 +4352,8 @@ async function onDateChange(newDate) {
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
   
-  console.log(`✅ Loaded data for ${currentDate}`);
+  console.log(`✅ Loaded data for ${currentDate}, SOD count: ${staffOnDutyIds.size}`);
 }
-
 
   function initGlobalControls() {
   const gd = document.getElementById("globalDate"), gs = document.getElementById("globalShift");
@@ -4190,7 +4395,17 @@ gs.onchange = async (e) => {
     document.getElementById("shiftLockIcon").innerText = en ? "🔓" : "🔒";
   }
 
- 
+  function loginSupervisor() {
+  if (document.getElementById("superPassword").value === SUPERVISOR_PASS) {
+    supervisorLoggedIn = true;
+    document.body.classList.add('supervisor-mode');  // ADD THIS LINE
+    document.getElementById("superAuthArea").style.display = "none";
+    document.getElementById("superDashboard").style.display = "block";
+    setGlobalControlsEnabled(true);
+    refreshAllViews();
+    showMessage("Supervisor logged in");
+  } else document.getElementById("superErrorMsg").innerText = "Wrong password";
+}
 
   function logoutSupervisor() {
   supervisorLoggedIn = false;
@@ -4332,118 +4547,19 @@ if (statusSelect) {
   }
 
  
-// Function to show password modal with number pad
-function showPasswordModal(staff, callback) {
-  // Remove any existing modal
-  const existingModal = document.querySelector('.password-modal');
-  if (existingModal) existingModal.remove();
-  
-  const modal = document.createElement('div');
-  modal.className = 'password-modal';
-  
-  let passwordInput = '';
-  
-  modal.innerHTML = `
-    <div class="password-modal-content">
-      <h3>🔐 Verify Identity</h3>
-      <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Enter your password to continue</p>
-      <input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off">
-      <div class="numpad" id="numpad">
-        <button data-num="1">1</button>
-        <button data-num="2">2</button>
-        <button data-num="3">3</button>
-        <button data-num="4">4</button>
-        <button data-num="5">5</button>
-        <button data-num="6">6</button>
-        <button data-num="7">7</button>
-        <button data-num="8">8</button>
-        <button data-num="9">9</button>
-        <button data-num="0">0</button>
-        <button data-num="clear" class="clear-pass">⌫ Clear</button>
-      </div>
-      <div id="passError" class="password-error"></div>
-      <div style="margin-top: 1rem;">
-        <button class="submit-pass">✓ Submit</button>
-        <button class="cancel-pass">✗ Cancel</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  
-  const passInput = modal.querySelector('#passInput');
-  const errorDiv = modal.querySelector('#passError');
-  
-  // Number pad functionality
-  modal.querySelectorAll('[data-num]').forEach(btn => {
-    btn.onclick = () => {
-      const num = btn.dataset.num;
-      if (num === 'clear') {
-        passwordInput = passwordInput.slice(0, -1);
-      } else {
-        passwordInput += num;
-      }
-      passInput.value = '*'.repeat(passwordInput.length);
-      errorDiv.textContent = '';
-    };
-  });
-  
-  // Also allow keyboard input
-  passInput.oninput = (e) => {
-    passwordInput = e.target.value;
-    e.target.value = '*'.repeat(passwordInput.length);
-    errorDiv.textContent = '';
-  };
-  
-  // Submit button
-  modal.querySelector('.submit-pass').onclick = () => {
-    const expectedPass = staff.pass || '';
-    
-    if (passwordInput === expectedPass) {
-      modal.remove();
-      callback(true);
-    } else {
-      errorDiv.textContent = '❌ Incorrect password. Please try again.';
-      passwordInput = '';
-      passInput.value = '';
-      passInput.focus();
-      callback(false);
-    }
-  };
-  
-  // Cancel button
-  modal.querySelector('.cancel-pass').onclick = () => {
-    modal.remove();
-    callback(false);
-  };
-  
-  // Close on outside click
-  modal.onclick = (e) => {
-    if (e.target === modal) {
-      modal.remove();
-      callback(false);
-    }
-  };
-  
-  // Focus on input
-  setTimeout(() => passInput.focus(), 100);
-}
 
 
 
 // Then in initApp, add this line before the last showMessage:
 async function initApp() {
-  console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
+  console.log(`🟢 Initializing app...`);
   
-  // Clear caches on fresh load
-  dataLoadedForDate = null;
-  dailyTasksCache = {};
-  credentialsLoaded = false;
+  // 🔴 IMPORTANT: Load Firebase credentials FIRST
+  await loadAllCredentialsIntoStaffList();
   
+  // Now proceed with normal initialization
   await loadFromLocalStorage();
   await loadDailyTasks();
-  await loadAllCredentials();
   
   updateStaffDisplay();
   updateDisplayInfo();
@@ -4458,6 +4574,7 @@ async function initApp() {
   if (gd) gd.value = currentDate;
   
   refreshAllViews();
+  // startPeriodicSync(); // Still commented out
   showMessage("✅ System ready - Data synced with cloud");
 }
   
