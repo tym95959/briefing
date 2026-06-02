@@ -982,36 +982,6 @@ function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
   saveToLocalStorage();
 }
 
-// COMPLETE REPLACEMENT for initDailyStaffSelect function
-function initDailyStaffSelect() {
-  const select = document.getElementById("dailyTaskStaffSelect");
-  if (!select) return;
-  
-  const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
-  
-  if (sodStaff.length === 0) {
-    select.innerHTML = '<option value="">-- No staff on duty --</option>';
-    document.getElementById("dailyTaskSelectedName").textContent = "⚠️ No staff on duty today";
-  } else {
-    select.innerHTML = '<option value="">-- Select Staff --</option>' + 
-      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
-  }
-  
-  // SHOW PASSKEY MODAL WHEN STAFF SELECTED
-  select.onchange = async () => {
-    const selectedStaffId = select.value;
-    if (!selectedStaffId) return;
-    
-    const selectedStaff = staffList.find(s => s.id === selectedStaffId);
-    if (!selectedStaff) return;
-    
-    // Show passkey modal
-    await showStaffPasskeyModal(selectedStaff);
-    
-    // After verification, refresh the display
-    renderDailyTasksUI();
-  };
-}
 
 
   function deleteAttendanceRecord(staffId, date) { attendanceRecords.delete(getAttendanceKey(staffId, date)); saveToLocalStorage(); }
