@@ -2415,7 +2415,12 @@ function initDailyStaffSelect() {
 
 
 // Add this to initApp after loading other data
+// Load credentials ONCE at startup only - NO continuous loading
+let credentialsLoaded = false;
+
 async function loadAllCredentials() {
+  if (credentialsLoaded) return; // Only load once
+  
   for (const staff of staffList) {
     const creds = await loadUserCredentials(staff.id);
     if (creds) {
@@ -2423,7 +2428,8 @@ async function loadAllCredentials() {
       staff.pattern = creds.pattern;
     }
   }
-  console.log("✅ All credentials loaded from Firebase");
+  credentialsLoaded = true;
+  console.log("✅ All credentials loaded from Firebase (once)");
 }
 
 // Show verification options (Password OR Pattern)
@@ -2678,6 +2684,7 @@ async function saveDailyTasks() {
 
 // Add this function to sync staff view with supervisor selections
 // Sync staff view with supervisor selections - NO date changing, just display
+// Sync staff view with supervisor selections - MANUAL only, not automatic
 async function syncStaffViewWithSupervisor() {
   if (!supervisorLoggedIn) return;
   
@@ -2686,7 +2693,7 @@ async function syncStaffViewWithSupervisor() {
   // Update staff display to show current supervisor selections
   updateStaffDisplay();
   
-  // Reload data for the current date (which is already set by supervisor)
+  // Reload data for the current date (only when supervisor changes date/shift)
   await loadFromLocalStorage();
   await loadDailyTasks();
   
@@ -3841,9 +3848,6 @@ function isStaffAvailableInPeriod(staffId, period) {
     renderSupervisorAttendanceDashboard();
     renderBreakRequestsForSupervisor(); 
     renderSupervisorDailyTasks(); 
-    
-    // ADD THIS LINE - Sync staff view with supervisor changes
-    syncStaffViewWithSupervisor();
   }
   
   if (document.getElementById("staffMainPane").classList.contains("active-pane")) { 
@@ -4345,14 +4349,7 @@ function showPasswordModal(staff, callback) {
   setTimeout(() => passInput.focus(), 100);
 }
 
-// Add this function to set up periodic sync
-function startPeriodicSync() {
-  setInterval(async () => {
-    if (supervisorLoggedIn) {
-      await syncStaffViewWithSupervisor();
-    }
-  }, 5000); // Sync every 5 seconds
-}
+
 
 // Then in initApp, add this line before the last showMessage:
 async function initApp() {
@@ -4361,14 +4358,14 @@ async function initApp() {
   
   await loadFromLocalStorage();
   await loadDailyTasks();
-  await loadAllCredentials();
+  await loadAllCredentials(); // Load credentials ONCE
+  
   updateStaffDisplay();
   updateDisplayInfo();
   populateDropdowns();
   initMainTabs();
   initStaffSubTabs();
   initDailyStaffSelect();
-  
   
   document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
   
@@ -4377,7 +4374,7 @@ async function initApp() {
   if (gd) gd.value = currentDate;
   
   refreshAllViews();
-  startPeriodicSync(); // ADD THIS LINE - it's defined but never called!
+  // REMOVED: startPeriodicSync(); // NO MORE PERIODIC SYNC!
   showMessage("✅ System ready - Data synced with cloud");
 }
   
