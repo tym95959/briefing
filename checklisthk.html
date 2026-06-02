@@ -961,6 +961,32 @@ body.supervisor-mode #globalControlBar {
 .profile-icon-btn:hover {
   background: #b8860b;
 }
+
+/* Supervisor Login Styles */
+#supervisorSelect {
+  padding: 0.8rem;
+  border-radius: 1rem;
+  font-size: 1rem;
+}
+
+.super-login-method {
+  margin-top: 1rem;
+}
+
+.super-login-method .numpad {
+  margin-top: 0.5rem;
+}
+
+.super-login-method .pattern-grid {
+  margin: 1rem auto;
+  max-width: 200px;
+  gap: 0.5rem;
+}
+
+.super-login-method .pattern-dot {
+  width: 50px;
+  height: 50px;
+}
   </style>
 </head>
 <body>
@@ -1053,10 +1079,23 @@ body.supervisor-mode #globalControlBar {
   </div>
   
   <div id="superAuthArea">
-      <div class="info-card">🔐 Password required.</div>
-      <div class="control-row"><input type="password" id="superPassword" placeholder="Password" style="flex:1;"> <button id="superLoginBtn">Unlock</button></div>
-      <div id="superErrorMsg" style="color:#b91c1c;"></div>
+  <div class="info-card">🔐 Supervisor Login</div>
+  <div class="control-row">
+    <select id="supervisorSelect" style="flex:1;">
+      <option value="">-- Select Supervisor --</option>
+      ${staffList.filter(s => s.role === "Supervisor").map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+    </select>
+  </div>
+  <div id="superVerificationArea" style="display: none;">
+    <div class="control-row">
+      <button id="superPasswordBtn" style="background: #1e4a76;">🔑 Use Password</button>
+      <button id="superPatternBtn" style="background: #b8860b;">🎨 Use Pattern Lock</button>
     </div>
+    <div id="superVerificationContainer"></div>
+  </div>
+  <div id="superErrorMsg" style="color:#b91c1c; margin-top: 0.5rem;"></div>
+</div>
+
     <div id="superDashboard" style="display: none;">
       <div class="control-panel">
         <div class="info-card">📍 Date: <strong id="displayDate"></strong> | Shift: <strong id="displayShift"></strong></div>
@@ -1150,7 +1189,7 @@ body.supervisor-mode #globalControlBar {
 const db = firebase.firestore();
 console.log("🔥 Firebase ready!");
 
-  const SUPERVISOR_PASS = "admin123";
+  
   const AREAS = ["Welcome/Boarding", "Reception", "Buffet", "Floor", "Pantry"];
   const SHIFTS = [
     { value: "morning", label: "Morning Shift", periods: [{ timing: "07:30-09:30" }, { timing: "09:30-11:30" }, { timing: "11:30-13:30" }] },
@@ -1177,6 +1216,9 @@ console.log("🔥 Firebase ready!");
     let selectedBreakTime = null;
     let authenticatedStaffId = null;  // Track which staff is currently authenticated
     let pendingStaffAuth = null; 
+
+    let supervisorAuthStaffId = null;  // Track which supervisor is authenticated
+    let supervisorAuthMethod = null; 
 
   // Preset reasons for attendance
    const PRESET_REASONS = {
@@ -1615,6 +1657,250 @@ async function showProfileModal(staff) {
   // Close modal
   modal.querySelector('#closeProfileBtn').onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+// ============ SUPERVISOR AUTHENTICATION FUNCTIONS ============
+
+// Show supervisor verification based on selected method
+function showSupervisorVerification(staff) {
+  const container = document.getElementById('superVerificationContainer');
+  const errorMsg = document.getElementById('superErrorMsg');
+  
+  if (!staff) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  container.innerHTML = `
+    <div class="super-login-method" id="superLoginMethod">
+      <div id="superMethodContent"></div>
+    </div>
+  `;
+  
+  const methodContent = document.getElementById('superMethodContent');
+  
+  // Function to show password input
+  const showPasswordInput = () => {
+    methodContent.innerHTML = `
+      <div style="text-align: center;">
+        <p style="margin: 0.5rem 0;">Enter your password:</p>
+        <input type="password" id="superPassInput" placeholder="••••" maxlength="10" 
+               style="width: 100%; padding: 0.8rem; margin: 0.5rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.2rem;">
+        <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0.5rem 0;">
+          ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.6rem;">${n}</button>`).join('')}
+          <button data-num="clear" class="clear-pass" style="background: #ef4444; color: white;">⌫</button>
+        </div>
+        <button id="superSubmitPass" style="background: #0f5c3b; color: white; padding: 0.6rem 1.5rem; margin-top: 0.5rem;">Verify</button>
+      </div>
+    `;
+    
+    let passwordInput = '';
+    const passInput = methodContent.querySelector('#superPassInput');
+    const errorDiv = document.getElementById('superErrorMsg');
+    
+    methodContent.querySelectorAll('[data-num]').forEach(btn => {
+      btn.onclick = () => {
+        const num = btn.dataset.num;
+        if (num === 'clear') {
+          passwordInput = passwordInput.slice(0, -1);
+        } else {
+          passwordInput += num;
+        }
+        passInput.value = '*'.repeat(passwordInput.length);
+        if (errorDiv) errorDiv.textContent = '';
+      };
+    });
+    
+    passInput.oninput = (e) => {
+      passwordInput = e.target.value;
+      e.target.value = '*'.repeat(passwordInput.length);
+      if (errorDiv) errorDiv.textContent = '';
+    };
+    
+    methodContent.querySelector('#superSubmitPass').onclick = async () => {
+      const creds = await loadUserCredentials(staff.id);
+      const savedPass = creds?.pass || staff.pass;
+      
+      if (passwordInput === savedPass) {
+        supervisorAuthStaffId = staff.id;
+        supervisorLoggedIn = true;
+        document.body.classList.add('supervisor-mode');
+        document.getElementById("superAuthArea").style.display = "none";
+        document.getElementById("superDashboard").style.display = "block";
+        setGlobalControlsEnabled(true);
+        refreshAllViews();
+        showMessage(`✅ Welcome Supervisor ${staff.name}`);
+      } else {
+        if (errorDiv) errorDiv.textContent = '❌ Incorrect password. Try again.';
+        passwordInput = '';
+        passInput.value = '';
+      }
+    };
+  };
+  
+  // Function to show pattern input
+  const showPatternInput = () => {
+    let patternSequence = [];
+    let isDrawing = false;
+    
+    methodContent.innerHTML = `
+      <div style="text-align: center;">
+        <p style="margin: 0.5rem 0;">Draw your pattern:</p>
+        <div class="pattern-grid" id="superPatternGrid" style="margin: 0.5rem auto; max-width: 200px; gap: 0.5rem;">
+          ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
+        </div>
+        <div id="superPatternPreview" style="font-size: 0.7rem; margin: 0.5rem 0;">Draw your pattern...</div>
+        <button id="superResetPattern" style="background: #6b7280; color: white; padding: 0.4rem 1rem; margin-right: 0.5rem;">⟳ Reset</button>
+        <button id="superCancelPattern" style="background: #94a3b8; color: white; padding: 0.4rem 1rem;">Cancel</button>
+      </div>
+    `;
+    
+    const grid = methodContent.querySelector('#superPatternGrid');
+    const dots = grid.querySelectorAll('.pattern-dot');
+    const previewSpan = methodContent.querySelector('#superPatternPreview');
+    const errorDiv = document.getElementById('superErrorMsg');
+    
+    function updatePreview() {
+      if (patternSequence.length === 0) {
+        previewSpan.textContent = 'Draw your pattern...';
+      } else {
+        previewSpan.textContent = patternSequence.map(n => '●').join(' → ');
+      }
+    }
+    
+    function resetDrawing() {
+      patternSequence = [];
+      dots.forEach(dot => dot.classList.remove('selected'));
+      updatePreview();
+      if (errorDiv) errorDiv.textContent = '';
+    }
+    
+    function getDotFromEvent(e) {
+      const rect = grid.getBoundingClientRect();
+      let clientX, clientY;
+      
+      if (e.touches) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      for (let dot of dots) {
+        const dotRect = dot.getBoundingClientRect();
+        if (clientX >= dotRect.left && clientX <= dotRect.right &&
+            clientY >= dotRect.top && clientY <= dotRect.bottom) {
+          return { dotNum: parseInt(dot.dataset.num), element: dot };
+        }
+      }
+      return null;
+    }
+    
+    function startDraw(e) {
+      e.preventDefault();
+      isDrawing = true;
+      const dotInfo = getDotFromEvent(e);
+      if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+        patternSequence = [dotInfo.dotNum];
+        dotInfo.element.classList.add('selected');
+        updatePreview();
+      }
+    }
+    
+    function draw(e) {
+      e.preventDefault();
+      if (!isDrawing) return;
+      const dotInfo = getDotFromEvent(e);
+      if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+        patternSequence.push(dotInfo.dotNum);
+        dotInfo.element.classList.add('selected');
+        updatePreview();
+      }
+    }
+    
+    async function endDraw(e) {
+      e.preventDefault();
+      if (!isDrawing) {
+        isDrawing = false;
+        return;
+      }
+      isDrawing = false;
+      
+      if (patternSequence.length >= 3) {
+        const enteredPattern = patternToString(patternSequence);
+        const creds = await loadUserCredentials(staff.id);
+        const savedPattern = creds?.pattern || staff.pattern;
+        
+        if (enteredPattern === savedPattern) {
+          supervisorAuthStaffId = staff.id;
+          supervisorLoggedIn = true;
+          document.body.classList.add('supervisor-mode');
+          document.getElementById("superAuthArea").style.display = "none";
+          document.getElementById("superDashboard").style.display = "block";
+          setGlobalControlsEnabled(true);
+          refreshAllViews();
+          showMessage(`✅ Welcome Supervisor ${staff.name}`);
+        } else {
+          if (errorDiv) errorDiv.textContent = '❌ Incorrect pattern! Try again.';
+          resetDrawing();
+        }
+      } else if (patternSequence.length > 0 && patternSequence.length < 3) {
+        if (errorDiv) errorDiv.textContent = '❌ Pattern must have at least 3 dots';
+        setTimeout(() => resetDrawing(), 1000);
+      }
+    }
+    
+    grid.addEventListener('mousedown', startDraw);
+    window.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', endDraw);
+    grid.addEventListener('touchstart', startDraw);
+    window.addEventListener('touchmove', draw);
+    window.addEventListener('touchend', endDraw);
+    
+    methodContent.querySelector('#superResetPattern').onclick = resetDrawing;
+    methodContent.querySelector('#superCancelPattern').onclick = () => {
+      methodContent.innerHTML = '';
+      document.getElementById('superVerificationArea').style.display = 'none';
+      document.getElementById('supervisorSelect').value = '';
+      if (errorDiv) errorDiv.textContent = '';
+    };
+  };
+  
+  // Set up method buttons
+  document.getElementById('superPasswordBtn').onclick = () => showPasswordInput();
+  document.getElementById('superPatternBtn').onclick = () => showPatternInput();
+  
+  document.getElementById('superVerificationArea').style.display = 'block';
+}
+
+// Initialize supervisor selection dropdown
+function initSupervisorLogin() {
+  const supervisorSelect = document.getElementById('supervisorSelect');
+  if (!supervisorSelect) return;
+  
+  // Populate supervisors from staffList
+  const supervisors = staffList.filter(s => s.role === "Supervisor");
+  supervisorSelect.innerHTML = '<option value="">-- Select Supervisor --</option>' + 
+    supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  
+  supervisorSelect.onchange = async () => {
+    const staffId = supervisorSelect.value;
+    const errorMsg = document.getElementById('superErrorMsg');
+    const verificationArea = document.getElementById('superVerificationArea');
+    
+    if (!staffId) {
+      verificationArea.style.display = 'none';
+      document.getElementById('superVerificationContainer').innerHTML = '';
+      return;
+    }
+    
+    const selectedStaff = staffList.find(s => s.id === staffId);
+    if (selectedStaff) {
+      errorMsg.textContent = '';
+      showSupervisorVerification(selectedStaff);
+    }
+  };
 }
 
 // Show profile button when staff is authenticated
@@ -3711,6 +3997,7 @@ gs.onchange = async (e) => {
   showMessage("Logged out");
 }
   function populateDropdowns() {
+    initSupervisorLogin();
   const attSel = document.getElementById("attendanceStaffSelect");
   if (attSel) {
     attSel.innerHTML = '<option value="">-- Select --</option>' + staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
@@ -3963,7 +4250,7 @@ async function initApp() {
   initStaffSubTabs();
   initDailyStaffSelect();
   
-  document.getElementById("superLoginBtn").onclick = loginSupervisor;
+  
   document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
   
   // Set the global date input to currentDate
