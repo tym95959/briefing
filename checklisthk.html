@@ -3227,76 +3227,7 @@ if (statusSelect) {
     });
   }
 
- function initDailyStaffSelect() {
-  const select = document.getElementById("dailyTaskStaffSelect");
-  if (!select) return;
-  
-  console.log("initDailyStaffSelect - staffOnDutyIds:", Array.from(staffOnDutyIds));
-  console.log("initDailyStaffSelect - staffList length:", staffList.length);
-  
-  // Filter staff that are ON DUTY (SOD) and not HK
-  const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
-  
-  console.log("SOD Staff for dropdown:", sodStaff.map(s => s.name));
-  
-  if (sodStaff.length === 0) {
-    select.innerHTML = '<option value="">-- No staff on duty --</option>';
-    const nameSpan = document.getElementById("dailyTaskSelectedName");
-    if (nameSpan) nameSpan.textContent = "⚠️ No staff on duty today";
-  } else {
-    select.innerHTML = '<option value="">-- Select Staff --</option>' + 
-      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
-  }
-  
-  select.onchange = async () => {
-    const selectedStaffId = select.value;
-    
-    if (!selectedStaffId) {
-      authenticatedStaffId = null;
-      const nameSpan = document.getElementById("dailyTaskSelectedName");
-      if (nameSpan) nameSpan.textContent = "⚠️ Select your name";
-      renderDailyTasksUI();
-      return;
-    }
-    
-    const selectedStaff = staffList.find(s => s.id === selectedStaffId);
-    
-    // If already authenticated for this staff, just update the display
-    if (authenticatedStaffId === selectedStaffId) {
-      const nameSpan = document.getElementById("dailyTaskSelectedName");
-      if (nameSpan && selectedStaff) {
-        nameSpan.textContent = `✓ ${selectedStaff.name} (Verified)`;
-      }
-      renderDailyTasksUI();
-      return;
-    }
-    
-    // Store pending authentication
-    pendingStaffAuth = selectedStaff;
-    
-    // Show password modal
-    showPasswordModal(selectedStaff, (success) => {
-      if (success) {
-        authenticatedStaffId = selectedStaff.id;
-        const nameSpan = document.getElementById("dailyTaskSelectedName");
-        if (nameSpan && selectedStaff) {
-          nameSpan.textContent = `✓ ${selectedStaff.name} (Verified)`;
-        }
-        renderDailyTasksUI();
-        showMessage(`✅ Welcome ${selectedStaff.name}`);
-      } else {
-        // Authentication failed - reset dropdown
-        select.value = "";
-        authenticatedStaffId = null;
-        const nameSpan = document.getElementById("dailyTaskSelectedName");
-        if (nameSpan) nameSpan.textContent = "⚠️ Authentication failed";
-        renderDailyTasksUI();
-      }
-      pendingStaffAuth = null;
-    });
-  };
-}
-
+ 
 // Function to show password modal with number pad
 function showPasswordModal(staff, callback) {
   // Remove any existing modal
