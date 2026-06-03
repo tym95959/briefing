@@ -1644,6 +1644,16 @@ console.log("🔥 Firebase ready!");
 
   function getAttendanceKey(staffId, date) { return `${staffId}|${date}`; }
 
+  function addAttendanceRecord(staffId, date, status, time, notes, dutyShift) {
+    const reportedDate = new Date().toISOString().split('T')[0];
+    attendanceRecords.set(getAttendanceKey(staffId, date), { 
+      staffId, date, status, reportedTime: time, notes, dutyShift,
+      reportedDate: reportedDate, leaveDate: date, reason: null,
+      recordedAt: new Date().toISOString()
+    });
+    saveToLocalStorage();
+  }
+  
   function deleteAttendanceRecord(staffId, date) { attendanceRecords.delete(getAttendanceKey(staffId, date)); saveToLocalStorage(); }
   
   function getAttendanceForDate(date) {
@@ -1662,755 +1672,1050 @@ console.log("🔥 Firebase ready!");
     return slots;
   }
 
-  function patternToString(pattern) { return pattern.join(','); }
-  function stringToPattern(str) { if (!str) return []; return str.split(',').map(Number); }
+  // ============ PROFILE MANAGEMENT ============
 
-  // Firebase Auth Storage
-  const USERS_COLLECTION = "staffCredentials";
-  let credentialsCache = null;
+let currentProfileStaff = null;
 
-  async function saveUserCredentials(staffId, credentials) {
-    try {
-      const docRef = db.collection(USERS_COLLECTION).doc(staffId);
-      await docRef.set({
-        staffId: staffId,
-        pass: credentials.pass,
-        pattern: credentials.pattern || null,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedBy: staffId
-      }, { merge: true });
-      console.log(`✅ Credentials saved for ${staffId}`);
-      return true;
-    } catch (error) {
-      console.error("Error saving credentials:", error);
-      return false;
-    }
-  }
-
-  async function loadUserCredentials(staffId) {
-    try {
-      const docRef = db.collection(USERS_COLLECTION).doc(staffId);
-      const doc = await docRef.get();
-      if (doc.exists) return doc.data();
-      return null;
-    } catch (error) {
-      console.error("Error loading credentials:", error);
-      return null;
-    }
-  }
-
-  async function refreshStaffCredentials() {
-    try {
-      if (credentialsCache) {
-        for (const staff of staffList) {
-          if (credentialsCache[staff.id]) {
-            staff.pass = credentialsCache[staff.id].pass;
-            staff.pattern = credentialsCache[staff.id].pattern;
-          }
-        }
-        return true;
-      }
+async function showProfileModal(staff) {
+  currentProfileStaff = staff;
+  const modal = document.createElement('div');
+  modal.className = 'profile-modal';
+  
+  modal.innerHTML = `
+    <div class="profile-modal-content">
+      <h3>👤 Staff Profile</h3>
+      <p style="text-align: center; margin-bottom: 1rem;"><strong>${escapeHtml(staff.name)}</strong> (${staff.role})</p>
       
-      const usersRef = db.collection("staffCredentials");
-      const snapshot = await usersRef.get();
-      credentialsCache = {};
-      snapshot.forEach(doc => { credentialsCache[doc.id] = doc.data(); });
+      <div class="profile-tabs">
+        <button class="profile-tab active" data-tab="password">🔑 Change Password</button>
+        <button class="profile-tab" data-tab="pattern">🎨 Change Pattern</button>
+      </div>
       
-      for (const staff of staffList) {
-        if (credentialsCache[staff.id]) {
-          staff.pass = credentialsCache[staff.id].pass;
-          staff.pattern = credentialsCache[staff.id].pattern;
-        } else {
-          staff.pass = staff.pass || "1234";
-          staff.pattern = staff.pattern || "1,2,3";
-          usersRef.doc(staff.id).set({
-            staffId: staff.id, pass: staff.pass, pattern: staff.pattern,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }).catch(err => console.error("Error saving default:", err));
-        }
-      }
-      return true;
-    } catch (error) {
-      for (const staff of staffList) {
-        if (!staff.pass) staff.pass = "1234";
-        if (!staff.pattern) staff.pattern = "1,2,3";
-      }
-      return false;
-    }
-  }
-
-  // Save/Load Functions
-  async function saveToLocalStorage() {
-    try {
-      const docRef = db.collection("staffManagement").doc(currentDate);
-      const allocObj = {}; for (let [k, v] of allocations.entries()) allocObj[k] = Array.from(v);
-      const attendanceObj = {}; for (let [k, v] of attendanceRecords.entries()) attendanceObj[k] = v;
-      const breakObj = {}; for (let [k, v] of breakRequests.entries()) breakObj[k] = v;
+      <div id="passwordSection" class="profile-section">
+        <label>Current Password:</label>
+        <input type="password" id="currentPass" placeholder="Enter current password" maxlength="10">
+        <label style="margin-top: 1rem;">New Password:</label>
+        <input type="password" id="newPass" placeholder="Enter new password" maxlength="10">
+        <label style="margin-top: 1rem;">Confirm New Password:</label>
+        <input type="password" id="confirmPass" placeholder="Confirm new password" maxlength="10">
+        <button id="updatePasswordBtn" class="profile-btn">✓ Update Password</button>
+        <div id="passwordMessage" class="profile-message"></div>
+      </div>
       
-      await docRef.set({
-        date: currentDate, allocations: allocObj, staffOnDutyIds: Array.from(staffOnDutyIds),
-        currentShift: currentShift, attendanceRecords: attendanceObj, breakRequests: breakObj,
-        nextRequestId: nextRequestId, lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      return true;
-    } catch (error) {
-      console.error("❌ Firebase save error:", error);
-      return false;
-    }
-  }
-
-  async function loadFromLocalStorageInternal() {
-    try {
-      const docRef = db.collection("staffManagement").doc(currentDate);
-      const doc = await docRef.get();
-      if (doc.exists) {
-        const d = doc.data();
-        allocations.clear(); attendanceRecords.clear(); breakRequests.clear();
-        if (d.allocations) Object.entries(d.allocations).forEach(([k, v]) => allocations.set(k, new Set(v)));
-        if (d.staffOnDutyIds && d.staffOnDutyIds.length > 0) staffOnDutyIds = new Set(d.staffOnDutyIds);
-        else staffOnDutyIds.clear();
-        if (d.currentShift && !supervisorLoggedIn) currentShift = d.currentShift;
-        if (d.attendanceRecords) Object.entries(d.attendanceRecords).forEach(([k, v]) => attendanceRecords.set(k, v));
-        if (d.breakRequests) { Object.entries(d.breakRequests).forEach(([k, v]) => breakRequests.set(parseInt(k), v)); if (d.nextRequestId) nextRequestId = d.nextRequestId; }
-        return true;
-      }
-      return false;
-    } catch (error) { console.error("❌ Firebase load error:", error); return false; }
-  }
-
-  async function loadFromLocalStorage() {
-    try {
-      const docRef = db.collection("staffManagement").doc(currentDate);
-      const doc = await docRef.get();
-      if (doc.exists) {
-        const d = doc.data();
-        allocations.clear(); attendanceRecords.clear(); breakRequests.clear(); selectedAllocationStaff.clear();
-        if (d.allocations) Object.entries(d.allocations).forEach(([k, v]) => allocations.set(k, new Set(v)));
-        if (d.staffOnDutyIds && d.staffOnDutyIds.length > 0) staffOnDutyIds = new Set(d.staffOnDutyIds);
-        else staffOnDutyIds.clear();
-        if (d.currentShift && !supervisorLoggedIn) currentShift = d.currentShift;
-        if (d.attendanceRecords) Object.entries(d.attendanceRecords).forEach(([k, v]) => attendanceRecords.set(k, v));
-        if (d.breakRequests) { Object.entries(d.breakRequests).forEach(([k, v]) => breakRequests.set(parseInt(k), v)); if (d.nextRequestId) nextRequestId = d.nextRequestId; }
-        return true;
+      <div id="patternSection" class="profile-section" style="display: none;">
+        <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Verify current password first, then draw your new pattern</p>
+        <label>Current Password (Required):</label>
+        <input type="password" id="patternCurrentPass" placeholder="Enter current password to change pattern" maxlength="10">
+        <button id="verifyForPatternBtn" class="profile-btn-warning" style="background: #d97706;">✓ Verify & Start Pattern Change</button>
+        <div id="patternChangeArea" style="display: none; margin-top: 1rem;">
+          <p style="font-size: 0.8rem; color: #b8860b; margin-bottom: 0.5rem;">Draw your NEW pattern (at least 3 dots):</p>
+          <div class="pattern-grid" id="newPatternGrid" style="margin: 0.5rem auto; width: 200px; gap: 0.5rem;">
+            ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
+          </div>
+          <div id="newPatternPreview" style="font-size: 0.7rem; text-align: center; margin: 0.5rem 0;">Draw your pattern...</div>
+          <button id="savePatternBtn" class="profile-btn" style="background: #0f5c3b; margin-top: 0.5rem;">💾 Save New Pattern</button>
+        </div>
+        <div id="patternMessage" class="profile-message"></div>
+      </div>
+      
+      <button id="closeProfileBtn" class="profile-btn profile-btn-danger" style="margin-top: 1rem; background: #94a3b8;">Close</button>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  let newPatternSequence = [];
+  let isDrawingNew = false;
+  
+  const tabs = modal.querySelectorAll('.profile-tab');
+  const passwordSection = modal.querySelector('#passwordSection');
+  const patternSection = modal.querySelector('#patternSection');
+  
+  tabs.forEach(tab => {
+    tab.onclick = () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      if (tab.dataset.tab === 'password') {
+        passwordSection.style.display = 'block';
+        patternSection.style.display = 'none';
       } else {
-        allocations.clear(); staffOnDutyIds.clear(); attendanceRecords.clear(); breakRequests.clear(); selectedAllocationStaff.clear(); nextRequestId = 1;
-        MAIN_DAILY_TASKS.forEach(task => { if (task.type === "signoff") task.signoffs = []; if (task.type === "complete") task.completedBy = null; if (task.type === "submission") task.submissions = []; });
-        FB_DAILY_TASKS.forEach(task => { if (task.type === "signoff") task.signoffs = []; if (task.type === "complete") task.completedBy = null; });
-        await saveDailyTasks(); await saveToLocalStorage();
-        return false;
+        passwordSection.style.display = 'none';
+        patternSection.style.display = 'block';
       }
-    } catch (error) { console.error("❌ Firebase load error:", error); return false; }
-  }
-
-  // Daily Tasks Functions
-  async function loadDailyTasks() {
-    try {
-      const docRef = db.collection("staffManagement").doc(currentDate);
-      const doc = await docRef.get();
-      if (doc.exists) {
-        const data = doc.data();
-        if (data.mainTasks) {
-          MAIN_DAILY_TASKS.forEach(item => { item.signoffs = []; item.completedBy = null; item.submissions = []; });
-          data.mainTasks.forEach(savedItem => { const task = MAIN_DAILY_TASKS.find(t => t.id === savedItem.id); if (task) { task.signoffs = savedItem.signoffs || []; task.completedBy = savedItem.completedBy || null; task.submissions = savedItem.submissions || []; } });
-        }
-        if (data.fbTasks) {
-          FB_DAILY_TASKS.forEach(item => { item.signoffs = []; item.completedBy = null; });
-          data.fbTasks.forEach(savedItem => { const task = FB_DAILY_TASKS.find(t => t.id === savedItem.id); if (task) { task.signoffs = savedItem.signoffs || []; task.completedBy = savedItem.completedBy || null; } });
-        }
-        return true;
-      }
-      return false;
-    } catch (error) { console.error("Error loading daily tasks:", error); return false; }
-  }
-
-  async function saveDailyTasks() {
-    try {
-      const docRef = db.collection("staffManagement").doc(currentDate);
-      await docRef.set({
-        mainTasks: MAIN_DAILY_TASKS.map(({ id, signoffs, completedBy, submissions }) => ({ id, signoffs: signoffs || [], completedBy: completedBy || null, submissions: submissions || [] })),
-        fbTasks: FB_DAILY_TASKS.map(({ id, signoffs, completedBy }) => ({ id, signoffs: signoffs || [], completedBy: completedBy || null })),
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      return true;
-    } catch (error) { console.error("Error saving daily tasks:", error); return false; }
-  }
-
-  // ============ ATTENDANCE FUNCTION - THE CRITICAL FIX ============
-  async function addAttendanceFromForm(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    
-    console.log("addAttendanceFromForm called on iPad");
-    
-    const staffSelect = document.getElementById("attendanceStaffSelect");
-    const dutyShiftSelect = document.getElementById("attendanceDutyShift");
-    const statusSelect = document.getElementById("attendanceStatus");
-    const reportedDateInput = document.getElementById("attendanceReportedDate");
-    const timeInput = document.getElementById("attendanceTime");
-    const leaveDateInput = document.getElementById("attendanceLeaveDate");
-    const reasonSelect = document.getElementById("attendanceReason");
-    const reasonContainer = document.getElementById("reasonContainer");
-    
-    const staffId = staffSelect ? staffSelect.value : "";
-    const dutyShift = dutyShiftSelect ? dutyShiftSelect.value : "Morning";
-    const status = statusSelect ? statusSelect.value : "Absent";
-    const reportedDate = reportedDateInput ? reportedDateInput.value : "";
-    const reportedTime = timeInput ? timeInput.value : "";
-    const leaveDate = leaveDateInput ? leaveDateInput.value : "";
-    
-    let reason = null;
-    if (status === "Sick Leave" || status === "FRL") {
-      reason = reasonSelect ? reasonSelect.value : "";
-      if (!reason) {
-        showMessage("Please select a reason for " + status, "error");
-        return;
-      }
-    }
-    
-    if (!staffId) {
-      showMessage("Please select a staff member", "error");
-      return;
-    }
-    
-    if (!reportedDate) {
-      showMessage("Please select reported date", "error");
-      return;
-    }
-    
-    if (!reportedTime) {
-      showMessage("Please select reported time", "error");
-      return;
-    }
-    
-    const staff = staffList.find(s => s.id === staffId);
-    if (!staff) {
-      showMessage("Staff not found", "error");
-      return;
-    }
-    
-    const existingKey = getAttendanceKey(staffId, leaveDate);
-    if (attendanceRecords.has(existingKey)) {
-      if (confirm(`Attendance record for ${staff.name} on ${leaveDate} already exists. Overwrite?`)) {
-        attendanceRecords.delete(existingKey);
-      } else {
-        return;
-      }
-    }
-    
-    const record = {
-      staffId: staffId, staffName: staff.name, date: leaveDate,
-      dutyShift: dutyShift, status: status, reason: reason,
-      reportedDate: reportedDate, reportedTime: reportedTime,
-      leaveDate: leaveDate, recordedAt: new Date().toISOString()
     };
+  });
+  
+  const updateBtn = modal.querySelector('#updatePasswordBtn');
+  const currentPassInput = modal.querySelector('#currentPass');
+  const newPassInput = modal.querySelector('#newPass');
+  const confirmPassInput = modal.querySelector('#confirmPass');
+  const passwordMsg = modal.querySelector('#passwordMessage');
+  
+  updateBtn.onclick = async () => {
+    const currentPass = currentPassInput.value;
+    const newPass = newPassInput.value;
+    const confirmPass = confirmPassInput.value;
     
-    attendanceRecords.set(getAttendanceKey(staffId, leaveDate), record);
-    await saveToLocalStorage();
+    if (!currentPass || !newPass || !confirmPass) {
+      passwordMsg.textContent = '❌ Please fill all fields';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
     
-    if (staffSelect) staffSelect.value = "";
-    if (statusSelect) statusSelect.value = "Absent";
-    if (reasonSelect) reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>';
-    if (reasonContainer) reasonContainer.style.display = "none";
-    if (reportedDateInput) reportedDateInput.value = new Date().toISOString().split('T')[0];
-    if (timeInput) timeInput.value = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    if (leaveDateInput) leaveDateInput.value = new Date().toISOString().split('T')[0];
+    if (newPass !== confirmPass) {
+      passwordMsg.textContent = '❌ New passwords do not match';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
     
-    renderAttendanceDashboard();
-    renderSupervisorAttendanceDashboard();
-    loadAllStaffAttendance();
+    if (newPass.length < 4) {
+      passwordMsg.textContent = '❌ Password must be at least 4 digits';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
     
-    showMessage(`${status} recorded for ${staff.name} on ${leaveDate}`, "success");
+    if (currentPass !== staff.pass) {
+      passwordMsg.textContent = '❌ Current password is incorrect';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    
+    const success = await saveUserCredentials(staff.id, { pass: newPass, pattern: staff.pattern });
+    
+    if (success) {
+      staff.pass = newPass;
+      passwordMsg.textContent = '✅ Password updated successfully!';
+      passwordMsg.className = 'profile-message success';
+      currentPassInput.value = '';
+      newPassInput.value = '';
+      confirmPassInput.value = '';
+      showMessage(`Password updated for ${staff.name}`);
+    } else {
+      passwordMsg.textContent = '❌ Failed to update password';
+      passwordMsg.className = 'profile-message error';
+    }
+  };
+  
+  const verifyPatternBtn = modal.querySelector('#verifyForPatternBtn');
+  const patternCurrentPass = modal.querySelector('#patternCurrentPass');
+  const patternChangeArea = modal.querySelector('#patternChangeArea');
+  const patternMsg = modal.querySelector('#patternMessage');
+  const savePatternBtn = modal.querySelector('#savePatternBtn');
+  const newPatternGrid = modal.querySelector('#newPatternGrid');
+  const newPatternPreview = modal.querySelector('#newPatternPreview');
+  const newDots = modal.querySelectorAll('#newPatternGrid .pattern-dot');
+  
+  function resetNewPatternDrawing() {
+    newPatternSequence = [];
+    newDots.forEach(dot => dot.classList.remove('selected'));
+    newPatternPreview.textContent = 'Draw your pattern...';
   }
-
-  // Profile Functions
-  async function showProfileModal(staff) {
-    // Keep your existing implementation
+  
+  function updateNewPatternPreview() {
+    if (newPatternSequence.length === 0) {
+      newPatternPreview.textContent = 'Draw your pattern...';
+    } else {
+      newPatternPreview.textContent = newPatternSequence.map(n => '●').join(' → ');
+    }
   }
-
-  // Supervisor Authentication Functions
-  function showSupervisorVerification(staff) {
-    // Keep your existing implementation
-  }
-
-  function initSupervisorLogin() {
-    // Keep your existing implementation
-  }
-
-  function updateProfileButtonVisibility() {
-    const profileBtn = document.getElementById('profileSettingsBtn');
-    if (profileBtn) {
-      if (authenticatedStaffId) {
-        profileBtn.style.display = 'inline-flex';
-        profileBtn.onclick = () => {
-          const staff = staffList.find(s => s.id === authenticatedStaffId);
-          if (staff) showProfileModal(staff);
-        };
-      } else {
-        profileBtn.style.display = 'none';
+  
+  function getNewDotFromEvent(e) {
+    const rect = newPatternGrid.getBoundingClientRect();
+    let clientX, clientY;
+    if (e.touches) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+    else { clientX = e.clientX; clientY = e.clientY; }
+    for (let dot of newDots) {
+      const dotRect = dot.getBoundingClientRect();
+      if (clientX >= dotRect.left && clientX <= dotRect.right && clientY >= dotRect.top && clientY <= dotRect.bottom) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
       }
     }
+    return null;
   }
-
-  function showVerificationOptionsModal(staff, callback) {
-    // Keep your existing implementation
-  }
-
-  function initDailyStaffSelect() {
-    // Keep your existing implementation
-  }
-
-  function getSelectedStaff() {
-    const select = document.getElementById("dailyTaskStaffSelect");
-    return select?.value ? staffList.find(s => s.id === select.value) : null;
-  }
-
-  function signoffTaskHandler(task, isFb) {
-    // Keep your existing implementation
-  }
-
-  function completeTaskHandler(task, isFb) {
-    // Keep your existing implementation
-  }
-
-  function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
-    // Keep your existing implementation
-  }
-
-  function editSubmission(task, isFb, index) {
-    // Keep your existing implementation
-  }
-
-  function deleteSubmission(task, isFb, index) {
-    // Keep your existing implementation
-  }
-
-  function resetTaskHandler(task, isFb) {
-    // Keep your existing implementation
-  }
-
-  function renderDailyTasksUI() {
-    // Keep your existing implementation
-  }
-
-  function renderSupervisorDailyTasks() {
-    // Keep your existing implementation
-  }
-
-  // Print Functions
-  function printAllocation() {
-    // Keep your existing implementation
-  }
-
-  function printDailyReport() {
-    // Keep your existing implementation
-  }
-
-  // Staff View Functions
-  function renderBreakTimeBadges() {
-    const container = document.getElementById("breakTimeBadges");
-    if (!container) return;
-    const slots = getBreakTimeSlotsForShift(currentShift);
-    container.innerHTML = slots.map(slot => `<div class="staff-badge ${selectedBreakTime === slot.value ? 'selected-sod' : ''}" data-break-time="${slot.value}" style="cursor:pointer;">${slot.label}</div>`).join('');
-    document.querySelectorAll('[data-break-time]').forEach(b => b.onclick = () => { selectedBreakTime = b.dataset.breakTime; renderBreakTimeBadges(); });
-  }
-
-  function submitBreakRequest() {
-    const staffId = document.getElementById("staffSelfSelect").value;
-    if (!staffId || !selectedBreakTime) { 
-      showMessage("Select name and break time", "error"); 
-      return; 
+  
+  function startNewDraw(e) { e.preventDefault(); isDrawingNew = true; const dotInfo = getNewDotFromEvent(e); if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) { newPatternSequence = [dotInfo.dotNum]; dotInfo.element.classList.add('selected'); updateNewPatternPreview(); } }
+  function drawNew(e) { e.preventDefault(); if (!isDrawingNew) return; const dotInfo = getNewDotFromEvent(e); if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) { newPatternSequence.push(dotInfo.dotNum); dotInfo.element.classList.add('selected'); updateNewPatternPreview(); } }
+  function endNewDraw(e) { e.preventDefault(); isDrawingNew = false; }
+  
+  verifyPatternBtn.onclick = async () => {
+    const currentPass = patternCurrentPass.value;
+    if (!currentPass) { patternMsg.textContent = '❌ Please enter current password'; patternMsg.className = 'profile-message error'; return; }
+    if (currentPass !== staff.pass) { patternMsg.textContent = '❌ Incorrect password'; patternMsg.className = 'profile-message error'; return; }
+    patternMsg.textContent = '✅ Password verified! Draw your new pattern below';
+    patternMsg.className = 'profile-message success';
+    patternChangeArea.style.display = 'block';
+    verifyPatternBtn.disabled = true;
+    verifyPatternBtn.style.opacity = '0.5';
+    resetNewPatternDrawing();
+    newPatternGrid.addEventListener('mousedown', startNewDraw);
+    window.addEventListener('mousemove', drawNew);
+    window.addEventListener('mouseup', endNewDraw);
+    newPatternGrid.addEventListener('touchstart', startNewDraw);
+    window.addEventListener('touchmove', drawNew);
+    window.addEventListener('touchend', endNewDraw);
+  };
+  
+  savePatternBtn.onclick = async () => {
+    if (newPatternSequence.length < 3) { patternMsg.textContent = '❌ Pattern must have at least 3 dots'; patternMsg.className = 'profile-message error'; return; }
+    const newPattern = patternToString(newPatternSequence);
+    const success = await saveUserCredentials(staff.id, { pass: staff.pass, pattern: newPattern });
+    if (success) {
+      staff.pattern = newPattern;
+      patternMsg.textContent = '✅ Pattern updated successfully!';
+      patternMsg.className = 'profile-message success';
+      resetNewPatternDrawing();
+      showMessage(`Pattern updated for ${staff.name}`);
+      setTimeout(() => { modal.remove(); }, 1500);
+    } else {
+      patternMsg.textContent = '❌ Failed to update pattern';
+      patternMsg.className = 'profile-message error';
     }
+  };
+  
+  modal.querySelector('#closeProfileBtn').onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+// ============ SUPERVISOR AUTHENTICATION FUNCTIONS ============
+
+function showSupervisorVerification(staff) {
+  const container = document.getElementById('superVerificationContainer');
+  const errorMsg = document.getElementById('superErrorMsg');
+  if (!staff) { container.innerHTML = ''; return; }
+  
+  container.innerHTML = `<div class="super-login-method" id="superLoginMethod"><div id="superMethodContent"></div></div>`;
+  const methodContent = document.getElementById('superMethodContent');
+  
+  const showPasswordInput = () => {
+    methodContent.innerHTML = `
+      <div style="text-align: center;">
+        <p style="margin: 0.5rem 0;">Enter your password:</p>
+        <input type="password" id="superPassInput" placeholder="••••" maxlength="10" style="width: 100%; padding: 0.8rem; margin: 0.5rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.2rem;">
+        <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0.5rem 0;">
+          ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.6rem;">${n}</button>`).join('')}
+          <button data-num="clear" class="clear-pass" style="background: #ef4444; color: white;">⌫</button>
+        </div>
+        <button id="superSubmitPass" style="background: #0f5c3b; color: white; padding: 0.6rem 1.5rem; margin-top: 0.5rem;">Verify</button>
+      </div>
+    `;
     
-    const staff = staffList.find(s => s.id === staffId);
-    const hasPending = Array.from(breakRequests.values()).some(r => r.staffId === staffId && r.status === "pending" && r.date === currentDate);
-    
-    if (hasPending) { 
-      showMessage("You have a pending request", "error"); 
-      return; 
-    }
-    
-    breakRequests.set(nextRequestId, { 
-      id: nextRequestId, 
-      staffId, 
-      staffName: staff.name, 
-      staffRole: staff.role, 
-      date: currentDate, 
-      shift: currentShift, 
-      breakTime: selectedBreakTime, 
-      status: "pending", 
-      requestedAt: new Date().toISOString() 
+    let passwordInput = '';
+    const passInput = methodContent.querySelector('#superPassInput');
+    methodContent.querySelectorAll('[data-num]').forEach(btn => {
+      btn.onclick = () => {
+        const num = btn.dataset.num;
+        if (num === 'clear') passwordInput = passwordInput.slice(0, -1);
+        else passwordInput += num;
+        passInput.value = '*'.repeat(passwordInput.length);
+        if (errorMsg) errorMsg.textContent = '';
+      };
     });
-    nextRequestId++;
     
-    saveToLocalStorage();
-    showMessage("Break request submitted");
-    selectedBreakTime = null; 
-    renderBreakTimeBadges(); 
-    document.getElementById("staffSelfSelect").value = "";
-    loadAllStaffBreakRequests(); 
-    if (supervisorLoggedIn) renderBreakRequestsForSupervisor();
-  }
-
-  function loadAllStaffAllocations() {
-    // Keep your existing implementation
-  }
-
-  function loadAllStaffAttendance() {
-    // Keep your existing implementation
-  }
-
-  function loadAllStaffBreakRequests() {
-    // Keep your existing implementation
-  }
-
-  function loadCompleteStaffDashboard() {
-    loadAllStaffAllocations(); loadAllStaffAttendance(); loadAllStaffBreakRequests(); renderDailyTasksUI();
-    const selfSelect = document.getElementById("staffSelfSelect");
-    if (selfSelect) {
-        const sodExcludingHK = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
-        selfSelect.innerHTML = '<option value="">-- Select --</option>' + sodExcludingHK.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
-    }
-    renderBreakTimeBadges();
-  }
-
-  function updateStaffDisplay() {
-    const staffDateSpan = document.getElementById("staffDisplayDate");
-    const staffShiftSpan = document.getElementById("staffDisplayShift");
-    
-    if (staffDateSpan) {
-      const [year, month, day] = currentDate.split('-');
-      const dateObj = new Date(year, month - 1, day);
-      const monthName = dateObj.toLocaleString('en-GB', { month: 'short' });
-      const formattedDate = `${parseInt(day)} ${monthName} ${year}`;
-      staffDateSpan.textContent = formattedDate;
-    }
-    
-    if (staffShiftSpan) {
-      const shiftLabel = SHIFTS.find(s => s.value === currentShift)?.label || currentShift;
-      staffShiftSpan.textContent = shiftLabel;
-    }
-  }
-
-  function updateStaffContextDisplay() {
-    const span = document.getElementById("staffGlobalContext");
-    if (span) span.innerHTML = `<strong>${currentDate}</strong> | ${SHIFTS.find(s => s.value === currentShift)?.label || currentShift}`;
-  }
-
-  // Supervisor View Functions
-  function renderAllSod() {
-    // Keep your existing implementation
-  }
-
-  function initMainTabs() {
-    // Keep your existing implementation
-  }
-
-  function renderAllocationPool() {
-    // Keep your existing implementation
-  }
-
-  function renderAllocationTable() {
-    // Keep your existing implementation
-  }
-
-  function renderAttendanceDashboard() {
-    // Keep your existing implementation
-  }
-
-  function renderSupervisorAttendanceDashboard() {
-    // Keep your existing implementation
-  }
-
-  function deleteBreakRequest(requestId) {
-    const req = breakRequests.get(requestId);
-    if (req && req.status === 'rejected' && confirm("Delete this rejected request?")) { breakRequests.delete(requestId); saveToLocalStorage(); renderBreakRequestsForSupervisor(); loadAllStaffBreakRequests(); showMessage("Deleted"); }
-  }
-
-  function handleBreakRequest(id, status) {
-    const req = breakRequests.get(id);
-    if (req) { req.status = status; req.approvedAt = new Date().toISOString(); breakRequests.set(id, req); saveToLocalStorage(); renderBreakRequestsForSupervisor(); loadAllStaffBreakRequests(); showMessage(`${status}`); }
-  }
-
-  function renderBreakRequestsForSupervisor() {
-    // Keep your existing implementation
-  }
-
-  function refreshAllViews() {
-    // Keep your existing implementation
-  }
-
-  function updateDisplayInfo() {
-    const displayDate = document.getElementById("displayDate");
-    const displayShift = document.getElementById("displayShift");
-    const dailyTaskShiftBadge = document.getElementById("dailyTaskShiftBadge");
-    
-    if (displayDate) displayDate.innerText = currentDate;
-    if (displayShift) displayShift.innerText = SHIFTS.find(s => s.value === currentShift)?.label || currentShift;
-    if (dailyTaskShiftBadge) {
-      dailyTaskShiftBadge.innerText = currentShift === "morning" ? "🌅 Morning" : (currentShift === "afternoon" ? "🌆 Afternoon" : "🌙 Evening");
-    }
-  }
-
-  async function onDateChange(newDate) {
-    if (!supervisorLoggedIn) return;
-    currentDate = newDate;
-    showMessage(`📅 Date changed to ${currentDate}`, "success");
-    selectedAllocationStaff.clear();
-    await loadFromLocalStorage();
-    await loadDailyTasks();
-    updateDisplayInfo();
-    updateStaffDisplay();
-    renderAllSod();
-    renderAllocationPool();
-    renderAllocationTable();
-    renderAttendanceDashboard();
-    renderSupervisorAttendanceDashboard();
-    renderBreakRequestsForSupervisor();
-    renderSupervisorDailyTasks();
-    await syncStaffViewWithSupervisor();
-    const gd = document.getElementById("globalDate");
-    if (gd) gd.value = currentDate;
-  }
-
-  function initGlobalControls() {
-    const gd = document.getElementById("globalDate"), gs = document.getElementById("globalShift");
-    gd.value = currentDate; 
-    gs.value = currentShift;
-    
-    gd.onchange = async (e) => { 
-      if (supervisorLoggedIn) {
-        await onDateChange(e.target.value);
-      } 
-    };
-    
-    gs.onchange = async (e) => { 
-      if (supervisorLoggedIn) { 
-        const newShift = e.target.value;
-        currentShift = newShift; 
-        await saveToLocalStorage();
+    methodContent.querySelector('#superSubmitPass').onclick = async () => {
+      const creds = await loadUserCredentials(staff.id);
+      const savedPass = creds?.pass || staff.pass;
+      if (passwordInput === savedPass) {
+        supervisorAuthStaffId = staff.id;
+        supervisorLoggedIn = true;
+        document.body.classList.add('supervisor-mode');
+        document.getElementById("superAuthArea").style.display = "none";
+        document.getElementById("superDashboard").style.display = "block";
+        setGlobalControlsEnabled(true);
         refreshAllViews();
-        await syncStaffViewWithSupervisor();
-        showMessage(`Shift changed to ${currentShift}`); 
-      } 
+        showMessage(`✅ Welcome Supervisor ${staff.name}`);
+      } else {
+        if (errorMsg) errorMsg.textContent = '❌ Incorrect password. Try again.';
+        passwordInput = '';
+        passInput.value = '';
+      }
     };
-  }
-
-  function setGlobalControlsEnabled(en) {
-    document.getElementById("globalDate").disabled = !en;
-    document.getElementById("globalShift").disabled = !en;
-    document.getElementById("dateLockIcon").innerText = en ? "🔓" : "🔒";
-    document.getElementById("shiftLockIcon").innerText = en ? "🔓" : "🔒";
-  }
-
-  function logoutSupervisor() {
-    supervisorLoggedIn = false;
-    supervisorAuthStaffId = null;
-    document.body.classList.remove('supervisor-mode');
-    document.getElementById("superAuthArea").style.display = "block";
-    document.getElementById("superDashboard").style.display = "none";
-    document.getElementById("supervisorSelect").value = "";
-    document.getElementById("superVerificationContainer").innerHTML = "";
-    document.getElementById("superVerificationArea").style.display = "none";
-    setGlobalControlsEnabled(false);
-    selectedAllocationStaff.clear();
-    showMessage("Supervisor logged out");
-    if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
-      loadCompleteStaffDashboard();
-      renderDailyTasksUI();
-    }
-  }
-
-  // This is the CRITICAL function that populates dropdowns and binds buttons
-  function populateDropdowns() {
-    initSupervisorLogin();
+  };
+  
+  const showPatternInput = () => {
+    let patternSequence = [];
+    let isDrawing = false;
     
-    const attSel = document.getElementById("attendanceStaffSelect");
-    const statusSelect = document.getElementById("attendanceStatus");
-    const reasonContainer = document.getElementById("reasonContainer");
-    const reasonSelect = document.getElementById("attendanceReason");
-    const addBtn = document.getElementById("addAttendanceBtn");
-    const requestBtn = document.getElementById("requestBreakBtn");
-    const clearBtn = document.getElementById("clearSelectionBtn");
-    const printAllocBtn = document.getElementById("printAllocationBtn");
-    const printReportBtn = document.getElementById("printDailyReportBtn");
-    const superLogoutBtn = document.getElementById("superLogoutBtn");
-    const reportedDateInput = document.getElementById("attendanceReportedDate");
-    const timeInput = document.getElementById("attendanceTime");
-    const leaveDateInput = document.getElementById("attendanceLeaveDate");
+    methodContent.innerHTML = `
+      <div style="text-align: center;">
+        <p style="margin: 0.5rem 0;">Draw your pattern:</p>
+        <div class="pattern-grid" id="superPatternGrid" style="margin: 0.5rem auto; max-width: 200px; gap: 0.5rem;">
+          ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
+        </div>
+        <div id="superPatternPreview" style="font-size: 0.7rem; margin: 0.5rem 0;">Draw your pattern...</div>
+        <button id="superResetPattern" style="background: #6b7280; color: white; padding: 0.4rem 1rem; margin-right: 0.5rem;">⟳ Reset</button>
+        <button id="superCancelPattern" style="background: #94a3b8; color: white; padding: 0.4rem 1rem;">Cancel</button>
+      </div>
+    `;
     
-    // Populate staff dropdown
-    if (attSel) {
-      attSel.innerHTML = '<option value="">-- Select Staff --</option>' + 
-        staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+    const grid = methodContent.querySelector('#superPatternGrid');
+    const dots = grid.querySelectorAll('.pattern-dot');
+    const previewSpan = methodContent.querySelector('#superPatternPreview');
+    
+    function updatePreview() {
+      if (patternSequence.length === 0) previewSpan.textContent = 'Draw your pattern...';
+      else previewSpan.textContent = patternSequence.map(n => '●').join(' → ');
     }
     
-    // Setup attendance status change handler
-    if (statusSelect) {
-      statusSelect.onchange = function() {
-        const selectedStatus = this.value;
-        if (reasonSelect) {
-          reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>';
-          reasonSelect.value = "";
+    function resetDrawing() {
+      patternSequence = [];
+      dots.forEach(dot => dot.classList.remove('selected'));
+      updatePreview();
+      if (errorMsg) errorMsg.textContent = '';
+    }
+    
+    function getDotFromEvent(e) {
+      const rect = grid.getBoundingClientRect();
+      let clientX, clientY;
+      if (e.touches) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+      else { clientX = e.clientX; clientY = e.clientY; }
+      for (let dot of dots) {
+        const dotRect = dot.getBoundingClientRect();
+        if (clientX >= dotRect.left && clientX <= dotRect.right && clientY >= dotRect.top && clientY <= dotRect.bottom) {
+          return { dotNum: parseInt(dot.dataset.num), element: dot };
         }
-        if (selectedStatus === "Sick Leave" || selectedStatus === "FRL") {
-          const reasons = PRESET_REASONS[selectedStatus] || [];
-          if (reasonSelect) {
-            reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>' + 
-              reasons.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
-          }
-          if (reasonContainer) reasonContainer.style.display = "block";
-        } else {
-          if (reasonContainer) reasonContainer.style.display = "none";
-        }
-      };
+      }
+      return null;
     }
     
-    // Setup add attendance button - DIRECT BINDING FOR IPAD
-    if (addBtn) {
-      const newAddBtn = addBtn.cloneNode(true);
-      addBtn.parentNode.replaceChild(newAddBtn, addBtn);
-      
-      newAddBtn.onclick = function(e) {
-        console.log("Add Attendance button clicked on iPad");
-        addAttendanceFromForm(e);
-      };
-      newAddBtn.ontouchstart = function(e) {
-        console.log("Add Attendance button touched on iPad");
-        addAttendanceFromForm(e);
-      };
+    function startDraw(e) { e.preventDefault(); isDrawing = true; const dotInfo = getDotFromEvent(e); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence = [dotInfo.dotNum]; dotInfo.element.classList.add('selected'); updatePreview(); } }
+    function draw(e) { e.preventDefault(); if (!isDrawing) return; const dotInfo = getDotFromEvent(e); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence.push(dotInfo.dotNum); dotInfo.element.classList.add('selected'); updatePreview(); } }
+    async function endDraw(e) { e.preventDefault(); if (!isDrawing) { isDrawing = false; return; } isDrawing = false;
+      if (patternSequence.length >= 3) {
+        const enteredPattern = patternToString(patternSequence);
+        const creds = await loadUserCredentials(staff.id);
+        const savedPattern = creds?.pattern || staff.pattern;
+        if (enteredPattern === savedPattern) {
+          supervisorAuthStaffId = staff.id;
+          supervisorLoggedIn = true;
+          document.body.classList.add('supervisor-mode');
+          document.getElementById("superAuthArea").style.display = "none";
+          document.getElementById("superDashboard").style.display = "block";
+          setGlobalControlsEnabled(true);
+          refreshAllViews();
+          showMessage(`✅ Welcome Supervisor ${staff.name}`);
+        } else { if (errorMsg) errorMsg.textContent = '❌ Incorrect pattern! Try again.'; resetDrawing(); }
+      } else if (patternSequence.length > 0 && patternSequence.length < 3) { if (errorMsg) errorMsg.textContent = '❌ Pattern must have at least 3 dots'; setTimeout(() => resetDrawing(), 1000); }
     }
     
-    // Setup break request button
-    if (requestBtn) {
-      const newRequestBtn = requestBtn.cloneNode(true);
-      requestBtn.parentNode.replaceChild(newRequestBtn, requestBtn);
-      newRequestBtn.onclick = function(e) { e.preventDefault(); submitBreakRequest(); };
-      newRequestBtn.ontouchstart = function(e) { e.preventDefault(); submitBreakRequest(); };
-    }
+    grid.addEventListener('mousedown', startDraw);
+    window.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', endDraw);
+    grid.addEventListener('touchstart', startDraw);
+    window.addEventListener('touchmove', draw);
+    window.addEventListener('touchend', endDraw);
     
-    // Setup clear selection button
-    if (clearBtn) {
-      const newClearBtn = clearBtn.cloneNode(true);
-      clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
-      newClearBtn.onclick = function(e) { e.preventDefault(); selectedAllocationStaff.clear(); renderAllocationPool(); showMessage("Selection cleared"); };
-      newClearBtn.ontouchstart = function(e) { e.preventDefault(); selectedAllocationStaff.clear(); renderAllocationPool(); showMessage("Selection cleared"); };
-    }
-    
-    // Setup print buttons
-    if (printAllocBtn) {
-      const newPrintBtn = printAllocBtn.cloneNode(true);
-      printAllocBtn.parentNode.replaceChild(newPrintBtn, printAllocBtn);
-      newPrintBtn.onclick = function(e) { e.preventDefault(); printAllocation(); };
-    }
-    if (printReportBtn) {
-      const newReportBtn = printReportBtn.cloneNode(true);
-      printReportBtn.parentNode.replaceChild(newReportBtn, printReportBtn);
-      newReportBtn.onclick = function(e) { e.preventDefault(); printDailyReport(); };
-    }
-    if (superLogoutBtn) {
-      const newLogoutBtn = superLogoutBtn.cloneNode(true);
-      superLogoutBtn.parentNode.replaceChild(newLogoutBtn, superLogoutBtn);
-      newLogoutBtn.onclick = function(e) { e.preventDefault(); logoutSupervisor(); };
-    }
-    
-    // Set default dates
-    if (reportedDateInput) reportedDateInput.value = new Date().toISOString().split('T')[0];
-    if (timeInput) timeInput.value = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    if (leaveDateInput) leaveDateInput.value = new Date().toISOString().split('T')[0];
-    
-    initGlobalControls();
-    setGlobalControlsEnabled(false);
-    updateDisplayInfo();
-    loadDailyTasks();
-    renderDailyTasksUI();
-    renderSupervisorDailyTasks();
-    loadCompleteStaffDashboard();
-  }
+    methodContent.querySelector('#superResetPattern').onclick = resetDrawing;
+    methodContent.querySelector('#superCancelPattern').onclick = () => {
+      methodContent.innerHTML = '';
+      document.getElementById('superVerificationArea').style.display = 'none';
+      document.getElementById('supervisorSelect').value = '';
+      if (errorMsg) errorMsg.textContent = '';
+    };
+  };
+  
+  document.getElementById('superPasswordBtn').onclick = () => showPasswordInput();
+  document.getElementById('superPatternBtn').onclick = () => showPatternInput();
+  document.getElementById('superVerificationArea').style.display = 'block';
+}
 
-  function initStaffSubTabs() {
-    const btns = document.querySelectorAll(".sub-tab-btn");
-    const panes = { allocations: document.getElementById("subtabAllocations"), dailytasks: document.getElementById("subtabDailytasks") };
-    btns.forEach(b => b.onclick = () => {
-      Object.values(panes).forEach(p => p.classList.remove("active-sub-pane"));
-      panes[b.dataset.subtab].classList.add("active-sub-pane");
-      btns.forEach(btn => btn.classList.toggle("active", btn.dataset.subtab === b.dataset.subtab));
-      if (b.dataset.subtab === "dailytasks") renderDailyTasksUI();
+function initSupervisorLogin() {
+  const supervisorSelect = document.getElementById('supervisorSelect');
+  if (!supervisorSelect) return;
+  const supervisors = staffList.filter(s => s.role === "Supervisor");
+  supervisorSelect.innerHTML = '<option value="">-- Select Supervisor --</option>' + supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  supervisorSelect.onchange = async () => {
+    const staffId = supervisorSelect.value;
+    const errorMsg = document.getElementById('superErrorMsg');
+    const verificationArea = document.getElementById('superVerificationArea');
+    if (!staffId) { verificationArea.style.display = 'none'; document.getElementById('superVerificationContainer').innerHTML = ''; return; }
+    const selectedStaff = staffList.find(s => s.id === staffId);
+    if (selectedStaff) { errorMsg.textContent = ''; showSupervisorVerification(selectedStaff); }
+  };
+}
+
+function updateProfileButtonVisibility() {
+  const profileBtn = document.getElementById('profileSettingsBtn');
+  if (profileBtn) {
+    if (authenticatedStaffId) {
+      profileBtn.style.display = 'inline-flex';
+      profileBtn.onclick = () => { const staff = staffList.find(s => s.id === authenticatedStaffId); if (staff) showProfileModal(staff); };
+    } else { profileBtn.style.display = 'none'; }
+  }
+}
+
+function patternToString(pattern) { return pattern.join(','); }
+function stringToPattern(str) { if (!str) return []; return str.split(',').map(Number); }
+
+// ============ FIREBASE USER AUTH STORAGE ============
+
+const USERS_COLLECTION = "staffCredentials";
+let credentialsCache = null;
+
+async function saveUserCredentials(staffId, credentials) {
+  try {
+    const docRef = db.collection(USERS_COLLECTION).doc(staffId);
+    await docRef.set({ staffId: staffId, pass: credentials.pass, pattern: credentials.pattern || null, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), updatedBy: staffId }, { merge: true });
+    return true;
+  } catch (error) { console.error("Error saving credentials:", error); return false; }
+}
+
+async function loadUserCredentials(staffId) {
+  try {
+    const docRef = db.collection(USERS_COLLECTION).doc(staffId);
+    const doc = await docRef.get();
+    if (doc.exists) return doc.data();
+    return null;
+  } catch (error) { console.error("Error loading credentials:", error); return null; }
+}
+
+async function refreshStaffCredentials() {
+  try {
+    if (credentialsCache) {
+      for (const staff of staffList) { if (credentialsCache[staff.id]) { staff.pass = credentialsCache[staff.id].pass; staff.pattern = credentialsCache[staff.id].pattern; } }
+      return true;
+    }
+    const usersRef = db.collection("staffCredentials");
+    const snapshot = await usersRef.get();
+    credentialsCache = {};
+    snapshot.forEach(doc => { credentialsCache[doc.id] = doc.data(); });
+    for (const staff of staffList) {
+      if (credentialsCache[staff.id]) { staff.pass = credentialsCache[staff.id].pass; staff.pattern = credentialsCache[staff.id].pattern; }
+      else { staff.pass = staff.pass || "1234"; staff.pattern = staff.pattern || "1,2,3"; usersRef.doc(staff.id).set({ staffId: staff.id, pass: staff.pass, pattern: staff.pattern, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(err => console.error("Error saving default:", err)); }
+    }
+    return true;
+  } catch (error) {
+    for (const staff of staffList) { if (!staff.pass) staff.pass = "1234"; if (!staff.pattern) staff.pattern = "1,2,3"; }
+    return false;
+  }
+}
+
+function showPatternModal(staff, onSuccess, onCancel) {
+  const existingModal = document.querySelector('.pattern-modal');
+  if (existingModal) existingModal.remove();
+  const modal = document.createElement('div');
+  modal.className = 'pattern-modal';
+  modal.innerHTML = `<div class="pattern-modal-content"><h3>🎨 Pattern Lock</h3><p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p><p style="font-size: 0.8rem; color: #666;">Draw your pattern by connecting dots</p><p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse to verify automatically</p><div class="pattern-grid" id="patternGrid">${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}"></div>`).join('')}</div><div class="pattern-preview" id="patternPreview"></div><div class="pattern-status" id="patternStatus"></div><div class="pattern-buttons"><button class="reset-pattern-btn" id="resetPatternBtn">⟳ Reset</button><button class="cancel-pattern-btn" id="cancelPatternBtn">✗ Cancel</button></div></div>`;
+  document.body.appendChild(modal);
+  
+  const style = document.createElement('style');
+  style.textContent = `.pattern-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;width:100%;max-width:300px;margin:1rem auto;background:#f8fafc;padding:1.5rem;border-radius:1.5rem;touch-action:none}.pattern-dot{aspect-ratio:1;background:#e2e8f0;border-radius:50%;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:center;width:100%;min-width:50px;touch-action:none}.pattern-dot.selected{background:#b8860b;transform:scale(1.1);box-shadow:0 0 0 3px rgba(184,134,11,.3)}.pattern-dot.selected::after{content:"●";color:#fff;font-size:1.5rem}.pattern-preview{text-align:center;font-size:.85rem;margin:.5rem 0;color:#4a5568;min-height:2rem}.pattern-status{text-align:center;font-size:.8rem;margin:.5rem 0;padding:.3rem;border-radius:.5rem}.pattern-status.error{color:#dc2626;background:#fee2e2}.pattern-status.success{color:#059669;background:#d1fae5}.pattern-buttons{display:flex;gap:1rem;justify-content:center;margin-top:1rem}.reset-pattern-btn,.cancel-pattern-btn{padding:.5rem 1.5rem;border:none;border-radius:2rem;cursor:pointer;font-size:.85rem}.reset-pattern-btn{background:#6b7280;color:#fff}.cancel-pattern-btn{background:#94a3b8;color:#fff}`;
+  document.head.appendChild(style);
+  
+  const grid = modal.querySelector('#patternGrid');
+  const dots = modal.querySelectorAll('.pattern-dot');
+  const previewSpan = modal.querySelector('#patternPreview');
+  const statusSpan = modal.querySelector('#patternStatus');
+  let patternSequence = [], isDrawing = false, verificationInProgress = false, lastAddedDot = null;
+  
+  function updatePreview() { if (patternSequence.length === 0) previewSpan.textContent = '✨ Draw your pattern by connecting 3+ dots'; else previewSpan.innerHTML = `Pattern: ${patternSequence.map(() => '●').join(' → ')} <span style="color:#b8860b;">(${patternSequence.length} dots)</span>`; }
+  function resetDrawing() { patternSequence = []; lastAddedDot = null; dots.forEach(dot => dot.classList.remove('selected', 'drag-over')); updatePreview(); statusSpan.textContent = ''; statusSpan.className = 'pattern-status'; verificationInProgress = false; }
+  function addDot(dotNum, element) { if (!patternSequence.includes(dotNum)) { patternSequence.push(dotNum); element.classList.add('selected'); updatePreview(); lastAddedDot = dotNum; if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10); } }
+  function areAdjacent(dot1, dot2) { const pos1 = { row: Math.ceil(dot1 / 3), col: ((dot1 - 1) % 3) + 1 }; const pos2 = { row: Math.ceil(dot2 / 3), col: ((dot2 - 1) % 3) + 1 }; const rowDiff = Math.abs(pos1.row - pos2.row); const colDiff = Math.abs(pos1.col - pos2.col); return rowDiff <= 1 && colDiff <= 1; }
+  function autoVerifyAndSelect() { if (verificationInProgress) return; verificationInProgress = true;
+    if (patternSequence.length < 3) { statusSpan.textContent = '❌ Pattern must have at least 3 dots'; statusSpan.className = 'pattern-status error'; verificationInProgress = false; setTimeout(() => resetDrawing(), 1000); return; }
+    const enteredPattern = patternToString(patternSequence); const savedPattern = staff.pattern || '';
+    if (enteredPattern === savedPattern) { statusSpan.textContent = '✅ Verified! Redirecting...'; statusSpan.className = 'pattern-status success'; if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([10,50,10]); setTimeout(() => { modal.remove(); style.remove(); if (onSuccess) onSuccess(); }, 500); }
+    else { statusSpan.textContent = '❌ Wrong pattern! Try again.'; statusSpan.className = 'pattern-status error'; if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([50,100,50]); grid.style.background = '#fee2e2'; setTimeout(() => { grid.style.background = ''; }, 300); resetDrawing(); verificationInProgress = false; }
+  }
+  function getDotFromEvent(e) { e.preventDefault(); const rect = grid.getBoundingClientRect(); let clientX, clientY; if (e.touches && e.touches.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; } else if (e.changedTouches && e.changedTouches.length > 0) { clientX = e.changedTouches[0].clientX; clientY = e.changedTouches[0].clientY; } else { clientX = e.clientX; clientY = e.clientY; } for (let dot of dots) { const dotRect = dot.getBoundingClientRect(); const padding = 15; if (clientX >= dotRect.left - padding && clientX <= dotRect.right + padding && clientY >= dotRect.top - padding && clientY <= dotRect.bottom + padding) return { dotNum: parseInt(dot.dataset.num), element: dot }; } return null; }
+  function clearDragOver() { dots.forEach(dot => dot.classList.remove('drag-over')); }
+  function startDraw(e) { e.preventDefault(); if (verificationInProgress) return; isDrawing = true; clearDragOver(); const dotInfo = getDotFromEvent(e); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence = [dotInfo.dotNum]; dotInfo.element.classList.add('selected'); updatePreview(); lastAddedDot = dotInfo.dotNum; } }
+  function draw(e) { e.preventDefault(); if (!isDrawing || verificationInProgress) return; const dotInfo = getDotFromEvent(e); if (dotInfo) { if (!patternSequence.includes(dotInfo.dotNum)) dotInfo.element.classList.add('drag-over'); if (!patternSequence.includes(dotInfo.dotNum) && (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum))) addDot(dotInfo.dotNum, dotInfo.element); } else clearDragOver(); }
+  function endDraw(e) { e.preventDefault(); clearDragOver(); if (!isDrawing || verificationInProgress) { isDrawing = false; return; } isDrawing = false; autoVerifyAndSelect(); }
+  
+  grid.addEventListener('mousedown', startDraw);
+  window.addEventListener('mousemove', draw);
+  window.addEventListener('mouseup', endDraw);
+  grid.addEventListener('touchstart', startDraw, { passive: false });
+  window.addEventListener('touchmove', draw, { passive: false });
+  window.addEventListener('touchend', endDraw);
+  grid.addEventListener('touchmove', (e) => { if (isDrawing) e.preventDefault(); }, { passive: false });
+  
+  modal.querySelector('#resetPatternBtn').onclick = (e) => { e.preventDefault(); resetDrawing(); };
+  modal.querySelector('#cancelPatternBtn').onclick = (e) => { e.preventDefault(); modal.remove(); style.remove(); if (onCancel) onCancel(); };
+  modal.querySelector('.pattern-modal-content').onclick = (e) => e.stopPropagation();
+  modal.onclick = (e) => { if (e.target === modal) { modal.remove(); style.remove(); if (onCancel) onCancel(); } };
+  document.body.style.overflow = 'hidden';
+  modal.addEventListener('remove', () => { document.body.style.overflow = ''; });
+}
+
+// Update initDailyStaffSelect
+function initDailyStaffSelect() {
+  const select = document.getElementById("dailyTaskStaffSelect");
+  if (!select) return;
+  const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
+  
+  if (sodStaff.length === 0) {
+    select.innerHTML = '<option value="">-- No staff on duty --</option>';
+    const nameSpan = document.getElementById("dailyTaskSelectedName");
+    if (nameSpan) nameSpan.textContent = "⚠️ No staff on duty today";
+    const selfSelect = document.getElementById("staffSelfSelect");
+    if (selfSelect) selfSelect.innerHTML = '<option value="">-- No staff on duty --</option>';
+  } else {
+    select.innerHTML = '<option value="">-- Select Staff --</option>' + sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+    const selfSelect = document.getElementById("staffSelfSelect");
+    if (selfSelect) selfSelect.innerHTML = '<option value="">-- Select --</option>' + sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  }
+  
+  const scrollBtn = document.getElementById("scrollToTasksBtn");
+  if (scrollBtn) { scrollBtn.onclick = () => { const tasksContainer = document.getElementById("dailyMainTasksContainer"); if (tasksContainer) { tasksContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); showMessage("Scrolled to daily tasks", "success"); } else showMessage("Tasks container not found", "error"); }; }
+  
+  if (authenticatedStaffId && sodStaff.some(s => s.id === authenticatedStaffId)) {
+    select.value = authenticatedStaffId;
+    const staff = staffList.find(s => s.id === authenticatedStaffId);
+    if (staff) document.getElementById("dailyTaskSelectedName").textContent = `✓ ${staff.name} (Verified)`;
+  }
+  
+  select.onchange = async () => {
+    const selectedStaffId = select.value;
+    if (!selectedStaffId) { authenticatedStaffId = null; updateProfileButtonVisibility(); document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name"; renderDailyTasksUI(); return; }
+    const selectedStaff = staffList.find(s => s.id === selectedStaffId);
+    if (!selectedStaff) { showMessage("Staff not found", "error"); return; }
+    if (authenticatedStaffId === selectedStaffId) { document.getElementById("dailyTaskSelectedName").textContent = `✓ ${selectedStaff.name} (Verified)`; renderDailyTasksUI(); setTimeout(() => { const tasksContainer = document.getElementById("dailyMainTasksContainer"); if (tasksContainer) tasksContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300); return; }
+    if (authenticatedStaffId) { const previousStaff = staffList.find(s => s.id === authenticatedStaffId); showMessage(`👋 ${previousStaff?.name} logged out automatically`, "info"); authenticatedStaffId = null; }
+    showVerificationOptionsModal(selectedStaff, (success) => {
+      if (success) { authenticatedStaffId = selectedStaff.id; updateProfileButtonVisibility(); document.getElementById("dailyTaskSelectedName").textContent = `✓ ${selectedStaff.name} (Verified)`; renderDailyTasksUI(); showMessage(`✅ Welcome ${selectedStaff.name}`); setTimeout(() => { const tasksContainer = document.getElementById("dailyMainTasksContainer"); if (tasksContainer) tasksContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300); }
+      else { select.value = ""; authenticatedStaffId = null; updateProfileButtonVisibility(); document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Verification failed"; renderDailyTasksUI(); showMessage(`❌ Verification failed for ${selectedStaff.name}`, "error"); }
+    });
+  };
+}
+
+function showVerificationOptionsModal(staff, callback) {
+  const modal = document.createElement('div');
+  modal.className = 'pattern-modal';
+  let currentMode = 'pattern';
+  modal.innerHTML = `<div class="pattern-modal-content" style="touch-action: manipulation;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;"><h3 style="margin: 0; color: #b8860b;">🔐 Verify Identity</h3><button id="switchModeBtn" style="background: none; border: none; color: #6b7280; font-size: 0.7rem; cursor: pointer; padding: 0.3rem 0.6rem; touch-action: manipulation;">🔑 Switch to Password</button></div><p><strong>${escapeHtml(staff.name)}</strong></p><div id="patternModeContainer"><p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Draw your pattern by connecting dots</p><p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger to verify automatically</p><div class="pattern-grid" id="patternGrid" style="touch-action: none;">${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="touch-action: manipulation;"></div>`).join('')}</div><div class="pattern-preview" id="patternPreview"></div><div class="pattern-status" id="patternStatus"></div><div class="pattern-buttons"><button class="reset-pattern-btn" id="resetPatternBtn" style="touch-action: manipulation;">⟳ Reset</button></div></div><div id="passwordModeContainer" style="display: none;"><p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Enter your password</p><input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off" style="width:100%; padding:0.8rem; margin:1rem 0; text-align:center; font-size:1.5rem; border-radius:1rem; border:1px solid #cbd5e1; touch-action: manipulation;"><div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1rem 0;">${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 1rem; cursor: pointer; touch-action: manipulation;">${n}</button>`).join('')}<button data-num="clear" class="clear-pass" style="padding: 0.8rem; background: #ef4444; color: white; border: none; border-radius: 1rem; cursor: pointer; touch-action: manipulation;">⌫</button></div><div id="passError" style="color:#ef4444; margin:0.5rem 0; text-align:center;"></div></div><div style="margin-top: 1rem;"><button id="cancelVerifyBtn" style="width:100%; background:#94a3b8; padding:0.8rem; border:none; border-radius:1rem; cursor:pointer; color:white; touch-action: manipulation;">Cancel</button></div></div>`;
+  document.body.appendChild(modal);
+  
+  let patternSequence = [], isDrawing = false, verificationInProgress = false, lastAddedDot = null;
+  const patternGrid = modal.querySelector('#patternGrid');
+  const dots = modal.querySelectorAll('.pattern-dot');
+  const previewSpan = modal.querySelector('#patternPreview');
+  const statusSpan = modal.querySelector('#patternStatus');
+  let passwordInput = '';
+  const expectedPass = staff.pass || '1234';
+  const expectedLength = expectedPass.length;
+  const passInput = modal.querySelector('#passInput');
+  const passErrorDiv = modal.querySelector('#passError');
+  const patternModeContainer = modal.querySelector('#patternModeContainer');
+  const passwordModeContainer = modal.querySelector('#passwordModeContainer');
+  const switchModeBtn = modal.querySelector('#switchModeBtn');
+  
+  function updatePatternPreview() { if (patternSequence.length === 0) previewSpan.textContent = '✨ Draw your pattern by connecting 3+ dots'; else previewSpan.innerHTML = `Pattern: ${patternSequence.map(() => '●').join(' → ')} <span style="color:#b8860b;">(${patternSequence.length} dots)</span>`; }
+  function resetPatternDrawing() { patternSequence = []; lastAddedDot = null; dots.forEach(dot => dot.classList.remove('selected', 'drag-over')); updatePatternPreview(); if (statusSpan) { statusSpan.textContent = ''; statusSpan.className = 'pattern-status'; } verificationInProgress = false; }
+  function addDot(dotNum, element) { if (!patternSequence.includes(dotNum)) { patternSequence.push(dotNum); element.classList.add('selected'); updatePatternPreview(); lastAddedDot = dotNum; } }
+  function areAdjacent(dot1, dot2) { const pos1 = { row: Math.ceil(dot1 / 3), col: ((dot1 - 1) % 3) + 1 }; const pos2 = { row: Math.ceil(dot2 / 3), col: ((dot2 - 1) % 3) + 1 }; const rowDiff = Math.abs(pos1.row - pos2.row); const colDiff = Math.abs(pos1.col - pos2.col); return rowDiff <= 1 && colDiff <= 1; }
+  function autoVerifyPattern() { if (verificationInProgress) return; verificationInProgress = true; if (patternSequence.length < 3) { statusSpan.textContent = '❌ Pattern must have at least 3 dots'; statusSpan.className = 'pattern-status error'; verificationInProgress = false; setTimeout(() => resetPatternDrawing(), 1000); return; } const enteredPattern = patternSequence.join(','); const savedPattern = staff.pattern || ''; if (enteredPattern === savedPattern) { statusSpan.textContent = '✅ Verified!'; statusSpan.className = 'pattern-status success'; setTimeout(() => { modal.remove(); if (callback) callback(true); }, 300); } else { statusSpan.textContent = '❌ Wrong pattern! Try again.'; statusSpan.className = 'pattern-status error'; if (patternGrid) { patternGrid.style.background = '#fee2e2'; setTimeout(() => { patternGrid.style.background = ''; }, 300); } resetPatternDrawing(); verificationInProgress = false; } }
+  function getDotFromTouch(touch) { const rect = patternGrid.getBoundingClientRect(); const clientX = touch.clientX; const clientY = touch.clientY; for (let dot of dots) { const dotRect = dot.getBoundingClientRect(); const padding = 15; if (clientX >= dotRect.left - padding && clientX <= dotRect.right + padding && clientY >= dotRect.top - padding && clientY <= dotRect.bottom + padding) return { dotNum: parseInt(dot.dataset.num), element: dot }; } return null; }
+  function getDotFromMouse(e) { const rect = patternGrid.getBoundingClientRect(); const clientX = e.clientX; const clientY = e.clientY; for (let dot of dots) { const dotRect = dot.getBoundingClientRect(); if (clientX >= dotRect.left && clientX <= dotRect.right && clientY >= dotRect.top && clientY <= dotRect.bottom) return { dotNum: parseInt(dot.dataset.num), element: dot }; } return null; }
+  function clearDragOver() { dots.forEach(dot => dot.classList.remove('drag-over')); }
+  function handleTouchStart(e) { e.preventDefault(); e.stopPropagation(); if (verificationInProgress) return; isDrawing = true; clearDragOver(); const touch = e.touches[0]; const dotInfo = getDotFromTouch(touch); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence = [dotInfo.dotNum]; dotInfo.element.classList.add('selected'); updatePatternPreview(); lastAddedDot = dotInfo.dotNum; } }
+  function handleTouchMove(e) { e.preventDefault(); e.stopPropagation(); if (!isDrawing || verificationInProgress) return; const touch = e.touches[0]; const dotInfo = getDotFromTouch(touch); if (dotInfo) { if (!patternSequence.includes(dotInfo.dotNum)) dotInfo.element.classList.add('drag-over'); if (!patternSequence.includes(dotInfo.dotNum) && (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum))) addDot(dotInfo.dotNum, dotInfo.element); } else clearDragOver(); }
+  function handleTouchEnd(e) { e.preventDefault(); e.stopPropagation(); clearDragOver(); if (!isDrawing || verificationInProgress) { isDrawing = false; return; } isDrawing = false; autoVerifyPattern(); }
+  function handleMouseDown(e) { e.preventDefault(); if (verificationInProgress) return; isDrawing = true; clearDragOver(); const dotInfo = getDotFromMouse(e); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence = [dotInfo.dotNum]; dotInfo.element.classList.add('selected'); updatePatternPreview(); lastAddedDot = dotInfo.dotNum; } }
+  function handleMouseMove(e) { if (!isDrawing || verificationInProgress) return; e.preventDefault(); const dotInfo = getDotFromMouse(e); if (dotInfo) { if (!patternSequence.includes(dotInfo.dotNum)) dotInfo.element.classList.add('drag-over'); if (!patternSequence.includes(dotInfo.dotNum) && (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum))) addDot(dotInfo.dotNum, dotInfo.element); } else clearDragOver(); }
+  function handleMouseUp(e) { clearDragOver(); if (!isDrawing || verificationInProgress) { isDrawing = false; return; } isDrawing = false; autoVerifyPattern(); }
+  
+  if (patternGrid) {
+    patternGrid.addEventListener('touchstart', handleTouchStart, { passive: false });
+    patternGrid.addEventListener('touchmove', handleTouchMove, { passive: false });
+    patternGrid.addEventListener('touchend', handleTouchEnd);
+    patternGrid.addEventListener('touchcancel', handleTouchEnd);
+    patternGrid.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }
+  
+  const resetBtn = modal.querySelector('#resetPatternBtn');
+  if (resetBtn) resetBtn.onclick = (e) => { e.preventDefault(); resetPatternDrawing(); };
+  
+  function checkAndAutoVerifyPassword() { if (passwordInput.length === expectedLength) { if (passwordInput === expectedPass) { passErrorDiv.textContent = '✅ Verified!'; passErrorDiv.style.color = '#059669'; setTimeout(() => { modal.remove(); if (callback) callback(true); }, 300); } else { passErrorDiv.textContent = '❌ Incorrect password. Try again.'; passErrorDiv.style.color = '#ef4444'; passwordInput = ''; if (passInput) passInput.value = ''; } } }
+  function setupPasswordMode() { if (!passInput) return; const numpadBtns = modal.querySelectorAll('[data-num]'); numpadBtns.forEach(btn => { btn.onclick = (e) => { e.preventDefault(); const num = btn.dataset.num; if (num === 'clear') passwordInput = passwordInput.slice(0, -1); else if (passwordInput.length < expectedLength) passwordInput += num; if (passInput) passInput.value = '*'.repeat(passwordInput.length); if (passErrorDiv) passErrorDiv.textContent = ''; checkAndAutoVerifyPassword(); }; }); if (passInput) passInput.addEventListener('input', (e) => { passwordInput = e.target.value.replace(/\*/g, ''); if (passwordInput.length === expectedLength) checkAndAutoVerifyPassword(); }); }
+  
+  if (switchModeBtn) switchModeBtn.onclick = (e) => { e.preventDefault(); if (currentMode === 'pattern') { currentMode = 'password'; patternModeContainer.style.display = 'none'; passwordModeContainer.style.display = 'block'; switchModeBtn.innerHTML = '🎨 Switch to Pattern'; switchModeBtn.style.color = '#b8860b'; setupPasswordMode(); setTimeout(() => { if (passInput) passInput.focus(); }, 100); } else { currentMode = 'pattern'; patternModeContainer.style.display = 'block'; passwordModeContainer.style.display = 'none'; switchModeBtn.innerHTML = '🔑 Switch to Password'; switchModeBtn.style.color = '#6b7280'; resetPatternDrawing(); } };
+  
+  const cancelBtn = modal.querySelector('#cancelVerifyBtn');
+  if (cancelBtn) cancelBtn.onclick = () => { modal.remove(); if (callback) callback(false); };
+  modal.onclick = (e) => { if (e.target === modal) { modal.remove(); if (callback) callback(false); } };
+  document.body.style.overflow = 'hidden';
+  modal.addEventListener('remove', () => { document.body.style.overflow = ''; });
+}
+
+function rebindAllSupervisorButtons() {
+  const sodContainer = document.getElementById("allSodContainer");
+  if (sodContainer) {
+    const badges = sodContainer.querySelectorAll('.staff-badge');
+    badges.forEach(badge => {
+      const staffId = badge.dataset.id;
+      const staff = staffList.find(s => s.id === staffId);
+      if (!staff) return;
+      const handleClick = function(e) { e.preventDefault(); e.stopPropagation(); if (staffOnDutyIds.has(staffId)) { staffOnDutyIds.delete(staffId); showMessage(staff.name + " removed from SOD for " + currentDate); } else { staffOnDutyIds.add(staffId); showMessage(staff.name + " added to SOD for " + currentDate); } saveToLocalStorage().then(() => { renderAllSod(); renderAllocationPool(); initDailyStaffSelect(); if (document.getElementById("staffMainPane").classList.contains("active-pane")) { loadCompleteStaffDashboard(); renderDailyTasksUI(); } }); };
+      const newBadge = badge.cloneNode(true);
+      badge.parentNode.replaceChild(newBadge, badge);
+      newBadge.addEventListener('click', handleClick);
+      newBadge.addEventListener('touchstart', handleClick, { passive: false });
     });
   }
-
-  function showPasswordModal(staff, onSuccess, onCancel) {
-    // Keep your existing implementation
+  
+  const poolContainer = document.getElementById("allocationPoolContainer");
+  if (poolContainer) {
+    const badges = poolContainer.querySelectorAll('.staff-badge');
+    badges.forEach(badge => {
+      const staffId = badge.dataset.id;
+      const handleSelect = function(e) { e.preventDefault(); e.stopPropagation(); if (selectedAllocationStaff.has(staffId)) selectedAllocationStaff.delete(staffId); else selectedAllocationStaff.add(staffId); renderAllocationPool(); document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`; };
+      const newBadge = badge.cloneNode(true);
+      badge.parentNode.replaceChild(newBadge, badge);
+      newBadge.addEventListener('click', handleSelect);
+      newBadge.addEventListener('touchstart', handleSelect, { passive: false });
+    });
   }
-
-  let syncDebounceTimer = null;
-
-  function startPeriodicSync() {
-    setInterval(async () => {
-      if (supervisorLoggedIn) {
-        if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
-        syncDebounceTimer = setTimeout(async () => {
-          await syncStaffViewWithSupervisor();
-          syncDebounceTimer = null;
-        }, 100);
-      }
-    }, 5000);
-  }
-
-  let lastSyncDate = null;
-  let lastSyncShift = null;
-
-  async function syncStaffViewWithSupervisor() {
-    if (!supervisorLoggedIn) return;
-    if (lastSyncDate === currentDate && lastSyncShift === currentShift) return;
-    lastSyncDate = currentDate;
-    lastSyncShift = currentShift;
-    updateStaffDisplay();
-    updateStaffContextDisplay();
-    await loadFromLocalStorageInternal();
-    await loadDailyTasks(); 
-    renderBreakTimeBadges();
-    loadCompleteStaffDashboard();
-    initDailyStaffSelect();
-    renderDailyTasksUI();
-  }
-
-  async function initApp() {
-    console.log(`🟢 Initializing app...`);
-    showMessage("Loading system...", "info");
+  
+  const tableBody = document.getElementById("tableBody");
+  if (tableBody) {
+    const removeBtns = tableBody.querySelectorAll('.remove-btn');
+    removeBtns.forEach(btn => {
+      const handleRemove = function(e) { e.preventDefault(); e.stopPropagation(); removeAllocation(currentDate, currentShift, parseInt(this.dataset.period), this.dataset.area, this.dataset.staff); renderAllocationTable(); saveToLocalStorage(); showMessage("Staff removed from allocation"); };
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+      newBtn.addEventListener('click', handleRemove);
+      newBtn.addEventListener('touchstart', handleRemove, { passive: false });
+    });
     
-    try {
-      await Promise.race([
-        refreshStaffCredentials(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
-      ]);
-    } catch (e) {
-      console.log("Using default credentials due to timeout");
-      for (const staff of staffList) {
-        if (!staff.pass) staff.pass = "1234";
-        if (!staff.pattern) staff.pattern = "1,2,3";
+    const assignBtns = tableBody.querySelectorAll('.assign-btn');
+    assignBtns.forEach(btn => {
+      const handleAssign = function(e) { e.preventDefault(); e.stopPropagation(); if (selectedAllocationStaff.size === 0) { showMessage("No staff selected. Click on staff badges above first.", "error"); return; } const period = parseInt(this.dataset.period); const area = this.dataset.area; const ALLOW_MULTIPLE_AREAS = ["Floor", "Pantry"]; const RESTRICTED_AREAS = ["Welcome/Boarding", "Reception", "Buffet"]; const duplicateStaff = []; selectedAllocationStaff.forEach(staffId => { let isDuplicate = false; for (let checkArea of AREAS) { const allocatedInThisPeriod = getAllocatedStaffForSlot(currentDate, currentShift, period, checkArea); if (allocatedInThisPeriod.has(staffId)) { if (RESTRICTED_AREAS.includes(area) || RESTRICTED_AREAS.includes(checkArea)) { isDuplicate = true; const staff = staffList.find(s => s.id === staffId); duplicateStaff.push(`${staff?.name} (conflict with ${checkArea})`); break; } if (!ALLOW_MULTIPLE_AREAS.includes(area) && area !== checkArea) { isDuplicate = true; const staff = staffList.find(s => s.id === staffId); duplicateStaff.push(`${staff?.name} (already in ${checkArea})`); break; } } } if (!isDuplicate) addAllocation(currentDate, currentShift, period, area, staffId); }); if (duplicateStaff.length > 0) showMessage(`⚠️ Cannot assign: ${duplicateStaff.join(', ')}`, "error"); else showMessage(`✓ Assigned ${selectedAllocationStaff.size} staff to ${area}`); selectedAllocationStaff.clear(); renderAllocationPool(); renderAllocationTable(); saveToLocalStorage(); };
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+      newBtn.addEventListener('click', handleAssign);
+      newBtn.addEventListener('touchstart', handleAssign, { passive: false });
+    });
+  }
+}
+
+function showPasswordOnlyModal(staff, callback) {
+  const modal = document.createElement('div');
+  modal.className = 'pattern-modal';
+  let passwordInput = '';
+  const expectedPass = staff.pass || '';
+  const expectedLength = expectedPass.length;
+  modal.innerHTML = `<div class="pattern-modal-content"><h3>🔑 Enter Password</h3><p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p><p style="font-size: 0.8rem; color: #666;">Enter your ${expectedLength}-digit password</p><input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off" style="width: 100%; padding: 0.8rem; margin: 1rem 0; border: 1px solid #e2e8f0; border-radius: 1rem; text-align: center; font-size: 1.5rem; letter-spacing: 4px;"><div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 1rem 0;">${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem;">${n}</button>`).join('')}<button data-num="clear" class="clear-pass" style="background: #ef4444; color: white; padding: 0.8rem;">⌫</button></div><div id="passError" style="color: #ef4444; font-size: 0.8rem;"></div><div style="display: flex; gap: 1rem; margin-top: 1rem;"><button id="cancelPassBtn" style="flex:1; background: #94a3b8; color: white; padding: 0.6rem; border: none; border-radius: 1rem;">Cancel</button></div></div>`;
+  document.body.appendChild(modal);
+  const passInput = modal.querySelector('#passInput');
+  const errorDiv = modal.querySelector('#passError');
+  function checkAndSubmit() { if (passwordInput.length === expectedLength) { if (passwordInput === expectedPass) { modal.remove(); callback(true); } else { errorDiv.textContent = '❌ Incorrect password. Try again.'; passwordInput = ''; passInput.value = ''; passInput.focus(); } } }
+  modal.querySelectorAll('[data-num]').forEach(btn => { btn.onclick = () => { const num = btn.dataset.num; if (num === 'clear') passwordInput = passwordInput.slice(0, -1); else if (passwordInput.length < expectedLength) passwordInput += num; passInput.value = '*'.repeat(passwordInput.length); errorDiv.textContent = ''; checkAndSubmit(); }; });
+  passInput.oninput = (e) => { passwordInput = e.target.value; if (passwordInput.length > expectedLength) passwordInput = passwordInput.slice(0, expectedLength); e.target.value = '*'.repeat(passwordInput.length); errorDiv.textContent = ''; checkAndSubmit(); };
+  modal.querySelector('#cancelPassBtn').onclick = () => { modal.remove(); callback(false); };
+  setTimeout(() => passInput.focus(), 100);
+}
+
+async function loadDailyTasks() {
+  try {
+    const docRef = db.collection("staffManagement").doc(currentDate);
+    const doc = await docRef.get();
+    if (doc.exists) {
+      const data = doc.data();
+      if (data.mainTasks) {
+        MAIN_DAILY_TASKS.forEach(item => { item.signoffs = []; item.completedBy = null; item.submissions = []; });
+        data.mainTasks.forEach(savedItem => { const task = MAIN_DAILY_TASKS.find(t => t.id === savedItem.id); if (task) { task.signoffs = savedItem.signoffs || []; task.completedBy = savedItem.completedBy || null; task.submissions = savedItem.submissions || []; } });
       }
+      if (data.fbTasks) {
+        FB_DAILY_TASKS.forEach(item => { item.signoffs = []; item.completedBy = null; });
+        data.fbTasks.forEach(savedItem => { const task = FB_DAILY_TASKS.find(t => t.id === savedItem.id); if (task) { task.signoffs = savedItem.signoffs || []; task.completedBy = savedItem.completedBy || null; } });
+      }
+      return true;
+    } else {
+      MAIN_DAILY_TASKS.forEach(task => { if (task.type === "signoff") task.signoffs = []; if (task.type === "complete") task.completedBy = null; if (task.type === "submission") task.submissions = []; });
+      FB_DAILY_TASKS.forEach(task => { if (task.type === "signoff") task.signoffs = []; if (task.type === "complete") task.completedBy = null; });
+      return false;
     }
-    
-    await Promise.all([loadFromLocalStorage(), loadDailyTasks()]);
-    
-    updateStaffDisplay();
-    updateDisplayInfo();
-    populateDropdowns();
-    initMainTabs();
-    initStaffSubTabs();
-    initDailyStaffSelect();
-    
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    if (loadingOverlay) setTimeout(() => { loadingOverlay.style.display = 'none'; }, 500);
-    
-    refreshAllViews();
-    startPeriodicSync();
-    showMessage("✅ System ready", "success");
-  }
+  } catch (error) { console.error("Error loading daily tasks:", error); return false; }
+}
 
-  initApp();
+async function saveDailyTasks() {
+  try {
+    const docRef = db.collection("staffManagement").doc(currentDate);
+    await docRef.set({ mainTasks: MAIN_DAILY_TASKS.map(({ id, signoffs, completedBy, submissions }) => ({ id, signoffs: signoffs || [], completedBy: completedBy || null, submissions: submissions || [] })), fbTasks: FB_DAILY_TASKS.map(({ id, signoffs, completedBy }) => ({ id, signoffs: signoffs || [], completedBy: completedBy || null })), lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    return true;
+  } catch (error) { console.error("Error saving daily tasks:", error); return false; }
+}
+
+let lastSyncDate = null, lastSyncShift = null;
+
+async function syncStaffViewWithSupervisor() {
+  if (!supervisorLoggedIn) return;
+  if (lastSyncDate === currentDate && lastSyncShift === currentShift) return;
+  lastSyncDate = currentDate; lastSyncShift = currentShift;
+  updateStaffDisplay(); updateStaffContextDisplay();
+  await loadFromLocalStorageInternal(); await loadDailyTasks();
+  renderBreakTimeBadges(); loadCompleteStaffDashboard(); initDailyStaffSelect(); renderDailyTasksUI();
+}
+
+function getSelectedStaff() { const select = document.getElementById("dailyTaskStaffSelect"); return select?.value ? staffList.find(s => s.id === select.value) : null; }
+
+function renderSupervisorAttendanceDashboard() {
+  const records = getAttendanceForDate(currentDate);
+  const morning = records.filter(r => r.dutyShift === "Morning");
+  const evening = records.filter(r => r.dutyShift === "Evening");
+  const night = records.filter(r => r.dutyShift === "Night");
+  
+  const renderList = (recs, containerId) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    if (recs.length === 0) { container.innerHTML = '<div style="text-align:center; padding:1rem; color: #94a3b8;">✅ No records - All present</div>'; return; }
+    container.innerHTML = recs.map((rec, idx) => { const staff = staffList.find(s => s.id === rec.staffId); let bgColor = rec.status === "Sick Leave" ? "#fee2e2" : (rec.status === "FRL" ? "#fef3c7" : "#f3f4f6"); let borderColor = rec.status === 'Sick Leave' ? '#ef4444' : (rec.status === 'FRL' ? '#f59e0b' : '#6b7280'); return `<div style="background:${bgColor}; border-radius:0.8rem; padding:0.8rem; margin-bottom:0.5rem; border-left:3px solid ${borderColor};" data-attendance-idx="${idx}" data-staff="${rec.staffId}" data-date="${rec.date}"><div style="display: flex; justify-content: space-between; align-items: flex-start;"><div><strong style="font-size: 0.9rem;">${escapeHtml(staff?.name)}</strong><span class="status-badge ${rec.status === 'Sick Leave' ? 'status-sick' : (rec.status === 'FRL' ? 'status-frl' : 'status-absent')}" style="margin-left: 0.5rem; font-size: 0.7rem;">${rec.status}</span></div><small style="color: #666; font-size: 0.7rem;">${rec.dutyShift}</small></div>${rec.reason ? `<div style="margin-top: 0.3rem;"><small>📋 <strong>Reason:</strong> ${escapeHtml(rec.reason)}</small></div>` : ''}<div style="margin-top: 0.3rem;"><small>📅 <strong>Leave Date:</strong> ${rec.leaveDate || rec.date}</small></div><div style="margin-top: 0.2rem;"><small>🕐 <strong>Reported:</strong> ${rec.reportedDate || rec.date} at ${rec.reportedTime || '—'}</small></div><div style="margin-top: 0.5rem;"><button class="super-delete-attendance" data-staff="${rec.staffId}" data-date="${rec.date}" style="background: #ef4444; color: white; border: none; border-radius: 0.5rem; padding: 0.5rem 1rem; font-size: 0.7rem; min-height: 44px; touch-action: manipulation;">🗑️ Delete</button></div></div>`; }).join('');
+  };
+  
+  renderList(morning, "superMorningList");
+  renderList(evening, "superEveningList");
+  renderList(night, "superNightList");
+  
+  const containers = ["superMorningList", "superEveningList", "superNightList"];
+  containers.forEach(containerId => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const handleDelete = (e) => { const target = e.target; if (target.classList && target.classList.contains('super-delete-attendance')) { e.preventDefault(); if (confirm("Delete this attendance record?")) { deleteAttendanceRecord(target.dataset.staff, target.dataset.date); renderSupervisorAttendanceDashboard(); loadAllStaffAttendance(); showMessage("Attendance record deleted"); } } };
+    container.removeEventListener('click', handleDelete); container.removeEventListener('touchstart', handleDelete);
+    container.addEventListener('click', handleDelete); container.addEventListener('touchstart', handleDelete);
+  });
+}
+
+function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
+  const staff = getSelectedStaff();
+  if (!staff && editIndex === null) { showMessage("Please select your name", "error"); return; }
+  const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS;
+  const item = list.find(i => i.id === task.id);
+  if (!item) return;
+  const modal = document.createElement("div");
+  modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:2000;`;
+  const modalContent = document.createElement("div");
+  modalContent.style.cssText = `background:white; border-radius:1.5rem; padding:1.5rem; width:90%; max-width:450px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);`;
+  let title = task.id === "emailChargeForms" ? "📧 Email Charge Forms / Handover" : "🪧 Display Airline Boards";
+  modalContent.innerHTML = `<h3 style="color:#1e4a76; margin-bottom:1rem;">${title}</h3><p style="margin-bottom:1rem;">Staff: <strong>${editIndex !== null ? "Supervisor Editing" : staff?.name}</strong></p><label style="display:block; font-weight:600; margin-bottom:0.5rem;">Flight / Airline Details:</label><input type="text" id="submissionInput" value="${editValue ? escapeHtml(editValue) : ''}" placeholder="e.g., EK412, QR123, Gate A1" style="width:100%; padding:0.7rem; border-radius:1rem; border:1px solid #cbd5e1; margin-bottom:1rem;"><div style="display:flex; gap:0.8rem; justify-content:flex-end;"><button id="cancelSubBtn" style="background:#94a3b8; padding:0.5rem 1rem;">Cancel</button><button id="submitSubBtn" style="background:#0f5c3b; padding:0.5rem 1rem;">${editIndex !== null ? 'Update' : 'Submit'}</button></div>`;
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+  const input = modalContent.querySelector("#submissionInput");
+  input.focus();
+  const submit = () => { const value = input.value.trim(); if (!value) { showMessage("Enter flight details", "error"); return; } if (editIndex !== null) { item.submissions[editIndex].value = value; item.submissions[editIndex].editedAt = new Date().toISOString(); item.submissions[editIndex].editedBy = "Supervisor"; } else { if (!item.submissions) item.submissions = []; item.submissions.push({ staffId: staff.id, staffName: staff.name, value, timestamp: new Date().toISOString() }); } saveDailyTasks(); renderDailyTasksUI(); renderSupervisorDailyTasks(); showMessage(`${editIndex !== null ? 'Updated' : 'Submitted'}: ${value.substring(0, 50)}`); modal.remove(); };
+  modalContent.querySelector("#submitSubBtn").onclick = submit;
+  modalContent.querySelector("#cancelSubBtn").onclick = () => modal.remove();
+  input.onkeypress = (e) => { if (e.key === 'Enter') submit(); };
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+}
+
+function editSubmission(task, isFb, index) { const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS; const item = list.find(i => i.id === task.id); if (item && item.submissions[index]) openSubmissionModal(task, isFb, index, item.submissions[index].value); }
+function deleteSubmission(task, isFb, index) { if (confirm("Delete this submission?")) { const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS; const item = list.find(i => i.id === task.id); if (item && item.submissions) { item.submissions.splice(index, 1); saveDailyTasks(); renderDailyTasksUI(); renderSupervisorDailyTasks(); showMessage("Submission deleted"); } } }
+
+function signoffTaskHandler(task, isFb) {
+  const staff = getSelectedStaff();
+  if (!staff) { showMessage("❌ Please select your name from the dropdown first", "error"); return; }
+  if (authenticatedStaffId !== staff.id) { showMessage(`🔐 Please re-verify your password for ${staff.name}`, "error"); document.getElementById("dailyTaskStaffSelect").value = ""; authenticatedStaffId = null; const nameSpan = document.getElementById("dailyTaskSelectedName"); if (nameSpan) nameSpan.textContent = "⚠️ Please select and verify again"; renderDailyTasksUI(); return; }
+  if (!staffOnDutyIds.has(staff.id)) { showMessage(`❌ ${staff.name} is not marked as ON DUTY. Only SOD can sign off tasks.`, "error"); return; }
+  const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS;
+  const item = list.find(i => i.id === task.id);
+  if (!item) return;
+  const alreadySigned = item.signoffs.some(s => s.staffId === staff.id);
+  if (alreadySigned) { showMessage(`⚠️ ${staff.name} already signed off this task`, "error"); return; }
+  item.signoffs.push({ staffId: staff.id, staffName: staff.name, signedAt: new Date().toISOString() });
+  saveDailyTasks(); renderDailyTasksUI(); renderSupervisorDailyTasks(); showMessage(`✓ ${staff.name} signed off: ${task.task.substring(0, 50)}`);
+}
+
+function completeTaskHandler(task, isFb) {
+  const staff = getSelectedStaff();
+  if (!staff) { showMessage("Select your name", "error"); return; }
+  const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS;
+  const item = list.find(i => i.id === task.id);
+  if (item && !item.completedBy) { item.completedBy = staff.id; saveDailyTasks(); renderDailyTasksUI(); renderSupervisorDailyTasks(); showMessage(`${staff.name} completed`); }
+  else if (item) { const completer = staffList.find(s => s.id === item.completedBy); showMessage(`Already completed by ${completer?.name || "someone"}`, "error"); }
+}
+
+function resetTaskHandler(task, isFb) {
+  if (confirm("Reset this task? This will clear ALL signoffs and completions for this task.")) {
+    const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS;
+    const item = list.find(i => i.id === task.id);
+    if (item) { item.signoffs = []; item.completedBy = null; if (item.type === "submission") item.submissions = []; saveDailyTasks(); renderDailyTasksUI(); renderSupervisorDailyTasks(); showMessage("Task fully reset - all signoffs cleared"); }
+  }
+}
+
+function renderDailyTasksUI() {
+  updateProfileButtonVisibility();  
+  const mainContainer = document.getElementById("dailyMainTasksContainer");
+  const fbContainer = document.getElementById("dailyFbTasksContainer");
+  const shiftBadge = document.getElementById("dailyTaskShiftBadge");
+  const nameSpan = document.getElementById("dailyTaskSelectedName");
+  if (!mainContainer) return;
+  shiftBadge.textContent = currentShift === "morning" ? "🌅 Morning" : (currentShift === "afternoon" ? "🌆 Afternoon" : "🌙 Evening");
+  const staff = getSelectedStaff();
+  const sodStaffCount = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk').length;
+  if (nameSpan) { if (sodStaffCount === 0) nameSpan.textContent = "⚠️ No staff on duty"; else if (!staff) nameSpan.textContent = "⚠️ Select your name"; else nameSpan.textContent = `✓ ${staff.name}`; }
+  if (sodStaffCount === 0) { mainContainer.innerHTML = `<div class="info-card" style="background: #fef3c7; border-left-color: #f59e0b;">⚠️ <strong>No staff marked as ON DUTY for today (${currentDate})</strong><br><br>Please ask the supervisor to:<ul style="margin-top: 0.5rem; margin-left: 1.5rem;"><li>Go to <strong>SUPERVISOR VIEW</strong></li><li>Click on staff badges in the <strong>⭐ STAFF ON DUTY</strong> section</li><li>Mark the staff who are working today</li></ul></div>`; fbContainer.innerHTML = ''; return; }
+  if (!staff) { mainContainer.innerHTML = '<div class="info-card">⚠️ Please select your name from the dropdown above to sign off tasks</div>'; fbContainer.innerHTML = '<div class="info-card">⚠️ Please select your name from the dropdown above to sign off tasks</div>'; return; }
+  if (authenticatedStaffId !== staff.id) { mainContainer.innerHTML = '<div class="info-card" style="background: #fef3c7; border-left-color: #f59e0b;">🔐 Please verify your password first by selecting your name from the dropdown above.</div>'; fbContainer.innerHTML = '<div class="info-card" style="background: #fef3c7; border-left-color: #f59e0b;">🔐 Please verify your password first by selecting your name from the dropdown above.</div>'; return; }
+  
+  function renderSingleTask(task, isFb) {
+    const staffId = staff?.id;
+    let statusHtml = "", actionHtml = "";
+    if (task.type === "signoff") {
+      const hasSigned = staffId && task.signoffs.some(s => s.staffId === staffId);
+      const signerCount = task.signoffs.length;
+      statusHtml = `<span class="status-badge ${signerCount > 0 ? 'status-done' : 'status-pending'}">${signerCount > 0 ? `✓ ${signerCount} staff signed` : '⏳ Not signed'}</span>`;
+      if (!hasSigned) actionHtml = `<button class="task-signoff-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✍️ Sign Off</button>`;
+      else actionHtml = `<span style="font-size:0.7rem; color:#0f5c3b;">✓ You signed</span>`;
+      if (task.signoffs.length > 0) statusHtml += `<div class="ack-staff-list">✍️ Signed by: ${task.signoffs.map(s => `${s.staffName} ${new Date(s.signedAt).toLocaleTimeString()}`).join(', ')}</div>`;
+    } else if (task.type === "complete") {
+      const isCompleted = task.completedBy !== null;
+      statusHtml = `<span class="status-badge ${isCompleted ? 'status-done' : 'status-pending'}">${isCompleted ? `✅ Completed by ${staffList.find(s=>s.id===task.completedBy)?.name || 'Someone'}` : '⏳ Pending'}</span>`;
+      if (!isCompleted) actionHtml = `<button class="task-complete-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✔️ Complete</button>`;
+    } else if (task.type === "submission") {
+      const subs = task.submissions || [];
+      statusHtml = `<span class="status-badge ${subs.length ? 'status-done' : 'status-pending'}">📋 ${subs.length} submission(s)</span>`;
+      if (subs.length) statusHtml += `<div class="ack-staff-list">${subs.map((sub, idx) => `<span class="ack-staff-badge">✈️ ${escapeHtml(sub.staffName)}: ${escapeHtml(sub.value.length > 25 ? sub.value.substring(0,25)+'...' : sub.value)} <button class="edit-submission-btn" data-task-id="${task.id}" data-fb="${isFb}" data-idx="${idx}" style="min-height:44px; touch-action:manipulation;">✏️</button></span>`).join('')}</div>`;
+      actionHtml = `<button class="task-submit-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">➕ Add Flight</button>`;
+    }
+    return `<div class="daily-task-item"><div class="daily-task-text">${task.task}</div><div class="daily-task-status">${statusHtml}${actionHtml}</div></div>`;
+  }
+  
+  mainContainer.innerHTML = MAIN_DAILY_TASKS.map(task => renderSingleTask(task, false)).join('');
+  fbContainer.innerHTML = FB_DAILY_TASKS.map(task => renderSingleTask(task, true)).join('');
+  
+  const setupDelegation = (container, isFb) => {
+    if (!container) return;
+    const handleClick = (e) => { const target = e.target; if (target.classList && target.classList.contains('task-signoff-btn')) { e.preventDefault(); const t = (isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === target.dataset.id); if(t) signoffTaskHandler(t, isFb); } else if (target.classList && target.classList.contains('task-complete-btn')) { e.preventDefault(); const t = (isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === target.dataset.id); if(t) completeTaskHandler(t, isFb); } else if (target.classList && target.classList.contains('task-submit-btn')) { e.preventDefault(); const t = (isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === target.dataset.id); if(t) openSubmissionModal(t, isFb); } else if (target.classList && target.classList.contains('edit-submission-btn')) { e.preventDefault(); const t = (isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === target.dataset.taskId); if(t) editSubmission(t, isFb, parseInt(target.dataset.idx)); } };
+    const handleTouch = (e) => { const target = e.target; if (target.classList && target.classList.contains('task-signoff-btn')) { e.preventDefault(); const t = (isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === target.dataset.id); if(t) signoffTaskHandler(t, isFb); } else if (target.classList && target.classList.contains('task-complete-btn')) { e.preventDefault(); const t = (isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === target.dataset.id); if(t) completeTaskHandler(t, isFb); } else if (target.classList && target.classList.contains('task-submit-btn')) { e.preventDefault(); const t = (isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === target.dataset.id); if(t) openSubmissionModal(t, isFb); } else if (target.classList && target.classList.contains('edit-submission-btn')) { e.preventDefault(); const t = (isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === target.dataset.taskId); if(t) editSubmission(t, isFb, parseInt(target.dataset.idx)); } };
+    container.removeEventListener('click', handleClick); container.removeEventListener('touchstart', handleTouch);
+    container.addEventListener('click', handleClick); container.addEventListener('touchstart', handleTouch);
+  };
+  setupDelegation(mainContainer, false); setupDelegation(fbContainer, true);
+}
+
+// ============ CRITICAL: ADD ATTENDANCE FROM FORM FUNCTION ============
+async function addAttendanceFromForm(event) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  console.log("addAttendanceFromForm called on iPad");
+  
+  const staffId = document.getElementById("attendanceStaffSelect")?.value || "";
+  const dutyShift = document.getElementById("attendanceDutyShift")?.value || "Morning";
+  const status = document.getElementById("attendanceStatus")?.value || "Absent";
+  const reportedDate = document.getElementById("attendanceReportedDate")?.value || "";
+  const reportedTime = document.getElementById("attendanceTime")?.value || "";
+  const leaveDate = document.getElementById("attendanceLeaveDate")?.value || "";
+  const reason = document.getElementById("attendanceReason")?.value || null;
+  const reasonContainer = document.getElementById("reasonContainer");
+  
+  if (status === "Sick Leave" || status === "FRL") { if (!reason) { showMessage("Please select a reason for " + status, "error"); return; } }
+  if (!staffId) { showMessage("Please select a staff member", "error"); return; }
+  if (!reportedDate) { showMessage("Please select reported date", "error"); return; }
+  if (!reportedTime) { showMessage("Please select reported time", "error"); return; }
+  
+  const staff = staffList.find(s => s.id === staffId);
+  if (!staff) { showMessage("Staff not found", "error"); return; }
+  
+  const existingKey = getAttendanceKey(staffId, leaveDate);
+  if (attendanceRecords.has(existingKey)) { if (!confirm(`Attendance record for ${staff.name} on ${leaveDate} already exists. Overwrite?`)) return; attendanceRecords.delete(existingKey); }
+  
+  attendanceRecords.set(getAttendanceKey(staffId, leaveDate), { staffId, staffName: staff.name, date: leaveDate, dutyShift, status, reason, reportedDate, reportedTime, leaveDate, recordedAt: new Date().toISOString() });
+  await saveToLocalStorage();
+  
+  if (document.getElementById("attendanceStaffSelect")) document.getElementById("attendanceStaffSelect").value = "";
+  if (document.getElementById("attendanceStatus")) document.getElementById("attendanceStatus").value = "Absent";
+  if (document.getElementById("attendanceReason")) document.getElementById("attendanceReason").innerHTML = '<option value="">-- Select Reason --</option>';
+  if (reasonContainer) reasonContainer.style.display = "none";
+  if (document.getElementById("attendanceReportedDate")) document.getElementById("attendanceReportedDate").value = new Date().toISOString().split('T')[0];
+  if (document.getElementById("attendanceTime")) document.getElementById("attendanceTime").value = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  if (document.getElementById("attendanceLeaveDate")) document.getElementById("attendanceLeaveDate").value = new Date().toISOString().split('T')[0];
+  
+  renderAttendanceDashboard(); renderSupervisorAttendanceDashboard(); loadAllStaffAttendance();
+  showMessage(`${status} recorded for ${staff.name} on ${leaveDate}`, "success");
+}
+
+function renderSupervisorDailyTasks() {
+  const mainContainer = document.getElementById("superMainTasksContainer");
+  const fbContainer = document.getElementById("superFbTasksContainer");
+  if (!mainContainer) return;
+  
+  function renderItem(task, isFb) {
+    let statusHtml = "";
+    if (task.type === "signoff") {
+      const signerCount = task.signoffs?.length || 0;
+      statusHtml = `<div>✍️ ${signerCount} staff signed off</div>`;
+      if (task.signoffs && task.signoffs.length > 0) {
+        statusHtml += `<div class="ack-staff-list" style="margin-top: 0.5rem;">`;
+        task.signoffs.forEach((signoff, idx) => { statusHtml += `<span class="ack-staff-badge" style="display: inline-flex; align-items: center; gap: 0.3rem; margin: 0.2rem; padding: 0.2rem 0.5rem; background: #e8f5e9; border-radius: 1rem;">✍️ ${escapeHtml(signoff.staffName)} <small style="font-size: 0.65rem;">${new Date(signoff.signedAt).toLocaleTimeString()}</small><button class="remove-signoff-btn" data-task-id="${task.id}" data-fb="${isFb}" data-idx="${idx}" data-staff="${signoff.staffId}" style="background: #ef4444; color: white; border: none; border-radius: 0.5rem; padding: 0.1rem 0.4rem; cursor: pointer; font-size: 0.7rem;" title="Remove this signoff">✕</button></span>`; });
+        statusHtml += `</div>`;
+      } else statusHtml += `<div>No signoffs yet</div>`;
+    } else if (task.type === "complete") {
+      statusHtml = `<div>✅ Completed by: ${task.completedBy ? staffList.find(s=>s.id===task.completedBy)?.name : 'Not completed'}</div>`;
+      if (task.completedBy) statusHtml += `<button class="reset-complete-btn" data-task-id="${task.id}" data-fb="${isFb}" style="background: #f59e0b; color: white; border: none; border-radius: 0.5rem; padding: 0.2rem 0.5rem; margin-top: 0.3rem; font-size: 0.7rem; cursor: pointer;">⟳ Reset Completion</button>`;
+    } else if (task.type === "submission") {
+      const subs = task.submissions || [];
+      statusHtml = `<div>📋 ${subs.length} submission(s)</div>`;
+      if (subs.length) statusHtml += `<div class="ack-staff-list">${subs.map((sub, idx) => `<span class="ack-staff-badge" style="display:inline-flex; align-items:center; gap:0.3rem; margin:0.2rem;">✈️ ${escapeHtml(sub.staffName)}: ${escapeHtml(sub.value)} <button class="super-edit-sub" data-task-id="${task.id}" data-fb="${isFb}" data-idx="${idx}" style="background:#d97706; color:white; border:none; border-radius:0.5rem; padding:0.1rem 0.4rem;">✏️</button> <button class="super-delete-sub" data-task-id="${task.id}" data-fb="${isFb}" data-idx="${idx}" style="background:#ef4444; color:white; border:none; border-radius:0.5rem; padding:0.1rem 0.4rem;">🗑️</button></span>`).join('')}</div>`;
+    }
+    return `<div class="daily-task-item"><div class="daily-task-text">${task.task}</div><div class="daily-task-status">${statusHtml}<button class="reset-task-btn" data-id="${task.id}" data-fb="${isFb}" style="background:#6b7280; padding:0.2rem 0.6rem; border-radius:1rem; font-size:0.7rem; margin-left:0.5rem;">⟳ Reset All</button></div></div>`;
+  }
+  
+  mainContainer.innerHTML = MAIN_DAILY_TASKS.map(t => renderItem(t, false)).join('');
+  fbContainer.innerHTML = FB_DAILY_TASKS.map(t => renderItem(t, true)).join('');
+  
+  document.querySelectorAll(".remove-signoff-btn").forEach(btn => { btn.onclick = () => { const taskId = btn.dataset.taskId; const isFb = btn.dataset.fb === "true"; const idx = parseInt(btn.dataset.idx); if (confirm(`Remove signoff?`)) { const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS; const item = list.find(t => t.id === taskId); if (item && item.signoffs && item.signoffs[idx]) { item.signoffs.splice(idx, 1); saveDailyTasks(); renderSupervisorDailyTasks(); renderDailyTasksUI(); showMessage(`✓ Removed signoff`); } } }; });
+  document.querySelectorAll(".reset-complete-btn").forEach(btn => { btn.onclick = () => { if (confirm("Reset completion status?")) { const list = btn.dataset.fb === "true" ? FB_DAILY_TASKS : MAIN_DAILY_TASKS; const item = list.find(t => t.id === btn.dataset.taskId); if (item) { item.completedBy = null; saveDailyTasks(); renderSupervisorDailyTasks(); renderDailyTasksUI(); showMessage("Task completion reset"); } } }; });
+  document.querySelectorAll(".reset-task-btn").forEach(btn => { btn.onclick = () => { if (confirm("Reset this task? This will clear ALL signoffs and completions.")) { const t = (btn.dataset.fb === "true" ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === btn.dataset.id); if (t) resetTaskHandler(t, btn.dataset.fb === "true"); } }; });
+  document.querySelectorAll(".super-edit-sub").forEach(btn => { btn.onclick = () => { const t = (btn.dataset.fb === "true" ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === btn.dataset.taskId); if(t) editSubmission(t, btn.dataset.fb === "true", parseInt(btn.dataset.idx)); }; });
+  document.querySelectorAll(".super-delete-sub").forEach(btn => { btn.onclick = () => { const t = (btn.dataset.fb === "true" ? FB_DAILY_TASKS : MAIN_DAILY_TASKS).find(t => t.id === btn.dataset.taskId); if(t) deleteSubmission(t, btn.dataset.fb === "true", parseInt(btn.dataset.idx)); }; });
+}
+
+function printAllocation() { const shift = SHIFTS.find(s => s.value === currentShift); const supervisorName = prompt("Enter Supervisor Name for signature:", "_________________"); const dateStr = new Date(currentDate).toLocaleDateString(); let tableHtml = `<table class="allocation-table" style="width:100%; border-collapse:collapse; margin-bottom:2rem;"><thead><tr style="background:#f1f5f9;"><th style="padding:0.8rem; border:1px solid #000;">Area</th><th style="padding:0.8rem; border:1px solid #000;">Period 1<br><span style="font-size:11px;">${shift.periods[0].timing}</span></th><th style="padding:0.8rem; border:1px solid #000;">Period 2<br><span style="font-size:11px;">${shift.periods[1].timing}</span></th><th style="padding:0.8rem; border:1px solid #000;">Period 3<br><span style="font-size:11px;">${shift.periods[2].timing}</span></th></tr></thead><tbody>`; for (let area of AREAS) { tableHtml += `<tr><td style="padding:0.8rem; border:1px solid #000; background:#f8fafc; font-weight:bold;">${area}</td>`; for (let p = 0; p < 3; p++) { const staff = Array.from(getAllocatedStaffForSlot(currentDate, currentShift, p, area)).map(id => staffList.find(s => s.id === id)).filter(s => s); const staffNames = staff.map(s => s.name).join(', '); tableHtml += `<td style="padding:0.8rem; border:1px solid #000; vertical-align:middle; text-align:center;">`; if (staff.length === 0) tableHtml += `<span style="color:#94a3b8;">—</span>`; else tableHtml += `<strong>${escapeHtml(staffNames)}</strong>`; tableHtml += `</td>`; } tableHtml += `</tr>`; } tableHtml += `</tbody></table>`; const printContent = `<!DOCTYPE html><html><head><title>Staff Allocation - ${dateStr}</title><style>body{font-family:Arial; padding:20px;} h2{text-align:center;} .footer{margin-top:30px; display:flex; justify-content:space-between;} .sign-line{border-top:1px solid #000; width:200px; text-align:center; padding-top:5px;}</style></head><body><h2>STAFF ALLOCATION REPORT</h2><p><strong>Date:</strong> ${dateStr} | <strong>Shift:</strong> ${shift.label}</p>${tableHtml}<div class="footer"><div>Supervisor Signature: <span class="sign-line">${escapeHtml(supervisorName || '_________________')}</span></div><div>Date: ${dateStr}</div></div><hr style="margin: 40px 0; border: 1px dashed #ccc;"><h2 style="text-align:center;">COPY 2 - SUPERVISOR COPY</h2><p><strong>Date:</strong> ${dateStr} | <strong>Shift:</strong> ${shift.label}</p>${tableHtml}<div class="footer"><div>Supervisor Signature: <span class="sign-line">${escapeHtml(supervisorName || '_________________')}</span></div><div>Date: ${dateStr}</div></div></body></html>`; const win = window.open(); win.document.write(printContent); win.document.close(); win.print(); }
+
+function printDailyReport() { const dateStr = new Date(currentDate).toLocaleDateString(); const shift = SHIFTS.find(s => s.value === currentShift); let mainHtml = `<h3>Main Operations</h3><table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#f5e6c8;"><th style="border:1px solid #000; padding:0.5rem; text-align:left;">Task</th><th style="border:1px solid #000; padding:0.5rem; text-align:center;">Status</th><th style="border:1px solid #000; padding:0.5rem; text-align:left;">Details / Signatures</th></tr></thead><tbody>`; MAIN_DAILY_TASKS.forEach(task => { let statusText = "", details = ""; if (task.type === "signoff") { const signerCount = task.signoffs?.length || 0; statusText = signerCount > 0 ? `✓ ${signerCount} staff signed` : "⏳ Pending"; if (signerCount > 0) details = task.signoffs.map(s => `✍️ ${s.staffName} at ${new Date(s.signedAt).toLocaleTimeString()}`).join('<br>'); else details = "Not signed yet"; } else if (task.type === "complete") { statusText = task.completedBy ? "✓ Completed" : "⏳ Pending"; details = task.completedBy ? `Completed by: ${staffList.find(s=>s.id===task.completedBy)?.name || 'Unknown'}` : "Not completed"; } else if (task.type === "submission") { const subCount = task.submissions?.length || 0; statusText = subCount > 0 ? `📋 ${subCount} submission(s)` : "⏳ No submissions"; details = (task.submissions || []).map(s => `✈️ ${s.staffName}: ${s.value}`).join('<br>') || "No submissions"; } mainHtml += `<tr><td style="border:1px solid #000; padding:0.5rem;">${task.task}</td><td style="border:1px solid #000; padding:0.5rem; text-align:center;">${statusText}</td><td style="border:1px solid #000; padding:0.5rem;">${details}</td></tr>`; }); mainHtml += `</tbody></table>`; let fbHtml = `<h3>Food & Beverage</h3><table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#f5e6c8;"><th style="border:1px solid #000; padding:0.5rem; text-align:left;">Task</th><th style="border:1px solid #000; padding:0.5rem; text-align:center;">Status</th><th style="border:1px solid #000; padding:0.5rem; text-align:left;">Details / Signatures</th></tr></thead><tbody>`; FB_DAILY_TASKS.forEach(task => { let statusText = "", details = ""; if (task.type === "signoff") { const signerCount = task.signoffs?.length || 0; statusText = signerCount > 0 ? `✓ ${signerCount} staff signed` : "⏳ Pending"; if (signerCount > 0) details = task.signoffs.map(s => `✍️ ${s.staffName} at ${new Date(s.signedAt).toLocaleTimeString()}`).join('<br>'); else details = "Not signed yet"; } else if (task.type === "complete") { statusText = task.completedBy ? "✓ Completed" : "⏳ Pending"; details = task.completedBy ? `Completed by: ${staffList.find(s=>s.id===task.completedBy)?.name || 'Unknown'}` : "Not completed"; } fbHtml += `<tr><td style="border:1px solid #000; padding:0.5rem;">${task.task}</td><td style="border:1px solid #000; padding:0.5rem; text-align:center;">${statusText}</td><td style="border:1px solid #000; padding:0.5rem;">${details}</td></tr>`; }); fbHtml += `</tbody></table>`; const printContent = `<!DOCTYPE html><html><head><title>Daily Tasks Report - ${dateStr}</title><style>body{font-family:Arial; padding:20px;} h1{text-align:center;} .header{margin-bottom:20px;} .signature{margin-top:30px; display:flex; justify-content:space-between;}</style></head><body><h1>DAILY TASKS REPORT</h1><div class="header"><p><strong>Date:</strong> ${dateStr}</p><p><strong>Shift:</strong> ${shift.label}</p></div>${mainHtml}${fbHtml}<div class="signature"><div>Prepared by: _________________</div><div>Supervisor: _________________</div><div>Date: ${dateStr}</div></div></body></html>`; const win = window.open(); win.document.write(printContent); win.document.close(); win.print(); }
+
+function renderBreakTimeBadges() { const container = document.getElementById("breakTimeBadges"); if (!container) return; const slots = getBreakTimeSlotsForShift(currentShift); container.innerHTML = slots.map(slot => `<div class="staff-badge ${selectedBreakTime === slot.value ? 'selected-sod' : ''}" data-break-time="${slot.value}" style="cursor:pointer;">${slot.label}</div>`).join(''); document.querySelectorAll('[data-break-time]').forEach(b => b.onclick = () => { selectedBreakTime = b.dataset.breakTime; renderBreakTimeBadges(); }); }
+
+function submitBreakRequest() { const staffId = document.getElementById("staffSelfSelect").value; if (!staffId || !selectedBreakTime) { showMessage("Select name and break time", "error"); return; } const staff = staffList.find(s => s.id === staffId); const hasPending = Array.from(breakRequests.values()).some(r => r.staffId === staffId && r.status === "pending" && r.date === currentDate); if (hasPending) { showMessage("You have a pending request", "error"); return; } breakRequests.set(nextRequestId, { id: nextRequestId, staffId, staffName: staff.name, staffRole: staff.role, date: currentDate, shift: currentShift, breakTime: selectedBreakTime, status: "pending", requestedAt: new Date().toISOString() }); nextRequestId++; saveToLocalStorage(); showMessage("Break request submitted"); selectedBreakTime = null; renderBreakTimeBadges(); document.getElementById("staffSelfSelect").value = ""; loadAllStaffBreakRequests(); if (supervisorLoggedIn) renderBreakRequestsForSupervisor(); }
+
+function loadAllStaffAllocations() { const container = document.getElementById("allStaffAllocationsContainer"); if (!container) return; const shift = SHIFTS.find(s => s.value === currentShift); let hasData = false; for (let area of AREAS) for (let p = 0; p < 3; p++) if (getAllocatedStaffForSlot(currentDate, currentShift, p, area).size > 0) hasData = true; if (!hasData) { container.innerHTML = '<div style="text-align:center; padding:2rem;">📭 No allocations</div>'; return; } let html = `<table class="allocation-table"><thead><tr style="background:#f1f5f9;"><th style="width:120px; padding:0.8rem; border:1px solid #e2e8f0;">Area</th><th style="padding:0.8rem; border:1px solid #e2e8f0;">Period 1<br><span style="font-size:11px;">${shift.periods[0].timing}</span></th><th style="padding:0.8rem; border:1px solid #e2e8f0;">Period 2<br><span style="font-size:11px;">${shift.periods[1].timing}</span></th><th style="padding:0.8rem; border:1px solid #e2e8f0;">Period 3<br><span style="font-size:11px;">${shift.periods[2].timing}</span></th></tr></thead><tbody>`; for (let area of AREAS) { html += `<tr><td style="background:#f8fafc; font-weight:bold; text-align:center; padding:0.8rem; border:1px solid #e2e8f0;">${area}</td>`; for (let p = 0; p < 3; p++) { const staff = Array.from(getAllocatedStaffForSlot(currentDate, currentShift, p, area)).map(id => staffList.find(s => s.id === id)).filter(s => s); const staffNames = staff.map(s => s.name).join(', '); html += `<td style="vertical-align:middle; padding:0.8rem; border:1px solid #e2e8f0; text-align:center;">`; if (staff.length === 0) html += `<span style="color:#94a3b8;">—</span>`; else html += `<span style="font-weight:500;">${escapeHtml(staffNames)}</span>`; html += `</td>`; } html += `</tr>`; } html += `</tbody></table>`; container.innerHTML = html; }
+
+function loadAllStaffAttendance() { const container = document.getElementById("allStaffAttendanceContainer"); if (!container) return; const records = getAttendanceForDate(currentDate); if (records.length === 0) { container.innerHTML = '<div style="padding:2rem; text-align:center; color:#10b981;">✅ All present - No attendance records</div>'; return; } container.innerHTML = records.map(rec => { const staff = staffList.find(s => s.id === rec.staffId); let bgColor = rec.status === "Sick Leave" ? "#fee2e2" : (rec.status === "FRL" ? "#fef3c7" : "#e5e7eb"); let borderColor = rec.status === 'Sick Leave' ? '#ef4444' : (rec.status === 'FRL' ? '#f59e0b' : '#6b7280'); return `<div style="background:${bgColor}; border-radius:1rem; padding:1rem; margin-bottom:0.5rem; border-left:4px solid ${borderColor}"><div style="display: flex; justify-content: space-between; align-items: flex-start;"><div><strong style="font-size: 1rem;">${escapeHtml(staff?.name)}</strong><span class="status-badge ${rec.status === 'Sick Leave' ? 'status-sick' : (rec.status === 'FRL' ? 'status-frl' : 'status-absent')}" style="margin-left: 0.5rem;">${rec.status}</span></div><small style="color: #666;">${rec.dutyShift}</small></div>${rec.reason ? `<div style="margin-top: 0.3rem;"><small>📋 <strong>Reason:</strong> ${escapeHtml(rec.reason)}</small></div>` : ''}<div style="margin-top: 0.3rem;"><small>📅 <strong>Leave Date:</strong> ${rec.leaveDate || rec.date}</small></div><div style="margin-top: 0.2rem;"><small>🕐 <strong>Reported:</strong> ${rec.reportedDate || rec.date} at ${rec.reportedTime || '—'}</small></div><div style="margin-top: 0.5rem;"><button class="delete-small" data-staff="${rec.staffId}" data-date="${rec.date}" style="background: #ef4444; color: white; border: none; border-radius: 0.5rem; padding: 0.2rem 0.5rem; font-size: 0.7rem; cursor: pointer;">🗑️ Delete</button></div></div>`; }).join(''); document.querySelectorAll('.delete-small').forEach(btn => { btn.onclick = (e) => { e.stopPropagation(); if (confirm("Delete this attendance record?")) { deleteAttendanceRecord(btn.dataset.staff, btn.dataset.date); loadAllStaffAttendance(); renderAttendanceDashboard(); showMessage("Attendance record deleted"); } }; }); }
+
+function loadAllStaffBreakRequests() { const container = document.getElementById("allStaffBreakRequestsContainer"); if (!container) return; const requests = Array.from(breakRequests.values()).filter(r => { const staff = staffList.find(s => s.id === r.staffId); return r.date === currentDate && staff && staffOnDutyIds.has(r.staffId) && staff.role.toLowerCase() !== 'hk'; }); if (requests.length === 0) { container.innerHTML = '<div style="padding:2rem; text-align:center;">📭 No requests</div>'; return; } container.innerHTML = requests.map(r => `<div style="background:#fef3c7; border-radius:1rem; padding:1rem; margin-bottom:0.5rem;"><strong>${escapeHtml(r.staffName)}</strong><br>⏰ ${r.breakTime}<br><small>${r.status}</small></div>`).join(''); }
+
+function loadCompleteStaffDashboard() { loadAllStaffAllocations(); loadAllStaffAttendance(); loadAllStaffBreakRequests(); renderDailyTasksUI(); const selfSelect = document.getElementById("staffSelfSelect"); if (selfSelect) { const sodExcludingHK = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk'); selfSelect.innerHTML = '<option value="">-- Select --</option>' + sodExcludingHK.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join(''); } renderBreakTimeBadges(); }
+
+function updateStaffDisplay() { const staffDateSpan = document.getElementById("staffDisplayDate"); const staffShiftSpan = document.getElementById("staffDisplayShift"); if (staffDateSpan) { const [year, month, day] = currentDate.split('-'); const dateObj = new Date(year, month - 1, day); const monthName = dateObj.toLocaleString('en-GB', { month: 'short' }); staffDateSpan.textContent = `${parseInt(day)} ${monthName} ${year}`; } if (staffShiftSpan) staffShiftSpan.textContent = SHIFTS.find(s => s.value === currentShift)?.label || currentShift; }
+
+function updateStaffContextDisplay() { const span = document.getElementById("staffGlobalContext"); if (span) span.innerHTML = `<strong>${currentDate}</strong> | ${SHIFTS.find(s => s.value === currentShift)?.label || currentShift}`; }
+
+function renderAllSod() { const container = document.getElementById("allSodContainer"); if (!container || !supervisorLoggedIn) return; container.innerHTML = ""; staffList.forEach(staff => { const badge = document.createElement("div"); badge.className = "staff-badge"; const isOnDuty = staffOnDutyIds.has(staff.id); if (isOnDuty) badge.classList.add("selected-sod"); badge.setAttribute("data-id", staff.id); badge.innerHTML = `<span>${isOnDuty ? '✓' : '○'}</span><span class="badge-name">${escapeHtml(staff.name)}</span><span class="badge-role">${staff.role}</span>`; const handleClick = function(e) { e.preventDefault(); e.stopPropagation(); if (staffOnDutyIds.has(staff.id)) staffOnDutyIds.delete(staff.id); else staffOnDutyIds.add(staff.id); showMessage(staff.name + (staffOnDutyIds.has(staff.id) ? " added to SOD" : " removed from SOD") + " for " + currentDate); saveToLocalStorage().then(() => { renderAllSod(); renderAllocationPool(); initDailyStaffSelect(); if (document.getElementById("staffMainPane").classList.contains("active-pane")) { loadCompleteStaffDashboard(); renderDailyTasksUI(); } }); }; badge.removeEventListener('click', handleClick); badge.removeEventListener('touchstart', handleClick); badge.addEventListener('click', handleClick); badge.addEventListener('touchstart', handleClick); container.appendChild(badge); }); }
+
+function initMainTabs() { const staffPane = document.getElementById("staffMainPane"); const supervisorPane = document.getElementById("supervisorMainPane"); function switchTab(tabId) { staffPane.classList.remove("active-pane"); supervisorPane.classList.remove("active-pane"); if (tabId === "staff") { staffPane.classList.add("active-pane"); renderBreakTimeBadges(); loadCompleteStaffDashboard(); renderDailyTasksUI(); updateStaffDisplay(); } else if (tabId === "supervisor") { supervisorPane.classList.add("active-pane"); if (supervisorLoggedIn) refreshAllViews(); else { document.getElementById("superAuthArea").style.display = "block"; document.getElementById("superDashboard").style.display = "none"; } } document.querySelectorAll(".main-tab-btn").forEach(b => { if (b.dataset.tab === tabId) b.classList.add("active"); else b.classList.remove("active"); }); } const btns = document.querySelectorAll(".main-tab-btn"); btns.forEach(btn => { const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn); const handleTabClick = function(e) { e.preventDefault(); switchTab(this.dataset.tab); }; newBtn.addEventListener('click', handleTabClick); newBtn.addEventListener('touchstart', handleTabClick, { passive: false }); }); }
+
+function renderAllocationPool() { const container = document.getElementById("allocationPoolContainer"); if (!container || !supervisorLoggedIn) return; const sodStaffIds = Array.from(staffOnDutyIds); const sodStaff = []; for (let id of sodStaffIds) { const staff = staffList.find(s => s.id === id); if (staff) sodStaff.push(staff); } if (sodStaff.length === 0) { container.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">⚠️ No staff on duty. Click on staff badges in "STAFF ON DUTY" section above first.</div>'; document.getElementById("selectedCount").innerText = `Selected: 0`; return; } container.innerHTML = ""; sodStaff.forEach(staff => { const badge = document.createElement("div"); badge.className = "staff-badge"; if (selectedAllocationStaff.has(staff.id)) { badge.style.background = "#dbeafe"; badge.style.borderColor = "#2563eb"; } badge.setAttribute("data-id", staff.id); badge.innerHTML = `<span>${selectedAllocationStaff.has(staff.id) ? '☑' : '□'}</span><span class="badge-name">${escapeHtml(staff.name)}</span><span class="badge-role">${staff.role}</span>`; const handleSelect = function(e) { e.preventDefault(); e.stopPropagation(); if (selectedAllocationStaff.has(staff.id)) selectedAllocationStaff.delete(staff.id); else selectedAllocationStaff.add(staff.id); renderAllocationPool(); document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`; }; badge.removeEventListener('click', handleSelect); badge.removeEventListener('touchstart', handleSelect); badge.addEventListener('click', handleSelect); badge.addEventListener('touchstart', handleSelect); container.appendChild(badge); }); document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`; }
+
+function renderAllocationTable() { const thead = document.getElementById("tableHeader"), tbody = document.getElementById("tableBody"); if (!thead || !tbody || !supervisorLoggedIn) return; const shift = SHIFTS.find(s => s.value === currentShift); thead.innerHTML = `<tr><th style="width:120px;">Area</th><th>Period 1<br><span style="font-size:0.7rem;">${shift.periods[0].timing}</span></th><th>Period 2<br><span style="font-size:0.7rem;">${shift.periods[1].timing}</span></th><th>Period 3<br><span style="font-size:0.7rem;">${shift.periods[2].timing}</span></th></tr>`; tbody.innerHTML = ""; AREAS.forEach(area => { const row = document.createElement("tr"); row.innerHTML = `<td class="area-name" style="padding:0.8rem; border:1px solid #e2e8f0; background:#faf6e8; font-weight:bold;">${area}</td>`; for (let p = 0; p < 3; p++) { const allocated = Array.from(getAllocatedStaffForSlot(currentDate, currentShift, p, area)).map(id => staffList.find(s => s.id === id)).filter(s => s); let staffHtml = ''; if (allocated.length === 0) staffHtml = '<span style="color:#94a3b8;">—</span>'; else { staffHtml = '<div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem;">'; allocated.forEach((s, index) => { staffHtml += `<span style="display:inline-flex; align-items:center; gap:0.3rem; background:#f1f5f9; padding:0.2rem 0.5rem; border-radius:1rem;"><span style="font-weight:500;">${escapeHtml(s.name)}</span><button class="remove-btn" data-area="${area}" data-period="${p}" data-staff="${s.id}" style="background:#ef4444; border:none; border-radius:1rem; padding:0.1rem 0.4rem; cursor:pointer; font-size:0.65rem; color:white; touch-action: manipulation;">✕</button></span>`; if (index < allocated.length - 1) staffHtml += `<span style="color:#94a3b8;">,</span>`; }); staffHtml += '</div>'; } row.innerHTML += `<td style="padding:0.8rem; border:1px solid #e2e8f0; vertical-align:middle;">${staffHtml}<button class="assign-btn" data-area="${area}" data-period="${p}" style="margin-top:0.5rem; width:100%; padding:0.3rem; background:#b8860b; color:white; border:none; border-radius:1rem; cursor:pointer; font-size:0.7rem; touch-action: manipulation;">➕ Assign</button></td>`; } tbody.appendChild(row); }); const removeBtns = tbody.querySelectorAll('.remove-btn'); removeBtns.forEach(btn => { const handleRemove = function(e) { e.preventDefault(); e.stopPropagation(); removeAllocation(currentDate, currentShift, parseInt(this.dataset.period), this.dataset.area, this.dataset.staff); renderAllocationTable(); saveToLocalStorage(); showMessage("Staff removed from allocation"); }; btn.removeEventListener('click', handleRemove); btn.removeEventListener('touchstart', handleRemove); btn.addEventListener('click', handleRemove); btn.addEventListener('touchstart', handleRemove); }); const assignBtns = tbody.querySelectorAll('.assign-btn'); assignBtns.forEach(btn => { const handleAssign = function(e) { e.preventDefault(); e.stopPropagation(); if (selectedAllocationStaff.size === 0) { showMessage("No staff selected. Click on staff badges above first.", "error"); return; } const period = parseInt(this.dataset.period); const area = this.dataset.area; const duplicateStaff = []; const ALLOW_MULTIPLE_AREAS = ["Floor", "Pantry"]; const RESTRICTED_AREAS = ["Welcome/Boarding", "Reception", "Buffet"]; selectedAllocationStaff.forEach(staffId => { let isDuplicate = false; for (let checkArea of AREAS) { const allocatedInThisPeriod = getAllocatedStaffForSlot(currentDate, currentShift, period, checkArea); if (allocatedInThisPeriod.has(staffId)) { if (RESTRICTED_AREAS.includes(area) || RESTRICTED_AREAS.includes(checkArea)) { isDuplicate = true; const staff = staffList.find(s => s.id === staffId); duplicateStaff.push(`${staff?.name} (conflict with ${checkArea})`); break; } if (!ALLOW_MULTIPLE_AREAS.includes(area) && area !== checkArea) { isDuplicate = true; const staff = staffList.find(s => s.id === staffId); duplicateStaff.push(`${staff?.name} (already in ${checkArea})`); break; } } } if (!isDuplicate) addAllocation(currentDate, currentShift, period, area, staffId); }); if (duplicateStaff.length > 0) showMessage(`⚠️ Cannot assign: ${duplicateStaff.join(', ')}`, "error"); else showMessage(`✓ Assigned ${selectedAllocationStaff.size} staff to ${area}`); selectedAllocationStaff.clear(); renderAllocationPool(); renderAllocationTable(); saveToLocalStorage(); }; btn.removeEventListener('click', handleAssign); btn.removeEventListener('touchstart', handleAssign); btn.addEventListener('click', handleAssign); btn.addEventListener('touchstart', handleAssign); }); }
+
+function renderAttendanceDashboard() { const records = getAttendanceForDate(currentDate); const morning = records.filter(r => r.dutyShift === "Morning"); const evening = records.filter(r => r.dutyShift === "Evening"); const night = records.filter(r => r.dutyShift === "Night"); const renderList = (recs, containerId) => { const container = document.getElementById(containerId); if (!container) return; if (recs.length === 0) { container.innerHTML = '<div style="text-align:center; padding:1rem; color: #94a3b8;">✅ No records - All present</div>'; return; } container.innerHTML = recs.map(rec => { const staff = staffList.find(s => s.id === rec.staffId); let bgColor = rec.status === "Sick Leave" ? "#fee2e2" : (rec.status === "FRL" ? "#fef3c7" : "#f3f4f6"); let borderColor = rec.status === 'Sick Leave' ? '#ef4444' : (rec.status === 'FRL' ? '#f59e0b' : '#6b7280'); return `<div style="background:${bgColor}; border-radius:0.8rem; padding:0.8rem; margin-bottom:0.5rem; border-left:3px solid ${borderColor};"><div style="display: flex; justify-content: space-between; align-items: flex-start;"><div><strong style="font-size: 0.9rem;">${escapeHtml(staff?.name)}</strong><span class="status-badge ${rec.status === 'Sick Leave' ? 'status-sick' : (rec.status === 'FRL' ? 'status-frl' : 'status-absent')}" style="margin-left: 0.5rem; font-size: 0.7rem;">${rec.status}</span></div><small style="color: #666; font-size: 0.7rem;">${rec.dutyShift}</small></div>${rec.reason ? `<div style="margin-top: 0.3rem;"><small>📋 <strong>Reason:</strong> ${escapeHtml(rec.reason)}</small></div>` : ''}<div style="margin-top: 0.3rem;"><small>📅 <strong>Leave Date:</strong> ${rec.leaveDate || rec.date}</small></div><div style="margin-top: 0.2rem;"><small>🕐 <strong>Reported:</strong> ${rec.reportedDate || rec.date} at ${rec.reportedTime || '—'}</small></div></div>`; }).join(''); }; renderList(morning, "morningList"); renderList(evening, "eveningList"); renderList(night, "nightList"); }
+
+function deleteBreakRequest(requestId) { const req = breakRequests.get(requestId); if (req && req.status === 'rejected' && confirm("Delete this rejected request?")) { breakRequests.delete(requestId); saveToLocalStorage(); renderBreakRequestsForSupervisor(); loadAllStaffBreakRequests(); showMessage("Deleted"); } }
+
+function handleBreakRequest(id, status) { const req = breakRequests.get(id); if (req) { req.status = status; req.approvedAt = new Date().toISOString(); breakRequests.set(id, req); saveToLocalStorage(); renderBreakRequestsForSupervisor(); loadAllStaffBreakRequests(); showMessage(`${status}`); } }
+
+function renderBreakRequestsForSupervisor() { console.log("renderBreakRequestsForSupervisor called"); const pending = Array.from(breakRequests.values()).filter(r => { const staff = staffList.find(s => s.id === r.staffId); return r.status === "pending" && staff && staffOnDutyIds.has(r.staffId); }); const all = Array.from(breakRequests.values()).filter(r => { const staff = staffList.find(s => s.id === r.staffId); return staff && staffOnDutyIds.has(r.staffId); }); const pendingContainer = document.getElementById("pendingBreakRequestsList"); const allContainer = document.getElementById("allBreakRequestsList"); if (!pendingContainer || !allContainer) return; if (pendingContainer) pendingContainer.innerHTML = pending.map(r => `<div style="background:#fef3c7; border-radius:0.8rem; padding:1rem; margin-bottom:0.5rem;"><strong>${escapeHtml(r.staffName)}</strong> - ${r.breakTime}<br><button class="approve-btn" data-id="${r.id}" style="background:#0f5c3b; margin-top:0.5rem; padding:0.5rem 1rem; border:none; border-radius:0.5rem; color:white; min-height:44px;">Approve</button><button class="reject-btn" data-id="${r.id}" style="background:#9e2d2f; margin-top:0.5rem; padding:0.5rem 1rem; border:none; border-radius:0.5rem; color:white; min-height:44px;">Reject</button></div>`).join('') || "<div>No pending requests</div>"; if (allContainer) allContainer.innerHTML = all.map(r => `<div style="background:${r.status === 'approved' ? '#d1fae5' : (r.status === 'rejected' ? '#fee2e2' : '#fef3c7')}; border-radius:0.8rem; padding:0.8rem; margin-bottom:0.5rem;"><strong>${escapeHtml(r.staffName)}</strong> - ${r.breakTime}<br><small>${r.status}</small>${r.status === 'rejected' ? `<button class="delete-break-btn" data-id="${r.id}" style="background:#ef4444; color:white; border:none; padding:0.3rem 0.8rem; border-radius:0.5rem; margin-left:0.5rem; min-height:44px;">Delete</button>` : ''}</div>`).join(''); document.querySelectorAll('.approve-btn').forEach(btn => { const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn); newBtn.onclick = (e) => { e.preventDefault(); handleBreakRequest(parseInt(newBtn.dataset.id), 'approved'); }; }); document.querySelectorAll('.reject-btn').forEach(btn => { const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn); newBtn.onclick = (e) => { e.preventDefault(); handleBreakRequest(parseInt(newBtn.dataset.id), 'rejected'); }; }); document.querySelectorAll('.delete-break-btn').forEach(btn => { const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn); newBtn.onclick = (e) => { e.preventDefault(); deleteBreakRequest(parseInt(newBtn.dataset.id)); }; }); } }
+
+function refreshAllViews() { updateDisplayInfo(); updateStaffDisplay(); if (supervisorLoggedIn) { renderAllSod(); renderAllocationPool(); renderAllocationTable(); renderAttendanceDashboard(); renderSupervisorAttendanceDashboard(); renderBreakRequestsForSupervisor(); renderSupervisorDailyTasks(); if (document.getElementById("staffMainPane")?.classList.contains("active-pane")) { updateStaffDisplay(); renderBreakTimeBadges(); loadCompleteStaffDashboard(); renderDailyTasksUI(); } } if (document.getElementById("staffMainPane")?.classList.contains("active-pane")) { renderBreakTimeBadges(); loadCompleteStaffDashboard(); initDailyStaffSelect(); renderDailyTasksUI(); } const dailySelect = document.getElementById("dailyTaskStaffSelect"); if (dailySelect) { const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk'); if (sodStaff.length === 0) dailySelect.innerHTML = '<option value="">-- No staff on duty --</option>'; else { const currentValue = dailySelect.value; dailySelect.innerHTML = '<option value="">-- Select Staff --</option>' + sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join(''); if (currentValue && sodStaff.some(s => s.id === currentValue)) dailySelect.value = currentValue; } } }
+
+function updateDisplayInfo() { const displayDate = document.getElementById("displayDate"); const displayShift = document.getElementById("displayShift"); const dailyTaskShiftBadge = document.getElementById("dailyTaskShiftBadge"); if (displayDate) displayDate.innerText = currentDate; if (displayShift) displayShift.innerText = SHIFTS.find(s => s.value === currentShift)?.label || currentShift; if (dailyTaskShiftBadge) dailyTaskShiftBadge.innerText = currentShift === "morning" ? "🌅 Morning" : (currentShift === "afternoon" ? "🌆 Afternoon" : "🌙 Evening"); }
+
+async function saveToLocalStorage() { try { const docRef = db.collection("staffManagement").doc(currentDate); const allocObj = {}; for (let [k, v] of allocations.entries()) allocObj[k] = Array.from(v); const attendanceObj = {}; for (let [k, v] of attendanceRecords.entries()) attendanceObj[k] = v; const breakObj = {}; for (let [k, v] of breakRequests.entries()) breakObj[k] = v; await docRef.set({ date: currentDate, allocations: allocObj, staffOnDutyIds: Array.from(staffOnDutyIds), currentShift: currentShift, attendanceRecords: attendanceObj, breakRequests: breakObj, nextRequestId: nextRequestId, lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); return true; } catch (error) { console.error("❌ Firebase save error:", error); return false; } }
+
+async function loadFromLocalStorageInternal() { try { const docRef = db.collection("staffManagement").doc(currentDate); const doc = await docRef.get(); if (doc.exists) { const d = doc.data(); allocations.clear(); attendanceRecords.clear(); breakRequests.clear(); if (d.allocations) Object.entries(d.allocations).forEach(([k, v]) => allocations.set(k, new Set(v))); if (d.staffOnDutyIds && d.staffOnDutyIds.length > 0) staffOnDutyIds = new Set(d.staffOnDutyIds); else staffOnDutyIds.clear(); if (d.currentShift && !supervisorLoggedIn) currentShift = d.currentShift; if (d.attendanceRecords) Object.entries(d.attendanceRecords).forEach(([k, v]) => attendanceRecords.set(k, v)); if (d.breakRequests) { Object.entries(d.breakRequests).forEach(([k, v]) => breakRequests.set(parseInt(k), v)); if (d.nextRequestId) nextRequestId = d.nextRequestId; } return true; } else { allocations.clear(); staffOnDutyIds.clear(); attendanceRecords.clear(); breakRequests.clear(); selectedAllocationStaff.clear(); nextRequestId = 1; return false; } } catch (error) { console.error("❌ Firebase load error:", error); return false; } }
+
+async function loadFromLocalStorage() { try { const docRef = db.collection("staffManagement").doc(currentDate); const doc = await docRef.get(); if (doc.exists) { const d = doc.data(); allocations.clear(); attendanceRecords.clear(); breakRequests.clear(); selectedAllocationStaff.clear(); if (d.allocations) Object.entries(d.allocations).forEach(([k, v]) => allocations.set(k, new Set(v))); if (d.staffOnDutyIds && d.staffOnDutyIds.length > 0) staffOnDutyIds = new Set(d.staffOnDutyIds); else staffOnDutyIds.clear(); if (d.currentShift && !supervisorLoggedIn) currentShift = d.currentShift; if (d.attendanceRecords) Object.entries(d.attendanceRecords).forEach(([k, v]) => attendanceRecords.set(k, v)); if (d.breakRequests) { Object.entries(d.breakRequests).forEach(([k, v]) => breakRequests.set(parseInt(k), v)); if (d.nextRequestId) nextRequestId = d.nextRequestId; } return true; } else { allocations.clear(); staffOnDutyIds.clear(); attendanceRecords.clear(); breakRequests.clear(); selectedAllocationStaff.clear(); nextRequestId = 1; MAIN_DAILY_TASKS.forEach(task => { if (task.type === "signoff") task.signoffs = []; if (task.type === "complete") task.completedBy = null; if (task.type === "submission") task.submissions = []; }); FB_DAILY_TASKS.forEach(task => { if (task.type === "signoff") task.signoffs = []; if (task.type === "complete") task.completedBy = null; }); await saveDailyTasks(); await saveToLocalStorage(); return false; } } catch (error) { console.error("❌ Firebase load error:", error); showMessage("Failed to load from cloud: " + error.message, "error"); return false; } }
+
+async function onDateChange(newDate) { if (!supervisorLoggedIn) return; currentDate = newDate; showMessage(`📅 Date changed to ${currentDate}`, "success"); selectedAllocationStaff.clear(); await loadFromLocalStorage(); await loadDailyTasks(); updateDisplayInfo(); updateStaffDisplay(); renderAllSod(); renderAllocationPool(); renderAllocationTable(); renderAttendanceDashboard(); renderSupervisorAttendanceDashboard(); renderBreakRequestsForSupervisor(); renderSupervisorDailyTasks(); await syncStaffViewWithSupervisor(); const gd = document.getElementById("globalDate"); if (gd) gd.value = currentDate; }
+
+function initGlobalControls() { const gd = document.getElementById("globalDate"), gs = document.getElementById("globalShift"); gd.value = currentDate; gs.value = currentShift; gd.onchange = async (e) => { if (supervisorLoggedIn) await onDateChange(e.target.value); }; gs.onchange = async (e) => { if (supervisorLoggedIn) { currentShift = e.target.value; await saveToLocalStorage(); refreshAllViews(); await syncStaffViewWithSupervisor(); showMessage(`Shift changed to ${currentShift}`); } }; }
+
+function setGlobalControlsEnabled(en) { document.getElementById("globalDate").disabled = !en; document.getElementById("globalShift").disabled = !en; document.getElementById("dateLockIcon").innerText = en ? "🔓" : "🔒"; document.getElementById("shiftLockIcon").innerText = en ? "🔓" : "🔒"; }
+
+function logoutSupervisor() { supervisorLoggedIn = false; supervisorAuthStaffId = null; document.body.classList.remove('supervisor-mode'); document.getElementById("superAuthArea").style.display = "block"; document.getElementById("superDashboard").style.display = "none"; document.getElementById("supervisorSelect").value = ""; document.getElementById("superVerificationContainer").innerHTML = ""; document.getElementById("superVerificationArea").style.display = "none"; setGlobalControlsEnabled(false); selectedAllocationStaff.clear(); showMessage("Supervisor logged out"); if (document.getElementById("staffMainPane").classList.contains("active-pane")) { loadCompleteStaffDashboard(); renderDailyTasksUI(); } }
+
+function populateDropdowns() {
+  initSupervisorLogin();
+  
+  const attSel = document.getElementById("attendanceStaffSelect");
+  const statusSelect = document.getElementById("attendanceStatus");
+  const reasonContainer = document.getElementById("reasonContainer");
+  const reasonSelect = document.getElementById("attendanceReason");
+  const addBtn = document.getElementById("addAttendanceBtn");
+  const requestBtn = document.getElementById("requestBreakBtn");
+  const clearBtn = document.getElementById("clearSelectionBtn");
+  const printAllocBtn = document.getElementById("printAllocationBtn");
+  const printReportBtn = document.getElementById("printDailyReportBtn");
+  const superLogoutBtn = document.getElementById("superLogoutBtn");
+  const reportedDateInput = document.getElementById("attendanceReportedDate");
+  const timeInput = document.getElementById("attendanceTime");
+  const leaveDateInput = document.getElementById("attendanceLeaveDate");
+  
+  if (attSel) attSel.innerHTML = '<option value="">-- Select Staff --</option>' + staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  
+  if (statusSelect) {
+    statusSelect.onchange = function() {
+      const selectedStatus = this.value;
+      if (reasonSelect) { reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>'; reasonSelect.value = ""; }
+      if (selectedStatus === "Sick Leave" || selectedStatus === "FRL") {
+        const reasons = PRESET_REASONS[selectedStatus] || [];
+        if (reasonSelect) reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>' + reasons.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+        if (reasonContainer) reasonContainer.style.display = "block";
+      } else { if (reasonContainer) reasonContainer.style.display = "none"; }
+    };
+  }
+  
+  if (addBtn) {
+    const newAddBtn = addBtn.cloneNode(true);
+    addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+    newAddBtn.onclick = function(e) { addAttendanceFromForm(e); };
+    newAddBtn.ontouchstart = function(e) { addAttendanceFromForm(e); };
+  }
+  
+  if (requestBtn) {
+    const newRequestBtn = requestBtn.cloneNode(true);
+    requestBtn.parentNode.replaceChild(newRequestBtn, requestBtn);
+    newRequestBtn.onclick = function(e) { e.preventDefault(); submitBreakRequest(); };
+    newRequestBtn.ontouchstart = function(e) { e.preventDefault(); submitBreakRequest(); };
+  }
+  
+  if (clearBtn) {
+    const newClearBtn = clearBtn.cloneNode(true);
+    clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
+    newClearBtn.onclick = function(e) { e.preventDefault(); selectedAllocationStaff.clear(); renderAllocationPool(); showMessage("Selection cleared"); };
+    newClearBtn.ontouchstart = function(e) { e.preventDefault(); selectedAllocationStaff.clear(); renderAllocationPool(); showMessage("Selection cleared"); };
+  }
+  
+  if (printAllocBtn) {
+    const newPrintBtn = printAllocBtn.cloneNode(true);
+    printAllocBtn.parentNode.replaceChild(newPrintBtn, printAllocBtn);
+    newPrintBtn.onclick = function(e) { e.preventDefault(); printAllocation(); };
+  }
+  if (printReportBtn) {
+    const newReportBtn = printReportBtn.cloneNode(true);
+    printReportBtn.parentNode.replaceChild(newReportBtn, printReportBtn);
+    newReportBtn.onclick = function(e) { e.preventDefault(); printDailyReport(); };
+  }
+  if (superLogoutBtn) {
+    const newLogoutBtn = superLogoutBtn.cloneNode(true);
+    superLogoutBtn.parentNode.replaceChild(newLogoutBtn, superLogoutBtn);
+    newLogoutBtn.onclick = function(e) { e.preventDefault(); logoutSupervisor(); };
+  }
+  
+  if (reportedDateInput) reportedDateInput.value = new Date().toISOString().split('T')[0];
+  if (timeInput) timeInput.value = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  if (leaveDateInput) leaveDateInput.value = new Date().toISOString().split('T')[0];
+  
+  initGlobalControls();
+  setGlobalControlsEnabled(false);
+  updateDisplayInfo();
+  loadDailyTasks();
+  renderDailyTasksUI();
+  renderSupervisorDailyTasks();
+  loadCompleteStaffDashboard();
+}
+
+function initStaffSubTabs() { const btns = document.querySelectorAll(".sub-tab-btn"); const panes = { allocations: document.getElementById("subtabAllocations"), dailytasks: document.getElementById("subtabDailytasks") }; btns.forEach(b => b.onclick = () => { Object.values(panes).forEach(p => p.classList.remove("active-sub-pane")); panes[b.dataset.subtab].classList.add("active-sub-pane"); btns.forEach(btn => btn.classList.toggle("active", btn.dataset.subtab === b.dataset.subtab)); if (b.dataset.subtab === "dailytasks") renderDailyTasksUI(); }); }
+
+function showPasswordModal(staff, onSuccess, onCancel) { const modal = document.createElement('div'); modal.className = 'password-modal'; let passwordInput = ''; const expectedPass = staff.pass || '1234'; const expectedLength = expectedPass.length; modal.innerHTML = `<div class="password-modal-content"><h3>🔑 Enter Password</h3><p><strong>${escapeHtml(staff.name)}</strong></p><p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Password will verify automatically when complete</p><input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off" style="width:100%; padding:0.8rem; margin:1rem 0; text-align:center; font-size:1.5rem; border-radius:1rem; border:1px solid #cbd5e1;"><div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1rem 0;">${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 1rem; cursor: pointer;">${n}</button>`).join('')}<button data-num="clear" class="clear-pass" style="padding: 0.8rem; background: #ef4444; color: white; border: none; border-radius: 1rem; cursor: pointer;">⌫</button></div><div id="passError" style="color:#ef4444; margin:0.5rem 0; text-align:center;"></div><button id="cancelPassBtn" style="width:100%; background:#94a3b8; padding:0.8rem; border:none; border-radius:1rem; cursor:pointer; color:white;">Cancel</button></div>`; document.body.appendChild(modal); const passInput = modal.querySelector('#passInput'); const errorDiv = modal.querySelector('#passError'); function checkAndAutoVerify() { if (passwordInput.length === expectedLength) { if (passwordInput === expectedPass) { errorDiv.textContent = '✅ Verified! Redirecting...'; errorDiv.style.color = '#059669'; if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([10,50,10]); setTimeout(() => { modal.remove(); if (onSuccess) onSuccess(); }, 500); } else { errorDiv.textContent = '❌ Incorrect password. Try again.'; errorDiv.style.color = '#ef4444'; passwordInput = ''; passInput.value = ''; if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([50,100,50]); } } } modal.querySelectorAll('[data-num]').forEach(btn => { btn.onclick = () => { if (btn.dataset.num === 'clear') passwordInput = passwordInput.slice(0, -1); else if (passwordInput.length < expectedLength) passwordInput += btn.dataset.num; passInput.value = '*'.repeat(passwordInput.length); errorDiv.textContent = ''; checkAndAutoVerify(); }; }); passInput.addEventListener('input', (e) => { passwordInput = e.target.value.replace(/\*/g, ''); if (passwordInput.length === expectedLength) checkAndAutoVerify(); }); modal.querySelector('#cancelPassBtn').onclick = () => { modal.remove(); if (onCancel) onCancel(); }; modal.onclick = (e) => { if (e.target === modal) { modal.remove(); if (onCancel) onCancel(); } }; setTimeout(() => passInput.focus(), 100); }
+
+let syncDebounceTimer = null; function startPeriodicSync() { setInterval(async () => { if (supervisorLoggedIn) { if (syncDebounceTimer) clearTimeout(syncDebounceTimer); syncDebounceTimer = setTimeout(async () => { await syncStaffViewWithSupervisor(); syncDebounceTimer = null; }, 100); } }, 5000); }
+
+async function initApp() {
+  console.log(`🟢 Initializing app...`);
+  showMessage("Loading system...", "info");
+  try { await Promise.race([refreshStaffCredentials(), new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))]); } catch (e) { for (const staff of staffList) { if (!staff.pass) staff.pass = "1234"; if (!staff.pattern) staff.pattern = "1,2,3"; } }
+  await Promise.all([loadFromLocalStorage(), loadDailyTasks()]);
+  updateStaffDisplay(); updateDisplayInfo(); populateDropdowns(); initMainTabs(); initStaffSubTabs(); initDailyStaffSelect();
+  const loadingOverlay = document.getElementById('loadingOverlay'); if (loadingOverlay) setTimeout(() => { loadingOverlay.style.display = 'none'; }, 500);
+  refreshAllViews(); startPeriodicSync(); showMessage("✅ System ready", "success");
+}
+
+initApp();
 </script>
 </body>
 </html>
