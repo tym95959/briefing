@@ -2584,13 +2584,191 @@ function updateStaffDisplay() { const staffDateSpan = document.getElementById("s
 
 function updateStaffContextDisplay() { const span = document.getElementById("staffGlobalContext"); if (span) span.innerHTML = `<strong>${currentDate}</strong> | ${SHIFTS.find(s => s.value === currentShift)?.label || currentShift}`; }
 
-function renderAllSod() { const container = document.getElementById("allSodContainer"); if (!container || !supervisorLoggedIn) return; container.innerHTML = ""; staffList.forEach(staff => { const badge = document.createElement("div"); badge.className = "staff-badge"; const isOnDuty = staffOnDutyIds.has(staff.id); if (isOnDuty) badge.classList.add("selected-sod"); badge.setAttribute("data-id", staff.id); badge.innerHTML = `<span>${isOnDuty ? '✓' : '○'}</span><span class="badge-name">${escapeHtml(staff.name)}</span><span class="badge-role">${staff.role}</span>`; const handleClick = function(e) { e.preventDefault(); e.stopPropagation(); if (staffOnDutyIds.has(staff.id)) staffOnDutyIds.delete(staff.id); else staffOnDutyIds.add(staff.id); showMessage(staff.name + (staffOnDutyIds.has(staff.id) ? " added to SOD" : " removed from SOD") + " for " + currentDate); saveToLocalStorage().then(() => { renderAllSod(); renderAllocationPool(); initDailyStaffSelect(); if (document.getElementById("staffMainPane").classList.contains("active-pane")) { loadCompleteStaffDashboard(); renderDailyTasksUI(); } }); }; badge.removeEventListener('click', handleClick); badge.removeEventListener('touchstart', handleClick); badge.addEventListener('click', handleClick); badge.addEventListener('touchstart', handleClick); container.appendChild(badge); }); }
+function renderAllSod() {
+  const container = document.getElementById("allSodContainer");
+  if (!container || !supervisorLoggedIn) return;
+  container.innerHTML = "";
+  staffList.forEach(staff => {
+    const badge = document.createElement("div");
+    badge.className = "staff-badge";
+    const isOnDuty = staffOnDutyIds.has(staff.id);
+    if (isOnDuty) badge.classList.add("selected-sod");
+    badge.setAttribute("data-id", staff.id);
+    badge.innerHTML = `<span>${isOnDuty ? '✓' : '○'}</span><span class="badge-name">${escapeHtml(staff.name)}</span><span class="badge-role">${staff.role}</span>`;
+    
+    // FIX: Use a named function and attach both click AND touchstart
+    const handleClick = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (staffOnDutyIds.has(staff.id)) {
+        staffOnDutyIds.delete(staff.id);
+      } else {
+        staffOnDutyIds.add(staff.id);
+      }
+      showMessage(staff.name + (staffOnDutyIds.has(staff.id) ? " added to SOD" : " removed from SOD") + " for " + currentDate);
+      saveToLocalStorage().then(() => {
+        renderAllSod();
+        renderAllocationPool();
+        initDailyStaffSelect();
+        if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
+          loadCompleteStaffDashboard();
+          renderDailyTasksUI();
+        }
+      });
+    };
+    
+    // Remove old listeners and add both
+    badge.removeEventListener('click', handleClick);
+    badge.removeEventListener('touchstart', handleClick);
+    badge.addEventListener('click', handleClick);
+    badge.addEventListener('touchstart', handleClick, { passive: false });
+    container.appendChild(badge);
+  });
+}
+
 
 function initMainTabs() { const staffPane = document.getElementById("staffMainPane"); const supervisorPane = document.getElementById("supervisorMainPane"); function switchTab(tabId) { staffPane.classList.remove("active-pane"); supervisorPane.classList.remove("active-pane"); if (tabId === "staff") { staffPane.classList.add("active-pane"); renderBreakTimeBadges(); loadCompleteStaffDashboard(); renderDailyTasksUI(); updateStaffDisplay(); } else if (tabId === "supervisor") { supervisorPane.classList.add("active-pane"); if (supervisorLoggedIn) refreshAllViews(); else { document.getElementById("superAuthArea").style.display = "block"; document.getElementById("superDashboard").style.display = "none"; } } document.querySelectorAll(".main-tab-btn").forEach(b => { if (b.dataset.tab === tabId) b.classList.add("active"); else b.classList.remove("active"); }); } const btns = document.querySelectorAll(".main-tab-btn"); btns.forEach(btn => { const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn); const handleTabClick = function(e) { e.preventDefault(); switchTab(this.dataset.tab); }; newBtn.addEventListener('click', handleTabClick); newBtn.addEventListener('touchstart', handleTabClick, { passive: false }); }); }
 
-function renderAllocationPool() { const container = document.getElementById("allocationPoolContainer"); if (!container || !supervisorLoggedIn) return; const sodStaffIds = Array.from(staffOnDutyIds); const sodStaff = []; for (let id of sodStaffIds) { const staff = staffList.find(s => s.id === id); if (staff) sodStaff.push(staff); } if (sodStaff.length === 0) { container.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">⚠️ No staff on duty. Click on staff badges in "STAFF ON DUTY" section above first.</div>'; document.getElementById("selectedCount").innerText = `Selected: 0`; return; } container.innerHTML = ""; sodStaff.forEach(staff => { const badge = document.createElement("div"); badge.className = "staff-badge"; if (selectedAllocationStaff.has(staff.id)) { badge.style.background = "#dbeafe"; badge.style.borderColor = "#2563eb"; } badge.setAttribute("data-id", staff.id); badge.innerHTML = `<span>${selectedAllocationStaff.has(staff.id) ? '☑' : '□'}</span><span class="badge-name">${escapeHtml(staff.name)}</span><span class="badge-role">${staff.role}</span>`; const handleSelect = function(e) { e.preventDefault(); e.stopPropagation(); if (selectedAllocationStaff.has(staff.id)) selectedAllocationStaff.delete(staff.id); else selectedAllocationStaff.add(staff.id); renderAllocationPool(); document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`; }; badge.removeEventListener('click', handleSelect); badge.removeEventListener('touchstart', handleSelect); badge.addEventListener('click', handleSelect); badge.addEventListener('touchstart', handleSelect); container.appendChild(badge); }); document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`; }
+function renderAllocationPool() {
+  const container = document.getElementById("allocationPoolContainer");
+  if (!container || !supervisorLoggedIn) return;
+  const sodStaffIds = Array.from(staffOnDutyIds);
+  const sodStaff = [];
+  for (let id of sodStaffIds) {
+    const staff = staffList.find(s => s.id === id);
+    if (staff) sodStaff.push(staff);
+  }
+  if (sodStaff.length === 0) {
+    container.innerHTML = '<div style="padding: 1rem; text-align: center; color: #64748b;">⚠️ No staff on duty. Click on staff badges in "STAFF ON DUTY" section above first.</div>';
+    document.getElementById("selectedCount").innerText = `Selected: 0`;
+    return;
+  }
+  container.innerHTML = "";
+  sodStaff.forEach(staff => {
+    const badge = document.createElement("div");
+    badge.className = "staff-badge";
+    if (selectedAllocationStaff.has(staff.id)) {
+      badge.style.background = "#dbeafe";
+      badge.style.borderColor = "#2563eb";
+    }
+    badge.setAttribute("data-id", staff.id);
+    badge.innerHTML = `<span>${selectedAllocationStaff.has(staff.id) ? '☑' : '□'}</span><span class="badge-name">${escapeHtml(staff.name)}</span><span class="badge-role">${staff.role}</span>`;
+    
+    // FIX: Add both click and touchstart
+    const handleSelect = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (selectedAllocationStaff.has(staff.id)) {
+        selectedAllocationStaff.delete(staff.id);
+      } else {
+        selectedAllocationStaff.add(staff.id);
+      }
+      renderAllocationPool();
+      document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
+    };
+    
+    badge.removeEventListener('click', handleSelect);
+    badge.removeEventListener('touchstart', handleSelect);
+    badge.addEventListener('click', handleSelect);
+    badge.addEventListener('touchstart', handleSelect, { passive: false });
+    container.appendChild(badge);
+  });
+  document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
+}
 
-function renderAllocationTable() { const thead = document.getElementById("tableHeader"), tbody = document.getElementById("tableBody"); if (!thead || !tbody || !supervisorLoggedIn) return; const shift = SHIFTS.find(s => s.value === currentShift); thead.innerHTML = `<tr><th style="width:120px;">Area</th><th>Period 1<br><span style="font-size:0.7rem;">${shift.periods[0].timing}</span></th><th>Period 2<br><span style="font-size:0.7rem;">${shift.periods[1].timing}</span></th><th>Period 3<br><span style="font-size:0.7rem;">${shift.periods[2].timing}</span></th></tr>`; tbody.innerHTML = ""; AREAS.forEach(area => { const row = document.createElement("tr"); row.innerHTML = `<td class="area-name" style="padding:0.8rem; border:1px solid #e2e8f0; background:#faf6e8; font-weight:bold;">${area}</td>`; for (let p = 0; p < 3; p++) { const allocated = Array.from(getAllocatedStaffForSlot(currentDate, currentShift, p, area)).map(id => staffList.find(s => s.id === id)).filter(s => s); let staffHtml = ''; if (allocated.length === 0) staffHtml = '<span style="color:#94a3b8;">—</span>'; else { staffHtml = '<div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem;">'; allocated.forEach((s, index) => { staffHtml += `<span style="display:inline-flex; align-items:center; gap:0.3rem; background:#f1f5f9; padding:0.2rem 0.5rem; border-radius:1rem;"><span style="font-weight:500;">${escapeHtml(s.name)}</span><button class="remove-btn" data-area="${area}" data-period="${p}" data-staff="${s.id}" style="background:#ef4444; border:none; border-radius:1rem; padding:0.1rem 0.4rem; cursor:pointer; font-size:0.65rem; color:white; touch-action: manipulation;">✕</button></span>`; if (index < allocated.length - 1) staffHtml += `<span style="color:#94a3b8;">,</span>`; }); staffHtml += '</div>'; } row.innerHTML += `<td style="padding:0.8rem; border:1px solid #e2e8f0; vertical-align:middle;">${staffHtml}<button class="assign-btn" data-area="${area}" data-period="${p}" style="margin-top:0.5rem; width:100%; padding:0.3rem; background:#b8860b; color:white; border:none; border-radius:1rem; cursor:pointer; font-size:0.7rem; touch-action: manipulation;">➕ Assign</button></td>`; } tbody.appendChild(row); }); const removeBtns = tbody.querySelectorAll('.remove-btn'); removeBtns.forEach(btn => { const handleRemove = function(e) { e.preventDefault(); e.stopPropagation(); removeAllocation(currentDate, currentShift, parseInt(this.dataset.period), this.dataset.area, this.dataset.staff); renderAllocationTable(); saveToLocalStorage(); showMessage("Staff removed from allocation"); }; btn.removeEventListener('click', handleRemove); btn.removeEventListener('touchstart', handleRemove); btn.addEventListener('click', handleRemove); btn.addEventListener('touchstart', handleRemove); }); const assignBtns = tbody.querySelectorAll('.assign-btn'); assignBtns.forEach(btn => { const handleAssign = function(e) { e.preventDefault(); e.stopPropagation(); if (selectedAllocationStaff.size === 0) { showMessage("No staff selected. Click on staff badges above first.", "error"); return; } const period = parseInt(this.dataset.period); const area = this.dataset.area; const duplicateStaff = []; const ALLOW_MULTIPLE_AREAS = ["Floor", "Pantry"]; const RESTRICTED_AREAS = ["Welcome/Boarding", "Reception", "Buffet"]; selectedAllocationStaff.forEach(staffId => { let isDuplicate = false; for (let checkArea of AREAS) { const allocatedInThisPeriod = getAllocatedStaffForSlot(currentDate, currentShift, period, checkArea); if (allocatedInThisPeriod.has(staffId)) { if (RESTRICTED_AREAS.includes(area) || RESTRICTED_AREAS.includes(checkArea)) { isDuplicate = true; const staff = staffList.find(s => s.id === staffId); duplicateStaff.push(`${staff?.name} (conflict with ${checkArea})`); break; } if (!ALLOW_MULTIPLE_AREAS.includes(area) && area !== checkArea) { isDuplicate = true; const staff = staffList.find(s => s.id === staffId); duplicateStaff.push(`${staff?.name} (already in ${checkArea})`); break; } } } if (!isDuplicate) addAllocation(currentDate, currentShift, period, area, staffId); }); if (duplicateStaff.length > 0) showMessage(`⚠️ Cannot assign: ${duplicateStaff.join(', ')}`, "error"); else showMessage(`✓ Assigned ${selectedAllocationStaff.size} staff to ${area}`); selectedAllocationStaff.clear(); renderAllocationPool(); renderAllocationTable(); saveToLocalStorage(); }; btn.removeEventListener('click', handleAssign); btn.removeEventListener('touchstart', handleAssign); btn.addEventListener('click', handleAssign); btn.addEventListener('touchstart', handleAssign); }); }
+
+function renderAllocationTable() { 
+  const thead = document.getElementById("tableHeader"), tbody = document.getElementById("tableBody"); 
+  if (!thead || !tbody || !supervisorLoggedIn) return; 
+  const shift = SHIFTS.find(s => s.value === currentShift); 
+  thead.innerHTML = `<tr><th style="width:120px;">Area</th><th>Period 1<br><span style="font-size:0.7rem;">${shift.periods[0].timing}</span></th><th>Period 2<br><span style="font-size:0.7rem;">${shift.periods[1].timing}</span></th><th>Period 3<br><span style="font-size:0.7rem;">${shift.periods[2].timing}</span></th></tr>`; 
+  tbody.innerHTML = ""; 
+  AREAS.forEach(area => { 
+    const row = document.createElement("tr"); 
+    row.innerHTML = `<td class="area-name" style="padding:0.8rem; border:1px solid #e2e8f0; background:#faf6e8; font-weight:bold;">${area}</td>`; 
+    for (let p = 0; p < 3; p++) { 
+      const allocated = Array.from(getAllocatedStaffForSlot(currentDate, currentShift, p, area)).map(id => staffList.find(s => s.id === id)).filter(s => s); 
+      let staffHtml = ''; 
+      if (allocated.length === 0) staffHtml = '<span style="color:#94a3b8;">—</span>'; 
+      else { 
+        staffHtml = '<div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem;">'; 
+        allocated.forEach((s, index) => { 
+          staffHtml += `<span style="display:inline-flex; align-items:center; gap:0.3rem; background:#f1f5f9; padding:0.2rem 0.5rem; border-radius:1rem;"><span style="font-weight:500;">${escapeHtml(s.name)}</span><button class="remove-btn" data-area="${area}" data-period="${p}" data-staff="${s.id}" style="background:#ef4444; border:none; border-radius:1rem; padding:0.1rem 0.4rem; cursor:pointer; font-size:0.65rem; color:white; touch-action: manipulation;">✕</button></span>`; 
+          if (index < allocated.length - 1) staffHtml += `<span style="color:#94a3b8;">,</span>`; 
+        }); 
+        staffHtml += '</div>'; 
+      } 
+      row.innerHTML += `<td style="padding:0.8rem; border:1px solid #e2e8f0; vertical-align:middle;">${staffHtml}<button class="assign-btn" data-area="${area}" data-period="${p}" style="margin-top:0.5rem; width:100%; padding:0.3rem; background:#b8860b; color:white; border:none; border-radius:1rem; cursor:pointer; font-size:0.7rem; touch-action: manipulation;">➕ Assign</button></td>`; 
+    } 
+    tbody.appendChild(row); 
+  }); 
+  
+  // Fix: Properly bind remove buttons
+  const removeBtns = tbody.querySelectorAll('.remove-btn');
+  removeBtns.forEach(btn => {
+    const handleRemove = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      removeAllocation(currentDate, currentShift, parseInt(this.dataset.period), this.dataset.area, this.dataset.staff);
+      renderAllocationTable();
+      saveToLocalStorage();
+      showMessage("Staff removed from allocation");
+    };
+    btn.removeEventListener('click', handleRemove);
+    btn.removeEventListener('touchstart', handleRemove);
+    btn.addEventListener('click', handleRemove);
+    btn.addEventListener('touchstart', handleRemove, { passive: false });
+  });
+
+  // Fix: Properly bind assign buttons  
+  const assignBtns = tbody.querySelectorAll('.assign-btn');
+  assignBtns.forEach(btn => {
+    const handleAssign = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (selectedAllocationStaff.size === 0) {
+        showMessage("No staff selected. Click on staff badges above first.", "error");
+        return;
+      }
+      const period = parseInt(this.dataset.period);
+      const area = this.dataset.area;
+      const duplicateStaff = [];
+      const ALLOW_MULTIPLE_AREAS = ["Floor", "Pantry"];
+      const RESTRICTED_AREAS = ["Welcome/Boarding", "Reception", "Buffet"];
+      selectedAllocationStaff.forEach(staffId => {
+        let isDuplicate = false;
+        for (let checkArea of AREAS) {
+          const allocatedInThisPeriod = getAllocatedStaffForSlot(currentDate, currentShift, period, checkArea);
+          if (allocatedInThisPeriod.has(staffId)) {
+            if (RESTRICTED_AREAS.includes(area) || RESTRICTED_AREAS.includes(checkArea)) {
+              isDuplicate = true;
+              const staff = staffList.find(s => s.id === staffId);
+              duplicateStaff.push(`${staff?.name} (conflict with ${checkArea})`);
+              break;
+            }
+            if (!ALLOW_MULTIPLE_AREAS.includes(area) && area !== checkArea) {
+              isDuplicate = true;
+              const staff = staffList.find(s => s.id === staffId);
+              duplicateStaff.push(`${staff?.name} (already in ${checkArea})`);
+              break;
+            }
+          }
+        }
+        if (!isDuplicate) addAllocation(currentDate, currentShift, period, area, staffId);
+      });
+      if (duplicateStaff.length > 0) showMessage(`⚠️ Cannot assign: ${duplicateStaff.join(', ')}`, "error");
+      else showMessage(`✓ Assigned ${selectedAllocationStaff.size} staff to ${area}`);
+      selectedAllocationStaff.clear();
+      renderAllocationPool();
+      renderAllocationTable();
+      saveToLocalStorage();
+    };
+    btn.removeEventListener('click', handleAssign);
+    btn.removeEventListener('touchstart', handleAssign);
+    btn.addEventListener('click', handleAssign);
+    btn.addEventListener('touchstart', handleAssign, { passive: false });
+  });
+}
 
 function renderAttendanceDashboard() { const records = getAttendanceForDate(currentDate); const morning = records.filter(r => r.dutyShift === "Morning"); const evening = records.filter(r => r.dutyShift === "Evening"); const night = records.filter(r => r.dutyShift === "Night"); const renderList = (recs, containerId) => { const container = document.getElementById(containerId); if (!container) return; if (recs.length === 0) { container.innerHTML = '<div style="text-align:center; padding:1rem; color: #94a3b8;">✅ No records - All present</div>'; return; } container.innerHTML = recs.map(rec => { const staff = staffList.find(s => s.id === rec.staffId); let bgColor = rec.status === "Sick Leave" ? "#fee2e2" : (rec.status === "FRL" ? "#fef3c7" : "#f3f4f6"); let borderColor = rec.status === 'Sick Leave' ? '#ef4444' : (rec.status === 'FRL' ? '#f59e0b' : '#6b7280'); return `<div style="background:${bgColor}; border-radius:0.8rem; padding:0.8rem; margin-bottom:0.5rem; border-left:3px solid ${borderColor};"><div style="display: flex; justify-content: space-between; align-items: flex-start;"><div><strong style="font-size: 0.9rem;">${escapeHtml(staff?.name)}</strong><span class="status-badge ${rec.status === 'Sick Leave' ? 'status-sick' : (rec.status === 'FRL' ? 'status-frl' : 'status-absent')}" style="margin-left: 0.5rem; font-size: 0.7rem;">${rec.status}</span></div><small style="color: #666; font-size: 0.7rem;">${rec.dutyShift}</small></div>${rec.reason ? `<div style="margin-top: 0.3rem;"><small>📋 <strong>Reason:</strong> ${escapeHtml(rec.reason)}</small></div>` : ''}<div style="margin-top: 0.3rem;"><small>📅 <strong>Leave Date:</strong> ${rec.leaveDate || rec.date}</small></div><div style="margin-top: 0.2rem;"><small>🕐 <strong>Reported:</strong> ${rec.reportedDate || rec.date} at ${rec.reportedTime || '—'}</small></div></div>`; }).join(''); }; renderList(morning, "morningList"); renderList(evening, "eveningList"); renderList(night, "nightList"); }
 
