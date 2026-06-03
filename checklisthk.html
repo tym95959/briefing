@@ -711,27 +711,12 @@ body.supervisor-mode #globalControlBar {
 }
 
 .pattern-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  width: 100%;
-  max-width: 280px;
-  margin: 1.5rem auto;
-  background: #f8fafc;
-  padding: 1rem;
-  border-radius: 1.5rem;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .pattern-dot {
-  aspect-ratio: 1;
-  background: #e2e8f0;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .pattern-dot.selected {
@@ -1065,6 +1050,17 @@ canvas, svg {
   </style>
 </head>
 <body>
+
+    <div id="loadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 99999;">
+  <div style="background: white; padding: 2rem; border-radius: 2rem; text-align: center;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+    <div>Loading Staff System...</div>
+    <div style="font-size: 0.8rem; color: #666; margin-top: 0.5rem;">Please wait</div>
+  </div>
+</div>
+
+
+
 <div class="app-container">
   <div class="main-tabs">
     <button class="main-tab-btn active" data-tab="staff">👤 STAFF VIEW</button>
@@ -1157,8 +1153,7 @@ canvas, svg {
   <div class="info-card">🔐 Supervisor Login</div>
   <div class="control-row">
     <select id="supervisorSelect" style="flex:1;">
-      <option value="">-- Select Supervisor --</option>
-      ${staffList.filter(s => s.role === "Supervisor").map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+    <option value="">-- Select Supervisor --</option>
     </select>
   </div>
   <div id="superVerificationArea" style="display: none;">
@@ -2092,35 +2087,68 @@ async function getStaffWithCredentials() {
 }
 
 // Update staff in memory after credential change
-// Refresh staff credentials from Firebase
+// Optimized - Load credentials only once and cache them
+let credentialsCache = null;
+
 async function refreshStaffCredentials() {
   try {
+    // Return cached credentials if already loaded
+    if (credentialsCache) {
+      console.log("Using cached credentials");
+      for (const staff of staffList) {
+        if (credentialsCache[staff.id]) {
+          staff.pass = credentialsCache[staff.id].pass;
+          staff.pattern = credentialsCache[staff.id].pattern;
+        }
+      }
+      return true;
+    }
+    
+    console.log("Loading credentials from Firebase...");
     const db = firebase.firestore();
     const usersRef = db.collection("staffCredentials");
     const snapshot = await usersRef.get();
     
+    credentialsCache = {};
+    
+    // Load all credentials in one go
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      credentialsCache[doc.id] = {
+        pass: data.pass,
+        pattern: data.pattern
+      };
+    });
+    
+    // Update staffList with loaded credentials
     for (const staff of staffList) {
-      const doc = await usersRef.doc(staff.id).get();
-      if (doc.exists) {
-        const data = doc.data();
-        if (data.pass) staff.pass = data.pass;
-        if (data.pattern) staff.pattern = data.pattern;
-        console.log(`✅ Loaded credentials for ${staff.name}: pass=${staff.pass}, pattern=${staff.pattern}`);
+      if (credentialsCache[staff.id]) {
+        staff.pass = credentialsCache[staff.id].pass;
+        staff.pattern = credentialsCache[staff.id].pattern;
       } else {
-        // Save default credentials if none exist
-        await usersRef.doc(staff.id).set({
+        // Set default credentials for new staff
+        staff.pass = staff.pass || "1234";
+        staff.pattern = staff.pattern || "1,2,3";
+        // Save to Firebase in background (don't await)
+        usersRef.doc(staff.id).set({
           staffId: staff.id,
-          pass: staff.pass || "1234",
-          pattern: staff.pattern || "1,2,3",
+          pass: staff.pass,
+          pattern: staff.pattern,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        console.log(`📝 Created default credentials for ${staff.name}`);
+        }).catch(err => console.error("Error saving default:", err));
       }
+      console.log(`✓ ${staff.name}: pass=${staff.pass}`);
     }
-    console.log("✅ Staff credentials refreshed from Firebase");
+    
+    console.log("✅ Credentials loaded and cached");
     return true;
   } catch (error) {
-    console.error("Error refreshing credentials:", error);
+    console.error("Error loading credentials:", error);
+    // Use default credentials if Firebase fails
+    for (const staff of staffList) {
+      if (!staff.pass) staff.pass = "1234";
+      if (!staff.pattern) staff.pattern = "1,2,3";
+    }
     return false;
   }
 }
@@ -2700,54 +2728,64 @@ function showVerificationOptionsModal(staff, callback) {
   }
   
   function autoVerifyPattern() {
-    if (verificationInProgress) return;
-    verificationInProgress = true;
+  if (verificationInProgress) return;
+  verificationInProgress = true;
+  
+  if (patternSequence.length < 3) {
+    statusSpan.textContent = '❌ Pattern must have at least 3 dots';
+    statusSpan.className = 'pattern-status error';
+    verificationInProgress = false;
+    setTimeout(() => resetPatternDrawing(), 1000);
+    return;
+  }
+  
+  const enteredPattern = patternSequence.join(',');
+  // Use staff.pattern directly (already loaded)
+  const savedPattern = staff.pattern || '';
+  
+  if (enteredPattern === savedPattern) {
+    statusSpan.textContent = '✅ Verified!';
+    statusSpan.className = 'pattern-status success';
     
-    if (patternSequence.length < 3) {
-      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
-      statusSpan.className = 'pattern-status error';
-      verificationInProgress = false;
+    setTimeout(() => {
+      modal.remove();
+      if (callback) callback(true);
+    }, 300);
+  } else {
+    statusSpan.textContent = '❌ Wrong pattern! Try again.';
+    statusSpan.className = 'pattern-status error';
+    
+    if (patternGrid) {
+      patternGrid.style.background = '#fee2e2';
       setTimeout(() => {
-        resetPatternDrawing();
-      }, 1000);
-      return;
+        patternGrid.style.background = '';
+      }, 300);
     }
     
-    const enteredPattern = patternSequence.join(',');
-    const savedPattern = staff.pattern || '';
-    
-    if (enteredPattern === savedPattern) {
-      statusSpan.textContent = '✅ Verified! Redirecting...';
-      statusSpan.className = 'pattern-status success';
-      
-      if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate([10, 50, 10]);
-      }
+    resetPatternDrawing();
+    verificationInProgress = false;
+  }
+}
+
+function checkAndAutoVerifyPassword() {
+  if (passwordInput.length === expectedLength) {
+    // Use staff.pass directly (already loaded)
+    if (passwordInput === (staff.pass || '1234')) {
+      passErrorDiv.textContent = '✅ Verified!';
+      passErrorDiv.style.color = '#059669';
       
       setTimeout(() => {
         modal.remove();
         if (callback) callback(true);
-      }, 500);
+      }, 300);
     } else {
-      statusSpan.textContent = '❌ Wrong pattern! Try again.';
-      statusSpan.className = 'pattern-status error';
-      
-      if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate([50, 100, 50]);
-      }
-      
-      if (patternGrid) {
-        patternGrid.style.transition = 'background 0.2s';
-        patternGrid.style.background = '#fee2e2';
-        setTimeout(() => {
-          patternGrid.style.background = '';
-        }, 300);
-      }
-      
-      resetPatternDrawing();
-      verificationInProgress = false;
+      passErrorDiv.textContent = '❌ Incorrect password. Try again.';
+      passErrorDiv.style.color = '#ef4444';
+      passwordInput = '';
+      if (passInput) passInput.value = '';
     }
   }
+}
   
   // Pattern drawing event handlers - FIXED FOR IPAD
   function getDotFromEvent(e) {
@@ -4828,13 +4866,31 @@ function startPeriodicSync() {
 
 // Then in initApp, add this line before the last showMessage:
 async function initApp() {
-  console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
+  console.log(`🟢 Initializing app...`);
   
-  // IMPORTANT: Load staff credentials from Firebase FIRST
-  await refreshStaffCredentials();
+  // Show loading message
+  showMessage("Loading system...", "info");
   
-  await loadFromLocalStorage();
-  await loadDailyTasks();
+  // Load credentials first (with timeout)
+  try {
+    await Promise.race([
+      refreshStaffCredentials(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+    ]);
+  } catch (e) {
+    console.log("Using default credentials due to timeout");
+    // Use defaults if Firebase is slow
+    for (const staff of staffList) {
+      if (!staff.pass) staff.pass = "1234";
+      if (!staff.pattern) staff.pattern = "1,2,3";
+    }
+  }
+  
+  // Load other data in parallel
+  await Promise.all([
+    loadFromLocalStorage(),
+    loadDailyTasks()
+  ]);
   
   updateStaffDisplay();
   updateDisplayInfo();
@@ -4842,18 +4898,27 @@ async function initApp() {
   initMainTabs();
   initStaffSubTabs();
   initDailyStaffSelect();
+
+  const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+    setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+    }, 500);
+    }
   
-  document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
+  const logoutBtn = document.getElementById("superLogoutBtn");
+  if (logoutBtn) logoutBtn.onclick = logoutSupervisor;
   
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
   
   refreshAllViews();
   startPeriodicSync();
-  showMessage("✅ System ready - Data synced with cloud");
+  showMessage("✅ System ready", "success");
 }
-  
-  initApp();
+
+
+initApp();
 </script>
 </body>
 </html>
