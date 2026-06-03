@@ -4959,31 +4959,52 @@ function renderBreakRequestsForSupervisor() {
   }
   
   // Attach event listeners
-  document.querySelectorAll('.approve-btn').forEach(btn => {
-    btn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      handleBreakRequest(parseInt(btn.dataset.id), 'approved');
-    };
-  });
+  // Attach event listeners - FIXED FOR IPAD
+document.querySelectorAll('.approve-btn').forEach(btn => {
+  // Remove old listeners
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
   
-  document.querySelectorAll('.reject-btn').forEach(btn => {
-    btn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      handleBreakRequest(parseInt(btn.dataset.id), 'rejected');
-    };
-  });
+  const handleApprove = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Approve button tapped on iPad");
+    handleBreakRequest(parseInt(this.dataset.id), 'approved');
+  };
   
-  document.querySelectorAll('.delete-break-btn').forEach(btn => {
-    btn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      deleteBreakRequest(parseInt(btn.dataset.id));
-    };
-  });
-}
+  newBtn.addEventListener('click', handleApprove);
+  newBtn.addEventListener('touchstart', handleApprove, { passive: false });
+});
 
+document.querySelectorAll('.reject-btn').forEach(btn => {
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  
+  const handleReject = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Reject button tapped on iPad");
+    handleBreakRequest(parseInt(this.dataset.id), 'rejected');
+  };
+  
+  newBtn.addEventListener('click', handleReject);
+  newBtn.addEventListener('touchstart', handleReject, { passive: false });
+});
+
+document.querySelectorAll('.delete-break-btn').forEach(btn => {
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  
+  const handleDelete = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Delete break button tapped on iPad");
+    deleteBreakRequest(parseInt(this.dataset.id));
+  };
+  
+  newBtn.addEventListener('click', handleDelete);
+  newBtn.addEventListener('touchstart', handleDelete, { passive: false });
+});
   function getSodStaffNames() {
   const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id));
   console.log("Current SOD Staff:", sodStaff.map(s => s.name));
@@ -5383,13 +5404,14 @@ function populateDropdowns() {
   const clearBtn = document.getElementById("clearSelectionBtn");
   const printAllocBtn = document.getElementById("printAllocationBtn");
   const printReportBtn = document.getElementById("printDailyReportBtn");
+  const superLogoutBtn = document.getElementById("superLogoutBtn");
   
   // Populate staff dropdown
   if (attSel) {
     attSel.innerHTML = '<option value="">-- Select --</option>' + staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
   }
   
-  // Setup attendance status change handler BEFORE trying to use it
+  // Setup attendance status change handler
   if (statusSelect) {
     statusSelect.onchange = function() {
       const selectedStatus = this.value;
@@ -5411,32 +5433,40 @@ function populateDropdowns() {
     };
   }
   
-  // Setup break request button
+  // Setup break request button - FIXED FOR IPAD
   if (requestBtn) {
-    requestBtn.onclick = function(e) {
-      if (e) e.preventDefault();
+    // Remove old listeners by cloning
+    const newRequestBtn = requestBtn.cloneNode(true);
+    requestBtn.parentNode.replaceChild(newRequestBtn, requestBtn);
+    
+    const handleBreakRequest = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Break request button tapped on iPad");
       submitBreakRequest();
     };
+    
+    newRequestBtn.addEventListener('click', handleBreakRequest);
+    newRequestBtn.addEventListener('touchstart', handleBreakRequest, { passive: false });
   }
   
-  // Setup add attendance button
+  // Setup add attendance button - FIXED FOR IPAD
   if (addBtn) {
     const newAddBtn = addBtn.cloneNode(true);
     addBtn.parentNode.replaceChild(newAddBtn, addBtn);
     
-    newAddBtn.onclick = function(e) {
-      console.log("Add Attendance button clicked");
-      if (e) e.preventDefault();
+    const handleAddAttendance = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Add Attendance button tapped on iPad");
       addAttendanceFromForm(e);
     };
-    newAddBtn.ontouchstart = function(e) {
-      console.log("Add Attendance button touched");
-      if (e) e.preventDefault();
-      addAttendanceFromForm(e);
-    };
+    
+    newAddBtn.addEventListener('click', handleAddAttendance);
+    newAddBtn.addEventListener('touchstart', handleAddAttendance, { passive: false });
   }
   
-  // Setup clear selection button
+  // Setup clear selection button - FIXED FOR IPAD
   if (clearBtn) {
     const newClearBtn = clearBtn.cloneNode(true);
     clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
@@ -5444,38 +5474,62 @@ function populateDropdowns() {
     const handleClear = function(e) {
       e.preventDefault();
       e.stopPropagation();
+      console.log("Clear selection tapped on iPad");
       selectedAllocationStaff.clear();
       renderAllocationPool();
       showMessage("Selection cleared");
     };
     
     newClearBtn.addEventListener('click', handleClear);
-    newClearBtn.addEventListener('touchstart', handleClear);
+    newClearBtn.addEventListener('touchstart', handleClear, { passive: false });
   }
   
-  // Setup print buttons
+  // Setup print allocation button - FIXED FOR IPAD
   if (printAllocBtn) {
     const newPrintBtn = printAllocBtn.cloneNode(true);
     printAllocBtn.parentNode.replaceChild(newPrintBtn, printAllocBtn);
     
     const handlePrint = function(e) {
       e.preventDefault();
+      e.stopPropagation();
+      console.log("Print allocation tapped on iPad");
       printAllocation();
     };
+    
     newPrintBtn.addEventListener('click', handlePrint);
-    newPrintBtn.addEventListener('touchstart', handlePrint);
+    newPrintBtn.addEventListener('touchstart', handlePrint, { passive: false });
   }
   
+  // Setup print report button - FIXED FOR IPAD
   if (printReportBtn) {
     const newReportBtn = printReportBtn.cloneNode(true);
     printReportBtn.parentNode.replaceChild(newReportBtn, printReportBtn);
     
     const handleReport = function(e) {
       e.preventDefault();
+      e.stopPropagation();
+      console.log("Print report tapped on iPad");
       printDailyReport();
     };
+    
     newReportBtn.addEventListener('click', handleReport);
-    newReportBtn.addEventListener('touchstart', handleReport);
+    newReportBtn.addEventListener('touchstart', handleReport, { passive: false });
+  }
+  
+  // Setup supervisor logout button - FIXED FOR IPAD
+  if (superLogoutBtn) {
+    const newLogoutBtn = superLogoutBtn.cloneNode(true);
+    superLogoutBtn.parentNode.replaceChild(newLogoutBtn, superLogoutBtn);
+    
+    const handleLogout = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Supervisor logout tapped on iPad");
+      logoutSupervisor();
+    };
+    
+    newLogoutBtn.addEventListener('click', handleLogout);
+    newLogoutBtn.addEventListener('touchstart', handleLogout, { passive: false });
   }
   
   // Set default dates
@@ -5497,7 +5551,6 @@ function populateDropdowns() {
   renderSupervisorDailyTasks();
   loadCompleteStaffDashboard();
 }
-
 
 function rebindSupervisorEvents() {
   // Rebind attendance button
