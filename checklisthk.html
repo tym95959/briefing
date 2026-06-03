@@ -1060,6 +1060,49 @@ body.supervisor-mode #globalControlBar {
   }
 }
 
+/* iPad Touch Optimizations */
+@media (max-width: 1024px) {
+  button, 
+  .staff-badge,
+  .pattern-dot,
+  .reset-pattern-btn,
+  .cancel-pattern-btn,
+  .task-signoff-btn,
+  .task-complete-btn,
+  .task-submit-btn {
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .pattern-modal-content {
+    width: 95%;
+    max-width: 450px;
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .pattern-dot {
+    min-width: 70px !important;
+    min-height: 70px !important;
+  }
+  
+  .pattern-grid {
+    gap: 1.2rem !important;
+    padding: 1.2rem !important;
+  }
+  
+  /* Increase touch targets */
+  .staff-badge {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.9rem !important;
+  }
+  
+  button {
+    min-height: 44px;
+  }
+}
+
   </style>
 </head>
 <body>
@@ -2623,28 +2666,29 @@ function initDailyStaffSelect() {
 
 
 // Show verification - Pattern first, with option to switch to password
+// ============ IPAD-FIXED VERIFICATION MODAL ============
 function showVerificationOptionsModal(staff, callback) {
   const modal = document.createElement('div');
   modal.className = 'pattern-modal';
   
-  let currentMode = 'pattern'; // 'pattern' or 'password'
+  let currentMode = 'pattern';
   
   modal.innerHTML = `
-    <div class="pattern-modal-content">
+    <div class="pattern-modal-content" style="touch-action: manipulation;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
         <h3 style="margin: 0; color: #b8860b;">🔐 Verify Identity</h3>
-        <button id="switchModeBtn" style="background: none; border: none; color: #6b7280; font-size: 0.7rem; cursor: pointer; padding: 0.3rem 0.6rem;">🔑 Switch to Password</button>
+        <button id="switchModeBtn" style="background: none; border: none; color: #6b7280; font-size: 0.7rem; cursor: pointer; padding: 0.3rem 0.6rem; touch-action: manipulation;">🔑 Switch to Password</button>
       </div>
       <p><strong>${escapeHtml(staff.name)}</strong></p>
       
       <!-- Pattern Mode Container -->
       <div id="patternModeContainer">
         <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Draw your pattern by connecting dots</p>
-        <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse to verify automatically</p>
+        <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger to verify automatically</p>
         
-        <div class="pattern-grid" id="patternGrid">
+        <div class="pattern-grid" id="patternGrid" style="touch-action: none;">
           ${[1,2,3,4,5,6,7,8,9].map(i => `
-            <div class="pattern-dot" data-num="${i}"></div>
+            <div class="pattern-dot" data-num="${i}" style="touch-action: manipulation;"></div>
           `).join('')}
         </div>
         
@@ -2652,31 +2696,30 @@ function showVerificationOptionsModal(staff, callback) {
         <div class="pattern-status" id="patternStatus"></div>
         
         <div class="pattern-buttons">
-          <button class="reset-pattern-btn" id="resetPatternBtn">⟳ Reset</button>
+          <button class="reset-pattern-btn" id="resetPatternBtn" style="touch-action: manipulation;">⟳ Reset</button>
         </div>
       </div>
       
-      <!-- Password Mode Container (hidden initially) -->
+      <!-- Password Mode Container -->
       <div id="passwordModeContainer" style="display: none;">
         <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Enter your password</p>
         <input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off" 
-               style="width:100%; padding:0.8rem; margin:1rem 0; text-align:center; font-size:1.5rem; border-radius:1rem; border:1px solid #cbd5e1;">
+               style="width:100%; padding:0.8rem; margin:1rem 0; text-align:center; font-size:1.5rem; border-radius:1rem; border:1px solid #cbd5e1; touch-action: manipulation;">
         <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1rem 0;">
-          ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 1rem; cursor: pointer;">${n}</button>`).join('')}
-          <button data-num="clear" class="clear-pass" style="padding: 0.8rem; background: #ef4444; color: white; border: none; border-radius: 1rem; cursor: pointer;">⌫</button>
+          ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 1rem; cursor: pointer; touch-action: manipulation;">${n}</button>`).join('')}
+          <button data-num="clear" class="clear-pass" style="padding: 0.8rem; background: #ef4444; color: white; border: none; border-radius: 1rem; cursor: pointer; touch-action: manipulation;">⌫</button>
         </div>
         <div id="passError" style="color:#ef4444; margin:0.5rem 0; text-align:center;"></div>
       </div>
       
       <div style="margin-top: 1rem;">
-        <button id="cancelVerifyBtn" style="width:100%; background:#94a3b8; padding:0.8rem; border:none; border-radius:1rem; cursor:pointer; color:white;">Cancel</button>
+        <button id="cancelVerifyBtn" style="width:100%; background:#94a3b8; padding:0.8rem; border:none; border-radius:1rem; cursor:pointer; color:white; touch-action: manipulation;">Cancel</button>
       </div>
     </div>
   `;
   
   document.body.appendChild(modal);
   
-  // Pattern mode variables
   let patternSequence = [];
   let isDrawing = false;
   let verificationInProgress = false;
@@ -2687,7 +2730,6 @@ function showVerificationOptionsModal(staff, callback) {
   const previewSpan = modal.querySelector('#patternPreview');
   const statusSpan = modal.querySelector('#patternStatus');
   
-  // Password mode variables
   let passwordInput = '';
   const expectedPass = staff.pass || '1234';
   const expectedLength = expectedPass.length;
@@ -2698,7 +2740,6 @@ function showVerificationOptionsModal(staff, callback) {
   const passwordModeContainer = modal.querySelector('#passwordModeContainer');
   const switchModeBtn = modal.querySelector('#switchModeBtn');
   
-  // Pattern helper functions
   function updatePatternPreview() {
     if (patternSequence.length === 0) {
       previewSpan.textContent = '✨ Draw your pattern by connecting 3+ dots';
@@ -2725,10 +2766,6 @@ function showVerificationOptionsModal(staff, callback) {
       element.classList.add('selected');
       updatePatternPreview();
       lastAddedDot = dotNum;
-      
-      if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(10);
-      }
     }
   }
   
@@ -2741,81 +2778,49 @@ function showVerificationOptionsModal(staff, callback) {
   }
   
   function autoVerifyPattern() {
-  if (verificationInProgress) return;
-  verificationInProgress = true;
-  
-  if (patternSequence.length < 3) {
-    statusSpan.textContent = '❌ Pattern must have at least 3 dots';
-    statusSpan.className = 'pattern-status error';
-    verificationInProgress = false;
-    setTimeout(() => resetPatternDrawing(), 1000);
-    return;
-  }
-  
-  const enteredPattern = patternSequence.join(',');
-  // Use staff.pattern directly (already loaded)
-  const savedPattern = staff.pattern || '';
-  
-  if (enteredPattern === savedPattern) {
-    statusSpan.textContent = '✅ Verified!';
-    statusSpan.className = 'pattern-status success';
+    if (verificationInProgress) return;
+    verificationInProgress = true;
     
-    setTimeout(() => {
-      modal.remove();
-      if (callback) callback(true);
-    }, 300);
-  } else {
-    statusSpan.textContent = '❌ Wrong pattern! Try again.';
-    statusSpan.className = 'pattern-status error';
-    
-    if (patternGrid) {
-      patternGrid.style.background = '#fee2e2';
-      setTimeout(() => {
-        patternGrid.style.background = '';
-      }, 300);
+    if (patternSequence.length < 3) {
+      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
+      statusSpan.className = 'pattern-status error';
+      verificationInProgress = false;
+      setTimeout(() => resetPatternDrawing(), 1000);
+      return;
     }
     
-    resetPatternDrawing();
-    verificationInProgress = false;
-  }
-}
-
-function checkAndAutoVerifyPassword() {
-  if (passwordInput.length === expectedLength) {
-    // Use staff.pass directly (already loaded)
-    if (passwordInput === (staff.pass || '1234')) {
-      passErrorDiv.textContent = '✅ Verified!';
-      passErrorDiv.style.color = '#059669';
+    const enteredPattern = patternSequence.join(',');
+    const savedPattern = staff.pattern || '';
+    
+    if (enteredPattern === savedPattern) {
+      statusSpan.textContent = '✅ Verified!';
+      statusSpan.className = 'pattern-status success';
       
       setTimeout(() => {
         modal.remove();
         if (callback) callback(true);
       }, 300);
     } else {
-      passErrorDiv.textContent = '❌ Incorrect password. Try again.';
-      passErrorDiv.style.color = '#ef4444';
-      passwordInput = '';
-      if (passInput) passInput.value = '';
+      statusSpan.textContent = '❌ Wrong pattern! Try again.';
+      statusSpan.className = 'pattern-status error';
+      
+      if (patternGrid) {
+        patternGrid.style.background = '#fee2e2';
+        setTimeout(() => {
+          patternGrid.style.background = '';
+        }, 300);
+      }
+      
+      resetPatternDrawing();
+      verificationInProgress = false;
     }
   }
-}
   
-  // Pattern drawing event handlers - FIXED FOR IPAD
-  function getDotFromEvent(e) {
-    e.preventDefault();
+  // FIXED: iPad touch event handlers
+  function getDotFromTouch(touch) {
     const rect = patternGrid.getBoundingClientRect();
-    let clientX, clientY;
-    
-    if (e.touches && e.touches.length > 0) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else if (e.changedTouches && e.changedTouches.length > 0) {
-      clientX = e.changedTouches[0].clientX;
-      clientY = e.changedTouches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
+    const clientX = touch.clientX;
+    const clientY = touch.clientY;
     
     for (let dot of dots) {
       const dotRect = dot.getBoundingClientRect();
@@ -2828,17 +2833,35 @@ function checkAndAutoVerifyPassword() {
     return null;
   }
   
+  function getDotFromMouse(e) {
+    const rect = patternGrid.getBoundingClientRect();
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    
+    for (let dot of dots) {
+      const dotRect = dot.getBoundingClientRect();
+      if (clientX >= dotRect.left && clientX <= dotRect.right &&
+          clientY >= dotRect.top && clientY <= dotRect.bottom) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
+      }
+    }
+    return null;
+  }
+  
   function clearDragOver() {
     dots.forEach(dot => dot.classList.remove('drag-over'));
   }
   
-  function startDraw(e) {
+  // Touch handlers for iPad
+  function handleTouchStart(e) {
     e.preventDefault();
+    e.stopPropagation();
     if (verificationInProgress) return;
     isDrawing = true;
     clearDragOver();
     
-    const dotInfo = getDotFromEvent(e);
+    const touch = e.touches[0];
+    const dotInfo = getDotFromTouch(touch);
     if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
       patternSequence = [dotInfo.dotNum];
       dotInfo.element.classList.add('selected');
@@ -2847,11 +2870,13 @@ function checkAndAutoVerifyPassword() {
     }
   }
   
-  function draw(e) {
+  function handleTouchMove(e) {
     e.preventDefault();
+    e.stopPropagation();
     if (!isDrawing || verificationInProgress) return;
     
-    const dotInfo = getDotFromEvent(e);
+    const touch = e.touches[0];
+    const dotInfo = getDotFromTouch(touch);
     if (dotInfo) {
       if (!patternSequence.includes(dotInfo.dotNum)) {
         dotInfo.element.classList.add('drag-over');
@@ -2867,8 +2892,9 @@ function checkAndAutoVerifyPassword() {
     }
   }
   
-  function endDraw(e) {
+  function handleTouchEnd(e) {
     e.preventDefault();
+    e.stopPropagation();
     clearDragOver();
     
     if (!isDrawing || verificationInProgress) {
@@ -2879,14 +2905,65 @@ function checkAndAutoVerifyPassword() {
     autoVerifyPattern();
   }
   
-  // Initialize pattern drawing events - FIXED FOR IPAD
+  // Mouse handlers for desktop
+  function handleMouseDown(e) {
+    e.preventDefault();
+    if (verificationInProgress) return;
+    isDrawing = true;
+    clearDragOver();
+    
+    const dotInfo = getDotFromMouse(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      updatePatternPreview();
+      lastAddedDot = dotInfo.dotNum;
+    }
+  }
+  
+  function handleMouseMove(e) {
+    if (!isDrawing || verificationInProgress) return;
+    e.preventDefault();
+    
+    const dotInfo = getDotFromMouse(e);
+    if (dotInfo) {
+      if (!patternSequence.includes(dotInfo.dotNum)) {
+        dotInfo.element.classList.add('drag-over');
+      }
+      
+      if (!patternSequence.includes(dotInfo.dotNum)) {
+        if (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum)) {
+          addDot(dotInfo.dotNum, dotInfo.element);
+        }
+      }
+    } else {
+      clearDragOver();
+    }
+  }
+  
+  function handleMouseUp(e) {
+    clearDragOver();
+    
+    if (!isDrawing || verificationInProgress) {
+      isDrawing = false;
+      return;
+    }
+    isDrawing = false;
+    autoVerifyPattern();
+  }
+  
+  // Attach events - FIXED for iPad
   if (patternGrid) {
-    patternGrid.addEventListener('mousedown', startDraw);
-    window.addEventListener('mousemove', draw);
-    window.addEventListener('mouseup', endDraw);
-    patternGrid.addEventListener('touchstart', startDraw, { passive: false });
-    window.addEventListener('touchmove', draw, { passive: false });
-    window.addEventListener('touchend', endDraw);
+    // Touch events for iPad (with proper options)
+    patternGrid.addEventListener('touchstart', handleTouchStart, { passive: false });
+    patternGrid.addEventListener('touchmove', handleTouchMove, { passive: false });
+    patternGrid.addEventListener('touchend', handleTouchEnd);
+    patternGrid.addEventListener('touchcancel', handleTouchEnd);
+    
+    // Mouse events for desktop
+    patternGrid.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
   }
   
   // Reset pattern button
@@ -2898,41 +2975,33 @@ function checkAndAutoVerifyPassword() {
     };
   }
   
-  // Password verification function
+  // Password verification
   function checkAndAutoVerifyPassword() {
     if (passwordInput.length === expectedLength) {
       if (passwordInput === expectedPass) {
-        passErrorDiv.textContent = '✅ Verified! Redirecting...';
+        passErrorDiv.textContent = '✅ Verified!';
         passErrorDiv.style.color = '#059669';
-        
-        if (window.navigator && window.navigator.vibrate) {
-          window.navigator.vibrate([10, 50, 10]);
-        }
         
         setTimeout(() => {
           modal.remove();
           if (callback) callback(true);
-        }, 500);
+        }, 300);
       } else {
         passErrorDiv.textContent = '❌ Incorrect password. Try again.';
         passErrorDiv.style.color = '#ef4444';
         passwordInput = '';
         if (passInput) passInput.value = '';
-        
-        if (window.navigator && window.navigator.vibrate) {
-          window.navigator.vibrate([50, 100, 50]);
-        }
       }
     }
   }
   
-  // Setup password number pad
   function setupPasswordMode() {
     if (!passInput) return;
     
     const numpadBtns = modal.querySelectorAll('[data-num]');
     numpadBtns.forEach(btn => {
-      btn.onclick = () => {
+      btn.onclick = (e) => {
+        e.preventDefault();
         const num = btn.dataset.num;
         if (num === 'clear') {
           passwordInput = passwordInput.slice(0, -1);
@@ -2955,7 +3024,7 @@ function checkAndAutoVerifyPassword() {
     }
   }
   
-  // Switch between pattern and password modes - FIXED
+  // Switch between modes
   if (switchModeBtn) {
     switchModeBtn.onclick = (e) => {
       e.preventDefault();
@@ -3003,6 +3072,7 @@ function checkAndAutoVerifyPassword() {
     document.body.style.overflow = '';
   });
 }
+
 
 // Password only modal - Auto-submit when 4 digits entered
 function showPasswordOnlyModal(staff, callback) {
