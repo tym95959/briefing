@@ -681,6 +681,7 @@ body.supervisor-mode #globalControlBar {
 }
 
 /* Pattern Lock Styles */
+/* Pattern Lock Styles - COMPLETE FIX */
 .pattern-modal {
   position: fixed;
   top: 0;
@@ -710,6 +711,118 @@ body.supervisor-mode #globalControlBar {
   margin-bottom: 0.5rem;
 }
 
+/* THIS IS THE IMPORTANT PART - GRID MUST BE DEFINED */
+.pattern-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 1rem !important;
+  width: 100%;
+  max-width: 280px;
+  margin: 1.5rem auto;
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 1.5rem;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pattern-dot {
+  aspect-ratio: 1;
+  background: #e2e8f0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 50px;
+  touch-action: none;
+}
+
+.pattern-dot.selected {
+  background: #b8860b;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 3px #fef3c7, 0 0 0 5px #b8860b;
+}
+
+.pattern-dot.selected::after {
+  content: "●";
+  color: white;
+  font-size: 1.5rem;
+}
+
+.pattern-dot.drag-over {
+  background: #d4a017;
+  transform: scale(1.05);
+}
+
+.pattern-preview {
+  text-align: center;
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+  color: #4a5568;
+  min-height: 2rem;
+  font-family: monospace;
+  letter-spacing: 4px;
+}
+
+.pattern-status {
+  text-align: center;
+  font-size: 0.8rem;
+  margin: 0.5rem 0;
+  padding: 0.3rem;
+  border-radius: 0.5rem;
+}
+
+.pattern-status.success {
+  color: #0f5c3b;
+  background: #d1fae5;
+}
+
+.pattern-status.error {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.pattern-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.pattern-buttons button {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 2rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reset-pattern-btn {
+  background: #6b7280;
+  color: white;
+}
+
+.cancel-pattern-btn {
+  background: #94a3b8;
+  color: white;
+}
+
+/* iPad touch improvements */
+@media (hover: none) and (pointer: coarse) {
+  .pattern-dot {
+    min-width: 70px;
+    min-height: 70px;
+  }
+  .pattern-grid {
+    gap: 1.2rem;
+    padding: 1.2rem;
+  }
+}
+
+/* Ensure pattern grid is touch-friendly */
 .pattern-grid {
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
@@ -975,12 +1088,29 @@ body.supervisor-mode #globalControlBar {
 
 /* Hide connecting lines between pattern dots */
 .pattern-dot {
-  position: relative;
+  aspect-ratio: 1;
+  background: #e2e8f0;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 /* Remove any line connections - pattern dots only, no lines */
 .pattern-grid {
-  position: relative;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 1rem !important;
+  width: 100%;
+  max-width: 280px;
+  margin: 1.5rem auto;
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 1.5rem;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Ensure no pseudo-elements create lines */
