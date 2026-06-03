@@ -4085,38 +4085,41 @@ function updateStaffContextDisplay() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    badge.onclick = (function(id, name) {
-      return function(e) {
-        e.stopPropagation();
-        console.log("Clicked staff ID:", id, "Name:", name);
+    // FIXED: Use both touch and mouse events for iPad
+    const handleClick = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Clicked staff ID:", staff.id, "Name:", staff.name);
+      
+      if (staffOnDutyIds.has(staff.id)) {
+        staffOnDutyIds.delete(staff.id);
+        showMessage(staff.name + " removed from SOD for " + currentDate);
+      } else {
+        staffOnDutyIds.add(staff.id);
+        showMessage(staff.name + " added to SOD for " + currentDate);
+      }
+      
+      console.log("Updated SOD IDs:", Array.from(staffOnDutyIds));
+      
+      saveToLocalStorage().then(() => {
+        renderAllSod();
+        renderAllocationPool();
+        initDailyStaffSelect();
         
-        if (staffOnDutyIds.has(id)) {
-          staffOnDutyIds.delete(id);
-          showMessage(name + " removed from SOD for " + currentDate);
-        } else {
-          staffOnDutyIds.add(id);
-          showMessage(name + " added to SOD for " + currentDate);
+        if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
+          loadCompleteStaffDashboard();
+          renderDailyTasksUI();
         }
-        
-        console.log("Updated SOD IDs:", Array.from(staffOnDutyIds));
-        
-        saveToLocalStorage().then(() => {
-          renderAllSod();
-          renderAllocationPool();
-          initDailyStaffSelect();
-          
-          if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
-            loadCompleteStaffDashboard();
-            renderDailyTasksUI();
-          }
-        });
-      };
-    })(staff.id, staff.name);
+      });
+    };
+    
+    // Add both event listeners for iPad compatibility
+    badge.addEventListener('click', handleClick);
+    badge.addEventListener('touchstart', handleClick, { passive: false });
     
     container.appendChild(badge);
   });
 }
-
 
 function initMainTabs() {
   const staffPane = document.getElementById("staffMainPane");
@@ -4151,12 +4154,22 @@ function initMainTabs() {
     });
   }
   
-  // Re-attach click handlers
-  document.querySelectorAll(".main-tab-btn").forEach(btn => {
-    btn.onclick = () => switchTab(btn.dataset.tab);
+  // Remove all existing listeners and add fresh ones for iPad
+  const btns = document.querySelectorAll(".main-tab-btn");
+  btns.forEach(btn => {
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    const handleTabClick = function(e) {
+      e.preventDefault();
+      switchTab(this.dataset.tab);
+    };
+    newBtn.addEventListener('click', handleTabClick);
+    newBtn.addEventListener('touchstart', handleTabClick, { passive: false });
   });
-}
-  function renderAllocationPool() {
+}  
+
+function renderAllocationPool() {
   const container = document.getElementById("allocationPoolContainer");
   if (!container || !supervisorLoggedIn) return;
   
