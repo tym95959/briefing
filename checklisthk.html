@@ -2588,7 +2588,6 @@ function initDailyStaffSelect() {
     select.innerHTML = '<option value="">-- No staff on duty --</option>';
     const nameSpan = document.getElementById("dailyTaskSelectedName");
     if (nameSpan) nameSpan.textContent = "⚠️ No staff on duty today";
-    // Also update the self select dropdown
     const selfSelect = document.getElementById("staffSelfSelect");
     if (selfSelect) {
       selfSelect.innerHTML = '<option value="">-- No staff on duty --</option>';
@@ -2597,7 +2596,6 @@ function initDailyStaffSelect() {
     select.innerHTML = '<option value="">-- Select Staff --</option>' + 
       sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
     
-    // Also update the break request dropdown
     const selfSelect = document.getElementById("staffSelfSelect");
     if (selfSelect) {
       selfSelect.innerHTML = '<option value="">-- Select --</option>' + 
@@ -2634,6 +2632,18 @@ function initDailyStaffSelect() {
     if (authenticatedStaffId === selectedStaffId) {
       document.getElementById("dailyTaskSelectedName").textContent = `✓ ${selectedStaff.name} (Verified)`;
       renderDailyTasksUI();
+      
+      // ========== ADD THIS SCROLL CODE HERE ==========
+      // Auto-scroll to tasks after verification is confirmed
+      setTimeout(() => {
+        const tasksContainer = document.getElementById("dailyMainTasksContainer");
+        if (tasksContainer) {
+          tasksContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          showMessage(`✓ Welcome ${selectedStaff.name} - Scrolled to tasks`, "success");
+        }
+      }, 300);
+      // ========== END SCROLL CODE ==========
+      
       return;
     }
     
@@ -2651,6 +2661,18 @@ function initDailyStaffSelect() {
         document.getElementById("dailyTaskSelectedName").textContent = `✓ ${selectedStaff.name} (Verified)`;
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
+        
+        // ========== ADD THIS SCROLL CODE HERE ==========
+        // Auto-scroll to tasks after successful verification
+        setTimeout(() => {
+          const tasksContainer = document.getElementById("dailyMainTasksContainer");
+          if (tasksContainer) {
+            tasksContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            showMessage(`📋 Scrolled to daily tasks for ${selectedStaff.name}`, "success");
+          }
+        }, 300);
+        // ========== END SCROLL CODE ==========
+        
       } else {
         select.value = "";
         authenticatedStaffId = null;
@@ -2662,7 +2684,6 @@ function initDailyStaffSelect() {
     });
   };
 }
-
 
 
 // Show verification - Pattern first, with option to switch to password
