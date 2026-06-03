@@ -689,6 +689,10 @@ body.supervisor-mode #globalControlBar {
 .profile-message.error {
   color: #c0392b;
 }
+
+#newPatternGrid {
+  touch-action: none !important;
+}
 </style>
 
 
@@ -1159,64 +1163,102 @@ async function showProfileModal(staff) {
   const newPatternPreview = modal.querySelector('#newPatternPreview');
   const newDots = modal.querySelectorAll('#newPatternGrid .pattern-dot');
   
-  let newPatternSequence = [];
-  let isDrawingNew = false;
-  let patternDrawListenersAttached = false;
-  
-  function resetNewPatternDrawing() {
-    newPatternSequence = [];
-    newDots.forEach(dot => dot.classList.remove('selected'));
-    newPatternPreview.textContent = 'Draw your pattern...';
+let newPatternSequence = [];
+let isDrawingNew = false;
+let lastAddedDot = null;
+const patternDebug = modal.querySelector('#patternDebug') || { textContent: '' };
+
+function updatePatternDebug() {
+  if (patternDebug) {
+    patternDebug.textContent = `Dots: ${newPatternSequence.join(',') || 'none'} (${newPatternSequence.length})`;
   }
-  
-  function updateNewPatternPreview() {
-    if (newPatternSequence.length === 0) {
-      newPatternPreview.textContent = 'Draw your pattern...';
-    } else {
-      newPatternPreview.textContent = newPatternSequence.map(n => '●').join(' → ');
+}
+
+function resetNewPatternDrawing() {
+  newPatternSequence = [];
+  lastAddedDot = null;
+  newDots.forEach(dot => dot.classList.remove('selected'));
+  newPatternPreview.textContent = 'Draw your pattern...';
+  updatePatternDebug();
+}
+
+function getNewDotFromEvent(e) {
+  e.preventDefault();
+  const rect = newPatternGrid.getBoundingClientRect();
+  let clientX, clientY;
+  if (e.touches && e.touches.length > 0) {
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
+  } else if (e.changedTouches && e.changedTouches.length > 0) {
+    clientX = e.changedTouches[0].clientX;
+    clientY = e.changedTouches[0].clientY;
+  } else {
+    clientX = e.clientX;
+    clientY = e.clientY;
+  }
+  for (let dot of newDots) {
+    const dotRect = dot.getBoundingClientRect();
+    // Add more tolerance for fat fingers
+    const tolerance = 25;
+    if (clientX >= dotRect.left - tolerance && clientX <= dotRect.right + tolerance &&
+        clientY >= dotRect.top - tolerance && clientY <= dotRect.bottom + tolerance) {
+      return { dotNum: parseInt(dot.dataset.num), element: dot };
     }
   }
-  
-  function getNewDotFromEvent(e) {
-    const rect = newPatternGrid.getBoundingClientRect();
-    let clientX, clientY;
-    if (e.touches) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
-    else { clientX = e.clientX; clientY = e.clientY; }
-    for (let dot of newDots) {
-      const dotRect = dot.getBoundingClientRect();
-      if (clientX >= dotRect.left && clientX <= dotRect.right && clientY >= dotRect.top && clientY <= dotRect.bottom) {
-        return { dotNum: parseInt(dot.dataset.num), element: dot };
-      }
-    }
-    return null;
+  return null;
+}
+
+function areAdjacent(a, b) {
+  if (!a || !b) return true;
+  const rowA = Math.ceil(a / 3), colA = ((a - 1) % 3) + 1;
+  const rowB = Math.ceil(b / 3), colB = ((b - 1) % 3) + 1;
+  return Math.abs(rowA - rowB) <= 1 && Math.abs(colA - colB) <= 1;
+}
+
+function startNewDraw(e) {
+  e.preventDefault();
+  if (isDrawingNew) return;
+  isDrawingNew = true;
+  const dotInfo = getNewDotFromEvent(e);
+  if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
+    newPatternSequence = [dotInfo.dotNum];
+    dotInfo.element.classList.add('selected');
+    lastAddedDot = dotInfo.dotNum;
+    newPatternPreview.textContent = newPatternSequence.map(() => '●').join(' → ');
+    updatePatternDebug();
   }
-  
-  function startNewDraw(e) {
-    e.preventDefault();
-    isDrawingNew = true;
-    const dotInfo = getNewDotFromEvent(e);
-    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
-      newPatternSequence = [dotInfo.dotNum];
-      dotInfo.element.classList.add('selected');
-      updateNewPatternPreview();
-    }
-  }
-  
-  function drawNew(e) {
-    e.preventDefault();
-    if (!isDrawingNew) return;
-    const dotInfo = getNewDotFromEvent(e);
-    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
+}
+
+function drawNew(e) {
+  e.preventDefault();
+  if (!isDrawingNew) return;
+  const dotInfo = getNewDotFromEvent(e);
+  if (dotInfo) {
+    if (!newPatternSequence.includes(dotInfo.dotNum) && 
+        (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum))) {
       newPatternSequence.push(dotInfo.dotNum);
       dotInfo.element.classList.add('selected');
-      updateNewPatternPreview();
+      lastAddedDot = dotInfo.dotNum;
+      newPatternPreview.textContent = newPatternSequence.map(() => '●').join(' → ');
+      updatePatternDebug();
+    } else if (!newPatternSequence.includes(dotInfo.dotNum)) {
+      // Not adjacent – ignore, but show feedback
+      if (patternDebug) patternDebug.style.color = 'orange';
+      setTimeout(() => { if(patternDebug) patternDebug.style.color = ''; }, 300);
     }
   }
-  
-  function endNewDraw(e) {
-    e.preventDefault();
-    isDrawingNew = false;
+}
+
+function endNewDraw(e) {
+  e.preventDefault();
+  isDrawingNew = false;
+  if (newPatternSequence.length >= 3) {
+    newPatternPreview.innerHTML += ' ✅ Ready to save';
+    if (patternDebug) patternDebug.style.color = 'green';
+  } else if (newPatternSequence.length > 0) {
+    if (patternDebug) patternDebug.textContent += ' (need at least 3 dots)';
   }
+}
   
   function cleanupNewPatternDrawListeners() {
     if (patternDrawListenersAttached) {
@@ -1262,15 +1304,16 @@ async function showProfileModal(staff) {
   
   // Save pattern with timeout and proper error handling
   savePatternBtn.onclick = async () => {
-    if (newPatternSequence.length < 3) {
-      patternMsg.textContent = '❌ Pattern must have at least 3 dots';
-      patternMsg.className = 'profile-message error';
-      return;
-    }
-    const newPattern = patternToString(newPatternSequence);
-    patternMsg.textContent = '⏳ Saving pattern...';
-    patternMsg.className = 'profile-message';
-    savePatternBtn.disabled = true;
+  if (newPatternSequence.length < 3) {
+    patternMsg.textContent = `❌ Pattern must have at least 3 dots (you have ${newPatternSequence.length})`;
+    patternMsg.className = 'profile-message error';
+    return;
+  }
+  const newPattern = patternToString(newPatternSequence);
+  console.log('Saving pattern for', staff.name, ':', newPattern);
+  patternMsg.textContent = `⏳ Saving pattern: ${newPattern} ...`;
+  patternMsg.className = 'profile-message';
+  savePatternBtn.disabled = true;
     
     // Set a timeout to prevent infinite hang
     const timeoutPromise = new Promise((_, reject) => 
