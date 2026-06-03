@@ -3381,7 +3381,7 @@ async function syncStaffViewWithSupervisor() {
   
   // Load data without triggering another sync
   await loadFromLocalStorageInternal();
-  await loadDailyTasksInternal();
+  await loadDailyTasks(); 
   
   renderBreakTimeBadges();
   loadCompleteStaffDashboard();
@@ -3434,7 +3434,7 @@ function renderSupervisorAttendanceDashboard() {
           <small>🕐 <strong>Reported:</strong> ${rec.reportedDate || rec.date} at ${rec.reportedTime || '—'}</small>
         </div>
         <div style="margin-top: 0.5rem;">
-          <button class="super-delete-attendance" data-staff="${rec.staffId}" data-date="${rec.date}" style="background: #ef4444; color: white; border: none; border-radius: 0.5rem; padding: 0.2rem 0.5rem; font-size: 0.7rem; cursor: pointer;">🗑️ Delete</button>
+          <button class="super-delete-attendance" data-staff="${rec.staffId}" data-date="${rec.date}" style="background: #ef4444; color: white; border: none; border-radius: 0.5rem; padding: 0.2rem 0.5rem; font-size: 0.7rem;">🗑️ Delete</button>
         </div>
       </div>`;
     }).join('');
@@ -3444,14 +3444,19 @@ function renderSupervisorAttendanceDashboard() {
   renderList(evening, "superEveningList");
   renderList(night, "superNightList");
   
-  // Attach delete handlers
+  // FIX: Use event delegation for delete buttons (works on iPad)
   document.querySelectorAll('.super-delete-attendance').forEach(btn => {
-    btn.onclick = (e) => {
+    // Remove any existing listeners first
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    newBtn.onclick = (e) => {
+      e.preventDefault();
       e.stopPropagation();
       if (confirm("Delete this attendance record?")) {
-        deleteAttendanceRecord(btn.dataset.staff, btn.dataset.date);
+        deleteAttendanceRecord(newBtn.dataset.staff, newBtn.dataset.date);
         renderSupervisorAttendanceDashboard();
-        loadAllStaffAttendance(); // Update staff view too
+        loadAllStaffAttendance();
         showMessage("Attendance record deleted");
       }
     };
@@ -4751,6 +4756,7 @@ async function saveToLocalStorage() {
 }
   
 // Internal version that doesn't trigger UI refresh (to prevent loops)
+// Move THIS entire function UP before line 2480
 async function loadFromLocalStorageInternal() {
   try {
     const docRef = db.collection("staffManagement").doc(currentDate);
@@ -4788,7 +4794,6 @@ async function loadFromLocalStorageInternal() {
       
       return true;
     } else {
-      // Initialize empty state
       allocations.clear();
       staffOnDutyIds.clear();
       attendanceRecords.clear();
@@ -5019,18 +5024,20 @@ function populateDropdowns() {
   
   // FIX: Proper event binding for buttons
   const requestBtn = document.getElementById("requestBreakBtn");
-  if (requestBtn) {
-    const newRequestBtn = requestBtn.cloneNode(true);
-    requestBtn.parentNode.replaceChild(newRequestBtn, requestBtn);
-    newRequestBtn.onclick = submitBreakRequest;
-  }
-  
-  const addBtn = document.getElementById("addAttendanceBtn");
-  if (addBtn) {
-    const newAddBtn = addBtn.cloneNode(true);
-    addBtn.parentNode.replaceChild(newAddBtn, addBtn);
-    newAddBtn.onclick = addAttendanceFromForm;
-  }
+if (requestBtn) {
+  requestBtn.onclick = function(e) {
+    if (e) e.preventDefault();
+    submitBreakRequest();
+  };
+}
+
+const addBtn = document.getElementById("addAttendanceBtn");
+if (addBtn) {
+  addBtn.onclick = function(e) {
+    if (e) e.preventDefault();
+    addAttendanceFromForm(e);
+  };
+}
   
   const clearBtn = document.getElementById("clearSelectionBtn");
   if (clearBtn) {
