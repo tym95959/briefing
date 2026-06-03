@@ -22,21 +22,21 @@ body {
   background: linear-gradient(135deg, #fff8e7 0%, #fdf0d0 100%);
   font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   min-height: 100vh;
-  padding: 1.5rem;
-  overflow-y: auto !important;  /* ADD THIS - ensures body can scroll */
-  height: auto !important;      /* ADD THIS - allows natural height */
+  padding: 1rem;
+  overflow-y: auto !important;
+  height: auto !important;
 }
 
 .app-container {
   max-width: 1600px;
   margin: 0 auto;
   background: rgba(255,252,240,0.98);
-  border-radius: 2rem;
+  border-radius: 1.5rem;
   box-shadow: 0 25px 45px -12px rgba(184, 134, 11, 0.25);
   overflow: hidden;
   border: 1px solid #f0d890;
-  height: auto !important;      /* ADD THIS - prevents fixed height */
-  min-height: auto !important;  /* ADD THIS - allows natural growth */
+  height: auto !important;
+  min-height: auto !important;
 }
 
 .main-tabs {
@@ -255,14 +255,15 @@ button:hover {
   border-collapse: collapse;
   background: white;
   border-radius: 1rem;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  overflow-x: auto;
+  display: block;
 }
 
 .allocation-table th, .allocation-table td {
   border: 1px solid #e2e8f0;
-  padding: 0.8rem;
+  padding: 0.6rem;
   vertical-align: top;
+  font-size: 0.8rem;
 }
 
 .allocation-table th {
@@ -289,20 +290,19 @@ button:hover {
 
 .attendance-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
   margin-bottom: 1.5rem;
-  overflow-y: visible !important; /* ADD THIS */
 }
 
 .attendance-card {
   background: white;
-  border-radius: 1.2rem;
-  padding: 1.2rem;
+  border-radius: 1rem;
+  padding: 1rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   border: 1px solid #e2e8f0;
-  max-height: none !important;  /* ADD THIS - remove any height limit */
-  overflow-y: visible !important;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .card-title {
@@ -1054,29 +1054,39 @@ body.supervisor-mode #globalControlBar {
 
 /* Better touch targets for iPad */
 @media (max-width: 1024px) {
-  button, 
-  .staff-badge,
-  .pattern-dot,
-  .reset-pattern-btn,
-  .cancel-pattern-btn {
-    cursor: pointer;
-    touch-action: manipulation;
+  body {
+    padding: 0.5rem;
   }
   
-  .pattern-modal-content {
-    width: 95%;
-    max-width: 450px;
-    margin: 1rem;
+  .main-tab-pane {
+    padding: 1rem;
   }
   
-  .pattern-dot {
-    min-width: 70px !important;
-    min-height: 70px !important;
+  .control-row {
+    flex-direction: column;
+    align-items: stretch;
   }
   
-  .pattern-grid {
-    gap: 1.2rem !important;
-    padding: 1.2rem !important;
+  .control-row label {
+    min-width: auto;
+  }
+  
+  select, input, button {
+    width: 100%;
+  }
+  
+  .staff-badge {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    min-height: 44px;
+  }
+  
+  .allocation-table {
+    font-size: 0.7rem;
+  }
+  
+  .allocation-table th, .allocation-table td {
+    padding: 0.4rem;
   }
 }
 
@@ -3627,30 +3637,18 @@ let lastSyncShift = null;
 async function syncStaffViewWithSupervisor() {
   if (!supervisorLoggedIn) return;
   
-  // Prevent infinite sync loops - only sync if date/shift actually changed
-  if (lastSyncDate === currentDate && lastSyncShift === currentShift) {
-    console.log("⏭️ Skipping duplicate sync (same date/shift)");
-    return;
-  }
-  
-  lastSyncDate = currentDate;
-  lastSyncShift = currentShift;
-  
   console.log(`🔄 Syncing staff view - Date: ${currentDate}, Shift: ${currentShift}`);
   
   updateStaffDisplay();
   updateStaffContextDisplay();
   
-  // Load data without triggering another sync
-  await loadFromLocalStorageInternal();
+  await loadFromLocalStorage();
   await loadDailyTasks(); 
   
   renderBreakTimeBadges();
   loadCompleteStaffDashboard();
   initDailyStaffSelect();
   renderDailyTasksUI();
-  
-  console.log(`✅ Staff view synced to: ${currentDate} - ${currentShift}`);
 }
 
 
@@ -4454,9 +4452,6 @@ function renderAllSod() {
   const container = document.getElementById("allSodContainer");
   if (!container || !supervisorLoggedIn) return;
   
-  console.log("Rendering SOD for date:", currentDate);
-  console.log("Current staffOnDutyIds:", Array.from(staffOnDutyIds));
-  
   container.innerHTML = "";
   
   staffList.forEach(staff => {
@@ -4474,25 +4469,22 @@ function renderAllSod() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    // FIXED: Use a named function that can be referenced
-    const handleClick = function(e) {
+    badge.onclick = function(e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log("Clicked staff ID:", staff.id, "Name:", staff.name);
       
       if (staffOnDutyIds.has(staff.id)) {
         staffOnDutyIds.delete(staff.id);
-        showMessage(staff.name + " removed from SOD for " + currentDate);
+        showMessage(staff.name + " removed from SOD");
       } else {
         staffOnDutyIds.add(staff.id);
-        showMessage(staff.name + " added to SOD for " + currentDate);
+        showMessage(staff.name + " added to SOD");
       }
       
       saveToLocalStorage().then(() => {
         renderAllSod();
         renderAllocationPool();
         initDailyStaffSelect();
-        
         if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
           loadCompleteStaffDashboard();
           renderDailyTasksUI();
@@ -4500,17 +4492,10 @@ function renderAllSod() {
       });
     };
     
-    // Remove any existing listeners first
-    badge.removeEventListener('click', handleClick);
-    badge.removeEventListener('touchstart', handleClick);
-    
-    // Add fresh listeners
-    badge.addEventListener('click', handleClick);
-    badge.addEventListener('touchstart', handleClick);
-    
     container.appendChild(badge);
   });
 }
+
 
 
 function initMainTabs() {
@@ -5101,20 +5086,11 @@ async function loadFromLocalStorage() {
       
       if (d.staffOnDutyIds && d.staffOnDutyIds.length > 0) {
         staffOnDutyIds = new Set(d.staffOnDutyIds);
-        console.log(`✅ Loaded ${staffOnDutyIds.size} staff on duty for ${currentDate}:`, Array.from(staffOnDutyIds));
-        } else {
+        console.log(`✅ Loaded ${staffOnDutyIds.size} staff on duty`);
+      } else {
         staffOnDutyIds.clear();
-        console.log(`No staff on duty saved for ${currentDate}`);
-        // For testing: Add first 3 staff as on duty if none exist
-        if (staffList.length > 0 && !supervisorLoggedIn) {
-            console.log("No SOD found, adding test SODs");
-            staffOnDutyIds.add(staffList[0].id);
-            if (staffList[1]) staffOnDutyIds.add(staffList[1].id);
-            if (staffList[2]) staffOnDutyIds.add(staffList[2].id);
-        }
-        }
+      }
       
-      // Load shift from saved data only if supervisor is NOT logged in
       if (d.currentShift && !supervisorLoggedIn) {
         currentShift = d.currentShift;
       }
@@ -5128,44 +5104,22 @@ async function loadFromLocalStorage() {
         if (d.nextRequestId) nextRequestId = d.nextRequestId; 
       }
       
-      console.log(`✅ Loaded existing data for ${currentDate} from Firebase`);
-      // COMMENT OUT OR REMOVE THIS LINE:
-      // showMessage(`📅 Loaded data for ${currentDate} - ${staffOnDutyIds.size} staff on duty`, "success");
       return true;
-      
     } else {
-      console.log(`📅 New day: ${currentDate} - Starting fresh`);
-      // COMMENT OUT OR REMOVE THIS LINE:
-      // showMessage(`🆕 New day! Starting fresh for ${currentDate}`, "success");
-      
       allocations.clear();
       staffOnDutyIds.clear();
       attendanceRecords.clear();
       breakRequests.clear();
       selectedAllocationStaff.clear();
       nextRequestId = 1;
-      
-      MAIN_DAILY_TASKS.forEach(task => {
-        if (task.type === "signoff") task.signoffs = [];
-        if (task.type === "complete") task.completedBy = null;
-        if (task.type === "submission") task.submissions = [];
-      });
-      
-      FB_DAILY_TASKS.forEach(task => {
-        if (task.type === "signoff") task.signoffs = [];
-        if (task.type === "complete") task.completedBy = null;
-      });
-      
-      await saveDailyTasks();
-      await saveToLocalStorage();
       return false;
     }
   } catch (error) {
     console.error("❌ Firebase load error:", error);
-    showMessage("Failed to load from cloud: " + error.message, "error");
     return false;
   }
 }
+
 
 // Handle date changes - load data for new date
 // Handle date changes - load data for new date
