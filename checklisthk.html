@@ -2077,7 +2077,6 @@ async function refreshStaffCredentials() {
 }
 
 // Show Pattern Lock Modal
-// Show Pattern Lock Modal - Auto-verify on pattern complete
 function showPatternModal(staff, onSuccess, onCancel) {
   const existingModal = document.querySelector('.pattern-modal');
   if (existingModal) existingModal.remove();
@@ -2090,7 +2089,7 @@ function showPatternModal(staff, onSuccess, onCancel) {
       <h3>🎨 Pattern Lock</h3>
       <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
       <p style="font-size: 0.8rem; color: #666;">Draw your pattern by connecting dots</p>
-      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse when pattern is complete</p>
+      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse to verify automatically</p>
       
       <div class="pattern-grid" id="patternGrid">
         ${[1,2,3,4,5,6,7,8,9].map(i => `
@@ -2138,7 +2137,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
       width: 100%;
       min-width: 50px;
       touch-action: none;
-      -webkit-tap-highlight-color: transparent;
     }
     @media (max-width: 768px) {
       .pattern-dot {
@@ -2198,7 +2196,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
       cursor: pointer;
       font-size: 0.85rem;
       transition: all 0.2s;
-      touch-action: manipulation;
     }
     .reset-pattern-btn {
       background: #6b7280;
@@ -2210,15 +2207,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
     .reset-pattern-btn:active, .cancel-pattern-btn:active {
       transform: scale(0.96);
-    }
-    @media (hover: hover) {
-      .reset-pattern-btn:hover, .cancel-pattern-btn:hover {
-        opacity: 0.9;
-      }
-      .pattern-dot:hover {
-        background: #cbd5e1;
-        transform: scale(1.05);
-      }
     }
   `;
   document.head.appendChild(style);
@@ -2232,25 +2220,18 @@ function showPatternModal(staff, onSuccess, onCancel) {
   let verificationInProgress = false;
   let lastAddedDot = null;
   
-  // Helper to convert pattern array to string
   function patternToString(sequence) {
     return sequence.join(',');
   }
   
-  // Helper to update preview display
   function updatePreview() {
     if (patternSequence.length === 0) {
       previewSpan.textContent = '✨ Draw your pattern by connecting 3+ dots';
     } else {
-      const dotNumbers = patternSequence.map(n => {
-        const positions = {1:'⬆️',2:'⬆️',3:'⬆️',4:'⬅️',5:'●',6:'➡️',7:'⬇️',8:'⬇️',9:'⬇️'};
-        return positions[n] || '●';
-      });
-      previewSpan.innerHTML = `Pattern: ${dotNumbers.join(' → ')} <span style="color:#b8860b;">(${patternSequence.length} dots)</span>`;
+      previewSpan.innerHTML = `Pattern: ${patternSequence.map(() => '●').join(' → ')} <span style="color:#b8860b;">(${patternSequence.length} dots)</span>`;
     }
   }
   
-  // Helper to reset current drawing
   function resetDrawing() {
     patternSequence = [];
     lastAddedDot = null;
@@ -2261,7 +2242,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
     verificationInProgress = false;
   }
   
-  // Helper to add a dot to pattern
   function addDot(dotNum, element) {
     if (!patternSequence.includes(dotNum)) {
       patternSequence.push(dotNum);
@@ -2269,14 +2249,13 @@ function showPatternModal(staff, onSuccess, onCancel) {
       updatePreview();
       lastAddedDot = dotNum;
       
-      // Add haptic feedback for iPad (if supported)
+      // Haptic feedback for iPad
       if (window.navigator && window.navigator.vibrate) {
         window.navigator.vibrate(10);
       }
     }
   }
   
-  // Check if dots are adjacent (allowing diagonals)
   function areAdjacent(dot1, dot2) {
     const pos1 = { row: Math.ceil(dot1 / 3), col: ((dot1 - 1) % 3) + 1 };
     const pos2 = { row: Math.ceil(dot2 / 3), col: ((dot2 - 1) % 3) + 1 };
@@ -2285,8 +2264,8 @@ function showPatternModal(staff, onSuccess, onCancel) {
     return rowDiff <= 1 && colDiff <= 1;
   }
   
-  // Verify the pattern and close modal if correct
-  function verifyAndClose() {
+  // AUTO VERIFY - no button needed!
+  function autoVerifyAndSelect() {
     if (verificationInProgress) return;
     verificationInProgress = true;
     
@@ -2294,6 +2273,9 @@ function showPatternModal(staff, onSuccess, onCancel) {
       statusSpan.textContent = '❌ Pattern must have at least 3 dots';
       statusSpan.className = 'pattern-status error';
       verificationInProgress = false;
+      setTimeout(() => {
+        resetDrawing();
+      }, 1000);
       return;
     }
     
@@ -2301,30 +2283,26 @@ function showPatternModal(staff, onSuccess, onCancel) {
     const savedPattern = staff.pattern || '';
     
     if (enteredPattern === savedPattern) {
-      statusSpan.textContent = '✅ Pattern verified! Redirecting...';
+      statusSpan.textContent = '✅ Verified! Redirecting...';
       statusSpan.className = 'pattern-status success';
-      updatePreview();
       
-      // Add success haptic feedback
       if (window.navigator && window.navigator.vibrate) {
         window.navigator.vibrate([10, 50, 10]);
       }
       
       setTimeout(() => {
         modal.remove();
-        style.remove(); // Clean up injected styles
+        style.remove();
         if (onSuccess) onSuccess();
-      }, 600);
+      }, 500);
     } else {
-      statusSpan.textContent = '❌ Incorrect pattern! Try again.';
+      statusSpan.textContent = '❌ Wrong pattern! Try again.';
       statusSpan.className = 'pattern-status error';
       
-      // Add error haptic feedback
       if (window.navigator && window.navigator.vibrate) {
         window.navigator.vibrate([50, 100, 50]);
       }
       
-      // Flash the grid red
       grid.style.transition = 'background 0.2s';
       grid.style.background = '#fee2e2';
       setTimeout(() => {
@@ -2336,7 +2314,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   }
   
-  // Get dot from touch/mouse event with better iPad support
   function getDotFromEvent(e) {
     e.preventDefault();
     const rect = grid.getBoundingClientRect();
@@ -2355,7 +2332,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
     
     for (let dot of dots) {
       const dotRect = dot.getBoundingClientRect();
-      // Add padding for easier touch on iPad
       const padding = 15;
       if (clientX >= dotRect.left - padding && clientX <= dotRect.right + padding &&
           clientY >= dotRect.top - padding && clientY <= dotRect.bottom + padding) {
@@ -2365,12 +2341,10 @@ function showPatternModal(staff, onSuccess, onCancel) {
     return null;
   }
   
-  // Clear drag-over styling
   function clearDragOver() {
     dots.forEach(dot => dot.classList.remove('drag-over'));
   }
   
-  // Start drawing
   function startDraw(e) {
     e.preventDefault();
     if (verificationInProgress) return;
@@ -2379,12 +2353,6 @@ function showPatternModal(staff, onSuccess, onCancel) {
     
     const dotInfo = getDotFromEvent(e);
     if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
-      // Start new pattern
-      patternSequence = [dotInfo.dotNum];
-      dotInfo.element.classList.add('selected');
-      updatePreview();
-      lastAddedDot = dotInfo.dotNum;
-    } else if (dotInfo && patternSequence.length === 0) {
       patternSequence = [dotInfo.dotNum];
       dotInfo.element.classList.add('selected');
       updatePreview();
@@ -2392,19 +2360,16 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   }
   
-  // During drawing - supports smooth line drawing
   function draw(e) {
     e.preventDefault();
     if (!isDrawing || verificationInProgress) return;
     
     const dotInfo = getDotFromEvent(e);
     if (dotInfo) {
-      // Show drag-over effect
       if (!patternSequence.includes(dotInfo.dotNum)) {
         dotInfo.element.classList.add('drag-over');
       }
       
-      // Add dot if not already in sequence and adjacent to last dot
       if (!patternSequence.includes(dotInfo.dotNum)) {
         if (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum)) {
           addDot(dotInfo.dotNum, dotInfo.element);
@@ -2415,7 +2380,7 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
   }
   
-  // End drawing - AUTO VERIFY when user releases
+  // AUTO VERIFY on release - no button needed!
   function endDraw(e) {
     e.preventDefault();
     clearDragOver();
@@ -2426,81 +2391,53 @@ function showPatternModal(staff, onSuccess, onCancel) {
     }
     isDrawing = false;
     
-    // Auto-verify the pattern when drawing ends
-    if (patternSequence.length >= 3) {
-      verifyAndClose();
-    } else if (patternSequence.length > 0 && patternSequence.length < 3) {
-      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
-      statusSpan.className = 'pattern-status error';
-      setTimeout(() => {
-        resetDrawing();
-      }, 1000);
-    } else if (patternSequence.length === 0) {
-      statusSpan.textContent = '⚠️ Draw a pattern by connecting dots';
-      statusSpan.className = 'pattern-status error';
-      setTimeout(() => {
-        statusSpan.textContent = '';
-      }, 1500);
-    }
+    // Auto verify immediately when user releases
+    autoVerifyAndSelect();
   }
   
-  // Add event listeners for mouse (desktop)
+  // Mouse events
   grid.addEventListener('mousedown', startDraw);
   window.addEventListener('mousemove', draw);
   window.addEventListener('mouseup', endDraw);
   
-  // Add event listeners for touch (iPad/iPhone)
+  // Touch events for iPad
   grid.addEventListener('touchstart', startDraw, { passive: false });
   window.addEventListener('touchmove', draw, { passive: false });
   window.addEventListener('touchend', endDraw);
   
-  // Prevent touch scrolling on grid
   grid.addEventListener('touchmove', (e) => {
-    if (isDrawing) {
-      e.preventDefault();
-    }
+    if (isDrawing) e.preventDefault();
   }, { passive: false });
   
-  // Reset button
   modal.querySelector('#resetPatternBtn').onclick = (e) => {
     e.preventDefault();
     resetDrawing();
   };
   
-  // Cancel button
   modal.querySelector('#cancelPatternBtn').onclick = (e) => {
     e.preventDefault();
     modal.remove();
-    style.remove(); // Clean up injected styles
+    style.remove();
     if (onCancel) onCancel();
   };
   
-  // Prevent modal from closing when clicking inside
   modal.querySelector('.pattern-modal-content').onclick = (e) => {
     e.stopPropagation();
   };
   
-  // Close on outside click
   modal.onclick = (e) => {
     if (e.target === modal) {
       modal.remove();
-      style.remove(); // Clean up injected styles
+      style.remove();
       if (onCancel) onCancel();
     }
   };
   
-  // Handle iPad keyboard/toolbar issues
   document.body.style.overflow = 'hidden';
   modal.addEventListener('remove', () => {
     document.body.style.overflow = '';
   });
-  
-  // Auto-focus for accessibility
-  setTimeout(() => {
-    grid.focus();
-  }, 100);
 }
-
 // Update initDailyStaffSelect to auto-logout previous user
 function initDailyStaffSelect() {
   const select = document.getElementById("dailyTaskStaffSelect");
@@ -4396,101 +4333,99 @@ if (statusSelect) {
 
  
 // Function to show password modal with number pad
-function showPasswordModal(staff, callback) {
-  // Remove any existing modal
-  const existingModal = document.querySelector('.password-modal');
-  if (existingModal) existingModal.remove();
-  
+function showPasswordModal(staff, onSuccess, onCancel) {
   const modal = document.createElement('div');
   modal.className = 'password-modal';
-  
   let passwordInput = '';
+  const expectedPass = staff.pass || '1234';
+  const expectedLength = expectedPass.length;
   
   modal.innerHTML = `
     <div class="password-modal-content">
-      <h3>🔐 Verify Identity</h3>
-      <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
-      <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Enter your password to continue</p>
-      <input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off">
-      <div class="numpad" id="numpad">
-        <button data-num="1">1</button>
-        <button data-num="2">2</button>
-        <button data-num="3">3</button>
-        <button data-num="4">4</button>
-        <button data-num="5">5</button>
-        <button data-num="6">6</button>
-        <button data-num="7">7</button>
-        <button data-num="8">8</button>
-        <button data-num="9">9</button>
-        <button data-num="0">0</button>
-        <button data-num="clear" class="clear-pass">⌫ Clear</button>
+      <h3>🔑 Enter Password</h3>
+      <p><strong>${escapeHtml(staff.name)}</strong></p>
+      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Password will verify automatically when complete</p>
+      <input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off" 
+             style="width:100%; padding:0.8rem; margin:1rem 0; text-align:center; font-size:1.5rem; border-radius:1rem; border:1px solid #cbd5e1;">
+      <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1rem 0;">
+        ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 1rem; cursor: pointer;">${n}</button>`).join('')}
+        <button data-num="clear" class="clear-pass" style="padding: 0.8rem; background: #ef4444; color: white; border: none; border-radius: 1rem; cursor: pointer;">⌫</button>
       </div>
-      <div id="passError" class="password-error"></div>
-      <div style="margin-top: 1rem;">
-        <button class="submit-pass">✓ Submit</button>
-        <button class="cancel-pass">✗ Cancel</button>
-      </div>
+      <div id="passError" style="color:#ef4444; margin:0.5rem 0; text-align:center;"></div>
+      <button id="cancelPassBtn" style="width:100%; background:#94a3b8; padding:0.8rem; border:none; border-radius:1rem; cursor:pointer; color:white;">Cancel</button>
     </div>
   `;
-  
   document.body.appendChild(modal);
   
   const passInput = modal.querySelector('#passInput');
   const errorDiv = modal.querySelector('#passError');
   
-  // Number pad functionality
+  function checkAndAutoVerify() {
+    if (passwordInput.length === expectedLength) {
+      if (passwordInput === expectedPass) {
+        errorDiv.textContent = '✅ Verified! Redirecting...';
+        errorDiv.style.color = '#059669';
+        
+        if (window.navigator && window.navigator.vibrate) {
+          window.navigator.vibrate([10, 50, 10]);
+        }
+        
+        setTimeout(() => {
+          modal.remove();
+          if (onSuccess) onSuccess();
+        }, 500);
+      } else {
+        errorDiv.textContent = '❌ Incorrect password. Try again.';
+        errorDiv.style.color = '#ef4444';
+        passwordInput = '';
+        passInput.value = '';
+        
+        if (window.navigator && window.navigator.vibrate) {
+          window.navigator.vibrate([50, 100, 50]);
+        }
+      }
+    }
+  }
+  
   modal.querySelectorAll('[data-num]').forEach(btn => {
     btn.onclick = () => {
-      const num = btn.dataset.num;
-      if (num === 'clear') {
+      if (btn.dataset.num === 'clear') {
         passwordInput = passwordInput.slice(0, -1);
-      } else {
-        passwordInput += num;
+      } else if (passwordInput.length < expectedLength) {
+        passwordInput += btn.dataset.num;
       }
       passInput.value = '*'.repeat(passwordInput.length);
       errorDiv.textContent = '';
+      
+      // Auto verify when length matches expected
+      checkAndAutoVerify();
     };
   });
   
-  // Also allow keyboard input
-  passInput.oninput = (e) => {
-    passwordInput = e.target.value;
-    e.target.value = '*'.repeat(passwordInput.length);
-    errorDiv.textContent = '';
-  };
-  
-  // Submit button
-  modal.querySelector('.submit-pass').onclick = () => {
-    const expectedPass = staff.pass || '';
-    
-    if (passwordInput === expectedPass) {
-      modal.remove();
-      callback(true);
-    } else {
-      errorDiv.textContent = '❌ Incorrect password. Please try again.';
-      passwordInput = '';
-      passInput.value = '';
-      passInput.focus();
-      callback(false);
+  // Also support keyboard input
+  passInput.addEventListener('input', (e) => {
+    passwordInput = e.target.value.replace(/\*/g, '');
+    if (passwordInput.length === expectedLength) {
+      checkAndAutoVerify();
     }
+  });
+  
+  modal.querySelector('#cancelPassBtn').onclick = () => { 
+    modal.remove(); 
+    if (onCancel) onCancel(); 
   };
   
-  // Cancel button
-  modal.querySelector('.cancel-pass').onclick = () => {
-    modal.remove();
-    callback(false);
+  modal.onclick = (e) => { 
+    if (e.target === modal) { 
+      modal.remove(); 
+      if (onCancel) onCancel(); 
+    } 
   };
   
-  // Close on outside click
-  modal.onclick = (e) => {
-    if (e.target === modal) {
-      modal.remove();
-      callback(false);
-    }
-  };
-  
-  // Focus on input
-  setTimeout(() => passInput.focus(), 100);
+  // Auto-focus
+  setTimeout(() => {
+    passInput.focus();
+  }, 100);
 }
 
 // Add this function to set up periodic sync
