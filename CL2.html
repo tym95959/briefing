@@ -577,6 +577,8 @@ body.supervisor-mode #globalControlBar {
   }
 }
 
+
+
 @media print {
   body { padding: 0; margin: 0; background: white; }
   .main-tabs, #globalControlBar, .sub-tabs, .control-panel, .attendance-grid, footer, button, .message-toast, .staff-pool { display: none !important; }
@@ -1163,6 +1165,14 @@ function showSupervisorVerification(staff) {
         document.getElementById("superDashboard").style.display = "block";
         setGlobalControlsEnabled(true);
         refreshAllViews();
+        // ADD THESE LINES:
+        const attSelect = document.getElementById("attendanceStaffSelect");
+        if (attSelect) {
+        const fixedSelect = fixSelectForIPad(attSelect);
+        // Re‑populate the fixed select (preserve options)
+        fixedSelect.innerHTML = '<option value="">-- Select Staff --</option>' +
+            staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+        }
         showMessage(`✅ Welcome Supervisor ${staff.name}`);
       } else {
         if (errorMsg) errorMsg.textContent = '❌ Incorrect password. Try again.';
@@ -2074,6 +2084,24 @@ function setGlobalControlsEnabled(en) { document.getElementById("globalDate").di
 
 function logoutSupervisor() { supervisorLoggedIn = false; supervisorAuthStaffId = null; document.body.classList.remove('supervisor-mode'); document.getElementById("superAuthArea").style.display = "block"; document.getElementById("superDashboard").style.display = "none"; document.getElementById("supervisorSelect").value = ""; document.getElementById("superVerificationContainer").innerHTML = ""; document.getElementById("superVerificationArea").style.display = "none"; setGlobalControlsEnabled(false); selectedAllocationStaff.clear(); showMessage("Supervisor logged out"); if (document.getElementById("staffMainPane").classList.contains("active-pane")) { loadCompleteStaffDashboard(); renderDailyTasksUI(); } }
 
+function fixSelectForIPad(selectElement) {
+  if (!selectElement) return;
+  // Store current value before replacing
+  const currentValue = selectElement.value;
+  const parent = selectElement.parentNode;
+  const clone = selectElement.cloneNode(true);
+  // Re‑apply any necessary attributes
+  clone.value = currentValue;
+  // Replace the original with clone to reset internal iOS state
+  parent.replaceChild(clone, selectElement);
+  // Add a touchstart handler that only stops propagation (no preventDefault)
+  clone.addEventListener('touchstart', (e) => {
+    e.stopPropagation();  // Allow native behaviour to fire
+  }, { passive: true });
+  return clone;
+}
+
+
 function populateDropdowns() {
   initSupervisorLogin();
   
@@ -2091,8 +2119,12 @@ function populateDropdowns() {
   const timeInput = document.getElementById("attendanceTime");
   const leaveDateInput = document.getElementById("attendanceLeaveDate");
   
-  if (attSel) attSel.innerHTML = '<option value="">-- Select Staff --</option>' + staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
-  
+  if (attSel) {
+    const fixedSel = fixSelectForIPad(attSel);
+    fixedSel.innerHTML = '<option value="">-- Select Staff --</option>' +
+      staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  }
+
   if (statusSelect) {
     statusSelect.onchange = function() {
       const selectedStatus = this.value;
