@@ -4829,7 +4829,10 @@ function deleteBreakRequest(requestId) {
   }
 
   // REPLACE the entire renderBreakRequestsForSupervisor function (add this after handleBreakRequest)
+// REPLACE with this - the CORRECT renderBreakRequestsForSupervisor function
 function renderBreakRequestsForSupervisor() {
+  console.log("renderBreakRequestsForSupervisor called");
+  
   const pending = Array.from(breakRequests.values()).filter(r => {
     const staff = staffList.find(s => s.id === r.staffId);
     return r.status === "pending" && staff && staffOnDutyIds.has(r.staffId);
@@ -4842,13 +4845,18 @@ function renderBreakRequestsForSupervisor() {
   const pendingContainer = document.getElementById("pendingBreakRequestsList");
   const allContainer = document.getElementById("allBreakRequestsList");
   
+  if (!pendingContainer || !allContainer) {
+    console.log("Break request containers not found");
+    return;
+  }
+  
   if (pendingContainer) {
     pendingContainer.innerHTML = pending.map(r => `
-      <div style="background:#fef3c7; border-radius:0.8rem; padding:1rem; margin-bottom:0.5rem;" data-request-id="${r.id}">
+      <div style="background:#fef3c7; border-radius:0.8rem; padding:1rem; margin-bottom:0.5rem;">
         <strong>${escapeHtml(r.staffName)}</strong> - ${r.breakTime}
         <br>
-        <button class="approve-btn" data-id="${r.id}" style="background:#0f5c3b; margin-top:0.5rem; padding:0.5rem 1rem; border:none; border-radius:0.5rem; color:white; min-height:44px; touch-action:manipulation;">Approve</button>
-        <button class="reject-btn" data-id="${r.id}" style="background:#9e2d2f; margin-top:0.5rem; padding:0.5rem 1rem; border:none; border-radius:0.5rem; color:white; min-height:44px; touch-action:manipulation;">Reject</button>
+        <button class="approve-btn" data-id="${r.id}" style="background:#0f5c3b; margin-top:0.5rem; padding:0.5rem 1rem; border:none; border-radius:0.5rem; color:white; min-height:44px;">Approve</button>
+        <button class="reject-btn" data-id="${r.id}" style="background:#9e2d2f; margin-top:0.5rem; padding:0.5rem 1rem; border:none; border-radius:0.5rem; color:white; min-height:44px;">Reject</button>
       </div>
     `).join('') || "<div>No pending requests</div>";
   }
@@ -4858,127 +4866,36 @@ function renderBreakRequestsForSupervisor() {
       <div style="background:${r.status === 'approved' ? '#d1fae5' : (r.status === 'rejected' ? '#fee2e2' : '#fef3c7')}; border-radius:0.8rem; padding:0.8rem; margin-bottom:0.5rem;">
         <strong>${escapeHtml(r.staffName)}</strong> - ${r.breakTime}
         <br><small>${r.status}</small>
-        ${r.status === 'rejected' ? `<button class="delete-break-btn" data-id="${r.id}" style="background:#ef4444; color:white; border:none; padding:0.3rem 0.8rem; border-radius:0.5rem; margin-left:0.5rem; min-height:44px; touch-action:manipulation;">Delete</button>` : ''}
+        ${r.status === 'rejected' ? `<button class="delete-break-btn" data-id="${r.id}" style="background:#ef4444; color:white; border:none; padding:0.3rem 0.8rem; border-radius:0.5rem; margin-left:0.5rem; min-height:44px;">Delete</button>` : ''}
       </div>
     `).join('');
   }
   
-  // Use event delegation for buttons
-  if (pendingContainer) {
-    pendingContainer.onclick = function(e) {
-      const target = e.target;
-      if (target.classList.contains('approve-btn')) {
-        e.preventDefault();
-        handleBreakRequest(parseInt(target.dataset.id), 'approved');
-      } else if (target.classList.contains('reject-btn')) {
-        e.preventDefault();
-        handleBreakRequest(parseInt(target.dataset.id), 'rejected');
-      }
+  // Attach event listeners
+  document.querySelectorAll('.approve-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleBreakRequest(parseInt(btn.dataset.id), 'approved');
     };
-    pendingContainer.ontouchstart = function(e) {
-      const target = e.target;
-      if (target.classList.contains('approve-btn')) {
-        e.preventDefault();
-        handleBreakRequest(parseInt(target.dataset.id), 'approved');
-      } else if (target.classList.contains('reject-btn')) {
-        e.preventDefault();
-        handleBreakRequest(parseInt(target.dataset.id), 'rejected');
-      }
-    };
-  }
+  });
   
-  if (allContainer) {
-    allContainer.onclick = function(e) {
-      const target = e.target;
-      if (target.classList.contains('delete-break-btn')) {
-        e.preventDefault();
-        deleteBreakRequest(parseInt(target.dataset.id));
-      }
+  document.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleBreakRequest(parseInt(btn.dataset.id), 'rejected');
     };
-    allContainer.ontouchstart = function(e) {
-      const target = e.target;
-      if (target.classList.contains('delete-break-btn')) {
-        e.preventDefault();
-        deleteBreakRequest(parseInt(target.dataset.id));
-      }
+  });
+  
+  document.querySelectorAll('.delete-break-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      deleteBreakRequest(parseInt(btn.dataset.id));
     };
-  }
+  });
 }
-
-  // REPLACE the entire addAttendanceFromForm function
-function addAttendanceFromForm(e) {
-  if (e) e.preventDefault();
-  
-  const staffId = document.getElementById("attendanceStaffSelect").value;
-  if (!staffId) { 
-    showMessage("Select staff", "error"); 
-    return; 
-  }
-  
-  const status = document.getElementById("attendanceStatus").value;
-  const dutyShift = document.getElementById("attendanceDutyShift").value;
-  const reasonSelect = document.getElementById("attendanceReason");
-  const reportedDate = document.getElementById("attendanceReportedDate").value;
-  const reportedTime = document.getElementById("attendanceTime").value;
-  const leaveDate = document.getElementById("attendanceLeaveDate").value;
-  
-  if (!reportedDate) {
-    showMessage("Please select reported date", "error");
-    return;
-  }
-  if (!reportedTime) {
-    showMessage("Please select reported time", "error");
-    return;
-  }
-  
-  let reason = "";
-  let notes = "";
-  
-  if (status === "Sick Leave" || status === "FRL") {
-    reason = reasonSelect.value;
-    if (!reason) {
-      showMessage(`Please select a reason for ${status}`, "error");
-      return;
-    }
-    notes = `Reason: ${reason}`;
-  }
-  
-  if (leaveDate) {
-    notes += (notes ? " | " : "") + `Leave Date: ${leaveDate}`;
-  }
-  
-  notes += (notes ? " | " : "") + `Reported: ${reportedDate} ${reportedTime}`;
-  
-  const record = {
-    staffId,
-    date: currentDate,
-    status,
-    dutyShift,
-    reportedDate,
-    reportedTime,
-    leaveDate: leaveDate || currentDate,
-    reason: reason || null,
-    notes,
-    recordedAt: new Date().toISOString()
-  };
-  
-  attendanceRecords.set(getAttendanceKey(staffId, currentDate), record);
-  saveToLocalStorage();
-  
-  renderSupervisorAttendanceDashboard();
-  loadAllStaffAttendance();
-  renderAttendanceDashboard();
-  
-  showMessage(`✅ ${status} recorded for ${staffList.find(s => s.id === staffId)?.name}`);
-  
-  // Reset form
-  if (reasonSelect) reasonSelect.value = "";
-  const reasonContainer = document.getElementById("reasonContainer");
-  if (reasonContainer) reasonContainer.style.display = "none";
-  const leaveDateInput = document.getElementById("attendanceLeaveDate");
-  if (leaveDateInput) leaveDateInput.value = new Date().toISOString().split('T')[0];
-}
-
 
   function getSodStaffNames() {
   const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id));
@@ -5383,9 +5300,20 @@ if (requestBtn) {
   };
 }
 
+// Find this section in populateDropdowns and replace:
 const addBtn = document.getElementById("addAttendanceBtn");
 if (addBtn) {
-  addBtn.onclick = function(e) {
+  // Remove old listeners
+  const newAddBtn = addBtn.cloneNode(true);
+  addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+  
+  newAddBtn.onclick = function(e) {
+    console.log("Add Attendance button clicked");
+    if (e) e.preventDefault();
+    addAttendanceFromForm(e);
+  };
+  newAddBtn.ontouchstart = function(e) {
+    console.log("Add Attendance button touched");
     if (e) e.preventDefault();
     addAttendanceFromForm(e);
   };
