@@ -5373,101 +5373,110 @@ gs.onchange = async (e) => {
 function populateDropdowns() {
   initSupervisorLogin();
   
+  // Get references to all elements FIRST
   const attSel = document.getElementById("attendanceStaffSelect");
+  const statusSelect = document.getElementById("attendanceStatus");
+  const reasonContainer = document.getElementById("reasonContainer");
+  const reasonSelect = document.getElementById("attendanceReason");
+  const requestBtn = document.getElementById("requestBreakBtn");
+  const addBtn = document.getElementById("addAttendanceBtn");
+  const clearBtn = document.getElementById("clearSelectionBtn");
+  const printAllocBtn = document.getElementById("printAllocationBtn");
+  const printReportBtn = document.getElementById("printDailyReportBtn");
+  
+  // Populate staff dropdown
   if (attSel) {
     attSel.innerHTML = '<option value="">-- Select --</option>' + staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
   }
   
-  // FIX: Proper event binding for buttons
-  const requestBtn = document.getElementById("requestBreakBtn");
-if (requestBtn) {
-  requestBtn.onclick = function(e) {
-    if (e) e.preventDefault();
-    submitBreakRequest();
-  };
-}
-
-// In populateDropdowns, replace the statusSelect.onchange with:
-if (statusSelect) {
-  statusSelect.onchange = function() {
-    const selectedStatus = this.value;
-    const reasonSelect = document.getElementById("attendanceReason");
-    reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>';
-    reasonSelect.value = "";
+  // Setup attendance status change handler BEFORE trying to use it
+  if (statusSelect) {
+    statusSelect.onchange = function() {
+      const selectedStatus = this.value;
+      if (reasonSelect) {
+        reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>';
+        reasonSelect.value = "";
+      }
+      
+      if (selectedStatus === "Sick Leave" || selectedStatus === "FRL") {
+        const reasons = PRESET_REASONS[selectedStatus] || [];
+        if (reasonSelect) {
+          reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>' + 
+            reasons.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+        }
+        if (reasonContainer) reasonContainer.style.display = "block";
+      } else {
+        if (reasonContainer) reasonContainer.style.display = "none";
+      }
+    };
+  }
+  
+  // Setup break request button
+  if (requestBtn) {
+    requestBtn.onclick = function(e) {
+      if (e) e.preventDefault();
+      submitBreakRequest();
+    };
+  }
+  
+  // Setup add attendance button
+  if (addBtn) {
+    const newAddBtn = addBtn.cloneNode(true);
+    addBtn.parentNode.replaceChild(newAddBtn, addBtn);
     
-    if (selectedStatus === "Sick Leave" || selectedStatus === "FRL") {
-      const reasons = PRESET_REASONS[selectedStatus] || [];
-      reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>' + 
-        reasons.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
-      document.getElementById("reasonContainer").style.display = "block";
-    } else {
-      document.getElementById("reasonContainer").style.display = "none";
-    }
-  };
-}
-
-// Find this section in populateDropdowns and replace:
-const addBtn = document.getElementById("addAttendanceBtn");
-if (addBtn) {
-  // Remove old listeners
-  const newAddBtn = addBtn.cloneNode(true);
-  addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+    newAddBtn.onclick = function(e) {
+      console.log("Add Attendance button clicked");
+      if (e) e.preventDefault();
+      addAttendanceFromForm(e);
+    };
+    newAddBtn.ontouchstart = function(e) {
+      console.log("Add Attendance button touched");
+      if (e) e.preventDefault();
+      addAttendanceFromForm(e);
+    };
+  }
   
-  newAddBtn.onclick = function(e) {
-    console.log("Add Attendance button clicked");
-    if (e) e.preventDefault();
-    addAttendanceFromForm(e);
-  };
-  newAddBtn.ontouchstart = function(e) {
-    console.log("Add Attendance button touched");
-    if (e) e.preventDefault();
-    addAttendanceFromForm(e);
-  };
-}
-  
-  const clearBtn = document.getElementById("clearSelectionBtn");
-    if (clearBtn) {
-    // Remove old listeners by cloning
+  // Setup clear selection button
+  if (clearBtn) {
     const newClearBtn = clearBtn.cloneNode(true);
     clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
     
     const handleClear = function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        selectedAllocationStaff.clear();
-        renderAllocationPool();
-        showMessage("Selection cleared");
+      e.preventDefault();
+      e.stopPropagation();
+      selectedAllocationStaff.clear();
+      renderAllocationPool();
+      showMessage("Selection cleared");
     };
     
     newClearBtn.addEventListener('click', handleClear);
     newClearBtn.addEventListener('touchstart', handleClear);
-    }
+  }
   
-  const printAllocBtn = document.getElementById("printAllocationBtn");
-if (printAllocBtn) {
-  const newPrintBtn = printAllocBtn.cloneNode(true);
-  printAllocBtn.parentNode.replaceChild(newPrintBtn, printAllocBtn);
+  // Setup print buttons
+  if (printAllocBtn) {
+    const newPrintBtn = printAllocBtn.cloneNode(true);
+    printAllocBtn.parentNode.replaceChild(newPrintBtn, printAllocBtn);
+    
+    const handlePrint = function(e) {
+      e.preventDefault();
+      printAllocation();
+    };
+    newPrintBtn.addEventListener('click', handlePrint);
+    newPrintBtn.addEventListener('touchstart', handlePrint);
+  }
   
-  const handlePrint = function(e) {
-    e.preventDefault();
-    printAllocation();
-  };
-  newPrintBtn.addEventListener('click', handlePrint);
-  newPrintBtn.addEventListener('touchstart', handlePrint);
-}
-
-const printReportBtn = document.getElementById("printDailyReportBtn");
-if (printReportBtn) {
-  const newReportBtn = printReportBtn.cloneNode(true);
-  printReportBtn.parentNode.replaceChild(newReportBtn, printReportBtn);
-  
-  const handleReport = function(e) {
-    e.preventDefault();
-    printDailyReport();
-  };
-  newReportBtn.addEventListener('click', handleReport);
-  newReportBtn.addEventListener('touchstart', handleReport);
-}
+  if (printReportBtn) {
+    const newReportBtn = printReportBtn.cloneNode(true);
+    printReportBtn.parentNode.replaceChild(newReportBtn, printReportBtn);
+    
+    const handleReport = function(e) {
+      e.preventDefault();
+      printDailyReport();
+    };
+    newReportBtn.addEventListener('click', handleReport);
+    newReportBtn.addEventListener('touchstart', handleReport);
+  }
   
   // Set default dates
   const reportedDateInput = document.getElementById("attendanceReportedDate");
@@ -5479,28 +5488,7 @@ if (printReportBtn) {
   const leaveDateInput = document.getElementById("attendanceLeaveDate");
   if (leaveDateInput) leaveDateInput.value = new Date().toISOString().split('T')[0];
   
-  // Attendance status change
-  const statusSelect = document.getElementById("attendanceStatus");
-  const reasonContainer = document.getElementById("reasonContainer");
-  const reasonSelect = document.getElementById("attendanceReason");
-  
-  if (statusSelect) {
-    statusSelect.onchange = function() {
-      const selectedStatus = this.value;
-      reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>';
-      reasonSelect.value = "";
-      
-      if (selectedStatus === "Sick Leave" || selectedStatus === "FRL") {
-        const reasons = PRESET_REASONS[selectedStatus] || [];
-        reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>' + 
-          reasons.map(r => `<option value="${r}">${r}</option>`).join('');
-        reasonContainer.style.display = "block";
-      } else {
-        reasonContainer.style.display = "none";
-      }
-    };
-  }
-  
+  // Initialize global controls
   initGlobalControls();
   setGlobalControlsEnabled(false);
   updateDisplayInfo();
