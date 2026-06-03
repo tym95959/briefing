@@ -4177,7 +4177,6 @@ function renderAllocationPool() {
   console.log("staffOnDutyIds size:", staffOnDutyIds.size);
   console.log("staffOnDutyIds values:", Array.from(staffOnDutyIds));
   
-  // Convert to array and find staff members
   const sodStaffIds = Array.from(staffOnDutyIds);
   const sodStaff = [];
   
@@ -4213,27 +4212,31 @@ function renderAllocationPool() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    badge.onclick = (function(staffId) {
-      return function(e) {
-        e.stopPropagation();
-        console.log("Selected staff for allocation:", staffId);
-        
-        if (selectedAllocationStaff.has(staffId)) {
-          selectedAllocationStaff.delete(staffId);
-        } else {
-          selectedAllocationStaff.add(staffId);
-        }
-        
-        renderAllocationPool();
-        document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
-      };
-    })(staff.id);
+    // FIXED: Use both touch and mouse events for iPad
+    const handleSelect = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log("Selected staff for allocation:", staff.id);
+      
+      if (selectedAllocationStaff.has(staff.id)) {
+        selectedAllocationStaff.delete(staff.id);
+      } else {
+        selectedAllocationStaff.add(staff.id);
+      }
+      
+      renderAllocationPool();
+      document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
+    };
+    
+    badge.addEventListener('click', handleSelect);
+    badge.addEventListener('touchstart', handleSelect, { passive: false });
     
     container.appendChild(badge);
   });
   
   document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
 }
+
 
 
   function renderAllocationTable() {
@@ -4886,25 +4889,40 @@ function populateDropdowns() {
   }
   
   const requestBtn = document.getElementById("requestBreakBtn");
-  if (requestBtn) requestBtn.onclick = submitBreakRequest;
+    if (requestBtn) {
+    requestBtn.addEventListener('click', submitBreakRequest);
+    requestBtn.addEventListener('touchstart', submitBreakRequest, { passive: false });
+    }
   
   const addBtn = document.getElementById("addAttendanceBtn");
-  if (addBtn) addBtn.onclick = addAttendanceFromForm;
+    if (addBtn) {
+    addBtn.addEventListener('click', addAttendanceFromForm);
+    addBtn.addEventListener('touchstart', addAttendanceFromForm, { passive: false });
+    }
   
   const clearBtn = document.getElementById("clearSelectionBtn");
-  if (clearBtn) {
-    clearBtn.onclick = () => { 
-      selectedAllocationStaff.clear(); 
-      renderAllocationPool(); 
-      showMessage("Selection cleared"); 
+    if (clearBtn) {
+    const handleClear = function(e) {
+        e.preventDefault();
+        selectedAllocationStaff.clear(); 
+        renderAllocationPool(); 
+        showMessage("Selection cleared"); 
     };
-  }
+    clearBtn.addEventListener('click', handleClear);
+    clearBtn.addEventListener('touchstart', handleClear, { passive: false });
+    }
   
   const printAllocBtn = document.getElementById("printAllocationBtn");
-  if (printAllocBtn) printAllocBtn.onclick = printAllocation;
-  
-  const printReportBtn = document.getElementById("printDailyReportBtn");
-  if (printReportBtn) printReportBtn.onclick = printDailyReport;
+    if (printAllocBtn) {
+    printAllocBtn.addEventListener('click', printAllocation);
+    printAllocBtn.addEventListener('touchstart', printAllocation, { passive: false });
+    }
+
+    const printReportBtn = document.getElementById("printDailyReportBtn");
+    if (printReportBtn) {
+    printReportBtn.addEventListener('click', printDailyReport);
+    printReportBtn.addEventListener('touchstart', printDailyReport, { passive: false });
+    }
   
   // ============ ATTENDANCE DROPDOWNS & FIELDS ============
   
