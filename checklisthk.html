@@ -690,7 +690,9 @@ body.supervisor-mode #globalControlBar {
   color: #c0392b;
 }
 
-
+#newPatternGrid {
+  touch-action: none !important;
+}
 </style>
 
 
@@ -1072,6 +1074,7 @@ async function showProfileModal(staff) {
             ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
           </div>
           <div id="newPatternPreview" style="font-size: 0.7rem; text-align: center; margin: 0.5rem 0;">Draw your pattern...</div>
+          <div id="patternDebug" style="font-size: 0.7rem; color: #666; text-align: center;"></div>
           <button id="savePatternBtn" class="profile-btn" style="background: #0f5c3b; margin-top: 0.5rem;">💾 Save New Pattern</button>
         </div>
         <div id="patternMessage" class="profile-message"></div>
@@ -1083,7 +1086,7 @@ async function showProfileModal(staff) {
   
   document.body.appendChild(modal);
   
-  // ---------- Password change logic ----------
+  // ========== PASSWORD CHANGE LOGIC ==========
   const updateBtn = modal.querySelector('#updatePasswordBtn');
   const currentPassInput = modal.querySelector('#currentPass');
   const newPassInput = modal.querySelector('#newPass');
@@ -1128,11 +1131,10 @@ async function showProfileModal(staff) {
     } else {
       passwordMsg.textContent = '❌ Failed to update password';
       passwordMsg.className = 'profile-message error';
-      console.error('saveUserCredentials returned false');
     }
   };
   
-  // ---------- Pattern change logic ----------
+  // ========== TAB SWITCHING ==========
   const tabs = modal.querySelectorAll('.profile-tab');
   const passwordSection = modal.querySelector('#passwordSection');
   const patternSection = modal.querySelector('#patternSection');
@@ -1151,7 +1153,7 @@ async function showProfileModal(staff) {
     };
   });
   
-    // ---------- Pattern change logic ----------
+  // ========== PATTERN CHANGE LOGIC (iPad compatible) ==========
   const verifyPatternBtn = modal.querySelector('#verifyForPatternBtn');
   const patternCurrentPass = modal.querySelector('#patternCurrentPass');
   const patternChangeArea = modal.querySelector('#patternChangeArea');
@@ -1159,116 +1161,117 @@ async function showProfileModal(staff) {
   const savePatternBtn = modal.querySelector('#savePatternBtn');
   const newPatternGrid = modal.querySelector('#newPatternGrid');
   const newPatternPreview = modal.querySelector('#newPatternPreview');
+  const patternDebug = modal.querySelector('#patternDebug');
   const newDots = modal.querySelectorAll('#newPatternGrid .pattern-dot');
   
-let newPatternSequence = [];
-let isDrawingNew = false;
-let lastAddedDot = null;
-const patternDebug = modal.querySelector('#patternDebug') || { textContent: '' };
-
-function updatePatternDebug() {
-  if (patternDebug) {
-    patternDebug.textContent = `Dots: ${newPatternSequence.join(',') || 'none'} (${newPatternSequence.length})`;
-  }
-}
-
-function resetNewPatternDrawing() {
-  newPatternSequence = [];
-  lastAddedDot = null;
-  newDots.forEach(dot => dot.classList.remove('selected'));
-  newPatternPreview.textContent = 'Draw your pattern...';
-  updatePatternDebug();
-}
-
-function getNewDotFromEvent(e) {
-  e.preventDefault();
-  const rect = newPatternGrid.getBoundingClientRect();
-  let clientX, clientY;
-  if (e.touches && e.touches.length > 0) {
-    clientX = e.touches[0].clientX;
-    clientY = e.touches[0].clientY;
-  } else if (e.changedTouches && e.changedTouches.length > 0) {
-    clientX = e.changedTouches[0].clientX;
-    clientY = e.changedTouches[0].clientY;
-  } else {
-    clientX = e.clientX;
-    clientY = e.clientY;
-  }
-  for (let dot of newDots) {
-    const dotRect = dot.getBoundingClientRect();
-    // Add more tolerance for fat fingers
-    const tolerance = 25;
-    if (clientX >= dotRect.left - tolerance && clientX <= dotRect.right + tolerance &&
-        clientY >= dotRect.top - tolerance && clientY <= dotRect.bottom + tolerance) {
-      return { dotNum: parseInt(dot.dataset.num), element: dot };
+  let newPatternSequence = [];
+  let isDrawingNew = false;
+  let lastAddedDot = null;
+  let patternDrawListenersAttached = false;
+  let drawHandler, endDrawHandler;
+  
+  function updatePatternPreview() {
+    if (newPatternSequence.length === 0) {
+      newPatternPreview.textContent = 'Draw your pattern...';
+    } else {
+      newPatternPreview.textContent = newPatternSequence.map(() => '●').join(' → ');
+    }
+    if (patternDebug) {
+      patternDebug.textContent = `Dots selected: ${newPatternSequence.length}`;
     }
   }
-  return null;
-}
-
-function areAdjacent(a, b) {
-  if (!a || !b) return true;
-  const rowA = Math.ceil(a / 3), colA = ((a - 1) % 3) + 1;
-  const rowB = Math.ceil(b / 3), colB = ((b - 1) % 3) + 1;
-  return Math.abs(rowA - rowB) <= 1 && Math.abs(colA - colB) <= 1;
-}
-
-function startNewDraw(e) {
-  e.preventDefault();
-  if (isDrawingNew) return;
-  isDrawingNew = true;
-  const dotInfo = getNewDotFromEvent(e);
-  if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
-    newPatternSequence = [dotInfo.dotNum];
-    dotInfo.element.classList.add('selected');
-    lastAddedDot = dotInfo.dotNum;
-    newPatternPreview.textContent = newPatternSequence.map(() => '●').join(' → ');
-    updatePatternDebug();
+  
+  function resetNewPatternDrawing() {
+    newPatternSequence = [];
+    lastAddedDot = null;
+    newDots.forEach(dot => dot.classList.remove('selected'));
+    updatePatternPreview();
+    if (patternDebug) patternDebug.textContent = '';
   }
-}
-
-function drawNew(e) {
-  e.preventDefault();
-  if (!isDrawingNew) return;
-  const dotInfo = getNewDotFromEvent(e);
-  if (dotInfo) {
-    if (!newPatternSequence.includes(dotInfo.dotNum) && 
+  
+  function getDotFromTouchOrMouse(e) {
+    e.preventDefault();
+    const rect = newPatternGrid.getBoundingClientRect();
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    const tolerance = 25;
+    for (let dot of newDots) {
+      const dotRect = dot.getBoundingClientRect();
+      if (clientX >= dotRect.left - tolerance && clientX <= dotRect.right + tolerance &&
+          clientY >= dotRect.top - tolerance && clientY <= dotRect.bottom + tolerance) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
+      }
+    }
+    return null;
+  }
+  
+  function areAdjacent(a, b) {
+    if (!a || !b) return true;
+    const rowA = Math.ceil(a / 3), colA = ((a - 1) % 3) + 1;
+    const rowB = Math.ceil(b / 3), colB = ((b - 1) % 3) + 1;
+    return Math.abs(rowA - rowB) <= 1 && Math.abs(colA - colB) <= 1;
+  }
+  
+  function startDraw(e) {
+    e.preventDefault();
+    if (isDrawingNew) return;
+    isDrawingNew = true;
+    const dotInfo = getDotFromTouchOrMouse(e);
+    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
+      newPatternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      lastAddedDot = dotInfo.dotNum;
+      updatePatternPreview();
+    }
+  }
+  
+  function draw(e) {
+    e.preventDefault();
+    if (!isDrawingNew) return;
+    const dotInfo = getDotFromTouchOrMouse(e);
+    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum) &&
         (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum))) {
       newPatternSequence.push(dotInfo.dotNum);
       dotInfo.element.classList.add('selected');
       lastAddedDot = dotInfo.dotNum;
-      newPatternPreview.textContent = newPatternSequence.map(() => '●').join(' → ');
-      updatePatternDebug();
-    } else if (!newPatternSequence.includes(dotInfo.dotNum)) {
-      // Not adjacent – ignore, but show feedback
-      if (patternDebug) patternDebug.style.color = 'orange';
-      setTimeout(() => { if(patternDebug) patternDebug.style.color = ''; }, 300);
+      updatePatternPreview();
     }
   }
-}
-
-function endNewDraw(e) {
-  e.preventDefault();
-  isDrawingNew = false;
-  if (newPatternSequence.length >= 3) {
-    newPatternPreview.innerHTML += ' ✅ Ready to save';
-    if (patternDebug) patternDebug.style.color = 'green';
-  } else if (newPatternSequence.length > 0) {
-    if (patternDebug) patternDebug.textContent += ' (need at least 3 dots)';
-  }
-}
   
-  function cleanupNewPatternDrawListeners() {
+  function endDraw(e) {
+    e.preventDefault();
+    isDrawingNew = false;
+    if (newPatternSequence.length >= 3) {
+      patternMsg.textContent = '✅ Pattern ready. Click "Save New Pattern".';
+      patternMsg.className = 'profile-message success';
+      savePatternBtn.disabled = false;
+    } else if (newPatternSequence.length > 0) {
+      patternMsg.textContent = `⚠️ Need at least 3 dots (you have ${newPatternSequence.length})`;
+      patternMsg.className = 'profile-message error';
+    }
+  }
+  
+  function removePatternDrawListeners() {
     if (patternDrawListenersAttached) {
-      window.removeEventListener('mousemove', drawNew);
-      window.removeEventListener('mouseup', endNewDraw);
-      window.removeEventListener('touchmove', drawNew);
-      window.removeEventListener('touchend', endNewDraw);
+      window.removeEventListener('mousemove', drawHandler);
+      window.removeEventListener('mouseup', endDrawHandler);
+      window.removeEventListener('touchmove', drawHandler);
+      window.removeEventListener('touchend', endDrawHandler);
+      newPatternGrid.removeEventListener('mousedown', startDraw);
+      newPatternGrid.removeEventListener('touchstart', startDraw);
       patternDrawListenersAttached = false;
     }
   }
   
-  // Attach draw listeners only after password verification
   verifyPatternBtn.onclick = async () => {
     const currentPass = patternCurrentPass.value;
     if (!currentPass) {
@@ -1288,37 +1291,38 @@ function endNewDraw(e) {
     verifyPatternBtn.style.opacity = '0.5';
     resetNewPatternDrawing();
     
-    // Clean previous listeners and attach fresh ones
-    cleanupNewPatternDrawListeners();
-    window.addEventListener('mousemove', drawNew);
-    window.addEventListener('mouseup', endNewDraw);
-    window.addEventListener('touchmove', drawNew);
-    window.addEventListener('touchend', endNewDraw);
-    patternDrawListenersAttached = true;
+    // Remove previous listeners
+    removePatternDrawListeners();
     
-    newPatternGrid.addEventListener('mousedown', startNewDraw);
-    newPatternGrid.addEventListener('touchstart', startNewDraw, { passive: false });
+    // Define handlers
+    drawHandler = draw;
+    endDrawHandler = endDraw;
+    
+    // Attach fresh listeners
+    window.addEventListener('mousemove', drawHandler);
+    window.addEventListener('mouseup', endDrawHandler);
+    window.addEventListener('touchmove', drawHandler);
+    window.addEventListener('touchend', endDrawHandler);
+    newPatternGrid.addEventListener('mousedown', startDraw);
+    newPatternGrid.addEventListener('touchstart', startDraw, { passive: false });
+    patternDrawListenersAttached = true;
   };
   
-  // Save pattern with timeout and proper error handling
   savePatternBtn.onclick = async () => {
-  if (newPatternSequence.length < 3) {
-    patternMsg.textContent = `❌ Pattern must have at least 3 dots (you have ${newPatternSequence.length})`;
-    patternMsg.className = 'profile-message error';
-    return;
-  }
-  const newPattern = patternToString(newPatternSequence);
-  console.log('Saving pattern for', staff.name, ':', newPattern);
-  patternMsg.textContent = `⏳ Saving pattern: ${newPattern} ...`;
-  patternMsg.className = 'profile-message';
-  savePatternBtn.disabled = true;
-    
-    // Set a timeout to prevent infinite hang
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Save timeout after 10 seconds')), 10000)
-    );
+    if (newPatternSequence.length < 3) {
+      patternMsg.textContent = `❌ Please draw at least 3 dots (you have ${newPatternSequence.length})`;
+      patternMsg.className = 'profile-message error';
+      return;
+    }
+    const newPattern = patternToString(newPatternSequence);
+    patternMsg.textContent = '⏳ Saving pattern...';
+    patternMsg.className = 'profile-message';
+    savePatternBtn.disabled = true;
     
     try {
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Save timeout after 10 seconds')), 10000)
+      );
       const savePromise = saveUserCredentials(staff.id, { pass: staff.pass, pattern: newPattern });
       const success = await Promise.race([savePromise, timeoutPromise]);
       
@@ -1326,11 +1330,9 @@ function endNewDraw(e) {
         staff.pattern = newPattern;
         patternMsg.textContent = '✅ Pattern updated successfully!';
         patternMsg.className = 'profile-message success';
-        resetNewPatternDrawing();
         showMessage(`Pattern updated for ${staff.name}`);
-        // Close modal after short delay
+        removePatternDrawListeners();
         setTimeout(() => {
-          cleanupNewPatternDrawListeners();
           modal.remove();
         }, 1200);
       } else {
@@ -1341,21 +1343,18 @@ function endNewDraw(e) {
       patternMsg.textContent = `❌ Failed to save pattern: ${err.message}`;
       patternMsg.className = 'profile-message error';
       savePatternBtn.disabled = false;
-      // Re-enable verify button so user can try again
       verifyPatternBtn.disabled = false;
       verifyPatternBtn.style.opacity = '1';
-      // Optionally keep drawing area but allow retry
     }
   };
   
-  // Ensure modal can always be closed
+  // ========== CLOSE MODAL WITH CLEANUP ==========
   const closeModal = () => {
-    cleanupNewPatternDrawListeners();
+    removePatternDrawListeners();
     modal.remove();
   };
   
-  const closeBtn = modal.querySelector('#closeProfileBtn');
-  closeBtn.onclick = closeModal;
+  modal.querySelector('#closeProfileBtn').onclick = closeModal;
   modal.onclick = (e) => { if (e.target === modal) closeModal(); };
 }
 // ============ SUPERVISOR AUTHENTICATION FUNCTIONS ============
