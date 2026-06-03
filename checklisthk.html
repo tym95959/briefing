@@ -71,8 +71,6 @@ body {
   padding: 1.8rem 2rem;
   background: white;
   animation: fade 0.25s ease;
-  height: auto !important;      /* ADD THIS */
-  overflow-y: visible !important; /* ADD THIS - allows content to flow */
 }
 
 .main-tab-pane.active-pane {
@@ -4087,9 +4085,10 @@ function updateStaffContextDisplay() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    // Direct onclick handler
+    // FIXED: Use proper async/await with event handler
     badge.onclick = (function(staffId, staffName) {
-      return async function() {
+      return async function(e) {
+        e.stopPropagation();
         console.log("Clicked staff ID:", staffId);
         
         if (staffOnDutyIds.has(staffId)) {
@@ -4105,14 +4104,21 @@ function updateStaffContextDisplay() {
         // Re-render both sections
         renderAllSod();
         renderAllocationPool();
-        initDailyStaffSelect();  // Update staff dropdown for daily tasks
-        await saveToLocalStorage();  // Save the change to Firebase
+        initDailyStaffSelect();
+        await saveToLocalStorage();
+        
+        // Also refresh staff view if active
+        if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
+          loadCompleteStaffDashboard();
+          renderDailyTasksUI();
+        }
       };
     })(staff.id, staff.name);
     
     container.appendChild(badge);
   });
 }
+
 
   function renderAllocationPool() {
   const container = document.getElementById("allocationPoolContainer");
@@ -4631,12 +4637,14 @@ async function loadFromLocalStorage() {
       }
       
       console.log(`✅ Loaded existing data for ${currentDate} from Firebase`);
-      showMessage(`📅 Loaded data for ${currentDate} - ${staffOnDutyIds.size} staff on duty`, "success");
+      // COMMENT OUT OR REMOVE THIS LINE:
+      // showMessage(`📅 Loaded data for ${currentDate} - ${staffOnDutyIds.size} staff on duty`, "success");
       return true;
       
     } else {
       console.log(`📅 New day: ${currentDate} - Starting fresh`);
-      showMessage(`🆕 New day! Starting fresh for ${currentDate}`, "success");
+      // COMMENT OUT OR REMOVE THIS LINE:
+      // showMessage(`🆕 New day! Starting fresh for ${currentDate}`, "success");
       
       allocations.clear();
       staffOnDutyIds.clear();
@@ -4763,13 +4771,28 @@ gs.onchange = async (e) => {
 
   function logoutSupervisor() {
   supervisorLoggedIn = false;
-  document.body.classList.remove('supervisor-mode');  
+  supervisorAuthStaffId = null;
+  document.body.classList.remove('supervisor-mode');
   document.getElementById("superAuthArea").style.display = "block";
   document.getElementById("superDashboard").style.display = "none";
+  document.getElementById("supervisorSelect").value = "";
+  document.getElementById("superVerificationContainer").innerHTML = "";
+  document.getElementById("superVerificationArea").style.display = "none";
   setGlobalControlsEnabled(false);
-  showMessage("Logged out");
+  
+  // Reset any supervisor selections
+  selectedAllocationStaff.clear();
+  
+  showMessage("Supervisor logged out");
+  
+  // Refresh staff view if active
+  if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
+    loadCompleteStaffDashboard();
+    renderDailyTasksUI();
+  }
 }
-  function populateDropdowns() {
+
+function populateDropdowns() {
     initSupervisorLogin();
   const attSel = document.getElementById("attendanceStaffSelect");
   if (attSel) {
@@ -4876,18 +4899,53 @@ if (statusSelect) {
   renderSupervisorDailyTasks();
   loadCompleteStaffDashboard();
 }
+
   function initMainTabs() {
-    const btns = document.querySelectorAll(".main-tab-btn");
-    const panes = { staff: document.getElementById("staffMainPane"), supervisor: document.getElementById("supervisorMainPane") };
-    function switchTab(tabId) {
-      Object.values(panes).forEach(p => p.classList.remove("active-pane"));
-      panes[tabId].classList.add("active-pane");
-      btns.forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
-      if (tabId === "staff") { renderBreakTimeBadges(); loadCompleteStaffDashboard(); renderDailyTasksUI(); }
-      if (tabId === "supervisor" && supervisorLoggedIn) refreshAllViews();
+  const btns = document.querySelectorAll(".main-tab-btn");
+  const staffPane = document.getElementById("staffMainPane");
+  const supervisorPane = document.getElementById("supervisorMainPane");
+  
+  function switchTab(tabId) {
+    // Hide both panes
+    staffPane.classList.remove("active-pane");
+    supervisorPane.classList.remove("active-pane");
+    
+    // Show selected pane
+    if (tabId === "staff") {
+      staffPane.classList.add("active-pane");
+      // Refresh staff view content
+      renderBreakTimeBadges();
+      loadCompleteStaffDashboard();
+      renderDailyTasksUI();
+      updateStaffDisplay();
+    } else if (tabId === "supervisor") {
+      supervisorPane.classList.add("active-pane");
+      // Refresh supervisor view if logged in
+      if (supervisorLoggedIn) {
+        refreshAllViews();
+      } else {
+        // Make sure supervisor auth area is visible
+        document.getElementById("superAuthArea").style.display = "block";
+        document.getElementById("superDashboard").style.display = "none";
+      }
     }
-    btns.forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+    
+    // Update button active states
+    btns.forEach(b => {
+      if (b.dataset.tab === tabId) {
+        b.classList.add("active");
+      } else {
+        b.classList.remove("active");
+      }
+    });
   }
+  
+  // Add click handlers
+  btns.forEach(b => {
+    b.onclick = () => switchTab(b.dataset.tab);
+  });
+}
+
 
   function initStaffSubTabs() {
     const btns = document.querySelectorAll(".sub-tab-btn");
