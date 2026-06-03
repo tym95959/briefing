@@ -2528,41 +2528,485 @@ function initDailyStaffSelect() {
     });
   };
 }
+
+
 // Show verification options (Password OR Pattern)
-// Show verification options (Password OR Pattern)
+// Show verification - Pattern first, with option to switch to password
 function showVerificationOptionsModal(staff, callback) {
   const modal = document.createElement('div');
   modal.className = 'pattern-modal';
+  
+  let currentMode = 'pattern'; // 'pattern' or 'password'
+  
   modal.innerHTML = `
     <div class="pattern-modal-content">
-      <h3>🔐 Verify Identity</h3>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <h3 style="margin: 0; color: #b8860b;">🔐 Verify Identity</h3>
+        <button id="switchModeBtn" style="background: none; border: none; color: #6b7280; font-size: 0.7rem; cursor: pointer; padding: 0.3rem 0.6rem;">🔑 Switch to Password</button>
+      </div>
       <p><strong>${escapeHtml(staff.name)}</strong></p>
-      <div style="display: flex; gap: 1rem; flex-direction: column; margin-top: 1rem;">
-        <button id="patternOptionBtn" style="padding: 1rem; background: #b8860b; color: white; border: none; border-radius: 1rem; font-weight: bold;">🎨 Use Pattern Lock (Recommended)</button>
-        <button id="passwordOptionBtn" style="padding: 1rem; background: #6b7280; color: white; border: none; border-radius: 1rem;">🔑 Use Password</button>
-        <button id="cancelOptionBtn" style="padding: 0.8rem; background: #94a3b8; color: white; border: none; border-radius: 1rem;">✗ Cancel</button>
+      
+      <!-- Pattern Mode Container -->
+      <div id="patternModeContainer">
+        <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Draw your pattern by connecting dots</p>
+        <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse to verify automatically</p>
+        
+        <div class="pattern-grid" id="patternGrid">
+          ${[1,2,3,4,5,6,7,8,9].map(i => `
+            <div class="pattern-dot" data-num="${i}"></div>
+          `).join('')}
+        </div>
+        
+        <div class="pattern-preview" id="patternPreview"></div>
+        <div class="pattern-status" id="patternStatus"></div>
+        
+        <div class="pattern-buttons">
+          <button class="reset-pattern-btn" id="resetPatternBtn">⟳ Reset</button>
+        </div>
+      </div>
+      
+      <!-- Password Mode Container (hidden initially) -->
+      <div id="passwordModeContainer" style="display: none;">
+        <p style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">Enter your password</p>
+        <input type="password" id="passInput" placeholder="••••" maxlength="10" autocomplete="off" 
+               style="width:100%; padding:0.8rem; margin:1rem 0; text-align:center; font-size:1.5rem; border-radius:1rem; border:1px solid #cbd5e1;">
+        <div class="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 1rem 0;">
+          ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button data-num="${n}" style="padding: 0.8rem; font-size: 1.2rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 1rem; cursor: pointer;">${n}</button>`).join('')}
+          <button data-num="clear" class="clear-pass" style="padding: 0.8rem; background: #ef4444; color: white; border: none; border-radius: 1rem; cursor: pointer;">⌫</button>
+        </div>
+        <div id="passError" style="color:#ef4444; margin:0.5rem 0; text-align:center;"></div>
+      </div>
+      
+      <div style="margin-top: 1rem;">
+        <button id="cancelVerifyBtn" style="width:100%; background:#94a3b8; padding:0.8rem; border:none; border-radius:1rem; cursor:pointer; color:white;">Cancel</button>
       </div>
     </div>
   `;
+  
   document.body.appendChild(modal);
   
-  // Pattern is now first option
-  modal.querySelector('#patternOptionBtn').onclick = () => {
-    modal.remove();
-    showPatternModal(staff, callback);
+  // Add CSS for the modal
+  const style = document.createElement('style');
+  style.textContent = `
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      width: 100%;
+      max-width: 300px;
+      margin: 1rem auto;
+      background: #f8fafc;
+      padding: 1.5rem;
+      border-radius: 1.5rem;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pattern-dot {
+      aspect-ratio: 1;
+      background: #e2e8f0;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-width: 50px;
+      touch-action: none;
+    }
+    @media (max-width: 768px) {
+      .pattern-dot {
+        min-width: 60px;
+      }
+      .pattern-grid {
+        gap: 1.5rem;
+        padding: 1.5rem;
+      }
+    }
+    .pattern-dot.selected {
+      background: #b8860b;
+      transform: scale(1.1);
+      box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.3);
+    }
+    .pattern-dot.selected::after {
+      content: "●";
+      color: white;
+      font-size: 1.5rem;
+    }
+    .pattern-dot.drag-over {
+      background: #d4a017;
+      transform: scale(1.05);
+    }
+    .pattern-preview {
+      text-align: center;
+      font-size: 0.85rem;
+      margin: 0.5rem 0;
+      color: #4a5568;
+      min-height: 2rem;
+    }
+    .pattern-status {
+      text-align: center;
+      font-size: 0.8rem;
+      margin: 0.5rem 0;
+      padding: 0.3rem;
+      border-radius: 0.5rem;
+    }
+    .pattern-status.error {
+      color: #dc2626;
+      background: #fee2e2;
+    }
+    .pattern-status.success {
+      color: #059669;
+      background: #d1fae5;
+    }
+    .pattern-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 0.5rem;
+    }
+    .reset-pattern-btn {
+      padding: 0.5rem 1.5rem;
+      border: none;
+      border-radius: 2rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      background: #6b7280;
+      color: white;
+    }
+    .reset-pattern-btn:active {
+      transform: scale(0.96);
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Pattern mode variables
+  let patternSequence = [];
+  let isDrawing = false;
+  let verificationInProgress = false;
+  let lastAddedDot = null;
+  
+  const patternGrid = modal.querySelector('#patternGrid');
+  const dots = modal.querySelectorAll('.pattern-dot');
+  const previewSpan = modal.querySelector('#patternPreview');
+  const statusSpan = modal.querySelector('#patternStatus');
+  
+  // Password mode variables
+  let passwordInput = '';
+  const expectedPass = staff.pass || '1234';
+  const expectedLength = expectedPass.length;
+  const passInput = modal.querySelector('#passInput');
+  const passErrorDiv = modal.querySelector('#passError');
+  
+  const patternModeContainer = modal.querySelector('#patternModeContainer');
+  const passwordModeContainer = modal.querySelector('#passwordModeContainer');
+  const switchModeBtn = modal.querySelector('#switchModeBtn');
+  
+  // Pattern helper functions
+  function patternToString(sequence) {
+    return sequence.join(',');
+  }
+  
+  function updatePatternPreview() {
+    if (patternSequence.length === 0) {
+      previewSpan.textContent = '✨ Draw your pattern by connecting 3+ dots';
+    } else {
+      previewSpan.innerHTML = `Pattern: ${patternSequence.map(() => '●').join(' → ')} <span style="color:#b8860b;">(${patternSequence.length} dots)</span>`;
+    }
+  }
+  
+  function resetPatternDrawing() {
+    patternSequence = [];
+    lastAddedDot = null;
+    dots.forEach(dot => dot.classList.remove('selected', 'drag-over'));
+    updatePatternPreview();
+    if (statusSpan) {
+      statusSpan.textContent = '';
+      statusSpan.className = 'pattern-status';
+    }
+    verificationInProgress = false;
+  }
+  
+  function addDot(dotNum, element) {
+    if (!patternSequence.includes(dotNum)) {
+      patternSequence.push(dotNum);
+      element.classList.add('selected');
+      updatePatternPreview();
+      lastAddedDot = dotNum;
+      
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(10);
+      }
+    }
+  }
+  
+  function areAdjacent(dot1, dot2) {
+    const pos1 = { row: Math.ceil(dot1 / 3), col: ((dot1 - 1) % 3) + 1 };
+    const pos2 = { row: Math.ceil(dot2 / 3), col: ((dot2 - 1) % 3) + 1 };
+    const rowDiff = Math.abs(pos1.row - pos2.row);
+    const colDiff = Math.abs(pos1.col - pos2.col);
+    return rowDiff <= 1 && colDiff <= 1;
+  }
+  
+  function autoVerifyPattern() {
+    if (verificationInProgress) return;
+    verificationInProgress = true;
+    
+    if (patternSequence.length < 3) {
+      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
+      statusSpan.className = 'pattern-status error';
+      verificationInProgress = false;
+      setTimeout(() => {
+        resetPatternDrawing();
+      }, 1000);
+      return;
+    }
+    
+    const enteredPattern = patternToString(patternSequence);
+    const savedPattern = staff.pattern || '';
+    
+    if (enteredPattern === savedPattern) {
+      statusSpan.textContent = '✅ Verified! Redirecting...';
+      statusSpan.className = 'pattern-status success';
+      
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate([10, 50, 10]);
+      }
+      
+      setTimeout(() => {
+        modal.remove();
+        style.remove();
+        if (callback) callback(true);
+      }, 500);
+    } else {
+      statusSpan.textContent = '❌ Wrong pattern! Try again.';
+      statusSpan.className = 'pattern-status error';
+      
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate([50, 100, 50]);
+      }
+      
+      if (patternGrid) {
+        patternGrid.style.transition = 'background 0.2s';
+        patternGrid.style.background = '#fee2e2';
+        setTimeout(() => {
+          patternGrid.style.background = '';
+        }, 300);
+      }
+      
+      resetPatternDrawing();
+      verificationInProgress = false;
+    }
+  }
+  
+  // Pattern drawing event handlers
+  function getDotFromEvent(e) {
+    e.preventDefault();
+    const rect = patternGrid.getBoundingClientRect();
+    let clientX, clientY;
+    
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    for (let dot of dots) {
+      const dotRect = dot.getBoundingClientRect();
+      const padding = 15;
+      if (clientX >= dotRect.left - padding && clientX <= dotRect.right + padding &&
+          clientY >= dotRect.top - padding && clientY <= dotRect.bottom + padding) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
+      }
+    }
+    return null;
+  }
+  
+  function clearDragOver() {
+    dots.forEach(dot => dot.classList.remove('drag-over'));
+  }
+  
+  function startDraw(e) {
+    e.preventDefault();
+    if (verificationInProgress) return;
+    isDrawing = true;
+    clearDragOver();
+    
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      updatePatternPreview();
+      lastAddedDot = dotInfo.dotNum;
+    }
+  }
+  
+  function draw(e) {
+    e.preventDefault();
+    if (!isDrawing || verificationInProgress) return;
+    
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo) {
+      if (!patternSequence.includes(dotInfo.dotNum)) {
+        dotInfo.element.classList.add('drag-over');
+      }
+      
+      if (!patternSequence.includes(dotInfo.dotNum)) {
+        if (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum)) {
+          addDot(dotInfo.dotNum, dotInfo.element);
+        }
+      }
+    } else {
+      clearDragOver();
+    }
+  }
+  
+  function endDraw(e) {
+    e.preventDefault();
+    clearDragOver();
+    
+    if (!isDrawing || verificationInProgress) {
+      isDrawing = false;
+      return;
+    }
+    isDrawing = false;
+    autoVerifyPattern();
+  }
+  
+  // Initialize pattern drawing events
+  if (patternGrid) {
+    patternGrid.addEventListener('mousedown', startDraw);
+    window.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', endDraw);
+    patternGrid.addEventListener('touchstart', startDraw, { passive: false });
+    window.addEventListener('touchmove', draw, { passive: false });
+    window.addEventListener('touchend', endDraw);
+    patternGrid.addEventListener('touchmove', (e) => {
+      if (isDrawing) e.preventDefault();
+    }, { passive: false });
+  }
+  
+  // Reset pattern button
+  const resetBtn = modal.querySelector('#resetPatternBtn');
+  if (resetBtn) {
+    resetBtn.onclick = (e) => {
+      e.preventDefault();
+      resetPatternDrawing();
+    };
+  }
+  
+  // Password verification function
+  function checkAndAutoVerifyPassword() {
+    if (passwordInput.length === expectedLength) {
+      if (passwordInput === expectedPass) {
+        passErrorDiv.textContent = '✅ Verified! Redirecting...';
+        passErrorDiv.style.color = '#059669';
+        
+        if (window.navigator && window.navigator.vibrate) {
+          window.navigator.vibrate([10, 50, 10]);
+        }
+        
+        setTimeout(() => {
+          modal.remove();
+          style.remove();
+          if (callback) callback(true);
+        }, 500);
+      } else {
+        passErrorDiv.textContent = '❌ Incorrect password. Try again.';
+        passErrorDiv.style.color = '#ef4444';
+        passwordInput = '';
+        if (passInput) passInput.value = '';
+        
+        if (window.navigator && window.navigator.vibrate) {
+          window.navigator.vibrate([50, 100, 50]);
+        }
+      }
+    }
+  }
+  
+  // Setup password number pad if in password mode
+  function setupPasswordMode() {
+    if (!passInput) return;
+    
+    modal.querySelectorAll('[data-num]').forEach(btn => {
+      btn.onclick = () => {
+        const num = btn.dataset.num;
+        if (num === 'clear') {
+          passwordInput = passwordInput.slice(0, -1);
+        } else if (passwordInput.length < expectedLength) {
+          passwordInput += num;
+        }
+        if (passInput) passInput.value = '*'.repeat(passwordInput.length);
+        if (passErrorDiv) passErrorDiv.textContent = '';
+        checkAndAutoVerifyPassword();
+      };
+    });
+    
+    if (passInput) {
+      passInput.addEventListener('input', (e) => {
+        passwordInput = e.target.value.replace(/\*/g, '');
+        if (passwordInput.length === expectedLength) {
+          checkAndAutoVerifyPassword();
+        }
+      });
+    }
+  }
+  
+  // Switch between pattern and password modes
+  switchModeBtn.onclick = () => {
+    if (currentMode === 'pattern') {
+      // Switch to password mode
+      currentMode = 'password';
+      patternModeContainer.style.display = 'none';
+      passwordModeContainer.style.display = 'block';
+      switchModeBtn.innerHTML = '🎨 Switch to Pattern';
+      switchModeBtn.style.color = '#b8860b';
+      setupPasswordMode();
+      setTimeout(() => {
+        if (passInput) passInput.focus();
+      }, 100);
+    } else {
+      // Switch to pattern mode
+      currentMode = 'pattern';
+      patternModeContainer.style.display = 'block';
+      passwordModeContainer.style.display = 'none';
+      switchModeBtn.innerHTML = '🔑 Switch to Password';
+      switchModeBtn.style.color = '#6b7280';
+      resetPatternDrawing();
+    }
   };
   
-  modal.querySelector('#passwordOptionBtn').onclick = () => {
-    modal.remove();
-    showPasswordModal(staff, callback);
+  // Cancel button
+  const cancelBtn = modal.querySelector('#cancelVerifyBtn');
+  if (cancelBtn) {
+    cancelBtn.onclick = () => {
+      modal.remove();
+      style.remove();
+      if (callback) callback(false);
+    };
+  }
+  
+  // Close on outside click
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      modal.remove();
+      style.remove();
+      if (callback) callback(false);
+    }
   };
   
-  modal.querySelector('#cancelOptionBtn').onclick = () => {
-    modal.remove();
-    callback(false);
-  };
-  modal.onclick = (e) => { if (e.target === modal) { modal.remove(); callback(false); } };
+  // Prevent body scroll
+  document.body.style.overflow = 'hidden';
+  modal.addEventListener('remove', () => {
+    document.body.style.overflow = '';
+  });
 }
+
 
 // Password only modal - Auto-submit when 4 digits entered
 function showPasswordOnlyModal(staff, callback) {
