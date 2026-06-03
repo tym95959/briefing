@@ -1234,6 +1234,44 @@ body.supervisor-mode #globalControlBar {
     font-size: 16px !important;
   }
 }
+
+/* Critical iPad Touch Fixes */
+button, 
+.staff-badge,
+.assign-btn,
+.remove-btn,
+.approve-btn,
+.reject-btn,
+.clearSelectionBtn,
+#printAllocationBtn,
+#printDailyReportBtn,
+#superLogoutBtn {
+  cursor: pointer;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+button:active, 
+.staff-badge:active {
+  transform: scale(0.97);
+  transition: transform 0.05s ease;
+}
+
+/* Ensure buttons are large enough for touch */
+button {
+  min-height: 44px !important;
+  min-width: 44px !important;
+}
+
+/* Fix for allocation table on iPad */
+.allocation-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+td {
+  min-width: 120px;
+}
   </style>
 </head>
 <body>
@@ -4348,7 +4386,7 @@ function updateStaffContextDisplay() {
 }
 
   // Supervisor View Functions
- function renderAllSod() {
+function renderAllSod() {
   const container = document.getElementById("allSodContainer");
   if (!container || !supervisorLoggedIn) return;
   
@@ -4372,7 +4410,7 @@ function updateStaffContextDisplay() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    // FIXED: iPad-compatible event handler
+    // FIXED: Use a named function that can be referenced
     const handleClick = function(e) {
       e.preventDefault();
       e.stopPropagation();
@@ -4386,13 +4424,10 @@ function updateStaffContextDisplay() {
         showMessage(staff.name + " added to SOD for " + currentDate);
       }
       
-      console.log("Updated SOD IDs:", Array.from(staffOnDutyIds));
-      
       saveToLocalStorage().then(() => {
         renderAllSod();
         renderAllocationPool();
         initDailyStaffSelect();
-        rebindAllSupervisorButtons();
         
         if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
           loadCompleteStaffDashboard();
@@ -4401,13 +4436,18 @@ function updateStaffContextDisplay() {
       });
     };
     
-    // Add both event listeners for iPad compatibility
+    // Remove any existing listeners first
+    badge.removeEventListener('click', handleClick);
+    badge.removeEventListener('touchstart', handleClick);
+    
+    // Add fresh listeners
     badge.addEventListener('click', handleClick);
-    badge.addEventListener('touchstart', handleClick, { passive: false });
+    badge.addEventListener('touchstart', handleClick);
     
     container.appendChild(badge);
   });
 }
+
 
 function initMainTabs() {
   const staffPane = document.getElementById("staffMainPane");
@@ -4472,9 +4512,6 @@ function renderAllocationPool() {
     const staff = staffList.find(s => s.id === id);
     if (staff) {
       sodStaff.push(staff);
-      console.log("Found staff:", staff.name);
-    } else {
-      console.log("Staff not found for ID:", id);
     }
   }
   
@@ -4500,7 +4537,6 @@ function renderAllocationPool() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    // FIXED: iPad-compatible event handler
     const handleSelect = function(e) {
       e.preventDefault();
       e.stopPropagation();
@@ -4513,12 +4549,13 @@ function renderAllocationPool() {
       }
       
       renderAllocationPool();
-      rebindAllSupervisorButtons();
       document.getElementById("selectedCount").innerText = `Selected: ${selectedAllocationStaff.size}`;
     };
     
+    badge.removeEventListener('click', handleSelect);
+    badge.removeEventListener('touchstart', handleSelect);
     badge.addEventListener('click', handleSelect);
-    badge.addEventListener('touchstart', handleSelect, { passive: false });
+    badge.addEventListener('touchstart', handleSelect);
     
     container.appendChild(badge);
   });
@@ -4527,8 +4564,7 @@ function renderAllocationPool() {
 }
 
 
-
-  function renderAllocationTable() {
+function renderAllocationTable() {
   const thead = document.getElementById("tableHeader"), tbody = document.getElementById("tableBody");
   if (!thead || !tbody || !supervisorLoggedIn) return;
   const shift = SHIFTS.find(s => s.value === currentShift);
@@ -4567,8 +4603,9 @@ function renderAllocationPool() {
     tbody.appendChild(row);
   });
   
-  // FIXED: iPad-compatible remove button handlers
-  tbody.querySelectorAll('.remove-btn').forEach(btn => {
+  // Bind remove buttons
+  const removeBtns = tbody.querySelectorAll('.remove-btn');
+  removeBtns.forEach(btn => {
     const handleRemove = function(e) {
       e.preventDefault();
       e.stopPropagation();
@@ -4578,12 +4615,15 @@ function renderAllocationPool() {
       showMessage("Staff removed from allocation");
     };
     
+    btn.removeEventListener('click', handleRemove);
+    btn.removeEventListener('touchstart', handleRemove);
     btn.addEventListener('click', handleRemove);
-    btn.addEventListener('touchstart', handleRemove, { passive: false });
+    btn.addEventListener('touchstart', handleRemove);
   });
   
-  // FIXED: iPad-compatible assign button handlers
-  tbody.querySelectorAll('.assign-btn').forEach(btn => {
+  // Bind assign buttons
+  const assignBtns = tbody.querySelectorAll('.assign-btn');
+  assignBtns.forEach(btn => {
     const handleAssign = function(e) {
       e.preventDefault();
       e.stopPropagation();
@@ -4640,7 +4680,7 @@ function renderAllocationPool() {
       });
       
       if (duplicateStaff.length > 0) {
-        showMessage(`⚠️ Cannot assign: ${duplicateStaff.join(', ')} - these areas cannot be combined in same period.`, "error");
+        showMessage(`⚠️ Cannot assign: ${duplicateStaff.join(', ')}`, "error");
       }
       
       if (successfullyAssigned.length > 0) {
@@ -4653,11 +4693,12 @@ function renderAllocationPool() {
       saveToLocalStorage();
     };
     
+    btn.removeEventListener('click', handleAssign);
+    btn.removeEventListener('touchstart', handleAssign);
     btn.addEventListener('click', handleAssign);
-    btn.addEventListener('touchstart', handleAssign, { passive: false });
+    btn.addEventListener('touchstart', handleAssign);
   });
 }
-
 
 function isStaffAvailableInPeriod(staffId, period) {
   for (let area of AREAS) {
@@ -5267,25 +5308,48 @@ if (addBtn) {
 }
   
   const clearBtn = document.getElementById("clearSelectionBtn");
-  if (clearBtn) {
+    if (clearBtn) {
+    // Remove old listeners by cloning
     const newClearBtn = clearBtn.cloneNode(true);
     clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
-    newClearBtn.onclick = () => { selectedAllocationStaff.clear(); renderAllocationPool(); showMessage("Selection cleared"); };
-  }
+    
+    const handleClear = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectedAllocationStaff.clear();
+        renderAllocationPool();
+        showMessage("Selection cleared");
+    };
+    
+    newClearBtn.addEventListener('click', handleClear);
+    newClearBtn.addEventListener('touchstart', handleClear);
+    }
   
   const printAllocBtn = document.getElementById("printAllocationBtn");
-  if (printAllocBtn) {
-    const newPrintBtn = printAllocBtn.cloneNode(true);
-    printAllocBtn.parentNode.replaceChild(newPrintBtn, printAllocBtn);
-    newPrintBtn.onclick = printAllocation;
-  }
+if (printAllocBtn) {
+  const newPrintBtn = printAllocBtn.cloneNode(true);
+  printAllocBtn.parentNode.replaceChild(newPrintBtn, printAllocBtn);
+  
+  const handlePrint = function(e) {
+    e.preventDefault();
+    printAllocation();
+  };
+  newPrintBtn.addEventListener('click', handlePrint);
+  newPrintBtn.addEventListener('touchstart', handlePrint);
+}
 
-  const printReportBtn = document.getElementById("printDailyReportBtn");
-  if (printReportBtn) {
-    const newReportBtn = printReportBtn.cloneNode(true);
-    printReportBtn.parentNode.replaceChild(newReportBtn, printReportBtn);
-    newReportBtn.onclick = printDailyReport;
-  }
+const printReportBtn = document.getElementById("printDailyReportBtn");
+if (printReportBtn) {
+  const newReportBtn = printReportBtn.cloneNode(true);
+  printReportBtn.parentNode.replaceChild(newReportBtn, printReportBtn);
+  
+  const handleReport = function(e) {
+    e.preventDefault();
+    printDailyReport();
+  };
+  newReportBtn.addEventListener('click', handleReport);
+  newReportBtn.addEventListener('touchstart', handleReport);
+}
   
   // Set default dates
   const reportedDateInput = document.getElementById("attendanceReportedDate");
