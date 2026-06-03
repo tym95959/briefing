@@ -1123,6 +1123,49 @@ body.supervisor-mode #globalControlBar {
   }
 }
 
+/* iPad Touch Fixes */
+@media (max-width: 1024px) {
+  button, 
+  .staff-badge,
+  .pattern-dot,
+  .task-signoff-btn,
+  .task-complete-btn,
+  .task-submit-btn,
+  .assign-btn,
+  .remove-btn,
+  .approve-btn,
+  .reject-btn {
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Ensure buttons have enough tap area */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .staff-badge {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.9rem !important;
+    margin: 0.25rem;
+  }
+  
+  /* Fix scrolling on iPad */
+  .allocation-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Fix modal touch issues */
+  .pattern-modal-content,
+  .profile-modal-content,
+  .password-modal-content {
+    touch-action: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
   </style>
 </head>
 <body>
@@ -1349,11 +1392,14 @@ console.log("🔥 Firebase ready!");
     let staffOnDutyIds = new Set();
     // Initialize with today's date but ensure it's consistent
     let currentDate = (() => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+        // Get from localStorage first to persist across refreshes
+        const stored = localStorage.getItem('staff_currentDate');
+        if (stored) return stored;
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     })();
     let currentShift = SHIFTS[0].value;
     let supervisorLoggedIn = false;
@@ -3313,19 +3359,30 @@ async function saveDailyTasks() {
 
 // Add this function to sync staff view with supervisor selections
 // Sync staff view with supervisor selections - NO date changing, just display
+let lastSyncDate = null;
+let lastSyncShift = null;
+
 async function syncStaffViewWithSupervisor() {
   if (!supervisorLoggedIn) return;
   
+  // Prevent infinite sync loops - only sync if date/shift actually changed
+  if (lastSyncDate === currentDate && lastSyncShift === currentShift) {
+    console.log("⏭️ Skipping duplicate sync (same date/shift)");
+    return;
+  }
+  
+  lastSyncDate = currentDate;
+  lastSyncShift = currentShift;
+  
   console.log(`🔄 Syncing staff view - Date: ${currentDate}, Shift: ${currentShift}`);
   
-  // Update staff display to show current supervisor selections
   updateStaffDisplay();
+  updateStaffContextDisplay();
   
-  // Reload data for the current date (which is already set by supervisor)
-  await loadFromLocalStorage();
-  await loadDailyTasks();
+  // Load data without triggering another sync
+  await loadFromLocalStorageInternal();
+  await loadDailyTasksInternal();
   
-  // Refresh all staff UI components
   renderBreakTimeBadges();
   loadCompleteStaffDashboard();
   initDailyStaffSelect();
@@ -3333,6 +3390,7 @@ async function syncStaffViewWithSupervisor() {
   
   console.log(`✅ Staff view synced to: ${currentDate} - ${currentShift}`);
 }
+
 
   function getSelectedStaff() {
     const select = document.getElementById("dailyTaskStaffSelect");
@@ -4575,18 +4633,23 @@ function isStaffAvailableInPeriod(staffId, period) {
     renderBreakRequestsForSupervisor(); 
     renderSupervisorDailyTasks(); 
     
-    // ADD THIS LINE - Sync staff view with supervisor changes
-    syncStaffViewWithSupervisor();
+    // Don't call sync here - it will cause infinite loop
+    // Just refresh the staff display directly
+    if (document.getElementById("staffMainPane")?.classList.contains("active-pane")) {
+      updateStaffDisplay();
+      renderBreakTimeBadges();
+      loadCompleteStaffDashboard();
+      renderDailyTasksUI();
+    }
   }
   
-  if (document.getElementById("staffMainPane").classList.contains("active-pane")) { 
+  if (document.getElementById("staffMainPane")?.classList.contains("active-pane")) { 
     renderBreakTimeBadges(); 
     loadCompleteStaffDashboard(); 
     initDailyStaffSelect();
     renderDailyTasksUI();    
   }
   
-  // Force update the daily staff select dropdown to reflect SOD changes
   const dailySelect = document.getElementById("dailyTaskStaffSelect");
   if (dailySelect) {
     const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
@@ -4602,7 +4665,8 @@ function isStaffAvailableInPeriod(staffId, period) {
     }
   }
 }
-// Refresh staff view when supervisor changes date or shift
+
+
 
 // Refresh staff view when supervisor changes date or shift
 // Refresh staff view when supervisor changes date or shift
@@ -4677,7 +4741,69 @@ async function saveToLocalStorage() {
     return false;
   }
 }
-    // Load from Firebase
+  
+// Internal version that doesn't trigger UI refresh (to prevent loops)
+async function loadFromLocalStorageInternal() {
+  try {
+    const docRef = db.collection("staffManagement").doc(currentDate);
+    const doc = await docRef.get();
+    
+    if (doc.exists) {
+      const d = doc.data();
+      
+      allocations.clear();
+      attendanceRecords.clear();
+      breakRequests.clear();
+      
+      if (d.allocations) { 
+        Object.entries(d.allocations).forEach(([k, v]) => allocations.set(k, new Set(v))); 
+      }
+      
+      if (d.staffOnDutyIds && d.staffOnDutyIds.length > 0) {
+        staffOnDutyIds = new Set(d.staffOnDutyIds);
+      } else {
+        staffOnDutyIds.clear();
+      }
+      
+      if (d.currentShift && !supervisorLoggedIn) {
+        currentShift = d.currentShift;
+      }
+      
+      if (d.attendanceRecords) { 
+        Object.entries(d.attendanceRecords).forEach(([k, v]) => attendanceRecords.set(k, v)); 
+      }
+      
+      if (d.breakRequests) { 
+        Object.entries(d.breakRequests).forEach(([k, v]) => breakRequests.set(parseInt(k), v)); 
+        if (d.nextRequestId) nextRequestId = d.nextRequestId; 
+      }
+      
+      return true;
+    } else {
+      // Initialize empty state
+      allocations.clear();
+      staffOnDutyIds.clear();
+      attendanceRecords.clear();
+      breakRequests.clear();
+      selectedAllocationStaff.clear();
+      nextRequestId = 1;
+      return false;
+    }
+  } catch (error) {
+    console.error("❌ Firebase load error:", error);
+    return false;
+  }
+}
+
+// Public version with UI refresh (for user-initiated changes)
+async function loadFromLocalStorage() {
+  const result = await loadFromLocalStorageInternal();
+  if (result && document.getElementById("staffMainPane")?.classList.contains("active-pane")) {
+    refreshAllViews();
+  }
+  return result;
+}
+// Load from Firebase
 // Load from Firebase - PER DATE
 async function loadFromLocalStorage() {
   try {
@@ -5115,12 +5241,21 @@ function showPasswordModal(staff, onSuccess, onCancel) {
 }
 
 // Add this function to set up periodic sync
+let syncDebounceTimer = null;
+
 function startPeriodicSync() {
   setInterval(async () => {
     if (supervisorLoggedIn) {
-      await syncStaffViewWithSupervisor();
+      // Clear any pending sync
+      if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+      
+      // Debounce the sync to avoid multiple rapid calls
+      syncDebounceTimer = setTimeout(async () => {
+        await syncStaffViewWithSupervisor();
+        syncDebounceTimer = null;
+      }, 100);
     }
-  }, 5000); // Sync every 5 seconds
+  }, 5000);
 }
 
 // Then in initApp, add this line before the last showMessage:
