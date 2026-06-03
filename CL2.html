@@ -1196,87 +1196,148 @@ function showSupervisorVerification(staff) {
     };
   };
   
-  const showPatternInput = () => {
-    let patternSequence = [];
-    let isDrawing = false;
-    
-    methodContent.innerHTML = `
-      <div style="text-align: center;">
-        <p style="margin: 0.5rem 0;">Draw your pattern:</p>
-        <div class="pattern-grid" id="superPatternGrid" style="margin: 0.5rem auto; max-width: 200px; gap: 0.5rem;">
-          ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
-        </div>
-        <div id="superPatternPreview" style="font-size: 0.7rem; margin: 0.5rem 0;">Draw your pattern...</div>
-        <button id="superResetPattern" style="background: #6b7280; color: white; padding: 0.4rem 1rem; margin-right: 0.5rem;">⟳ Reset</button>
-        <button id="superCancelPattern" style="background: #94a3b8; color: white; padding: 0.4rem 1rem;">Cancel</button>
+ const showPatternInput = () => {
+  let patternSequence = [];
+  let isDrawing = false;
+
+  methodContent.innerHTML = `
+    <div style="text-align: center;">
+      <p style="margin: 0.5rem 0;">Draw your pattern:</p>
+      <div class="pattern-grid" id="superPatternGrid" style="margin: 0.5rem auto; max-width: 200px; gap: 0.5rem;">
+        ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
       </div>
-    `;
-    
-    const grid = methodContent.querySelector('#superPatternGrid');
-    const dots = grid.querySelectorAll('.pattern-dot');
-    const previewSpan = methodContent.querySelector('#superPatternPreview');
-    
-    function updatePreview() {
-      if (patternSequence.length === 0) previewSpan.textContent = 'Draw your pattern...';
-      else previewSpan.textContent = patternSequence.map(n => '●').join(' → ');
-    }
-    
-    function resetDrawing() {
-      patternSequence = [];
-      dots.forEach(dot => dot.classList.remove('selected'));
-      updatePreview();
-      if (errorMsg) errorMsg.textContent = '';
-    }
-    
-    function getDotFromEvent(e) {
-      const rect = grid.getBoundingClientRect();
-      let clientX, clientY;
-      if (e.touches) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
-      else { clientX = e.clientX; clientY = e.clientY; }
-      for (let dot of dots) {
-        const dotRect = dot.getBoundingClientRect();
-        if (clientX >= dotRect.left && clientX <= dotRect.right && clientY >= dotRect.top && clientY <= dotRect.bottom) {
-          return { dotNum: parseInt(dot.dataset.num), element: dot };
-        }
+      <div id="superPatternPreview" style="font-size: 0.7rem; margin: 0.5rem 0;">Draw your pattern...</div>
+      <button id="superResetPattern" style="background: #6b7280; color: white; padding: 0.4rem 1rem; margin-right: 0.5rem;">⟳ Reset</button>
+      <button id="superCancelPattern" style="background: #94a3b8; color: white; padding: 0.4rem 1rem;">Cancel</button>
+    </div>
+  `;
+
+  const grid = methodContent.querySelector('#superPatternGrid');
+  const dots = grid.querySelectorAll('.pattern-dot');
+  const previewSpan = methodContent.querySelector('#superPatternPreview');
+
+  function updatePreview() {
+    if (patternSequence.length === 0) previewSpan.textContent = 'Draw your pattern...';
+    else previewSpan.textContent = patternSequence.map(n => '●').join(' → ');
+  }
+
+  function resetDrawing() {
+    patternSequence = [];
+    dots.forEach(dot => dot.classList.remove('selected'));
+    updatePreview();
+    if (errorMsg) errorMsg.textContent = '';
+  }
+
+  function getDotFromEvent(e) {
+    const rect = grid.getBoundingClientRect();
+    let clientX, clientY;
+    if (e.touches) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+    else { clientX = e.clientX; clientY = e.clientY; }
+    for (let dot of dots) {
+      const dotRect = dot.getBoundingClientRect();
+      if (clientX >= dotRect.left && clientX <= dotRect.right && clientY >= dotRect.top && clientY <= dotRect.bottom) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
       }
-      return null;
     }
-    
-    function startDraw(e) { e.preventDefault(); isDrawing = true; const dotInfo = getDotFromEvent(e); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence = [dotInfo.dotNum]; dotInfo.element.classList.add('selected'); updatePreview(); } }
-    function draw(e) { e.preventDefault(); if (!isDrawing) return; const dotInfo = getDotFromEvent(e); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence.push(dotInfo.dotNum); dotInfo.element.classList.add('selected'); updatePreview(); } }
-    async function endDraw(e) { e.preventDefault(); if (!isDrawing) { isDrawing = false; return; } isDrawing = false;
-      if (patternSequence.length >= 3) {
-        const enteredPattern = patternToString(patternSequence);
-        const creds = await loadUserCredentials(staff.id);
-        const savedPattern = creds?.pattern || staff.pattern;
-        if (enteredPattern === savedPattern) {
-          supervisorAuthStaffId = staff.id;
-          supervisorLoggedIn = true;
-          document.body.classList.add('supervisor-mode');
-          document.getElementById("superAuthArea").style.display = "none";
-          document.getElementById("superDashboard").style.display = "block";
-          setGlobalControlsEnabled(true);
-          refreshAllViews();
-          showMessage(`✅ Welcome Supervisor ${staff.name}`);
-        } else { if (errorMsg) errorMsg.textContent = '❌ Incorrect pattern! Try again.'; resetDrawing(); }
-      } else if (patternSequence.length > 0 && patternSequence.length < 3) { if (errorMsg) errorMsg.textContent = '❌ Pattern must have at least 3 dots'; setTimeout(() => resetDrawing(), 1000); }
+    return null;
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    isDrawing = true;
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      updatePreview();
     }
-    
-    grid.addEventListener('mousedown', startDraw);
-    window.addEventListener('mousemove', draw);
-    window.addEventListener('mouseup', endDraw);
-    grid.addEventListener('touchstart', startDraw);
-    window.addEventListener('touchmove', draw);
-    window.addEventListener('touchend', endDraw);
-    
-    methodContent.querySelector('#superResetPattern').onclick = resetDrawing;
-    methodContent.querySelector('#superCancelPattern').onclick = () => {
-      methodContent.innerHTML = '';
-      document.getElementById('superVerificationArea').style.display = 'none';
-      document.getElementById('supervisorSelect').value = '';
-      if (errorMsg) errorMsg.textContent = '';
-    };
+  }
+
+  function draw(e) {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence.push(dotInfo.dotNum);
+      dotInfo.element.classList.add('selected');
+      updatePreview();
+    }
+  }
+
+  async function endDraw(e) {
+    e.preventDefault();
+    if (!isDrawing) { isDrawing = false; return; }
+    isDrawing = false;
+
+    if (patternSequence.length >= 3) {
+      const enteredPattern = patternToString(patternSequence);
+      const creds = await loadUserCredentials(staff.id);
+      const savedPattern = creds?.pattern || staff.pattern;
+      if (enteredPattern === savedPattern) {
+        // ✅ Clean up global listeners BEFORE proceeding
+        cleanupPatternListeners();
+
+        supervisorAuthStaffId = staff.id;
+        supervisorLoggedIn = true;
+        document.body.classList.add('supervisor-mode');
+        document.getElementById("superAuthArea").style.display = "none";
+        document.getElementById("superDashboard").style.display = "block";
+        setGlobalControlsEnabled(true);
+        refreshAllViews();
+
+        // Re‑initialise the attendance dropdown (fix for iPad)
+        const attSelect = document.getElementById("attendanceStaffSelect");
+        if (attSelect) {
+          const fixedSelect = fixSelectForIPad(attSelect);
+          fixedSelect.innerHTML = '<option value="">-- Select Staff --</option>' +
+            staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+        }
+
+        showMessage(`✅ Welcome Supervisor ${staff.name}`);
+      } else {
+        if (errorMsg) errorMsg.textContent = '❌ Incorrect pattern! Try again.';
+        resetDrawing();
+      }
+    } else if (patternSequence.length > 0 && patternSequence.length < 3) {
+      if (errorMsg) errorMsg.textContent = '❌ Pattern must have at least 3 dots';
+      setTimeout(() => resetDrawing(), 1000);
+    }
+  }
+
+  // Store listeners for cleanup
+  const winMoveHandler = draw;
+  const winUpHandler = endDraw;
+  const winTouchMoveHandler = draw;
+  const winTouchEndHandler = endDraw;
+
+  activePatternListeners = {
+    winMove: winMoveHandler,
+    winUp: winUpHandler,
+    winTouchMove: winTouchMoveHandler,
+    winTouchEnd: winTouchEndHandler
   };
+
+  window.addEventListener('mousemove', winMoveHandler);
+  window.addEventListener('mouseup', winUpHandler);
+  window.addEventListener('touchmove', winTouchMoveHandler);
+  window.addEventListener('touchend', winTouchEndHandler);
+
+  grid.addEventListener('mousedown', startDraw);
+  grid.addEventListener('touchstart', startDraw);
+
+  methodContent.querySelector('#superResetPattern').onclick = () => {
+    resetDrawing();
+    if (errorMsg) errorMsg.textContent = '';
+  };
+
+  methodContent.querySelector('#superCancelPattern').onclick = () => {
+    cleanupPatternListeners();   // ✅ Remove global touch listeners
+    methodContent.innerHTML = '';
+    document.getElementById('superVerificationArea').style.display = 'none';
+    document.getElementById('supervisorSelect').value = '';
+    if (errorMsg) errorMsg.textContent = '';
+  };
+};
   
   document.getElementById('superPasswordBtn').onclick = () => showPasswordInput();
   document.getElementById('superPatternBtn').onclick = () => showPatternInput();
@@ -1486,6 +1547,15 @@ function showPatternModal(staff, onSuccess, onCancel) {
       verificationInProgress = false;
     }
   }
+
+  function refreshAttendanceDropdown() {
+  const attSelect = document.getElementById("attendanceStaffSelect");
+  if (attSelect && supervisorLoggedIn) {
+    const fixedSelect = fixSelectForIPad(attSelect);
+    fixedSelect.innerHTML = '<option value="">-- Select Staff --</option>' +
+      staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  }
+}
 
   // Touch / mouse event helpers
   function getDotFromEvent(e) {
