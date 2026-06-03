@@ -4587,7 +4587,6 @@ async function saveToLocalStorage() {
     return false;
   }
 }
-
     // Load from Firebase
 // Load from Firebase - PER DATE
 async function loadFromLocalStorage() {
@@ -4900,49 +4899,63 @@ if (statusSelect) {
   loadCompleteStaffDashboard();
 }
 
-  function initMainTabs() {
-  const btns = document.querySelectorAll(".main-tab-btn");
-  const staffPane = document.getElementById("staffMainPane");
-  const supervisorPane = document.getElementById("supervisorMainPane");
+  function renderAllSod() {
+  const container = document.getElementById("allSodContainer");
+  if (!container || !supervisorLoggedIn) return;
   
-  function switchTab(tabId) {
-    // Hide both panes
-    staffPane.classList.remove("active-pane");
-    supervisorPane.classList.remove("active-pane");
+  console.log("Rendering SOD for date:", currentDate);
+  console.log("Current staffOnDutyIds:", Array.from(staffOnDutyIds));
+  
+  container.innerHTML = "";
+  
+  staffList.forEach(staff => {
+    const badge = document.createElement("div");
+    badge.className = "staff-badge";
+    const isOnDuty = staffOnDutyIds.has(staff.id);
     
-    // Show selected pane
-    if (tabId === "staff") {
-      staffPane.classList.add("active-pane");
-      // Refresh staff view content
-      renderBreakTimeBadges();
-      loadCompleteStaffDashboard();
-      renderDailyTasksUI();
-      updateStaffDisplay();
-    } else if (tabId === "supervisor") {
-      supervisorPane.classList.add("active-pane");
-      // Refresh supervisor view if logged in
-      if (supervisorLoggedIn) {
-        refreshAllViews();
-      } else {
-        // Make sure supervisor auth area is visible
-        document.getElementById("superAuthArea").style.display = "block";
-        document.getElementById("superDashboard").style.display = "none";
-      }
+    if (isOnDuty) {
+      badge.classList.add("selected-sod");
     }
+    badge.setAttribute("data-id", staff.id);
+    badge.innerHTML = `
+      <span>${isOnDuty ? '✓' : '○'}</span>
+      <span class="badge-name">${escapeHtml(staff.name)}</span>
+      <span class="badge-role">${staff.role}</span>
+    `;
     
-    // Update button active states
-    btns.forEach(b => {
-      if (b.dataset.tab === tabId) {
-        b.classList.add("active");
-      } else {
-        b.classList.remove("active");
-      }
-    });
-  }
-  
-  // Add click handlers
-  btns.forEach(b => {
-    b.onclick = () => switchTab(b.dataset.tab);
+    // FIXED: Use direct onclick handler without closure issues
+    badge.onclick = (function(id, name) {
+      return function(e) {
+        e.stopPropagation();
+        console.log("Clicked staff ID:", id, "Name:", name);
+        
+        if (staffOnDutyIds.has(id)) {
+          staffOnDutyIds.delete(id);
+          showMessage(name + " removed from SOD for " + currentDate);
+        } else {
+          staffOnDutyIds.add(id);
+          showMessage(name + " added to SOD for " + currentDate);
+        }
+        
+        console.log("Updated SOD IDs:", Array.from(staffOnDutyIds));
+        
+        // IMPORTANT: Save to Firebase immediately
+        saveToLocalStorage().then(() => {
+          // Re-render both sections
+          renderAllSod();
+          renderAllocationPool();
+          initDailyStaffSelect();
+          
+          // Also refresh staff view if active
+          if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
+            loadCompleteStaffDashboard();
+            renderDailyTasksUI();
+          }
+        });
+      };
+    })(staff.id, staff.name);
+    
+    container.appendChild(badge);
   });
 }
 
