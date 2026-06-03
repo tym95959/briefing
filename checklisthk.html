@@ -1149,6 +1149,7 @@ async function showProfileModal(staff) {
     };
   });
   
+    // ---------- Pattern change logic ----------
   const verifyPatternBtn = modal.querySelector('#verifyForPatternBtn');
   const patternCurrentPass = modal.querySelector('#patternCurrentPass');
   const patternChangeArea = modal.querySelector('#patternChangeArea');
@@ -1227,6 +1228,7 @@ async function showProfileModal(staff) {
     }
   }
   
+  // Attach draw listeners only after password verification
   verifyPatternBtn.onclick = async () => {
     const currentPass = patternCurrentPass.value;
     if (!currentPass) {
@@ -1246,10 +1248,8 @@ async function showProfileModal(staff) {
     verifyPatternBtn.style.opacity = '0.5';
     resetNewPatternDrawing();
     
-    // Remove any previous listeners
+    // Clean previous listeners and attach fresh ones
     cleanupNewPatternDrawListeners();
-    
-    // Attach new listeners
     window.addEventListener('mousemove', drawNew);
     window.addEventListener('mouseup', endNewDraw);
     window.addEventListener('touchmove', drawNew);
@@ -1260,6 +1260,7 @@ async function showProfileModal(staff) {
     newPatternGrid.addEventListener('touchstart', startNewDraw, { passive: false });
   };
   
+  // Save pattern with timeout and proper error handling
   savePatternBtn.onclick = async () => {
     if (newPatternSequence.length < 3) {
       patternMsg.textContent = '❌ Pattern must have at least 3 dots';
@@ -1267,40 +1268,53 @@ async function showProfileModal(staff) {
       return;
     }
     const newPattern = patternToString(newPatternSequence);
-    console.log(`Saving new pattern for ${staff.id}: ${newPattern}`);
+    patternMsg.textContent = '⏳ Saving pattern...';
+    patternMsg.className = 'profile-message';
+    savePatternBtn.disabled = true;
+    
+    // Set a timeout to prevent infinite hang
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Save timeout after 10 seconds')), 10000)
+    );
     
     try {
-      const success = await saveUserCredentials(staff.id, { pass: staff.pass, pattern: newPattern });
+      const savePromise = saveUserCredentials(staff.id, { pass: staff.pass, pattern: newPattern });
+      const success = await Promise.race([savePromise, timeoutPromise]);
+      
       if (success) {
         staff.pattern = newPattern;
         patternMsg.textContent = '✅ Pattern updated successfully!';
         patternMsg.className = 'profile-message success';
         resetNewPatternDrawing();
         showMessage(`Pattern updated for ${staff.name}`);
-        // Close modal after 1.5 seconds
+        // Close modal after short delay
         setTimeout(() => {
           cleanupNewPatternDrawListeners();
           modal.remove();
-        }, 1500);
+        }, 1200);
       } else {
-        patternMsg.textContent = '❌ Failed to update pattern (Firebase error)';
-        patternMsg.className = 'profile-message error';
-        console.error('saveUserCredentials returned false');
+        throw new Error('saveUserCredentials returned false');
       }
     } catch (err) {
-      console.error('Exception saving pattern:', err);
-      patternMsg.textContent = '❌ Error saving pattern: ' + err.message;
+      console.error('Save pattern error:', err);
+      patternMsg.textContent = `❌ Failed to save pattern: ${err.message}`;
       patternMsg.className = 'profile-message error';
+      savePatternBtn.disabled = false;
+      // Re-enable verify button so user can try again
+      verifyPatternBtn.disabled = false;
+      verifyPatternBtn.style.opacity = '1';
+      // Optionally keep drawing area but allow retry
     }
   };
   
-  // Clean up when modal is closed
+  // Ensure modal can always be closed
   const closeModal = () => {
     cleanupNewPatternDrawListeners();
     modal.remove();
   };
   
-  modal.querySelector('#closeProfileBtn').onclick = closeModal;
+  const closeBtn = modal.querySelector('#closeProfileBtn');
+  closeBtn.onclick = closeModal;
   modal.onclick = (e) => { if (e.target === modal) closeModal(); };
 }
 // ============ SUPERVISOR AUTHENTICATION FUNCTIONS ============
