@@ -22,21 +22,21 @@ body {
   background: linear-gradient(135deg, #fff8e7 0%, #fdf0d0 100%);
   font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   min-height: 100vh;
-  padding: 1rem;
-  overflow-y: auto !important;
-  height: auto !important;
+  padding: 1.5rem;
+  overflow-y: auto !important;  /* ADD THIS - ensures body can scroll */
+  height: auto !important;      /* ADD THIS - allows natural height */
 }
 
 .app-container {
   max-width: 1600px;
   margin: 0 auto;
   background: rgba(255,252,240,0.98);
-  border-radius: 1.5rem;
+  border-radius: 2rem;
   box-shadow: 0 25px 45px -12px rgba(184, 134, 11, 0.25);
   overflow: hidden;
   border: 1px solid #f0d890;
-  height: auto !important;
-  min-height: auto !important;
+  height: auto !important;      /* ADD THIS - prevents fixed height */
+  min-height: auto !important;  /* ADD THIS - allows natural growth */
 }
 
 .main-tabs {
@@ -255,15 +255,14 @@ button:hover {
   border-collapse: collapse;
   background: white;
   border-radius: 1rem;
-  overflow-x: auto;
-  display: block;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .allocation-table th, .allocation-table td {
   border: 1px solid #e2e8f0;
-  padding: 0.6rem;
+  padding: 0.8rem;
   vertical-align: top;
-  font-size: 0.8rem;
 }
 
 .allocation-table th {
@@ -290,19 +289,20 @@ button:hover {
 
 .attendance-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
   margin-bottom: 1.5rem;
+  overflow-y: visible !important; /* ADD THIS */
 }
 
 .attendance-card {
   background: white;
-  border-radius: 1rem;
-  padding: 1rem;
+  border-radius: 1.2rem;
+  padding: 1.2rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   border: 1px solid #e2e8f0;
-  max-height: 400px;
-  overflow-y: auto;
+  max-height: none !important;  /* ADD THIS - remove any height limit */
+  overflow-y: visible !important;
 }
 
 .card-title {
@@ -1054,39 +1054,29 @@ body.supervisor-mode #globalControlBar {
 
 /* Better touch targets for iPad */
 @media (max-width: 1024px) {
-  body {
-    padding: 0.5rem;
+  button, 
+  .staff-badge,
+  .pattern-dot,
+  .reset-pattern-btn,
+  .cancel-pattern-btn {
+    cursor: pointer;
+    touch-action: manipulation;
   }
   
-  .main-tab-pane {
-    padding: 1rem;
+  .pattern-modal-content {
+    width: 95%;
+    max-width: 450px;
+    margin: 1rem;
   }
   
-  .control-row {
-    flex-direction: column;
-    align-items: stretch;
+  .pattern-dot {
+    min-width: 70px !important;
+    min-height: 70px !important;
   }
   
-  .control-row label {
-    min-width: auto;
-  }
-  
-  select, input, button {
-    width: 100%;
-  }
-  
-  .staff-badge {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-    min-height: 44px;
-  }
-  
-  .allocation-table {
-    font-size: 0.7rem;
-  }
-  
-  .allocation-table th, .allocation-table td {
-    padding: 0.4rem;
+  .pattern-grid {
+    gap: 1.2rem !important;
+    padding: 1.2rem !important;
   }
 }
 
@@ -3637,18 +3627,30 @@ let lastSyncShift = null;
 async function syncStaffViewWithSupervisor() {
   if (!supervisorLoggedIn) return;
   
+  // Prevent infinite sync loops - only sync if date/shift actually changed
+  if (lastSyncDate === currentDate && lastSyncShift === currentShift) {
+    console.log("⏭️ Skipping duplicate sync (same date/shift)");
+    return;
+  }
+  
+  lastSyncDate = currentDate;
+  lastSyncShift = currentShift;
+  
   console.log(`🔄 Syncing staff view - Date: ${currentDate}, Shift: ${currentShift}`);
   
   updateStaffDisplay();
   updateStaffContextDisplay();
   
-  await loadFromLocalStorage();
+  // Load data without triggering another sync
+  await loadFromLocalStorageInternal();
   await loadDailyTasks(); 
   
   renderBreakTimeBadges();
   loadCompleteStaffDashboard();
   initDailyStaffSelect();
   renderDailyTasksUI();
+  
+  console.log(`✅ Staff view synced to: ${currentDate} - ${currentShift}`);
 }
 
 
@@ -4032,7 +4034,93 @@ function signoffTaskHandler(task, isFb) {
   setupDelegation(fbContainer, true);
 }
 
-
+// Add this function - it's completely missing from your code!
+async function addAttendanceFromForm(event) {
+  if (event) event.preventDefault();
+  
+  const staffId = document.getElementById("attendanceStaffSelect").value;
+  const dutyShift = document.getElementById("attendanceDutyShift").value;
+  const status = document.getElementById("attendanceStatus").value;
+  const reportedDate = document.getElementById("attendanceReportedDate").value;
+  const reportedTime = document.getElementById("attendanceTime").value;
+  const leaveDate = document.getElementById("attendanceLeaveDate").value;
+  
+  // Get reason if applicable
+  let reason = null;
+  if (status === "Sick Leave" || status === "FRL") {
+    reason = document.getElementById("attendanceReason").value;
+    if (!reason) {
+      showMessage("Please select a reason for " + status, "error");
+      return;
+    }
+  }
+  
+  if (!staffId) {
+    showMessage("Please select a staff member", "error");
+    return;
+  }
+  
+  if (!reportedDate) {
+    showMessage("Please select reported date", "error");
+    return;
+  }
+  
+  if (!reportedTime) {
+    showMessage("Please select reported time", "error");
+    return;
+  }
+  
+  const staff = staffList.find(s => s.id === staffId);
+  if (!staff) {
+    showMessage("Staff not found", "error");
+    return;
+  }
+  
+  // Check if attendance already recorded for this staff on this date
+  const existingKey = getAttendanceKey(staffId, leaveDate);
+  if (attendanceRecords.has(existingKey)) {
+    if (confirm(`Attendance record for ${staff.name} on ${leaveDate} already exists. Overwrite?`)) {
+      attendanceRecords.delete(existingKey);
+    } else {
+      return;
+    }
+  }
+  
+  // Create the attendance record
+  const record = {
+    staffId: staffId,
+    staffName: staff.name,
+    date: leaveDate,
+    dutyShift: dutyShift,
+    status: status,
+    reason: reason,
+    reportedDate: reportedDate,
+    reportedTime: reportedTime,
+    leaveDate: leaveDate,
+    recordedAt: new Date().toISOString()
+  };
+  
+  attendanceRecords.set(getAttendanceKey(staffId, leaveDate), record);
+  
+  // Save to Firebase
+  await saveToLocalStorage();
+  
+  // Clear form
+  document.getElementById("attendanceStaffSelect").value = "";
+  document.getElementById("attendanceStatus").value = "Absent";
+  document.getElementById("attendanceReason").innerHTML = '<option value="">-- Select Reason --</option>';
+  document.getElementById("reasonContainer").style.display = "none";
+  document.getElementById("attendanceReportedDate").value = new Date().toISOString().split('T')[0];
+  document.getElementById("attendanceTime").value = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById("attendanceLeaveDate").value = new Date().toISOString().split('T')[0];
+  
+  // Refresh displays
+  renderAttendanceDashboard();
+  renderSupervisorAttendanceDashboard();
+  loadAllStaffAttendance();
+  
+  showMessage(`${status} recorded for ${staff.name} on ${leaveDate}`, "success");
+}
 
 function renderSupervisorDailyTasks() {
   const mainContainer = document.getElementById("superMainTasksContainer");
@@ -4452,6 +4540,9 @@ function renderAllSod() {
   const container = document.getElementById("allSodContainer");
   if (!container || !supervisorLoggedIn) return;
   
+  console.log("Rendering SOD for date:", currentDate);
+  console.log("Current staffOnDutyIds:", Array.from(staffOnDutyIds));
+  
   container.innerHTML = "";
   
   staffList.forEach(staff => {
@@ -4469,22 +4560,25 @@ function renderAllSod() {
       <span class="badge-role">${staff.role}</span>
     `;
     
-    badge.onclick = function(e) {
+    // FIXED: Use a named function that can be referenced
+    const handleClick = function(e) {
       e.preventDefault();
       e.stopPropagation();
+      console.log("Clicked staff ID:", staff.id, "Name:", staff.name);
       
       if (staffOnDutyIds.has(staff.id)) {
         staffOnDutyIds.delete(staff.id);
-        showMessage(staff.name + " removed from SOD");
+        showMessage(staff.name + " removed from SOD for " + currentDate);
       } else {
         staffOnDutyIds.add(staff.id);
-        showMessage(staff.name + " added to SOD");
+        showMessage(staff.name + " added to SOD for " + currentDate);
       }
       
       saveToLocalStorage().then(() => {
         renderAllSod();
         renderAllocationPool();
         initDailyStaffSelect();
+        
         if (document.getElementById("staffMainPane").classList.contains("active-pane")) {
           loadCompleteStaffDashboard();
           renderDailyTasksUI();
@@ -4492,10 +4586,17 @@ function renderAllSod() {
       });
     };
     
+    // Remove any existing listeners first
+    badge.removeEventListener('click', handleClick);
+    badge.removeEventListener('touchstart', handleClick);
+    
+    // Add fresh listeners
+    badge.addEventListener('click', handleClick);
+    badge.addEventListener('touchstart', handleClick);
+    
     container.appendChild(badge);
   });
 }
-
 
 
 function initMainTabs() {
@@ -5086,11 +5187,20 @@ async function loadFromLocalStorage() {
       
       if (d.staffOnDutyIds && d.staffOnDutyIds.length > 0) {
         staffOnDutyIds = new Set(d.staffOnDutyIds);
-        console.log(`✅ Loaded ${staffOnDutyIds.size} staff on duty`);
-      } else {
+        console.log(`✅ Loaded ${staffOnDutyIds.size} staff on duty for ${currentDate}:`, Array.from(staffOnDutyIds));
+        } else {
         staffOnDutyIds.clear();
-      }
+        console.log(`No staff on duty saved for ${currentDate}`);
+        // For testing: Add first 3 staff as on duty if none exist
+        if (staffList.length > 0 && !supervisorLoggedIn) {
+            console.log("No SOD found, adding test SODs");
+            staffOnDutyIds.add(staffList[0].id);
+            if (staffList[1]) staffOnDutyIds.add(staffList[1].id);
+            if (staffList[2]) staffOnDutyIds.add(staffList[2].id);
+        }
+        }
       
+      // Load shift from saved data only if supervisor is NOT logged in
       if (d.currentShift && !supervisorLoggedIn) {
         currentShift = d.currentShift;
       }
@@ -5104,22 +5214,44 @@ async function loadFromLocalStorage() {
         if (d.nextRequestId) nextRequestId = d.nextRequestId; 
       }
       
+      console.log(`✅ Loaded existing data for ${currentDate} from Firebase`);
+      // COMMENT OUT OR REMOVE THIS LINE:
+      // showMessage(`📅 Loaded data for ${currentDate} - ${staffOnDutyIds.size} staff on duty`, "success");
       return true;
+      
     } else {
+      console.log(`📅 New day: ${currentDate} - Starting fresh`);
+      // COMMENT OUT OR REMOVE THIS LINE:
+      // showMessage(`🆕 New day! Starting fresh for ${currentDate}`, "success");
+      
       allocations.clear();
       staffOnDutyIds.clear();
       attendanceRecords.clear();
       breakRequests.clear();
       selectedAllocationStaff.clear();
       nextRequestId = 1;
+      
+      MAIN_DAILY_TASKS.forEach(task => {
+        if (task.type === "signoff") task.signoffs = [];
+        if (task.type === "complete") task.completedBy = null;
+        if (task.type === "submission") task.submissions = [];
+      });
+      
+      FB_DAILY_TASKS.forEach(task => {
+        if (task.type === "signoff") task.signoffs = [];
+        if (task.type === "complete") task.completedBy = null;
+      });
+      
+      await saveDailyTasks();
+      await saveToLocalStorage();
       return false;
     }
   } catch (error) {
     console.error("❌ Firebase load error:", error);
+    showMessage("Failed to load from cloud: " + error.message, "error");
     return false;
   }
 }
-
 
 // Handle date changes - load data for new date
 // Handle date changes - load data for new date
@@ -5252,6 +5384,25 @@ if (requestBtn) {
   requestBtn.onclick = function(e) {
     if (e) e.preventDefault();
     submitBreakRequest();
+  };
+}
+
+// In populateDropdowns, replace the statusSelect.onchange with:
+if (statusSelect) {
+  statusSelect.onchange = function() {
+    const selectedStatus = this.value;
+    const reasonSelect = document.getElementById("attendanceReason");
+    reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>';
+    reasonSelect.value = "";
+    
+    if (selectedStatus === "Sick Leave" || selectedStatus === "FRL") {
+      const reasons = PRESET_REASONS[selectedStatus] || [];
+      reasonSelect.innerHTML = '<option value="">-- Select Reason --</option>' + 
+        reasons.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+      document.getElementById("reasonContainer").style.display = "block";
+    } else {
+      document.getElementById("reasonContainer").style.display = "none";
+    }
   };
 }
 
