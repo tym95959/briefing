@@ -1035,6 +1035,33 @@ canvas, svg {
     margin: 1rem;
   }
 }
+
+/* iPad touch improvements */
+@media (hover: none) and (pointer: coarse) {
+  .pattern-dot {
+    min-width: 70px;
+    min-height: 70px;
+  }
+  .pattern-grid {
+    gap: 1.2rem;
+    padding: 1.2rem;
+  }
+  button, .staff-badge, .pattern-dot {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+}
+
+/* Ensure pattern grid is touch-friendly */
+.pattern-grid {
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pattern-dot {
+  -webkit-tap-highlight-color: transparent;
+}
+
   </style>
 </head>
 <body>
@@ -2065,16 +2092,39 @@ async function getStaffWithCredentials() {
 }
 
 // Update staff in memory after credential change
+// Refresh staff credentials from Firebase
 async function refreshStaffCredentials() {
-  for (const staff of staffList) {
-    const creds = await loadUserCredentials(staff.id);
-    if (creds) {
-      staff.pass = creds.pass;
-      staff.pattern = creds.pattern;
+  try {
+    const db = firebase.firestore();
+    const usersRef = db.collection("staffCredentials");
+    const snapshot = await usersRef.get();
+    
+    for (const staff of staffList) {
+      const doc = await usersRef.doc(staff.id).get();
+      if (doc.exists) {
+        const data = doc.data();
+        if (data.pass) staff.pass = data.pass;
+        if (data.pattern) staff.pattern = data.pattern;
+        console.log(`✅ Loaded credentials for ${staff.name}: pass=${staff.pass}, pattern=${staff.pattern}`);
+      } else {
+        // Save default credentials if none exist
+        await usersRef.doc(staff.id).set({
+          staffId: staff.id,
+          pass: staff.pass || "1234",
+          pattern: staff.pattern || "1,2,3",
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`📝 Created default credentials for ${staff.name}`);
+      }
     }
+    console.log("✅ Staff credentials refreshed from Firebase");
+    return true;
+  } catch (error) {
+    console.error("Error refreshing credentials:", error);
+    return false;
   }
-  console.log("✅ Staff credentials refreshed from Firebase");
 }
+
 
 // Show Pattern Lock Modal
 function showPatternModal(staff, onSuccess, onCancel) {
@@ -2530,7 +2580,7 @@ function initDailyStaffSelect() {
 }
 
 
-// Show verification options (Password OR Pattern)
+
 // Show verification - Pattern first, with option to switch to password
 function showVerificationOptionsModal(staff, callback) {
   const modal = document.createElement('div');
@@ -2585,101 +2635,6 @@ function showVerificationOptionsModal(staff, callback) {
   
   document.body.appendChild(modal);
   
-  // Add CSS for the modal
-  const style = document.createElement('style');
-  style.textContent = `
-    .pattern-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      width: 100%;
-      max-width: 300px;
-      margin: 1rem auto;
-      background: #f8fafc;
-      padding: 1.5rem;
-      border-radius: 1.5rem;
-      touch-action: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .pattern-dot {
-      aspect-ratio: 1;
-      background: #e2e8f0;
-      border-radius: 50%;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      min-width: 50px;
-      touch-action: none;
-    }
-    @media (max-width: 768px) {
-      .pattern-dot {
-        min-width: 60px;
-      }
-      .pattern-grid {
-        gap: 1.5rem;
-        padding: 1.5rem;
-      }
-    }
-    .pattern-dot.selected {
-      background: #b8860b;
-      transform: scale(1.1);
-      box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.3);
-    }
-    .pattern-dot.selected::after {
-      content: "●";
-      color: white;
-      font-size: 1.5rem;
-    }
-    .pattern-dot.drag-over {
-      background: #d4a017;
-      transform: scale(1.05);
-    }
-    .pattern-preview {
-      text-align: center;
-      font-size: 0.85rem;
-      margin: 0.5rem 0;
-      color: #4a5568;
-      min-height: 2rem;
-    }
-    .pattern-status {
-      text-align: center;
-      font-size: 0.8rem;
-      margin: 0.5rem 0;
-      padding: 0.3rem;
-      border-radius: 0.5rem;
-    }
-    .pattern-status.error {
-      color: #dc2626;
-      background: #fee2e2;
-    }
-    .pattern-status.success {
-      color: #059669;
-      background: #d1fae5;
-    }
-    .pattern-buttons {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-      margin-top: 0.5rem;
-    }
-    .reset-pattern-btn {
-      padding: 0.5rem 1.5rem;
-      border: none;
-      border-radius: 2rem;
-      cursor: pointer;
-      font-size: 0.85rem;
-      background: #6b7280;
-      color: white;
-    }
-    .reset-pattern-btn:active {
-      transform: scale(0.96);
-    }
-  `;
-  document.head.appendChild(style);
-  
   // Pattern mode variables
   let patternSequence = [];
   let isDrawing = false;
@@ -2703,10 +2658,6 @@ function showVerificationOptionsModal(staff, callback) {
   const switchModeBtn = modal.querySelector('#switchModeBtn');
   
   // Pattern helper functions
-  function patternToString(sequence) {
-    return sequence.join(',');
-  }
-  
   function updatePatternPreview() {
     if (patternSequence.length === 0) {
       previewSpan.textContent = '✨ Draw your pattern by connecting 3+ dots';
@@ -2762,7 +2713,7 @@ function showVerificationOptionsModal(staff, callback) {
       return;
     }
     
-    const enteredPattern = patternToString(patternSequence);
+    const enteredPattern = patternSequence.join(',');
     const savedPattern = staff.pattern || '';
     
     if (enteredPattern === savedPattern) {
@@ -2775,7 +2726,6 @@ function showVerificationOptionsModal(staff, callback) {
       
       setTimeout(() => {
         modal.remove();
-        style.remove();
         if (callback) callback(true);
       }, 500);
     } else {
@@ -2799,7 +2749,7 @@ function showVerificationOptionsModal(staff, callback) {
     }
   }
   
-  // Pattern drawing event handlers
+  // Pattern drawing event handlers - FIXED FOR IPAD
   function getDotFromEvent(e) {
     e.preventDefault();
     const rect = patternGrid.getBoundingClientRect();
@@ -2878,7 +2828,7 @@ function showVerificationOptionsModal(staff, callback) {
     autoVerifyPattern();
   }
   
-  // Initialize pattern drawing events
+  // Initialize pattern drawing events - FIXED FOR IPAD
   if (patternGrid) {
     patternGrid.addEventListener('mousedown', startDraw);
     window.addEventListener('mousemove', draw);
@@ -2886,9 +2836,6 @@ function showVerificationOptionsModal(staff, callback) {
     patternGrid.addEventListener('touchstart', startDraw, { passive: false });
     window.addEventListener('touchmove', draw, { passive: false });
     window.addEventListener('touchend', endDraw);
-    patternGrid.addEventListener('touchmove', (e) => {
-      if (isDrawing) e.preventDefault();
-    }, { passive: false });
   }
   
   // Reset pattern button
@@ -2913,7 +2860,6 @@ function showVerificationOptionsModal(staff, callback) {
         
         setTimeout(() => {
           modal.remove();
-          style.remove();
           if (callback) callback(true);
         }, 500);
       } else {
@@ -2929,11 +2875,12 @@ function showVerificationOptionsModal(staff, callback) {
     }
   }
   
-  // Setup password number pad if in password mode
+  // Setup password number pad
   function setupPasswordMode() {
     if (!passInput) return;
     
-    modal.querySelectorAll('[data-num]').forEach(btn => {
+    const numpadBtns = modal.querySelectorAll('[data-num]');
+    numpadBtns.forEach(btn => {
       btn.onclick = () => {
         const num = btn.dataset.num;
         if (num === 'clear') {
@@ -2957,36 +2904,36 @@ function showVerificationOptionsModal(staff, callback) {
     }
   }
   
-  // Switch between pattern and password modes
-  switchModeBtn.onclick = () => {
-    if (currentMode === 'pattern') {
-      // Switch to password mode
-      currentMode = 'password';
-      patternModeContainer.style.display = 'none';
-      passwordModeContainer.style.display = 'block';
-      switchModeBtn.innerHTML = '🎨 Switch to Pattern';
-      switchModeBtn.style.color = '#b8860b';
-      setupPasswordMode();
-      setTimeout(() => {
-        if (passInput) passInput.focus();
-      }, 100);
-    } else {
-      // Switch to pattern mode
-      currentMode = 'pattern';
-      patternModeContainer.style.display = 'block';
-      passwordModeContainer.style.display = 'none';
-      switchModeBtn.innerHTML = '🔑 Switch to Password';
-      switchModeBtn.style.color = '#6b7280';
-      resetPatternDrawing();
-    }
-  };
+  // Switch between pattern and password modes - FIXED
+  if (switchModeBtn) {
+    switchModeBtn.onclick = (e) => {
+      e.preventDefault();
+      if (currentMode === 'pattern') {
+        currentMode = 'password';
+        patternModeContainer.style.display = 'none';
+        passwordModeContainer.style.display = 'block';
+        switchModeBtn.innerHTML = '🎨 Switch to Pattern';
+        switchModeBtn.style.color = '#b8860b';
+        setupPasswordMode();
+        setTimeout(() => {
+          if (passInput) passInput.focus();
+        }, 100);
+      } else {
+        currentMode = 'pattern';
+        patternModeContainer.style.display = 'block';
+        passwordModeContainer.style.display = 'none';
+        switchModeBtn.innerHTML = '🔑 Switch to Password';
+        switchModeBtn.style.color = '#6b7280';
+        resetPatternDrawing();
+      }
+    };
+  }
   
   // Cancel button
   const cancelBtn = modal.querySelector('#cancelVerifyBtn');
   if (cancelBtn) {
     cancelBtn.onclick = () => {
       modal.remove();
-      style.remove();
       if (callback) callback(false);
     };
   }
@@ -2995,7 +2942,6 @@ function showVerificationOptionsModal(staff, callback) {
   modal.onclick = (e) => {
     if (e.target === modal) {
       modal.remove();
-      style.remove();
       if (callback) callback(false);
     }
   };
@@ -3006,7 +2952,6 @@ function showVerificationOptionsModal(staff, callback) {
     document.body.style.overflow = '';
   });
 }
-
 
 // Password only modal - Auto-submit when 4 digits entered
 function showPasswordOnlyModal(staff, callback) {
@@ -4883,8 +4828,10 @@ function startPeriodicSync() {
 
 // Then in initApp, add this line before the last showMessage:
 async function initApp() {
-  // First, ensure currentDate is set correctly
   console.log(`🟢 Initializing app with date: ${currentDate}, shift: ${currentShift}`);
+  
+  // IMPORTANT: Load staff credentials from Firebase FIRST
+  await refreshStaffCredentials();
   
   await loadFromLocalStorage();
   await loadDailyTasks();
@@ -4896,15 +4843,13 @@ async function initApp() {
   initStaffSubTabs();
   initDailyStaffSelect();
   
-  
   document.getElementById("superLogoutBtn").onclick = logoutSupervisor;
   
-  // Set the global date input to currentDate
   const gd = document.getElementById("globalDate");
   if (gd) gd.value = currentDate;
   
   refreshAllViews();
-  startPeriodicSync(); // ADD THIS LINE - it's defined but never called!
+  startPeriodicSync();
   showMessage("✅ System ready - Data synced with cloud");
 }
   
