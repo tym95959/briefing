@@ -1259,6 +1259,7 @@ async function showProfileModal(staff) {
     isDrawingNew = false;
     updatePatternPreview(); // this will enable/disable save button
     if (newPatternSequence.length >= 3) {
+        savePatternBtn.disabled = false;
       patternMsg.textContent = '✅ Pattern ready. Click "Save New Pattern".';
       patternMsg.className = 'profile-message success';
     } else if (newPatternSequence.length > 0) {
@@ -1313,50 +1314,60 @@ async function showProfileModal(staff) {
   };
   
   // Save button handler – ensure it's directly attached
-  savePatternBtn.onclick = async (e) => {
+  // Save pattern handler – works on both PC and iPad
+const savePattern = async (e) => {
+  if (e) {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Save button clicked. Pattern sequence:', newPatternSequence);
+  }
+  console.log('Save triggered. Pattern sequence:', newPatternSequence);
+  
+  // Show debug in modal
+  if (patternDebug) patternDebug.textContent = `Saving pattern: ${newPatternSequence.join(',')} (${newPatternSequence.length} dots)`;
+  
+  if (newPatternSequence.length < 3) {
+    patternMsg.textContent = `❌ Please draw at least 3 dots (you have ${newPatternSequence.length})`;
+    patternMsg.className = 'profile-message error';
+    return;
+  }
+  
+  const newPattern = patternToString(newPatternSequence);
+  patternMsg.textContent = '⏳ Saving pattern...';
+  patternMsg.className = 'profile-message';
+  savePatternBtn.disabled = true;
+  
+  try {
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Save timeout after 10 seconds')), 10000)
+    );
+    const savePromise = saveUserCredentials(staff.id, { pass: staff.pass, pattern: newPattern });
+    const success = await Promise.race([savePromise, timeoutPromise]);
     
-    if (newPatternSequence.length < 3) {
-      patternMsg.textContent = `❌ Please draw at least 3 dots (you have ${newPatternSequence.length})`;
-      patternMsg.className = 'profile-message error';
-      return;
+    if (success) {
+      staff.pattern = newPattern;
+      patternMsg.textContent = '✅ Pattern updated successfully!';
+      patternMsg.className = 'profile-message success';
+      showMessage(`Pattern updated for ${staff.name}`);
+      removePatternDrawListeners();
+      setTimeout(() => {
+        modal.remove();
+      }, 1200);
+    } else {
+      throw new Error('saveUserCredentials returned false');
     }
-    const newPattern = patternToString(newPatternSequence);
-    console.log('Saving pattern:', newPattern);
-    patternMsg.textContent = '⏳ Saving pattern...';
-    patternMsg.className = 'profile-message';
-    savePatternBtn.disabled = true;
-    
-    try {
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Save timeout after 10 seconds')), 10000)
-      );
-      const savePromise = saveUserCredentials(staff.id, { pass: staff.pass, pattern: newPattern });
-      const success = await Promise.race([savePromise, timeoutPromise]);
-      
-      if (success) {
-        staff.pattern = newPattern;
-        patternMsg.textContent = '✅ Pattern updated successfully!';
-        patternMsg.className = 'profile-message success';
-        showMessage(`Pattern updated for ${staff.name}`);
-        removePatternDrawListeners();
-        setTimeout(() => {
-          modal.remove();
-        }, 1200);
-      } else {
-        throw new Error('saveUserCredentials returned false');
-      }
-    } catch (err) {
-      console.error('Save pattern error:', err);
-      patternMsg.textContent = `❌ Failed to save pattern: ${err.message}`;
-      patternMsg.className = 'profile-message error';
-      savePatternBtn.disabled = false;
-      verifyPatternBtn.disabled = false;
-      verifyPatternBtn.style.opacity = '1';
-    }
-  };
+  } catch (err) {
+    console.error('Save pattern error:', err);
+    patternMsg.textContent = `❌ Failed: ${err.message}`;
+    patternMsg.className = 'profile-message error';
+    savePatternBtn.disabled = false;
+    verifyPatternBtn.disabled = false;
+    verifyPatternBtn.style.opacity = '1';
+  }
+};
+
+// Attach both click and touchstart events
+savePatternBtn.onclick = savePattern;
+savePatternBtn.ontouchstart = savePattern;
   
   // Close modal with cleanup
   const closeModal = () => {
