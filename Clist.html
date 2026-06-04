@@ -2229,19 +2229,15 @@ function showPatternModal(staff, onSuccess, onCancel) {
 
 // Update initDailyStaffSelect
 function initDailyStaffSelect() {
-  let select = document.getElementById("dailyTaskStaffSelect");
+  const select = document.getElementById("dailyTaskStaffSelect");
   if (!select) return;
 
-  // ✅ Apply iPad fix (cloning resets iOS internal state)
-  select = fixSelectForIPad(select);
-
-  // Helper: update dropdown options based on current SOD
+  // Helper: update options without replacing the select element
   function updateOptions() {
     const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
     const currentVal = select.value;
     select.innerHTML = '<option value="">-- Select Staff --</option>' +
       sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
-    // Try to restore previous selection if still valid
     if (currentVal && sodStaff.some(s => s.id === currentVal)) {
       select.value = currentVal;
     } else if (authenticatedStaffId && sodStaff.some(s => s.id === authenticatedStaffId)) {
@@ -2252,7 +2248,6 @@ function initDailyStaffSelect() {
     return sodStaff;
   }
 
-  // Update selfSelect as well
   function updateSelfSelect() {
     const selfSelect = document.getElementById("staffSelfSelect");
     if (!selfSelect) return;
@@ -2262,14 +2257,12 @@ function initDailyStaffSelect() {
   }
 
   // Remove any existing handler to avoid duplicates
-  const oldHandler = select.onchange;
-  if (oldHandler) select.onchange = null;
+  select.onchange = null;
 
   // Attach the persistent handler
   select.onchange = async function() {
     const newStaffId = this.value;
     if (!newStaffId) {
-      // User cleared selection – logout any authenticated staff
       if (authenticatedStaffId) {
         const oldStaff = staffList.find(s => s.id === authenticatedStaffId);
         showMessage(`👋 ${oldStaff?.name} logged out`, "info");
@@ -2284,14 +2277,12 @@ function initDailyStaffSelect() {
     const selectedStaff = staffList.find(s => s.id === newStaffId);
     if (!selectedStaff) return;
 
-    // Already authenticated as this staff – just refresh UI
     if (authenticatedStaffId === newStaffId) {
       document.getElementById("dailyTaskSelectedName").textContent = `✓ ${selectedStaff.name} (Verified)`;
       renderDailyTasksUI();
       return;
     }
 
-    // Different staff – logout current and verify the new one
     if (authenticatedStaffId) {
       const oldStaff = staffList.find(s => s.id === authenticatedStaffId);
       showMessage(`👋 ${oldStaff?.name} logged out automatically`, "info");
@@ -2299,7 +2290,6 @@ function initDailyStaffSelect() {
       updateProfileButtonVisibility();
     }
 
-    // Show verification modal for the new staff
     showVerificationOptionsModal(selectedStaff, (success) => {
       if (success) {
         authenticatedStaffId = selectedStaff.id;
@@ -2307,8 +2297,9 @@ function initDailyStaffSelect() {
         document.getElementById("dailyTaskSelectedName").textContent = `✓ ${selectedStaff.name} (Verified)`;
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
+        // Force a small delay then re-trigger focus to keep iPad responsive
+        setTimeout(() => { select.blur(); select.focus(); }, 50);
       } else {
-        // Verification failed – clear dropdown so user can retry
         select.value = "";
         authenticatedStaffId = null;
         updateProfileButtonVisibility();
@@ -2323,19 +2314,21 @@ function initDailyStaffSelect() {
   const sodStaff = updateOptions();
   updateSelfSelect();
 
-  // If a staff was previously authenticated and still on duty, select them
   if (authenticatedStaffId && sodStaff.some(s => s.id === authenticatedStaffId)) {
     select.value = authenticatedStaffId;
     const staff = staffList.find(s => s.id === authenticatedStaffId);
     if (staff) document.getElementById("dailyTaskSelectedName").textContent = `✓ ${staff.name} (Verified)`;
   } else if (authenticatedStaffId) {
-    // Force logout if staff no longer on duty
     authenticatedStaffId = null;
     updateProfileButtonVisibility();
     document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
   }
-}
 
+  // iPad: ensure touch events don't block the native picker
+  select.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+  }, { passive: true });
+}
 
 
 function showVerificationOptionsModal(staff, callback) {
