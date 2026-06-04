@@ -711,6 +711,64 @@ body.supervisor-mode #globalControlBar {
 #newPatternGrid {
   touch-action: none !important;
 }
+
+/* iPad friendly compact styles for supervisor view */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .main-tab-pane {
+    padding: 0.8rem;
+  }
+  .control-panel {
+    padding: 0.6rem;
+    margin-bottom: 0.8rem;
+  }
+  .control-row {
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+  }
+  .control-row label {
+    min-width: 70px;
+    font-size: 0.8rem;
+  }
+  select, input, button {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    min-height: 38px;
+  }
+  .staff-badge {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  .allocation-table th, .allocation-table td {
+    padding: 0.4rem;
+    font-size: 0.75rem;
+  }
+  .attendance-card {
+    padding: 0.6rem;
+  }
+  .daily-task-item {
+    padding: 0.5rem;
+  }
+  h2 {
+    font-size: 1.2rem;
+  }
+  h3 {
+    font-size: 0.95rem;
+  }
+  #globalControlBar {
+    padding: 0.4rem 0.8rem;
+  }
+}
+
+#globalControlBar {
+  padding: 0.5rem 1rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+#globalControlBar input, #globalControlBar select {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  min-height: 36px;
+}
 </style>
 
 
@@ -1737,42 +1795,40 @@ function showSupervisorVerification(staff) {
 function initSupervisorLogin() {
   let supervisorSelect = document.getElementById('supervisorSelect');
   if (!supervisorSelect) return;
-  
-  // ✅ Apply the same fixSelectForIPad that works for attendance dropdown
+
+  // Apply iPad fix: clone to reset iOS internal state
   supervisorSelect = fixSelectForIPad(supervisorSelect);
-  
+
   const supervisors = staffList.filter(s => s.role === "Supervisor");
-  supervisorSelect.innerHTML = '<option value="">-- Select Supervisor --</option>' + supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
-  
-  // Remove any existing event listeners and re-attach
+  supervisorSelect.innerHTML = '<option value="">-- Select Supervisor --</option>' +
+    supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+
+  // Replace with fresh clone to avoid stale event handlers
   const newSelect = supervisorSelect.cloneNode(true);
   supervisorSelect.parentNode.replaceChild(newSelect, supervisorSelect);
-  
-  // Use both 'change' and 'input' events for better iPad compatibility
+
   const handleSupervisorChange = async () => {
     const staffId = newSelect.value;
     const errorMsg = document.getElementById('superErrorMsg');
     const verificationArea = document.getElementById('superVerificationArea');
-    if (!staffId) { 
-      verificationArea.style.display = 'none'; 
-      document.getElementById('superVerificationContainer').innerHTML = ''; 
-      return; 
+    if (!staffId) {
+      verificationArea.style.display = 'none';
+      document.getElementById('superVerificationContainer').innerHTML = '';
+      return;
     }
     const selectedStaff = staffList.find(s => s.id === staffId);
-    if (selectedStaff) { 
-      errorMsg.textContent = ''; 
-      showSupervisorVerification(selectedStaff); 
+    if (selectedStaff) {
+      errorMsg.textContent = '';
+      showSupervisorVerification(selectedStaff);
     }
   };
-  
-  newSelect.addEventListener('change', handleSupervisorChange);
-  newSelect.addEventListener('input', handleSupervisorChange); // extra for iOS
-  // Also ensure touchstart does not block native dropdown
-  newSelect.addEventListener('touchstart', (e) => {
-    e.stopPropagation(); // allow native picker to open
-  }, { passive: true });
-}
 
+  // Use both events for maximum iPad compatibility
+  newSelect.addEventListener('change', handleSupervisorChange);
+  newSelect.addEventListener('input', handleSupervisorChange);
+  // Prevent touchstart from blocking native dropdown
+  newSelect.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+}
 
 function updateProfileButtonVisibility() {
   const profileBtn = document.getElementById('profileSettingsBtn');
@@ -3286,18 +3342,12 @@ function logoutSupervisor() { supervisorLoggedIn = false; supervisorAuthStaffId 
 
 function fixSelectForIPad(selectElement) {
   if (!selectElement) return;
-  // Store current value before replacing
   const currentValue = selectElement.value;
   const parent = selectElement.parentNode;
   const clone = selectElement.cloneNode(true);
-  // Re‑apply any necessary attributes
   clone.value = currentValue;
-  // Replace the original with clone to reset internal iOS state
   parent.replaceChild(clone, selectElement);
-  // Add a touchstart handler that only stops propagation (no preventDefault)
-  clone.addEventListener('touchstart', (e) => {
-    e.stopPropagation();  // Allow native behaviour to fire
-  }, { passive: true });
+  clone.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
   return clone;
 }
 
