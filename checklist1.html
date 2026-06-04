@@ -1735,19 +1735,44 @@ function showSupervisorVerification(staff) {
 }
 
 function initSupervisorLogin() {
-  const supervisorSelect = document.getElementById('supervisorSelect');
+  let supervisorSelect = document.getElementById('supervisorSelect');
   if (!supervisorSelect) return;
+  
+  // ✅ Apply the same fixSelectForIPad that works for attendance dropdown
+  supervisorSelect = fixSelectForIPad(supervisorSelect);
+  
   const supervisors = staffList.filter(s => s.role === "Supervisor");
   supervisorSelect.innerHTML = '<option value="">-- Select Supervisor --</option>' + supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
-  supervisorSelect.onchange = async () => {
-    const staffId = supervisorSelect.value;
+  
+  // Remove any existing event listeners and re-attach
+  const newSelect = supervisorSelect.cloneNode(true);
+  supervisorSelect.parentNode.replaceChild(newSelect, supervisorSelect);
+  
+  // Use both 'change' and 'input' events for better iPad compatibility
+  const handleSupervisorChange = async () => {
+    const staffId = newSelect.value;
     const errorMsg = document.getElementById('superErrorMsg');
     const verificationArea = document.getElementById('superVerificationArea');
-    if (!staffId) { verificationArea.style.display = 'none'; document.getElementById('superVerificationContainer').innerHTML = ''; return; }
+    if (!staffId) { 
+      verificationArea.style.display = 'none'; 
+      document.getElementById('superVerificationContainer').innerHTML = ''; 
+      return; 
+    }
     const selectedStaff = staffList.find(s => s.id === staffId);
-    if (selectedStaff) { errorMsg.textContent = ''; showSupervisorVerification(selectedStaff); }
+    if (selectedStaff) { 
+      errorMsg.textContent = ''; 
+      showSupervisorVerification(selectedStaff); 
+    }
   };
+  
+  newSelect.addEventListener('change', handleSupervisorChange);
+  newSelect.addEventListener('input', handleSupervisorChange); // extra for iOS
+  // Also ensure touchstart does not block native dropdown
+  newSelect.addEventListener('touchstart', (e) => {
+    e.stopPropagation(); // allow native picker to open
+  }, { passive: true });
 }
+
 
 function updateProfileButtonVisibility() {
   const profileBtn = document.getElementById('profileSettingsBtn');
