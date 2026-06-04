@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>Staff Portal | Auto‑Auth Password Modal</title>
+    <title>Staff Portal | Auto‑Verify Pattern + PIN</title>
     <style>
         * {
             margin: 0;
@@ -22,7 +22,6 @@
             justify-content: center;
         }
 
-        /* main card – warm light gold */
         .app-card {
             max-width: 780px;
             width: 100%;
@@ -192,7 +191,7 @@
             text-align: center;
         }
 
-        /* ---------- MODAL STYLES (light gold theme) ---------- */
+        /* ---------- MODAL STYLES (auto-verify) ---------- */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -319,10 +318,10 @@
             transform: scale(0.96);
         }
 
-        .pattern-canvas-area {
+        .pattern-wrapper {
             position: relative;
-            display: flex;
-            justify-content: center;
+            width: 260px;
+            margin: 0 auto;
         }
 
         canvas {
@@ -332,12 +331,6 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-        }
-
-        .pattern-wrapper {
-            position: relative;
-            width: 260px;
-            margin: 0 auto;
         }
 
         .pattern-status {
@@ -397,19 +390,16 @@
             border: none;
             cursor: pointer;
         }
-        .modal-submit, .modal-cancel {
-            display: none;   /* hidden because we auto-verify on pattern end / numeric enter */
-        }
 
-        /* No extra verification button visible — access granted instantly */
-        .auto-hint {
-            font-size: 0.7rem;
-            margin-top: 8px;
-            color: #b5893b;
-            background: #fff6e5;
-            border-radius: 40px;
-            padding: 4px 12px;
-            display: inline-block;
+        .modal-cancel {
+            background: #f2e2c6;
+            border: none;
+            border-radius: 60px;
+            padding: 12px 16px;
+            margin-top: 14px;
+            width: 100%;
+            font-weight: 500;
+            cursor: pointer;
         }
 
         @media (max-width: 550px) {
@@ -428,7 +418,7 @@
         <button class="tab-btn" data-tab="supervisor">🛡️ Supervisor Tab</button>
     </div>
     <div class="tab-content">
-        <!-- STAFF VIEW PANEL -->
+        <!-- STAFF VIEW -->
         <div id="staffViewPanel" class="view-panel active-panel">
             <div class="field-group">
                 <label>📋 Select staff member</label>
@@ -442,12 +432,12 @@
                     <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
                     <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
                 </div>
-                <div class="footer-note">🔒 Correct pattern or PIN grants access automatically</div>
+                <div class="footer-note">🔐 Draw pattern or enter PIN → auto access</div>
             </div>
             <div id="staffErrorMsg" class="error-message" style="display: none;"></div>
         </div>
 
-        <!-- SUPERVISOR VIEW PANEL -->
+        <!-- SUPERVISOR VIEW -->
         <div id="supervisorViewPanel" class="view-panel">
             <div class="field-group">
                 <label>🔐 Select staff member (supervisor)</label>
@@ -462,14 +452,14 @@
                     <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
                     <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>
                 </div>
-                <div class="footer-note">🛡️ Supervisor view shows full pass after instant auth</div>
+                <div class="footer-note">🛡️ Supervisor sees pass after auth (auto‑verify)</div>
             </div>
             <div id="supervisorErrorMsg" class="error-message" style="display: none;"></div>
         </div>
     </div>
 </div>
 
-<!-- PASSWORD MODAL with auto-verification (no extra button) -->
+<!-- PASSWORD MODAL (auto-verify, no submit button) -->
 <div id="passwordModal" class="modal-overlay">
     <div class="modal-container">
         <div class="modal-header">
@@ -486,11 +476,10 @@
                 <div class="pattern-grid" id="patternGrid"></div>
                 <canvas id="patternCanvas" width="260" height="260" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none;"></canvas>
             </div>
-            <div class="pattern-status" id="patternStatus">✏️ Draw a pattern → auto‑unlock on match</div>
+            <div class="pattern-status" id="patternStatus">✨ Draw a pattern (release to verify)</div>
             <div class="pattern-actions">
                 <button id="resetPatternBtn" class="action-btn">⟳ Reset</button>
             </div>
-            <div class="auto-hint">✨ Release drawing = instant verification</div>
         </div>
         <!-- Numeric Tab -->
         <div id="numericTab" class="tab-pane">
@@ -500,37 +489,55 @@
                 <button id="clearNumericBtn" class="action-btn" style="flex:1">Clear</button>
                 <button id="deleteNumericBtn" class="action-btn" style="flex:1">⌫</button>
             </div>
-            <div class="auto-hint" style="margin-top: 14px;">🔢 After typing full PIN, access granted instantly</div>
         </div>
-        <!-- hidden buttons removed, no verify button required -->
+        <button id="modalCancelBtn" class="modal-cancel">Cancel</button>
     </div>
 </div>
 
 <script type="module">
-    // ----- STAFF DATASET (mock) with pattern and numeric passwords -----
-    // For demo: some pattern strings (e.g., "12369" typical), numeric (PIN)
-    export const staffList = [
-        { id: "S1001", name: "Emma Watson", role: "Sales Associate", contact: "emma.w@example.com", pass: "14789" },        // numeric PIN
-        { id: "S1002", name: "Liam Chen", role: "Customer Support", contact: "liam.c@example.com", pass: "36987" },
-        { id: "S1003", name: "Sophia Rodriguez", role: "Senior Staff", contact: "sophia.r@example.com", pass: "2580" },
-        { id: "S1004", name: "James Okafor", role: "Team Lead", contact: "james.o@example.com", pass: "1236987" },
-        { id: "S1005", name: "Olivia Dupont", role: "Supervisor", contact: "olivia.d@example.com", pass: "789456" }
-    ];
+    // ------------------------------
+    // IMPORT STAFF LIST FROM EXTERNAL staff.js (NO MOCK DATA)
+    // ------------------------------
+    let staffList = [];
+    let loadError = false;
+    
+    try {
+        const module = await import('./staff.js');
+        staffList = module.staffList;
+        if (!staffList || !Array.isArray(staffList) || staffList.length === 0) {
+            throw new Error('staff.js must export a non-empty array named "staffList"');
+        }
+    } catch (err) {
+        console.error('Failed to load staff.js:', err);
+        loadError = true;
+        const errorDiv = document.createElement('div');
+        errorDiv.style.position = 'fixed';
+        errorDiv.style.bottom = '20px';
+        errorDiv.style.left = '20px';
+        errorDiv.style.right = '20px';
+        errorDiv.style.backgroundColor = '#c25d2e';
+        errorDiv.style.color = 'white';
+        errorDiv.style.padding = '16px';
+        errorDiv.style.borderRadius = '32px';
+        errorDiv.style.textAlign = 'center';
+        errorDiv.style.zIndex = '9999';
+        errorDiv.innerText = '❌ Failed to load staff data from staff.js. Please ensure the file exists and exports "staffList".';
+        document.body.appendChild(errorDiv);
+    }
 
-    // helper
-    function escapeHtml(str) { return String(str??'').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+    // Helper functions
+    function escapeHtml(str) { return String(str ?? '').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
     function getStaffById(id) { return staffList.find(s => s.id === id); }
 
-    // ----- global modal state -----
-    let pendingAuth = { resolve: null, staff: null, viewType: null, dropdownRef: null, selectEl: null };
+    // Modal state
+    let pendingAuth = { resolve: null, staff: null, viewType: null };
     let currentPatternSequence = [];
     let currentNumericValue = '';
     let isDrawing = false;
     let dotElements = [];
     let ctx = null, canvas = null, patternWrapper = null;
-    let autoVerifyTimeout = null;
 
-    // ----- PATTERN LOCK (3x3) -----
+    // ---------- PATTERN LOCK (auto-verify on release) ----------
     function initPatternLock() {
         const grid = document.getElementById('patternGrid');
         if (!grid) return;
@@ -560,7 +567,7 @@
         canvas.height = rect.height;
         canvas.style.width = `${rect.width}px`;
         canvas.style.height = `${rect.height}px`;
-        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawPatternLines();
     }
 
@@ -601,8 +608,8 @@
     }
 
     function startPattern(e, dotVal) {
-        if (!pendingAuth.staff) return;
         e.preventDefault();
+        if (!pendingAuth.staff) return;
         isDrawing = true;
         const index = currentPatternSequence.indexOf(dotVal);
         if (index === -1) {
@@ -612,7 +619,6 @@
         }
         drawPatternLines();
         updatePatternStatus();
-        if (autoVerifyTimeout) clearTimeout(autoVerifyTimeout);
     }
 
     function onPatternMove(e) {
@@ -644,10 +650,46 @@
     function endPattern() {
         if (!isDrawing) return;
         isDrawing = false;
-        // AUTO-VERIFY on pattern drawing end (release)
-        if (pendingAuth.staff && pendingAuth.resolve) {
-            attemptAutoVerify('pattern');
+        // AUTO-VERIFY pattern when drawing ends
+        if (pendingAuth.staff && currentPatternSequence.length > 0) {
+            autoVerifyPattern();
         }
+    }
+
+    function autoVerifyPattern() {
+        const staff = pendingAuth.staff;
+        if (!staff) return;
+        const patternString = currentPatternSequence.join('');
+        const storedPass = String(staff.pass ?? '');
+        if (patternString === storedPass) {
+            // SUCCESS: close modal and resolve
+            closeModalAndResolve(true);
+        } else {
+            // Wrong pattern: show error, reset after short delay
+            const statusDiv = document.getElementById('patternStatus');
+            if (statusDiv) {
+                statusDiv.innerText = '❌ Wrong pattern! Resetting...';
+                statusDiv.style.color = '#c25d2e';
+            }
+            setTimeout(() => {
+                resetPattern();
+                if (statusDiv) {
+                    statusDiv.innerText = 'Draw a pattern (connect dots)';
+                    statusDiv.style.color = '#a57334';
+                }
+            }, 1000);
+        }
+    }
+
+    function resetPattern() {
+        currentPatternSequence = [];
+        drawPatternLines();
+        updatePatternStatus();
+    }
+
+    function updatePatternStatus() {
+        const statusDiv = document.getElementById('patternStatus');
+        if (statusDiv) statusDiv.innerText = currentPatternSequence.length ? `Pattern: ${currentPatternSequence.join(' → ')}` : 'Draw a pattern (connect dots)';
     }
 
     function attachGlobalEvents() {
@@ -657,23 +699,7 @@
         window.addEventListener('touchmove', (e) => { e.preventDefault(); onPatternMove(e); });
     }
 
-    function resetPattern() {
-        currentPatternSequence = [];
-        drawPatternLines();
-        updatePatternStatus();
-        const statusDiv = document.getElementById('patternStatus');
-        if (statusDiv) statusDiv.innerText = "✏️ Draw a pattern → auto‑unlock on match";
-        statusDiv.style.color = "#a57334";
-    }
-
-    function updatePatternStatus() {
-        const statusDiv = document.getElementById('patternStatus');
-        if (statusDiv) statusDiv.innerText = currentPatternSequence.length ? `Pattern: ${currentPatternSequence.join(' → ')}` : 'Draw a pattern (connect dots)';
-    }
-
-    function getPatternString() { return currentPatternSequence.join(''); }
-
-    // ----- Numeric keypad + auto-verify when length matches expected (or on enter but we auto on any completion logic)
+    // ---------- NUMERIC KEYPAD (auto-verify on exact match) ----------
     function buildKeypad() {
         const pad = document.getElementById('keypad');
         if (!pad) return;
@@ -694,127 +720,103 @@
     }
 
     function appendNumeric(digit) {
-        if (!pendingAuth.staff) return;
         if (currentNumericValue.length < 8) currentNumericValue += digit;
         updateNumericDisplay();
-        // AUTO-VERIFY: after each digit, compare with stored password length or full match?
-        // For better UX: verify only when the entered string exactly matches the stored password (or when length >= stored length)
-        // We'll check after each digit: if currentNumericValue === storedPass -> grant access.
-        const storedPass = pendingAuth.staff ? String(pendingAuth.staff.pass) : '';
-        if (storedPass && currentNumericValue === storedPass) {
-            attemptAutoVerify('numeric');
-        } else if (storedPass && currentNumericValue.length >= storedPass.length && currentNumericValue !== storedPass) {
-            // show mismatch feedback but don't close
-            const disp = document.getElementById('numericInput');
-            disp.style.color = "#c25d2e";
-            setTimeout(() => { if(disp) disp.style.color = "#754e16"; }, 400);
-        } else {
-            const disp = document.getElementById('numericInput');
-            if(disp) disp.style.color = "#754e16";
-        }
+        autoVerifyNumeric();
     }
 
-    function clearNumeric() { currentNumericValue = ''; updateNumericDisplay(); const disp = document.getElementById('numericInput'); if(disp) disp.style.color = "#754e16"; }
-    function deleteNumeric() { currentNumericValue = currentNumericValue.slice(0, -1); updateNumericDisplay(); const disp = document.getElementById('numericInput'); if(disp) disp.style.color = "#754e16"; }
+    function clearNumeric() { 
+        currentNumericValue = ''; 
+        updateNumericDisplay(); 
+    }
+    
+    function deleteNumeric() { 
+        currentNumericValue = currentNumericValue.slice(0, -1); 
+        updateNumericDisplay();
+        autoVerifyNumeric();  // also verify after deletion (in case it becomes correct)
+    }
+    
     function updateNumericDisplay() {
         const disp = document.getElementById('numericInput');
         if (disp) disp.innerText = currentNumericValue || '____';
     }
 
-    // common auto-verification (no button)
-    async function attemptAutoVerify(source) {
-        if (!pendingAuth.staff || !pendingAuth.resolve) return;
+    function autoVerifyNumeric() {
         const staff = pendingAuth.staff;
-        let inputPass = '';
-        if (source === 'pattern') {
-            inputPass = getPatternString();
-        } else {
-            inputPass = currentNumericValue;
-        }
-        const storedPass = staff.pass ? String(staff.pass) : '';
-        if (inputPass === storedPass) {
-            // SUCCESS: grant access, close modal, resolve promise
-            closeModal(true);
-            pendingAuth.resolve({ success: true, staff });
-            // clear pending to avoid double resolve
-            pendingAuth.resolve = null;
-            // Also render appropriate view based on stored viewType
-            if (pendingAuth.viewType === 'staff') {
-                renderStaffView(staff, pendingAuth.selectEl);
-            } else if (pendingAuth.viewType === 'supervisor') {
-                renderSupervisorView(staff, pendingAuth.selectEl);
-            }
-        } else {
-            // wrong attempt, provide feedback based on active tab
-            if (source === 'pattern') {
-                const statusDiv = document.getElementById('patternStatus');
-                if (statusDiv) {
-                    statusDiv.innerText = '❌ Wrong pattern! Try again.';
-                    statusDiv.style.color = "#c25d2e";
-                    setTimeout(() => {
-                        if (statusDiv && pendingAuth.staff) statusDiv.style.color = "#a57334";
-                        if (statusDiv && pendingAuth.staff) statusDiv.innerText = 'Draw a pattern → auto‑unlock on match';
-                    }, 1200);
-                }
-                resetPattern();
-            } else {
-                const disp = document.getElementById('numericInput');
-                const originalVal = disp.innerText;
-                disp.innerText = '❌ Wrong PIN';
-                disp.style.color = "#c25d2e";
-                setTimeout(() => {
-                    if (disp && pendingAuth.staff) {
-                        disp.innerText = currentNumericValue || '____';
-                        disp.style.color = "#754e16";
-                    }
-                }, 1100);
+        if (!staff) return;
+        const storedPass = String(staff.pass ?? '');
+        if (currentNumericValue.length > 0 && currentNumericValue === storedPass) {
+            closeModalAndResolve(true);
+        } else if (currentNumericValue.length === storedPass.length && currentNumericValue !== storedPass) {
+            // Wrong PIN with full length: show error and clear
+            const disp = document.getElementById('numericInput');
+            const originalText = disp.innerText;
+            disp.innerText = '❌ Wrong PIN';
+            disp.style.color = '#c25d2e';
+            setTimeout(() => {
                 clearNumeric();
-            }
+                if (disp) {
+                    disp.innerText = '____';
+                    disp.style.color = '#754e16';
+                }
+            }, 1000);
         }
     }
 
-    function closeModal(success = false) {
-        document.getElementById('passwordModal').classList.remove('active');
-        if (!success && pendingAuth.resolve) {
-            // restore previous selection
-            const { selectEl, dropdownRef } = pendingAuth;
-            if (selectEl && dropdownRef) {
-                selectEl.value = dropdownRef;
-            }
-            pendingAuth.resolve({ success: false });
-        }
-        pendingAuth.resolve = null;
-        // reset patterns & numeric for next opening
-        resetPattern();
-        currentNumericValue = '';
-        updateNumericDisplay();
-    }
-
-    // open modal
-    function openPasswordModal(staff, viewType, selectElement, currentDropdownValue) {
+    // ---------- MODAL LIFE CYCLE (auto-close on success) ----------
+    function openPasswordModal(staff, viewType) {
         return new Promise((resolve) => {
-            pendingAuth = { 
-                resolve, 
-                staff, 
-                viewType, 
-                selectEl: selectElement,
-                dropdownRef: currentDropdownValue
-            };
-            document.getElementById('modalStaffName').innerHTML = `🔐 ${escapeHtml(staff.name)}`;
+            pendingAuth = { resolve, staff, viewType };
+            document.getElementById('modalStaffName').innerText = `🔐 ${escapeHtml(staff.name)}`;
+            // Reset pattern & numeric
             resetPattern();
             currentNumericValue = '';
             updateNumericDisplay();
-            // ensure pattern tab active
-            document.querySelector('.modal-tab-btn[data-modal-tab="pattern"]').click();
+            // Reset any error styling
+            const statusDiv = document.getElementById('patternStatus');
+            if (statusDiv) {
+                statusDiv.innerText = 'Draw a pattern (connect dots)';
+                statusDiv.style.color = '#a57334';
+            }
+            const numericDisp = document.getElementById('numericInput');
+            if (numericDisp) numericDisp.style.color = '#754e16';
+            // Ensure pattern tab is active by default
+            const activeTab = document.querySelector('.modal-tab-btn.active-tab')?.dataset.modalTab || 'pattern';
+            switchModalTab(activeTab);
             document.getElementById('passwordModal').classList.add('active');
-            // small canvas redraw
-            setTimeout(() => resizeAndDrawCanvas(), 20);
         });
     }
 
-    // --- RENDER helpers with view persistence ---
+    function closeModalAndResolve(success) {
+        const modal = document.getElementById('passwordModal');
+        modal.classList.remove('active');
+        if (pendingAuth.resolve) {
+            pendingAuth.resolve({ success, staff: pendingAuth.staff });
+        }
+        pendingAuth = { resolve: null, staff: null, viewType: null };
+    }
+
+    function closeModalWithoutSuccess() {
+        closeModalAndResolve(false);
+    }
+
+    // Modal tab switching
+    let activeModalTab = 'pattern';
+    function switchModalTab(tabId) {
+        activeModalTab = tabId;
+        document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+        document.querySelector(`.modal-tab-btn[data-modal-tab="${tabId}"]`).classList.add('active-tab');
+        document.getElementById('patternTab').classList.toggle('active-pane', tabId === 'pattern');
+        document.getElementById('numericTab').classList.toggle('active-pane', tabId === 'numeric');
+        if (tabId === 'pattern') {
+            setTimeout(() => resizeAndDrawCanvas(), 10);
+        }
+    }
+
+    // ---------- RENDER STAFF / SUPERVISOR VIEWS ----------
     let staffLastValidId = null, supervisorLastValidId = null;
-    function renderStaffView(staff, dropdownElement = null) {
+    
+    function renderStaffView(staff) {
         const container = document.getElementById('staffDetailsArea');
         if (!staff) return;
         container.innerHTML = `
@@ -824,9 +826,9 @@
             <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || 'Not provided')}</span></div>
         `;
         staffLastValidId = staff.id;
-        if (dropdownElement && staff.id !== dropdownElement.value) dropdownElement.value = staff.id;
     }
-    function renderSupervisorView(staff, dropdownElement = null) {
+    
+    function renderSupervisorView(staff) {
         const container = document.getElementById('supervisorDetailsArea');
         if (!staff) return;
         container.innerHTML = `
@@ -837,39 +839,46 @@
             <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value"><code>${escapeHtml(staff.pass)}</code></span></div>
         `;
         supervisorLastValidId = staff.id;
-        if (dropdownElement && staff.id !== dropdownElement.value) dropdownElement.value = staff.id;
+    }
+    
+    function resetStaffPlaceholder() { 
+        document.getElementById('staffDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>`;
+        staffLastValidId = null;
+    }
+    
+    function resetSupervisorPlaceholder() {
+        document.getElementById('supervisorDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>`;
+        supervisorLastValidId = null;
     }
 
-    // selection change handlers with modal
-    async function onStaffSelect(staff, dropdownEl) {
-        const prevVal = dropdownEl.value;
-        const auth = await openPasswordModal(staff, 'staff', dropdownEl, prevVal);
-        if (auth && auth.success) {
-            renderStaffView(staff, dropdownEl);
+    async function onStaffSelect(staff, dropdown) {
+        const auth = await openPasswordModal(staff, 'staff');
+        if (auth.success) {
+            renderStaffView(staff);
         } else {
             if (staffLastValidId) {
+                dropdown.value = staffLastValidId;
                 const validStaff = getStaffById(staffLastValidId);
-                if (validStaff) renderStaffView(validStaff, dropdownEl);
-                else dropdownEl.value = staffList[0]?.id || '';
+                if (validStaff) renderStaffView(validStaff);
             } else {
-                if (staffList.length) dropdownEl.value = staffList[0].id;
-                renderStaffView(getStaffById(dropdownEl.value), dropdownEl);
+                resetStaffPlaceholder();
+                if (staffList.length) dropdown.value = staffList[0].id;
             }
         }
     }
-    async function onSupervisorSelect(staff, dropdownEl) {
-        const prevVal = dropdownEl.value;
-        const auth = await openPasswordModal(staff, 'supervisor', dropdownEl, prevVal);
-        if (auth && auth.success) {
-            renderSupervisorView(staff, dropdownEl);
+    
+    async function onSupervisorSelect(staff, dropdown) {
+        const auth = await openPasswordModal(staff, 'supervisor');
+        if (auth.success) {
+            renderSupervisorView(staff);
         } else {
             if (supervisorLastValidId) {
+                dropdown.value = supervisorLastValidId;
                 const validStaff = getStaffById(supervisorLastValidId);
-                if (validStaff) renderSupervisorView(validStaff, dropdownEl);
-                else dropdownEl.value = staffList[0]?.id || '';
+                if (validStaff) renderSupervisorView(validStaff);
             } else {
-                if (staffList.length) dropdownEl.value = staffList[0].id;
-                renderSupervisorView(getStaffById(dropdownEl.value), dropdownEl);
+                resetSupervisorPlaceholder();
+                if (staffList.length) dropdown.value = staffList[0].id;
             }
         }
     }
@@ -880,26 +889,35 @@
         staffDropdown.innerHTML = '';
         supDropdown.innerHTML = '';
         staffList.forEach(s => {
-            const opt1 = document.createElement('option'); opt1.value = s.id; opt1.textContent = s.name;
-            const opt2 = document.createElement('option'); opt2.value = s.id; opt2.textContent = s.name;
-            staffDropdown.appendChild(opt1);
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.name;
+            staffDropdown.appendChild(opt);
+            const opt2 = document.createElement('option');
+            opt2.value = s.id;
+            opt2.textContent = s.name;
             supDropdown.appendChild(opt2);
         });
         if (staffList.length) {
-            staffDropdown.value = staffList[0].id;
-            supDropdown.value = staffList[0].id;
-            renderStaffView(staffList[0], staffDropdown);
-            renderSupervisorView(staffList[0], supDropdown);
-            staffLastValidId = staffList[0].id;
-            supervisorLastValidId = staffList[0].id;
+            staffDropdown.selectedIndex = 0;
+            supDropdown.selectedIndex = 0;
         }
-        staffDropdown.addEventListener('change', (e) => {
+    }
+
+    function initViews() {
+        if (loadError || !staffList.length) return;
+        populateDropdowns();
+        resetStaffPlaceholder();
+        resetSupervisorPlaceholder();
+        const staffDropdown = document.getElementById('staffSelect');
+        const supDropdown = document.getElementById('supervisorSelect');
+        staffDropdown.addEventListener('change', async (e) => {
             const staff = getStaffById(e.target.value);
-            if (staff) onStaffSelect(staff, staffDropdown);
+            if (staff) await onStaffSelect(staff, staffDropdown);
         });
-        supDropdown.addEventListener('change', (e) => {
+        supDropdown.addEventListener('change', async (e) => {
             const staff = getStaffById(e.target.value);
-            if (staff) onSupervisorSelect(staff, supDropdown);
+            if (staff) await onSupervisorSelect(staff, supDropdown);
         });
     }
 
@@ -918,31 +936,30 @@
         });
     }
 
-    function bindModalControls() {
-        document.getElementById('modalCloseBtn').onclick = () => closeModal(false);
+    function bindModalEvents() {
+        document.getElementById('modalCloseBtn').onclick = () => closeModalWithoutSuccess();
+        document.getElementById('modalCancelBtn').onclick = () => closeModalWithoutSuccess();
         document.querySelectorAll('.modal-tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const tabId = btn.dataset.modalTab;
-                document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active-tab'));
-                btn.classList.add('active-tab');
-                document.getElementById('patternTab').classList.toggle('active-pane', tabId === 'pattern');
-                document.getElementById('numericTab').classList.toggle('active-pane', tabId === 'numeric');
-                if (tabId === 'pattern') setTimeout(() => resizeAndDrawCanvas(), 30);
-            });
+            btn.addEventListener('click', () => switchModalTab(btn.dataset.modalTab));
         });
         document.getElementById('resetPatternBtn').onclick = () => resetPattern();
         document.getElementById('clearNumericBtn').onclick = () => clearNumeric();
         document.getElementById('deleteNumericBtn').onclick = () => deleteNumeric();
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        if (!staffList.length) return;
-        initPatternLock();
-        buildKeypad();
-        bindModalControls();
-        initMainTabs();
-        populateDropdowns();
-    });
+    // Start app (only if no load error)
+    if (!loadError && staffList.length) {
+        document.addEventListener('DOMContentLoaded', () => {
+            initPatternLock();
+            buildKeypad();
+            bindModalEvents();
+            initMainTabs();
+            initViews();
+        });
+    } else if (loadError) {
+        // Show disabled UI
+        document.querySelectorAll('select, button').forEach(el => el.disabled = true);
+    }
 </script>
 </body>
 </html>
