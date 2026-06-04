@@ -577,6 +577,8 @@ body.supervisor-mode #globalControlBar {
   }
 }
 
+
+
 @media print {
   body { padding: 0; margin: 0; background: white; }
   .main-tabs, #globalControlBar, .sub-tabs, .control-panel, .attendance-grid, footer, button, .message-toast, .staff-pool { display: none !important; }
@@ -586,6 +588,110 @@ body.supervisor-mode #globalControlBar {
   }
   .allocation-table th, .allocation-table td { border: 1px solid black !important; }
   .main-tab-pane { display: block !important; padding: 0; }
+}
+
+/* Profile Modal Styles */
+.profile-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20000;
+}
+
+.profile-modal-content {
+  background: white;
+  border-radius: 2rem;
+  padding: 2rem;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+  animation: fade 0.2s ease;
+}
+
+.profile-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.profile-tab {
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 2rem;
+  transition: 0.2s;
+}
+
+.profile-tab.active {
+  background: #fef3c7;
+  color: #b8860b;
+}
+
+.profile-section {
+  margin: 1rem 0;
+}
+
+.profile-section label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.3rem;
+}
+
+.profile-section input {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 1rem;
+  font-size: 0.9rem;
+}
+
+.profile-btn {
+  background: #b8860b;
+  color: white;
+  border: none;
+  border-radius: 2rem;
+  padding: 0.6rem 1.2rem;
+  margin-top: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.profile-btn-danger {
+  background: #94a3b8;
+}
+
+.profile-message {
+  margin-top: 0.8rem;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.profile-message.success {
+  color: #0f5c3b;
+}
+
+.profile-message.error {
+  color: #c0392b;
+}
+
+#newPatternGrid {
+  touch-action: none !important;
 }
 </style>
 
@@ -649,7 +755,7 @@ body.supervisor-mode #globalControlBar {
           <span id="dailyTaskSelectedName" style="font-size: 0.75rem; color: #b8860b; font-weight: 500;"></span>
         </div>
         <button id="profileSettingsBtn" class="profile-icon-btn" style="display: none;">⚙️ Profile</button>
-        <button id="scrollToTasksBtn" style="background: #b8860b; padding: 0.3rem 0.8rem; font-size: 0.7rem; border-radius: 1rem;">📋 Scroll to Tasks</button>
+        
       </div>
       <div class="checklist-section"><h3>📋 Main Operations</h3><div id="dailyMainTasksContainer"></div></div>
       <div class="checklist-section"><h3>🍽️ Food & Beverage</h3><div id="dailyFbTasksContainer"></div></div>
@@ -856,6 +962,20 @@ console.log("🔥 Firebase ready!");
 
   function escapeHtml(str) { return String(str).replace(/[&<>]/g, function(m){ return m==='&'?'&amp;':m==='<'?'&lt;':'&gt;';}); }
   
+
+  let activePatternListeners = null;
+
+function cleanupPatternListeners() {
+  if (activePatternListeners) {
+    const { winMove, winUp, winTouchMove, winTouchEnd } = activePatternListeners;
+    window.removeEventListener('mousemove', winMove);
+    window.removeEventListener('mouseup', winUp);
+    window.removeEventListener('touchmove', winTouchMove);
+    window.removeEventListener('touchend', winTouchEnd);
+    activePatternListeners = null;
+  }
+}
+
   function showMessage(msg, type = "success") {
     const toast = document.createElement("div"); 
     toast.className = "message-toast"; 
@@ -950,11 +1070,15 @@ async function showProfileModal(staff) {
         <button id="verifyForPatternBtn" class="profile-btn-warning" style="background: #d97706;">✓ Verify & Start Pattern Change</button>
         <div id="patternChangeArea" style="display: none; margin-top: 1rem;">
           <p style="font-size: 0.8rem; color: #b8860b; margin-bottom: 0.5rem;">Draw your NEW pattern (at least 3 dots):</p>
-          <div class="pattern-grid" id="newPatternGrid" style="margin: 0.5rem auto; width: 200px; gap: 0.5rem;">
+          <div class="pattern-grid" id="newPatternGrid" style="margin: 0.5rem auto; width: 200px; gap: 0.5rem; touch-action: none;">
             ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
           </div>
           <div id="newPatternPreview" style="font-size: 0.7rem; text-align: center; margin: 0.5rem 0;">Draw your pattern...</div>
-          <button id="savePatternBtn" class="profile-btn" style="background: #0f5c3b; margin-top: 0.5rem;">💾 Save New Pattern</button>
+          <div id="patternDebug" style="font-size: 0.7rem; color: #666; text-align: center;"></div>
+          <div style="display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.5rem;">
+            <button id="savePatternBtn" class="profile-btn" style="background: #0f5c3b;">💾 Save New Pattern</button>
+            <button id="clearPatternBtn" class="profile-btn" style="background: #6b7280;">🗑️ Clear</button>
+          </div>
         </div>
         <div id="patternMessage" class="profile-message"></div>
       </div>
@@ -965,9 +1089,55 @@ async function showProfileModal(staff) {
   
   document.body.appendChild(modal);
   
-  let newPatternSequence = [];
-  let isDrawingNew = false;
+  // ========== PASSWORD CHANGE LOGIC (unchanged) ==========
+  const updateBtn = modal.querySelector('#updatePasswordBtn');
+  const currentPassInput = modal.querySelector('#currentPass');
+  const newPassInput = modal.querySelector('#newPass');
+  const confirmPassInput = modal.querySelector('#confirmPass');
+  const passwordMsg = modal.querySelector('#passwordMessage');
   
+  updateBtn.onclick = async () => {
+    const currentPass = currentPassInput.value;
+    const newPass = newPassInput.value;
+    const confirmPass = confirmPassInput.value;
+    
+    if (!currentPass || !newPass || !confirmPass) {
+      passwordMsg.textContent = '❌ Please fill all fields';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    if (newPass !== confirmPass) {
+      passwordMsg.textContent = '❌ New passwords do not match';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    if (newPass.length < 4) {
+      passwordMsg.textContent = '❌ Password must be at least 4 digits';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    if (currentPass !== staff.pass) {
+      passwordMsg.textContent = '❌ Current password is incorrect';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    
+    const success = await saveUserCredentials(staff.id, { pass: newPass, pattern: staff.pattern });
+    if (success) {
+      staff.pass = newPass;
+      passwordMsg.textContent = '✅ Password updated successfully!';
+      passwordMsg.className = 'profile-message success';
+      currentPassInput.value = '';
+      newPassInput.value = '';
+      confirmPassInput.value = '';
+      showMessage(`Password updated for ${staff.name}`);
+    } else {
+      passwordMsg.textContent = '❌ Failed to update password';
+      passwordMsg.className = 'profile-message error';
+    }
+  };
+  
+  // ========== TAB SWITCHING (unchanged) ==========
   const tabs = modal.querySelectorAll('.profile-tab');
   const passwordSection = modal.querySelector('#passwordSection');
   const patternSection = modal.querySelector('#patternSection');
@@ -986,135 +1156,240 @@ async function showProfileModal(staff) {
     };
   });
   
-  const updateBtn = modal.querySelector('#updatePasswordBtn');
-  const currentPassInput = modal.querySelector('#currentPass');
-  const newPassInput = modal.querySelector('#newPass');
-  const confirmPassInput = modal.querySelector('#confirmPass');
-  const passwordMsg = modal.querySelector('#passwordMessage');
-  
-  updateBtn.onclick = async () => {
-    const currentPass = currentPassInput.value;
-    const newPass = newPassInput.value;
-    const confirmPass = confirmPassInput.value;
-    
-    if (!currentPass || !newPass || !confirmPass) {
-      passwordMsg.textContent = '❌ Please fill all fields';
-      passwordMsg.className = 'profile-message error';
-      return;
-    }
-    
-    if (newPass !== confirmPass) {
-      passwordMsg.textContent = '❌ New passwords do not match';
-      passwordMsg.className = 'profile-message error';
-      return;
-    }
-    
-    if (newPass.length < 4) {
-      passwordMsg.textContent = '❌ Password must be at least 4 digits';
-      passwordMsg.className = 'profile-message error';
-      return;
-    }
-    
-    if (currentPass !== staff.pass) {
-      passwordMsg.textContent = '❌ Current password is incorrect';
-      passwordMsg.className = 'profile-message error';
-      return;
-    }
-    
-    const success = await saveUserCredentials(staff.id, { pass: newPass, pattern: staff.pattern });
-    
-    if (success) {
-      staff.pass = newPass;
-      passwordMsg.textContent = '✅ Password updated successfully!';
-      passwordMsg.className = 'profile-message success';
-      currentPassInput.value = '';
-      newPassInput.value = '';
-      confirmPassInput.value = '';
-      showMessage(`Password updated for ${staff.name}`);
-    } else {
-      passwordMsg.textContent = '❌ Failed to update password';
-      passwordMsg.className = 'profile-message error';
-    }
-  };
-  
+  // ========== PATTERN CHANGE LOGIC (with Clear button) ==========
   const verifyPatternBtn = modal.querySelector('#verifyForPatternBtn');
   const patternCurrentPass = modal.querySelector('#patternCurrentPass');
   const patternChangeArea = modal.querySelector('#patternChangeArea');
   const patternMsg = modal.querySelector('#patternMessage');
   const savePatternBtn = modal.querySelector('#savePatternBtn');
+  const clearPatternBtn = modal.querySelector('#clearPatternBtn');
   const newPatternGrid = modal.querySelector('#newPatternGrid');
   const newPatternPreview = modal.querySelector('#newPatternPreview');
+  const patternDebug = modal.querySelector('#patternDebug');
   const newDots = modal.querySelectorAll('#newPatternGrid .pattern-dot');
   
-  function resetNewPatternDrawing() {
-    newPatternSequence = [];
-    newDots.forEach(dot => dot.classList.remove('selected'));
-    newPatternPreview.textContent = 'Draw your pattern...';
-  }
+  let newPatternSequence = [];
+  let isDrawingNew = false;
+  let lastAddedDot = null;
+  let patternDrawListenersAttached = false;
+  let drawHandler, endDrawHandler;
   
-  function updateNewPatternPreview() {
+  function updatePatternPreview() {
     if (newPatternSequence.length === 0) {
       newPatternPreview.textContent = 'Draw your pattern...';
     } else {
-      newPatternPreview.textContent = newPatternSequence.map(n => '●').join(' → ');
+      newPatternPreview.textContent = newPatternSequence.map(() => '●').join(' → ');
+    }
+    if (patternDebug) {
+      patternDebug.textContent = `Dots selected: ${newPatternSequence.length}`;
+    }
+    if (newPatternSequence.length >= 3) {
+      savePatternBtn.disabled = false;
+    } else {
+      savePatternBtn.disabled = true;
     }
   }
   
-  function getNewDotFromEvent(e) {
+  function resetNewPatternDrawing() {
+    newPatternSequence = [];
+    lastAddedDot = null;
+    newDots.forEach(dot => dot.classList.remove('selected'));
+    updatePatternPreview();
+    if (patternDebug) patternDebug.textContent = '';
+    savePatternBtn.disabled = true;
+    patternMsg.textContent = '';
+    patternMsg.className = 'profile-message';
+  }
+  
+  function getDotFromTouchOrMouse(e) {
+    e.preventDefault();
     const rect = newPatternGrid.getBoundingClientRect();
     let clientX, clientY;
-    if (e.touches) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
-    else { clientX = e.clientX; clientY = e.clientY; }
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    const tolerance = 25;
     for (let dot of newDots) {
       const dotRect = dot.getBoundingClientRect();
-      if (clientX >= dotRect.left && clientX <= dotRect.right && clientY >= dotRect.top && clientY <= dotRect.bottom) {
+      if (clientX >= dotRect.left - tolerance && clientX <= dotRect.right + tolerance &&
+          clientY >= dotRect.top - tolerance && clientY <= dotRect.bottom + tolerance) {
         return { dotNum: parseInt(dot.dataset.num), element: dot };
       }
     }
     return null;
   }
   
-  function startNewDraw(e) { e.preventDefault(); isDrawingNew = true; const dotInfo = getNewDotFromEvent(e); if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) { newPatternSequence = [dotInfo.dotNum]; dotInfo.element.classList.add('selected'); updateNewPatternPreview(); } }
-  function drawNew(e) { e.preventDefault(); if (!isDrawingNew) return; const dotInfo = getNewDotFromEvent(e); if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) { newPatternSequence.push(dotInfo.dotNum); dotInfo.element.classList.add('selected'); updateNewPatternPreview(); } }
-  function endNewDraw(e) { e.preventDefault(); isDrawingNew = false; }
+  function areAdjacent(a, b) {
+    if (!a || !b) return true;
+    const rowA = Math.ceil(a / 3), colA = ((a - 1) % 3) + 1;
+    const rowB = Math.ceil(b / 3), colB = ((b - 1) % 3) + 1;
+    return Math.abs(rowA - rowB) <= 1 && Math.abs(colA - colB) <= 1;
+  }
+  
+  function startDraw(e) {
+    e.preventDefault();
+    if (isDrawingNew) return;
+    isDrawingNew = true;
+    const dotInfo = getDotFromTouchOrMouse(e);
+    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
+      newPatternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      lastAddedDot = dotInfo.dotNum;
+      updatePatternPreview();
+    }
+  }
+  
+  function draw(e) {
+    e.preventDefault();
+    if (!isDrawingNew) return;
+    const dotInfo = getDotFromTouchOrMouse(e);
+    if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum) &&
+        (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum))) {
+      newPatternSequence.push(dotInfo.dotNum);
+      dotInfo.element.classList.add('selected');
+      lastAddedDot = dotInfo.dotNum;
+      updatePatternPreview();
+    }
+  }
+  
+  function endDraw(e) {
+    e.preventDefault();
+    isDrawingNew = false;
+    updatePatternPreview();
+    if (newPatternSequence.length >= 3) {
+      savePatternBtn.disabled = false;
+      patternMsg.textContent = '✅ Pattern ready. Click "Save New Pattern".';
+      patternMsg.className = 'profile-message success';
+    } else if (newPatternSequence.length > 0) {
+      patternMsg.textContent = `⚠️ Need at least 3 dots (you have ${newPatternSequence.length})`;
+      patternMsg.className = 'profile-message error';
+    }
+  }
+  
+  function removePatternDrawListeners() {
+    if (patternDrawListenersAttached) {
+      window.removeEventListener('mousemove', drawHandler);
+      window.removeEventListener('mouseup', endDrawHandler);
+      window.removeEventListener('touchmove', drawHandler);
+      window.removeEventListener('touchend', endDrawHandler);
+      newPatternGrid.removeEventListener('mousedown', startDraw);
+      newPatternGrid.removeEventListener('touchstart', startDraw);
+      patternDrawListenersAttached = false;
+    }
+  }
   
   verifyPatternBtn.onclick = async () => {
     const currentPass = patternCurrentPass.value;
-    if (!currentPass) { patternMsg.textContent = '❌ Please enter current password'; patternMsg.className = 'profile-message error'; return; }
-    if (currentPass !== staff.pass) { patternMsg.textContent = '❌ Incorrect password'; patternMsg.className = 'profile-message error'; return; }
+    if (!currentPass) {
+      patternMsg.textContent = '❌ Please enter current password';
+      patternMsg.className = 'profile-message error';
+      return;
+    }
+    if (currentPass !== staff.pass) {
+      patternMsg.textContent = '❌ Incorrect password';
+      patternMsg.className = 'profile-message error';
+      return;
+    }
     patternMsg.textContent = '✅ Password verified! Draw your new pattern below';
     patternMsg.className = 'profile-message success';
     patternChangeArea.style.display = 'block';
     verifyPatternBtn.disabled = true;
     verifyPatternBtn.style.opacity = '0.5';
     resetNewPatternDrawing();
-    newPatternGrid.addEventListener('mousedown', startNewDraw);
-    window.addEventListener('mousemove', drawNew);
-    window.addEventListener('mouseup', endNewDraw);
-    newPatternGrid.addEventListener('touchstart', startNewDraw);
-    window.addEventListener('touchmove', drawNew);
-    window.addEventListener('touchend', endNewDraw);
+    
+    removePatternDrawListeners();
+    
+    drawHandler = draw;
+    endDrawHandler = endDraw;
+    
+    window.addEventListener('mousemove', drawHandler);
+    window.addEventListener('mouseup', endDrawHandler);
+    window.addEventListener('touchmove', drawHandler);
+    window.addEventListener('touchend', endDrawHandler);
+    newPatternGrid.addEventListener('mousedown', startDraw);
+    newPatternGrid.addEventListener('touchstart', startDraw, { passive: false });
+    patternDrawListenersAttached = true;
   };
   
-  savePatternBtn.onclick = async () => {
-    if (newPatternSequence.length < 3) { patternMsg.textContent = '❌ Pattern must have at least 3 dots'; patternMsg.className = 'profile-message error'; return; }
-    const newPattern = patternToString(newPatternSequence);
-    const success = await saveUserCredentials(staff.id, { pass: staff.pass, pattern: newPattern });
-    if (success) {
-      staff.pattern = newPattern;
-      patternMsg.textContent = '✅ Pattern updated successfully!';
-      patternMsg.className = 'profile-message success';
-      resetNewPatternDrawing();
-      showMessage(`Pattern updated for ${staff.name}`);
-      setTimeout(() => { modal.remove(); }, 1500);
-    } else {
-      patternMsg.textContent = '❌ Failed to update pattern';
+  // Save pattern handler
+  const savePattern = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    console.log('Save triggered. Pattern sequence:', newPatternSequence);
+    
+    if (patternDebug) patternDebug.textContent = `Saving pattern: ${newPatternSequence.join(',')} (${newPatternSequence.length} dots)`;
+    
+    if (newPatternSequence.length < 3) {
+      patternMsg.textContent = `❌ Please draw at least 3 dots (you have ${newPatternSequence.length})`;
       patternMsg.className = 'profile-message error';
+      return;
+    }
+    
+    const newPattern = patternToString(newPatternSequence);
+    patternMsg.textContent = '⏳ Saving pattern...';
+    patternMsg.className = 'profile-message';
+    savePatternBtn.disabled = true;
+    
+    try {
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Save timeout after 10 seconds')), 10000)
+      );
+      const savePromise = saveUserCredentials(staff.id, { pass: staff.pass, pattern: newPattern });
+      const success = await Promise.race([savePromise, timeoutPromise]);
+      
+      if (success) {
+        staff.pattern = newPattern;
+        patternMsg.textContent = '✅ Pattern updated successfully!';
+        patternMsg.className = 'profile-message success';
+        showMessage(`Pattern updated for ${staff.name}`);
+        removePatternDrawListeners();
+        setTimeout(() => {
+          modal.remove();
+        }, 1200);
+      } else {
+        throw new Error('saveUserCredentials returned false');
+      }
+    } catch (err) {
+      console.error('Save pattern error:', err);
+      patternMsg.textContent = `❌ Failed: ${err.message}`;
+      patternMsg.className = 'profile-message error';
+      savePatternBtn.disabled = false;
+      verifyPatternBtn.disabled = false;
+      verifyPatternBtn.style.opacity = '1';
     }
   };
   
-  modal.querySelector('#closeProfileBtn').onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  savePatternBtn.onclick = savePattern;
+  savePatternBtn.ontouchstart = savePattern;
+  
+  // *** CLEAR BUTTON HANDLER ***
+  if (clearPatternBtn) {
+    clearPatternBtn.onclick = () => {
+      resetNewPatternDrawing();
+      if (patternDebug) patternDebug.textContent = 'Pattern cleared';
+      patternMsg.textContent = 'Pattern cleared. Draw a new one.';
+      patternMsg.className = 'profile-message';
+    };
+    clearPatternBtn.ontouchstart = clearPatternBtn.onclick;
+  }
+  
+  // Close modal with cleanup
+  const closeModal = () => {
+    removePatternDrawListeners();
+    modal.remove();
+  };
+  
+  modal.querySelector('#closeProfileBtn').onclick = closeModal;
+  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
 }
 
 // ============ SUPERVISOR AUTHENTICATION FUNCTIONS ============
@@ -1163,6 +1438,14 @@ function showSupervisorVerification(staff) {
         document.getElementById("superDashboard").style.display = "block";
         setGlobalControlsEnabled(true);
         refreshAllViews();
+        // ADD THESE LINES:
+        const attSelect = document.getElementById("attendanceStaffSelect");
+        if (attSelect) {
+        const fixedSelect = fixSelectForIPad(attSelect);
+        // Re‑populate the fixed select (preserve options)
+        fixedSelect.innerHTML = '<option value="">-- Select Staff --</option>' +
+            staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+        }
         showMessage(`✅ Welcome Supervisor ${staff.name}`);
       } else {
         if (errorMsg) errorMsg.textContent = '❌ Incorrect password. Try again.';
@@ -1172,87 +1455,148 @@ function showSupervisorVerification(staff) {
     };
   };
   
-  const showPatternInput = () => {
-    let patternSequence = [];
-    let isDrawing = false;
-    
-    methodContent.innerHTML = `
-      <div style="text-align: center;">
-        <p style="margin: 0.5rem 0;">Draw your pattern:</p>
-        <div class="pattern-grid" id="superPatternGrid" style="margin: 0.5rem auto; max-width: 200px; gap: 0.5rem;">
-          ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
-        </div>
-        <div id="superPatternPreview" style="font-size: 0.7rem; margin: 0.5rem 0;">Draw your pattern...</div>
-        <button id="superResetPattern" style="background: #6b7280; color: white; padding: 0.4rem 1rem; margin-right: 0.5rem;">⟳ Reset</button>
-        <button id="superCancelPattern" style="background: #94a3b8; color: white; padding: 0.4rem 1rem;">Cancel</button>
+ const showPatternInput = () => {
+  let patternSequence = [];
+  let isDrawing = false;
+
+  methodContent.innerHTML = `
+    <div style="text-align: center;">
+      <p style="margin: 0.5rem 0;">Draw your pattern:</p>
+      <div class="pattern-grid" id="superPatternGrid" style="margin: 0.5rem auto; max-width: 200px; gap: 0.5rem;">
+        ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
       </div>
-    `;
-    
-    const grid = methodContent.querySelector('#superPatternGrid');
-    const dots = grid.querySelectorAll('.pattern-dot');
-    const previewSpan = methodContent.querySelector('#superPatternPreview');
-    
-    function updatePreview() {
-      if (patternSequence.length === 0) previewSpan.textContent = 'Draw your pattern...';
-      else previewSpan.textContent = patternSequence.map(n => '●').join(' → ');
-    }
-    
-    function resetDrawing() {
-      patternSequence = [];
-      dots.forEach(dot => dot.classList.remove('selected'));
-      updatePreview();
-      if (errorMsg) errorMsg.textContent = '';
-    }
-    
-    function getDotFromEvent(e) {
-      const rect = grid.getBoundingClientRect();
-      let clientX, clientY;
-      if (e.touches) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
-      else { clientX = e.clientX; clientY = e.clientY; }
-      for (let dot of dots) {
-        const dotRect = dot.getBoundingClientRect();
-        if (clientX >= dotRect.left && clientX <= dotRect.right && clientY >= dotRect.top && clientY <= dotRect.bottom) {
-          return { dotNum: parseInt(dot.dataset.num), element: dot };
-        }
+      <div id="superPatternPreview" style="font-size: 0.7rem; margin: 0.5rem 0;">Draw your pattern...</div>
+      <button id="superResetPattern" style="background: #6b7280; color: white; padding: 0.4rem 1rem; margin-right: 0.5rem;">⟳ Reset</button>
+      <button id="superCancelPattern" style="background: #94a3b8; color: white; padding: 0.4rem 1rem;">Cancel</button>
+    </div>
+  `;
+
+  const grid = methodContent.querySelector('#superPatternGrid');
+  const dots = grid.querySelectorAll('.pattern-dot');
+  const previewSpan = methodContent.querySelector('#superPatternPreview');
+
+  function updatePreview() {
+    if (patternSequence.length === 0) previewSpan.textContent = 'Draw your pattern...';
+    else previewSpan.textContent = patternSequence.map(n => '●').join(' → ');
+  }
+
+  function resetDrawing() {
+    patternSequence = [];
+    dots.forEach(dot => dot.classList.remove('selected'));
+    updatePreview();
+    if (errorMsg) errorMsg.textContent = '';
+  }
+
+  function getDotFromEvent(e) {
+    const rect = grid.getBoundingClientRect();
+    let clientX, clientY;
+    if (e.touches) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
+    else { clientX = e.clientX; clientY = e.clientY; }
+    for (let dot of dots) {
+      const dotRect = dot.getBoundingClientRect();
+      if (clientX >= dotRect.left && clientX <= dotRect.right && clientY >= dotRect.top && clientY <= dotRect.bottom) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
       }
-      return null;
     }
-    
-    function startDraw(e) { e.preventDefault(); isDrawing = true; const dotInfo = getDotFromEvent(e); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence = [dotInfo.dotNum]; dotInfo.element.classList.add('selected'); updatePreview(); } }
-    function draw(e) { e.preventDefault(); if (!isDrawing) return; const dotInfo = getDotFromEvent(e); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence.push(dotInfo.dotNum); dotInfo.element.classList.add('selected'); updatePreview(); } }
-    async function endDraw(e) { e.preventDefault(); if (!isDrawing) { isDrawing = false; return; } isDrawing = false;
-      if (patternSequence.length >= 3) {
-        const enteredPattern = patternToString(patternSequence);
-        const creds = await loadUserCredentials(staff.id);
-        const savedPattern = creds?.pattern || staff.pattern;
-        if (enteredPattern === savedPattern) {
-          supervisorAuthStaffId = staff.id;
-          supervisorLoggedIn = true;
-          document.body.classList.add('supervisor-mode');
-          document.getElementById("superAuthArea").style.display = "none";
-          document.getElementById("superDashboard").style.display = "block";
-          setGlobalControlsEnabled(true);
-          refreshAllViews();
-          showMessage(`✅ Welcome Supervisor ${staff.name}`);
-        } else { if (errorMsg) errorMsg.textContent = '❌ Incorrect pattern! Try again.'; resetDrawing(); }
-      } else if (patternSequence.length > 0 && patternSequence.length < 3) { if (errorMsg) errorMsg.textContent = '❌ Pattern must have at least 3 dots'; setTimeout(() => resetDrawing(), 1000); }
+    return null;
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    isDrawing = true;
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      updatePreview();
     }
-    
-    grid.addEventListener('mousedown', startDraw);
-    window.addEventListener('mousemove', draw);
-    window.addEventListener('mouseup', endDraw);
-    grid.addEventListener('touchstart', startDraw);
-    window.addEventListener('touchmove', draw);
-    window.addEventListener('touchend', endDraw);
-    
-    methodContent.querySelector('#superResetPattern').onclick = resetDrawing;
-    methodContent.querySelector('#superCancelPattern').onclick = () => {
-      methodContent.innerHTML = '';
-      document.getElementById('superVerificationArea').style.display = 'none';
-      document.getElementById('supervisorSelect').value = '';
-      if (errorMsg) errorMsg.textContent = '';
-    };
+  }
+
+  function draw(e) {
+    e.preventDefault();
+    if (!isDrawing) return;
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence.push(dotInfo.dotNum);
+      dotInfo.element.classList.add('selected');
+      updatePreview();
+    }
+  }
+
+  async function endDraw(e) {
+    e.preventDefault();
+    if (!isDrawing) { isDrawing = false; return; }
+    isDrawing = false;
+
+    if (patternSequence.length >= 3) {
+      const enteredPattern = patternToString(patternSequence);
+      const creds = await loadUserCredentials(staff.id);
+      const savedPattern = creds?.pattern || staff.pattern;
+      if (enteredPattern === savedPattern) {
+        // ✅ Clean up global listeners BEFORE proceeding
+        cleanupPatternListeners();
+
+        supervisorAuthStaffId = staff.id;
+        supervisorLoggedIn = true;
+        document.body.classList.add('supervisor-mode');
+        document.getElementById("superAuthArea").style.display = "none";
+        document.getElementById("superDashboard").style.display = "block";
+        setGlobalControlsEnabled(true);
+        refreshAllViews();
+
+        // Re‑initialise the attendance dropdown (fix for iPad)
+        const attSelect = document.getElementById("attendanceStaffSelect");
+        if (attSelect) {
+          const fixedSelect = fixSelectForIPad(attSelect);
+          fixedSelect.innerHTML = '<option value="">-- Select Staff --</option>' +
+            staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+        }
+
+        showMessage(`✅ Welcome Supervisor ${staff.name}`);
+      } else {
+        if (errorMsg) errorMsg.textContent = '❌ Incorrect pattern! Try again.';
+        resetDrawing();
+      }
+    } else if (patternSequence.length > 0 && patternSequence.length < 3) {
+      if (errorMsg) errorMsg.textContent = '❌ Pattern must have at least 3 dots';
+      setTimeout(() => resetDrawing(), 1000);
+    }
+  }
+
+  // Store listeners for cleanup
+  const winMoveHandler = draw;
+  const winUpHandler = endDraw;
+  const winTouchMoveHandler = draw;
+  const winTouchEndHandler = endDraw;
+
+  activePatternListeners = {
+    winMove: winMoveHandler,
+    winUp: winUpHandler,
+    winTouchMove: winTouchMoveHandler,
+    winTouchEnd: winTouchEndHandler
   };
+
+  window.addEventListener('mousemove', winMoveHandler);
+  window.addEventListener('mouseup', winUpHandler);
+  window.addEventListener('touchmove', winTouchMoveHandler);
+  window.addEventListener('touchend', winTouchEndHandler);
+
+  grid.addEventListener('mousedown', startDraw);
+  grid.addEventListener('touchstart', startDraw);
+
+  methodContent.querySelector('#superResetPattern').onclick = () => {
+    resetDrawing();
+    if (errorMsg) errorMsg.textContent = '';
+  };
+
+  methodContent.querySelector('#superCancelPattern').onclick = () => {
+    cleanupPatternListeners();   // ✅ Remove global touch listeners
+    methodContent.innerHTML = '';
+    document.getElementById('superVerificationArea').style.display = 'none';
+    document.getElementById('supervisorSelect').value = '';
+    if (errorMsg) errorMsg.textContent = '';
+  };
+};
   
   document.getElementById('superPasswordBtn').onclick = () => showPasswordInput();
   document.getElementById('superPatternBtn').onclick = () => showPatternInput();
@@ -1331,54 +1675,279 @@ async function refreshStaffCredentials() {
 }
 
 function showPatternModal(staff, onSuccess, onCancel) {
+  // Remove any existing pattern modal
   const existingModal = document.querySelector('.pattern-modal');
   if (existingModal) existingModal.remove();
+
+  // Create modal container
   const modal = document.createElement('div');
   modal.className = 'pattern-modal';
-  modal.innerHTML = `<div class="pattern-modal-content"><h3>🎨 Pattern Lock</h3><p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p><p style="font-size: 0.8rem; color: #666;">Draw your pattern by connecting dots</p><p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse to verify automatically</p><div class="pattern-grid" id="patternGrid">${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}"></div>`).join('')}</div><div class="pattern-preview" id="patternPreview"></div><div class="pattern-status" id="patternStatus"></div><div class="pattern-buttons"><button class="reset-pattern-btn" id="resetPatternBtn">⟳ Reset</button><button class="cancel-pattern-btn" id="cancelPatternBtn">✗ Cancel</button></div></div>`;
+  modal.innerHTML = `
+    <div class="pattern-modal-content">
+      <h3>🎨 Pattern Lock</h3>
+      <p style="margin-bottom: 0.5rem;">Staff: <strong>${escapeHtml(staff.name)}</strong></p>
+      <p style="font-size: 0.8rem; color: #666;">Draw your pattern by connecting dots</p>
+      <p style="font-size: 0.7rem; color: #888; margin-bottom: 0.5rem;">Release finger/mouse to verify automatically</p>
+      <div class="pattern-grid" id="patternGrid">
+        ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}"></div>`).join('')}
+      </div>
+      <div class="pattern-preview" id="patternPreview"></div>
+      <div class="pattern-status" id="patternStatus"></div>
+      <div class="pattern-buttons">
+        <button class="reset-pattern-btn" id="resetPatternBtn">⟳ Reset</button>
+        <button class="cancel-pattern-btn" id="cancelPatternBtn">✗ Cancel</button>
+      </div>
+    </div>
+  `;
   document.body.appendChild(modal);
-  
-  const style = document.createElement('style');
-  style.textContent = `.pattern-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;width:100%;max-width:300px;margin:1rem auto;background:#f8fafc;padding:1.5rem;border-radius:1.5rem;touch-action:none}.pattern-dot{aspect-ratio:1;background:#e2e8f0;border-radius:50%;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:center;width:100%;min-width:50px;touch-action:none}.pattern-dot.selected{background:#b8860b;transform:scale(1.1);box-shadow:0 0 0 3px rgba(184,134,11,.3)}.pattern-dot.selected::after{content:"●";color:#fff;font-size:1.5rem}.pattern-preview{text-align:center;font-size:.85rem;margin:.5rem 0;color:#4a5568;min-height:2rem}.pattern-status{text-align:center;font-size:.8rem;margin:.5rem 0;padding:.3rem;border-radius:.5rem}.pattern-status.error{color:#dc2626;background:#fee2e2}.pattern-status.success{color:#059669;background:#d1fae5}.pattern-buttons{display:flex;gap:1rem;justify-content:center;margin-top:1rem}.reset-pattern-btn,.cancel-pattern-btn{padding:.5rem 1.5rem;border:none;border-radius:2rem;cursor:pointer;font-size:.85rem}.reset-pattern-btn{background:#6b7280;color:#fff}.cancel-pattern-btn{background:#94a3b8;color:#fff}`;
-  document.head.appendChild(style);
-  
+
+  // Inject required styles (if not already present)
+  const styleId = 'pattern-modal-styles';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .pattern-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;width:100%;max-width:300px;margin:1rem auto;background:#f8fafc;padding:1.5rem;border-radius:1.5rem;touch-action:none}
+      .pattern-dot{aspect-ratio:1;background:#e2e8f0;border-radius:50%;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:center;width:100%;min-width:50px;touch-action:none}
+      .pattern-dot.selected{background:#b8860b;transform:scale(1.1);box-shadow:0 0 0 3px rgba(184,134,11,.3)}
+      .pattern-dot.selected::after{content:"●";color:#fff;font-size:1.5rem}
+      .pattern-preview{text-align:center;font-size:.85rem;margin:.5rem 0;color:#4a5568;min-height:2rem}
+      .pattern-status{text-align:center;font-size:.8rem;margin:.5rem 0;padding:.3rem;border-radius:.5rem}
+      .pattern-status.error{color:#dc2626;background:#fee2e2}
+      .pattern-status.success{color:#059669;background:#d1fae5}
+      .pattern-buttons{display:flex;gap:1rem;justify-content:center;margin-top:1rem}
+      .reset-pattern-btn,.cancel-pattern-btn{padding:.5rem 1.5rem;border:none;border-radius:2rem;cursor:pointer;font-size:.85rem}
+      .reset-pattern-btn{background:#6b7280;color:#fff}
+      .cancel-pattern-btn{background:#94a3b8;color:#fff}
+    `;
+    document.head.appendChild(style);
+  }
+
+  // DOM elements
   const grid = modal.querySelector('#patternGrid');
   const dots = modal.querySelectorAll('.pattern-dot');
   const previewSpan = modal.querySelector('#patternPreview');
   const statusSpan = modal.querySelector('#patternStatus');
-  let patternSequence = [], isDrawing = false, verificationInProgress = false, lastAddedDot = null;
-  
-  function updatePreview() { if (patternSequence.length === 0) previewSpan.textContent = '✨ Draw your pattern by connecting 3+ dots'; else previewSpan.innerHTML = `Pattern: ${patternSequence.map(() => '●').join(' → ')} <span style="color:#b8860b;">(${patternSequence.length} dots)</span>`; }
-  function resetDrawing() { patternSequence = []; lastAddedDot = null; dots.forEach(dot => dot.classList.remove('selected', 'drag-over')); updatePreview(); statusSpan.textContent = ''; statusSpan.className = 'pattern-status'; verificationInProgress = false; }
-  function addDot(dotNum, element) { if (!patternSequence.includes(dotNum)) { patternSequence.push(dotNum); element.classList.add('selected'); updatePreview(); lastAddedDot = dotNum; if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10); } }
-  function areAdjacent(dot1, dot2) { const pos1 = { row: Math.ceil(dot1 / 3), col: ((dot1 - 1) % 3) + 1 }; const pos2 = { row: Math.ceil(dot2 / 3), col: ((dot2 - 1) % 3) + 1 }; const rowDiff = Math.abs(pos1.row - pos2.row); const colDiff = Math.abs(pos1.col - pos2.col); return rowDiff <= 1 && colDiff <= 1; }
-  function autoVerifyAndSelect() { if (verificationInProgress) return; verificationInProgress = true;
-    if (patternSequence.length < 3) { statusSpan.textContent = '❌ Pattern must have at least 3 dots'; statusSpan.className = 'pattern-status error'; verificationInProgress = false; setTimeout(() => resetDrawing(), 1000); return; }
-    const enteredPattern = patternToString(patternSequence); const savedPattern = staff.pattern || '';
-    if (enteredPattern === savedPattern) { statusSpan.textContent = '✅ Verified! Redirecting...'; statusSpan.className = 'pattern-status success'; if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([10,50,10]); setTimeout(() => { modal.remove(); style.remove(); if (onSuccess) onSuccess(); }, 500); }
-    else { statusSpan.textContent = '❌ Wrong pattern! Try again.'; statusSpan.className = 'pattern-status error'; if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([50,100,50]); grid.style.background = '#fee2e2'; setTimeout(() => { grid.style.background = ''; }, 300); resetDrawing(); verificationInProgress = false; }
+
+  let patternSequence = [];
+  let isDrawing = false;
+  let verificationInProgress = false;
+  let lastAddedDot = null;
+
+  // Helper functions
+  function updatePreview() {
+    if (patternSequence.length === 0) {
+      previewSpan.textContent = '✨ Draw your pattern by connecting 3+ dots';
+    } else {
+      previewSpan.innerHTML = `Pattern: ${patternSequence.map(() => '●').join(' → ')} <span style="color:#b8860b;">(${patternSequence.length} dots)</span>`;
+    }
   }
-  function getDotFromEvent(e) { e.preventDefault(); const rect = grid.getBoundingClientRect(); let clientX, clientY; if (e.touches && e.touches.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; } else if (e.changedTouches && e.changedTouches.length > 0) { clientX = e.changedTouches[0].clientX; clientY = e.changedTouches[0].clientY; } else { clientX = e.clientX; clientY = e.clientY; } for (let dot of dots) { const dotRect = dot.getBoundingClientRect(); const padding = 15; if (clientX >= dotRect.left - padding && clientX <= dotRect.right + padding && clientY >= dotRect.top - padding && clientY <= dotRect.bottom + padding) return { dotNum: parseInt(dot.dataset.num), element: dot }; } return null; }
-  function clearDragOver() { dots.forEach(dot => dot.classList.remove('drag-over')); }
-  function startDraw(e) { e.preventDefault(); if (verificationInProgress) return; isDrawing = true; clearDragOver(); const dotInfo = getDotFromEvent(e); if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) { patternSequence = [dotInfo.dotNum]; dotInfo.element.classList.add('selected'); updatePreview(); lastAddedDot = dotInfo.dotNum; } }
-  function draw(e) { e.preventDefault(); if (!isDrawing || verificationInProgress) return; const dotInfo = getDotFromEvent(e); if (dotInfo) { if (!patternSequence.includes(dotInfo.dotNum)) dotInfo.element.classList.add('drag-over'); if (!patternSequence.includes(dotInfo.dotNum) && (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum))) addDot(dotInfo.dotNum, dotInfo.element); } else clearDragOver(); }
-  function endDraw(e) { e.preventDefault(); clearDragOver(); if (!isDrawing || verificationInProgress) { isDrawing = false; return; } isDrawing = false; autoVerifyAndSelect(); }
-  
-  grid.addEventListener('mousedown', startDraw);
-  window.addEventListener('mousemove', draw);
-  window.addEventListener('mouseup', endDraw);
-  grid.addEventListener('touchstart', startDraw, { passive: false });
-  window.addEventListener('touchmove', draw, { passive: false });
-  window.addEventListener('touchend', endDraw);
-  grid.addEventListener('touchmove', (e) => { if (isDrawing) e.preventDefault(); }, { passive: false });
-  
-  modal.querySelector('#resetPatternBtn').onclick = (e) => { e.preventDefault(); resetDrawing(); };
-  modal.querySelector('#cancelPatternBtn').onclick = (e) => { e.preventDefault(); modal.remove(); style.remove(); if (onCancel) onCancel(); };
-  modal.querySelector('.pattern-modal-content').onclick = (e) => e.stopPropagation();
-  modal.onclick = (e) => { if (e.target === modal) { modal.remove(); style.remove(); if (onCancel) onCancel(); } };
-  document.body.style.overflow = 'hidden';
-  modal.addEventListener('remove', () => { document.body.style.overflow = ''; });
+
+  function resetDrawing() {
+    patternSequence = [];
+    lastAddedDot = null;
+    dots.forEach(dot => dot.classList.remove('selected', 'drag-over'));
+    updatePreview();
+    if (statusSpan) {
+      statusSpan.textContent = '';
+      statusSpan.className = 'pattern-status';
+    }
+    verificationInProgress = false;
+  }
+
+  function addDot(dotNum, element) {
+    if (!patternSequence.includes(dotNum)) {
+      patternSequence.push(dotNum);
+      element.classList.add('selected');
+      updatePreview();
+      lastAddedDot = dotNum;
+      if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10);
+    }
+  }
+
+  function areAdjacent(dot1, dot2) {
+    const pos1 = { row: Math.ceil(dot1 / 3), col: ((dot1 - 1) % 3) + 1 };
+    const pos2 = { row: Math.ceil(dot2 / 3), col: ((dot2 - 1) % 3) + 1 };
+    const rowDiff = Math.abs(pos1.row - pos2.row);
+    const colDiff = Math.abs(pos1.col - pos2.col);
+    return rowDiff <= 1 && colDiff <= 1;
+  }
+
+  function autoVerifyAndSelect() {
+    if (verificationInProgress) return;
+    verificationInProgress = true;
+
+    if (patternSequence.length < 3) {
+      statusSpan.textContent = '❌ Pattern must have at least 3 dots';
+      statusSpan.className = 'pattern-status error';
+      verificationInProgress = false;
+      setTimeout(() => resetDrawing(), 1000);
+      return;
+    }
+
+    const enteredPattern = patternToString(patternSequence);
+    const savedPattern = staff.pattern || '';
+    if (enteredPattern === savedPattern) {
+      statusSpan.textContent = '✅ Verified! Redirecting...';
+      statusSpan.className = 'pattern-status success';
+      if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([10, 50, 10]);
+
+      // Cleanup and close modal, then call success callback
+      cleanupPatternListeners();  // remove global touch listeners
+      modal.remove();
+      if (onSuccess) onSuccess();
+    } else {
+      statusSpan.textContent = '❌ Wrong pattern! Try again.';
+      statusSpan.className = 'pattern-status error';
+      if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([50, 100, 50]);
+      grid.style.background = '#fee2e2';
+      setTimeout(() => { grid.style.background = ''; }, 300);
+      resetDrawing();
+      verificationInProgress = false;
+    }
+  }
+
+  function refreshAttendanceDropdown() {
+  const attSelect = document.getElementById("attendanceStaffSelect");
+  if (attSelect && supervisorLoggedIn) {
+    const fixedSelect = fixSelectForIPad(attSelect);
+    fixedSelect.innerHTML = '<option value="">-- Select Staff --</option>' +
+      staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  }
 }
+
+  // Touch / mouse event helpers
+  function getDotFromEvent(e) {
+    e.preventDefault();
+    const rect = grid.getBoundingClientRect();
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    const padding = 15;
+    for (let dot of dots) {
+      const dotRect = dot.getBoundingClientRect();
+      if (clientX >= dotRect.left - padding && clientX <= dotRect.right + padding &&
+          clientY >= dotRect.top - padding && clientY <= dotRect.bottom + padding) {
+        return { dotNum: parseInt(dot.dataset.num), element: dot };
+      }
+    }
+    return null;
+  }
+
+  function clearDragOver() {
+    dots.forEach(dot => dot.classList.remove('drag-over'));
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    if (verificationInProgress) return;
+    isDrawing = true;
+    clearDragOver();
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo && !patternSequence.includes(dotInfo.dotNum)) {
+      patternSequence = [dotInfo.dotNum];
+      dotInfo.element.classList.add('selected');
+      updatePreview();
+      lastAddedDot = dotInfo.dotNum;
+    }
+  }
+
+  function draw(e) {
+    e.preventDefault();
+    if (!isDrawing || verificationInProgress) return;
+    const dotInfo = getDotFromEvent(e);
+    if (dotInfo) {
+      if (!patternSequence.includes(dotInfo.dotNum)) {
+        dotInfo.element.classList.add('drag-over');
+      }
+      if (!patternSequence.includes(dotInfo.dotNum) &&
+          (lastAddedDot === null || areAdjacent(lastAddedDot, dotInfo.dotNum))) {
+        addDot(dotInfo.dotNum, dotInfo.element);
+      }
+    } else {
+      clearDragOver();
+    }
+  }
+
+  function endDraw(e) {
+    e.preventDefault();
+    clearDragOver();
+    if (!isDrawing || verificationInProgress) {
+      isDrawing = false;
+      return;
+    }
+    isDrawing = false;
+    autoVerifyAndSelect();
+  }
+
+  // Attach event listeners – store them for later cleanup
+  const winMoveHandler = draw;
+  const winUpHandler = endDraw;
+  const winTouchMoveHandler = draw;
+  const winTouchEndHandler = endDraw;
+
+  // Store in global variable for cleanup
+  activePatternListeners = {
+    winMove: winMoveHandler,
+    winUp: winUpHandler,
+    winTouchMove: winTouchMoveHandler,
+    winTouchEnd: winTouchEndHandler
+  };
+
+  window.addEventListener('mousemove', winMoveHandler);
+  window.addEventListener('mouseup', winUpHandler);
+  window.addEventListener('touchmove', winTouchMoveHandler);
+  window.addEventListener('touchend', winTouchEndHandler);
+
+  grid.addEventListener('mousedown', startDraw);
+  grid.addEventListener('touchstart', startDraw, { passive: false });
+  // Prevent touchmove on grid from scrolling while drawing
+  grid.addEventListener('touchmove', (e) => { if (isDrawing) e.preventDefault(); }, { passive: false });
+
+  // Reset button
+  const resetBtn = modal.querySelector('#resetPatternBtn');
+  if (resetBtn) {
+    resetBtn.onclick = (e) => {
+      e.preventDefault();
+      resetDrawing();
+    };
+  }
+
+  // Cancel button – cleanup and close
+  const cancelBtn = modal.querySelector('#cancelPatternBtn');
+  if (cancelBtn) {
+    cancelBtn.onclick = (e) => {
+      e.preventDefault();
+      cleanupPatternListeners();
+      modal.remove();
+      if (onCancel) onCancel();
+    };
+  }
+
+  // Click on background also cancels
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      cleanupPatternListeners();
+      modal.remove();
+      if (onCancel) onCancel();
+    }
+  };
+
+  // Prevent body scrolling while modal is open
+  document.body.style.overflow = 'hidden';
+  modal.addEventListener('remove', () => {
+    document.body.style.overflow = '';
+  });
+}
+
 
 // Update initDailyStaffSelect
 function initDailyStaffSelect() {
@@ -2074,6 +2643,24 @@ function setGlobalControlsEnabled(en) { document.getElementById("globalDate").di
 
 function logoutSupervisor() { supervisorLoggedIn = false; supervisorAuthStaffId = null; document.body.classList.remove('supervisor-mode'); document.getElementById("superAuthArea").style.display = "block"; document.getElementById("superDashboard").style.display = "none"; document.getElementById("supervisorSelect").value = ""; document.getElementById("superVerificationContainer").innerHTML = ""; document.getElementById("superVerificationArea").style.display = "none"; setGlobalControlsEnabled(false); selectedAllocationStaff.clear(); showMessage("Supervisor logged out"); if (document.getElementById("staffMainPane").classList.contains("active-pane")) { loadCompleteStaffDashboard(); renderDailyTasksUI(); } }
 
+function fixSelectForIPad(selectElement) {
+  if (!selectElement) return;
+  // Store current value before replacing
+  const currentValue = selectElement.value;
+  const parent = selectElement.parentNode;
+  const clone = selectElement.cloneNode(true);
+  // Re‑apply any necessary attributes
+  clone.value = currentValue;
+  // Replace the original with clone to reset internal iOS state
+  parent.replaceChild(clone, selectElement);
+  // Add a touchstart handler that only stops propagation (no preventDefault)
+  clone.addEventListener('touchstart', (e) => {
+    e.stopPropagation();  // Allow native behaviour to fire
+  }, { passive: true });
+  return clone;
+}
+
+
 function populateDropdowns() {
   initSupervisorLogin();
   
@@ -2091,8 +2678,12 @@ function populateDropdowns() {
   const timeInput = document.getElementById("attendanceTime");
   const leaveDateInput = document.getElementById("attendanceLeaveDate");
   
-  if (attSel) attSel.innerHTML = '<option value="">-- Select Staff --</option>' + staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
-  
+  if (attSel) {
+    const fixedSel = fixSelectForIPad(attSel);
+    fixedSel.innerHTML = '<option value="">-- Select Staff --</option>' +
+      staffList.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+  }
+
   if (statusSelect) {
     statusSelect.onchange = function() {
       const selectedStatus = this.value;
