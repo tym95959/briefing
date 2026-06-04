@@ -398,26 +398,26 @@ hr { margin: 1rem 0; }
   padding: 0.8rem;
   margin-bottom: 0.6rem;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
 }
 
 .daily-task-text {
-  width: 100%;
+  flex: 1;
+  min-width: 180px;
   font-size: 0.85rem;
   font-weight: 500;
   color: #1e293b;
-  margin-bottom: 0.25rem;
 }
 
 .daily-task-status {
-  width: 100%;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
   gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 #globalControlBar {
@@ -2579,16 +2579,16 @@ function renderDailyTasksUI() {
     const staffId = staff?.id;
     let statusHtml = "", actionHtml = "";
     if (task.type === "signoff") {
-      const hasSigned = staffId && task.signoffs.some(s => s.staffId === staffId);
-      const signerCount = task.signoffs.length;
-      statusHtml = `<span class="status-badge ${signerCount > 0 ? 'status-done' : 'status-pending'}">${signerCount > 0 ? `✓ ${signerCount} staff signed` : '⏳ Not signed'}</span>`;
-      if (!hasSigned) actionHtml = `<button class="task-signoff-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✍️ Sign Off</button>`;
-      else actionHtml = `<span style="font-size:0.7rem; color:#0f5c3b;">✓ You signed</span>`;
-      if (task.signoffs.length > 0) statusHtml += `<div class="ack-staff-list">✍️ Signed by: ${task.signoffs.map(s => `${s.staffName} ${new Date(s.signedAt).toLocaleTimeString()}`).join(', ')}</div>`;
+    const hasSigned = staffId && task.signoffs.some(s => s.staffId === staffId);
+    const signerCount = task.signoffs.length;
+    statusHtml = `<span class="status-badge ${signerCount > 0 ? 'status-done' : 'status-pending'}">${signerCount > 0 ? `✓ ${signerCount} staff signed` : '⏳ Not signed'}</span>`;
+    if (!hasSigned) actionHtml = `<button class="task-signoff-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✍️ Sign Off</button>`;
+    else actionHtml = `<span style="font-size:0.7rem; color:#0f5c3b;">✓ You signed</span>`;
+    // Removed the detailed "Signed by" list
     } else if (task.type === "complete") {
-      const isCompleted = task.completedBy !== null;
-      statusHtml = `<span class="status-badge ${isCompleted ? 'status-done' : 'status-pending'}">${isCompleted ? `✅ Completed by ${staffList.find(s=>s.id===task.completedBy)?.name || 'Someone'}` : '⏳ Pending'}</span>`;
-      if (!isCompleted) actionHtml = `<button class="task-complete-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✔️ Complete</button>`;
+    const isCompleted = task.completedBy !== null;
+    statusHtml = `<span class="status-badge ${isCompleted ? 'status-done' : 'status-pending'}">${isCompleted ? '✅ Completed' : '⏳ Pending'}</span>`;
+    if (!isCompleted) actionHtml = `<button class="task-complete-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✔️ Complete</button>`;
     } else if (task.type === "submission") {
       const subs = task.submissions || [];
       statusHtml = `<span class="status-badge ${subs.length ? 'status-done' : 'status-pending'}">📋 ${subs.length} submission(s)</span>`;
