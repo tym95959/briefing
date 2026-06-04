@@ -2232,7 +2232,7 @@ function initDailyStaffSelect() {
   const select = document.getElementById("dailyTaskStaffSelect");
   if (!select) return;
 
-  // Helper: update options without breaking the select element
+  // Helper: update options without replacing the select element
   function updateOptions() {
     const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
     const currentVal = select.value;
@@ -2256,13 +2256,12 @@ function initDailyStaffSelect() {
       sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
   }
 
-  // Remove old handler to avoid duplicates
+  // Remove any existing handler to avoid duplicates
   select.onchange = null;
 
-  // Attach the handler – this will stay even after options update
+  // Attach the persistent handler
   select.onchange = async function(e) {
-    // Prevent any accidental double-firing
-    e.stopPropagation();
+    // Do NOT call e.stopPropagation() – let the event bubble normally
     const newStaffId = this.value;
     if (!newStaffId) {
       if (authenticatedStaffId) {
@@ -2302,7 +2301,7 @@ function initDailyStaffSelect() {
         document.getElementById("dailyTaskSelectedName").textContent = `✓ ${selectedStaff.name} (Verified)`;
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
-        // Very important: force select to lose and regain focus to keep iPad picker alive
+        // Force select to lose and regain focus to keep iPad picker alive
         setTimeout(() => { select.blur(); select.focus(); }, 50);
       } else {
         // On failure, clear the dropdown value so user can try again
@@ -2329,13 +2328,8 @@ function initDailyStaffSelect() {
     updateProfileButtonVisibility();
     document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
   }
-
-  // iPad: prevent touchstart from interfering, but allow native picker
-  select.addEventListener('touchstart', (e) => {
-    // Do NOT preventDefault – let the native picker open
-    e.stopPropagation();
-  }, { passive: true });
 }
+
 
 function showVerificationOptionsModal(staff, callback) {
   // Remove any existing modal to avoid conflicts
