@@ -1829,19 +1829,14 @@ function initSupervisorLogin() {
   const supervisorSelect = document.getElementById('supervisorSelect');
   if (!supervisorSelect) return;
 
-  // iPad fix – clone to reset internal state
-  const fixedSelect = fixSelectForIPad(supervisorSelect);
-  
+  // Fill options once
   const supervisors = staffList.filter(s => s.role === "Supervisor");
-  fixedSelect.innerHTML = '<option value="">-- Select Supervisor --</option>' +
+  supervisorSelect.innerHTML = '<option value="">-- Select Supervisor --</option>' +
     supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
 
-  // Remove any existing listeners and attach fresh ones
-  const newSelect = fixedSelect.cloneNode(true);
-  fixedSelect.parentNode.replaceChild(newSelect, fixedSelect);
-
-  const handleChange = async () => {
-    const staffId = newSelect.value;
+  // Remove any old listener to avoid duplicates
+  const handleChange = async (e) => {
+    const staffId = e.target.value;
     const errorMsg = document.getElementById('superErrorMsg');
     const verificationArea = document.getElementById('superVerificationArea');
     if (!staffId) {
@@ -1856,26 +1851,22 @@ function initSupervisorLogin() {
     }
   };
 
-  newSelect.addEventListener('change', handleChange);
-  newSelect.addEventListener('input', handleChange);
-  newSelect.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+  supervisorSelect.removeEventListener('change', handleChange);
+  supervisorSelect.addEventListener('change', handleChange);
+  supervisorSelect.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
 }
 
-
 function reinitSupervisorUI() {
-  // Completely rebuild the supervisor select and reset login state
-  const oldSelect = document.getElementById('supervisorSelect');
-  if (oldSelect) {
-    const parent = oldSelect.parentNode;
-    const newSelect = document.createElement('select');
-    newSelect.id = 'supervisorSelect';
-    newSelect.className = oldSelect.className;
-    parent.replaceChild(newSelect, oldSelect);
-  }
-  // Re-run full supervisor login initialisation
-  initSupervisorLogin();
-  
-  // If previously logged in, restore dashboard without re-authentication
+  // Do NOT rebuild the select element – just reset visual state
+  const supervisorSelect = document.getElementById('supervisorSelect');
+  if (supervisorSelect) supervisorSelect.value = "";
+
+  // Ensure verification container is cleared
+  document.getElementById('superVerificationContainer').innerHTML = "";
+  document.getElementById('superVerificationArea').style.display = "none";
+  document.getElementById('superErrorMsg').textContent = "";
+
+  // If a supervisor was logged in before, restore dashboard without re‑prompt
   if (supervisorLoggedIn && supervisorAuthStaffId) {
     const staff = staffList.find(s => s.id === supervisorAuthStaffId);
     if (staff) {
@@ -1887,14 +1878,12 @@ function reinitSupervisorUI() {
       logoutSupervisor();
     }
   } else {
-    // Ensure clean state
     document.getElementById("superAuthArea").style.display = "block";
     document.getElementById("superDashboard").style.display = "none";
-    document.getElementById("supervisorSelect").value = "";
-    document.getElementById("superVerificationContainer").innerHTML = "";
-    document.getElementById("superVerificationArea").style.display = "none";
   }
 }
+
+
 
 function updateProfileButtonVisibility() {
   const profileBtn = document.getElementById('profileSettingsBtn');
@@ -2229,67 +2218,72 @@ function showPatternModal(staff, onSuccess, onCancel) {
 
 // Update initDailyStaffSelect
 function initDailyStaffSelect() {
-  const select = document.getElementById("dailyTaskStaffSelect");
-  if (!select) return;
+  const selectContainer = document.getElementById("dailyTaskStaffSelect");
+  if (!selectContainer) return;
 
-  function populateSelect() {
-    const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
-    const currentValue = select.value;
-    select.innerHTML = '<option value="">-- Select Staff --</option>' +
-      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
-    
-    // Preserve previous selection if still valid
-    if (currentValue && sodStaff.some(s => s.id === currentValue)) {
-      select.value = currentValue;
-    } else {
-      select.value = "";
-      authenticatedStaffId = null;
-      updateProfileButtonVisibility();
-      document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
-      renderDailyTasksUI();
-    }
+  // Build fresh options based on current SOD (excluding HK)
+  const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
+  const currentVal = selectContainer.value;
+  selectContainer.innerHTML = '<option value="">-- Select Staff --</option>' +
+    sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+
+  // If previously authenticated staff is still in SOD, keep them selected
+  if (authenticatedStaffId && sodStaff.some(s => s.id === authenticatedStaffId)) {
+    selectContainer.value = authenticatedStaffId;
+    const staff = staffList.find(s => s.id === authenticatedStaffId);
+    if (staff) document.getElementById("dailyTaskSelectedName").textContent = `✓ ${staff.name} (Verified)`;
+  } else if (authenticatedStaffId) {
+    // Previously authenticated staff is no longer on duty → force logout
+    authenticatedStaffId = null;
+    updateProfileButtonVisibility();
+    document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
+    selectContainer.value = "";
+    renderDailyTasksUI();
+  } else {
+    document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
   }
 
-  populateSelect();
-
-  // Update selfSelect dropdown as well
+  // Update selfSelect as well
   const selfSelect = document.getElementById("staffSelfSelect");
   if (selfSelect) {
-    const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
     selfSelect.innerHTML = '<option value="">-- Select --</option>' +
       sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
   }
 
-  // Remove old listener and attach new one
-  const newSelect = select.cloneNode(true);
-  select.parentNode.replaceChild(newSelect, select);
+  // Remove old listener and attach a fresh one
+  const newSelect = selectContainer.cloneNode(true);
+  selectContainer.parentNode.replaceChild(newSelect, selectContainer);
 
-  newSelect.onchange = async () => {
-    const selectedStaffId = newSelect.value;
-    if (!selectedStaffId) {
-      // User deselected – clear auth
-      authenticatedStaffId = null;
-      updateProfileButtonVisibility();
+  newSelect.onchange = async function() {
+    const newStaffId = this.value;
+    if (!newStaffId) {
+      if (authenticatedStaffId) {
+        const oldStaff = staffList.find(s => s.id === authenticatedStaffId);
+        showMessage(`👋 ${oldStaff?.name} logged out`, "info");
+        authenticatedStaffId = null;
+        updateProfileButtonVisibility();
+      }
       document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
       renderDailyTasksUI();
       return;
     }
 
-    const selectedStaff = staffList.find(s => s.id === selectedStaffId);
+    const selectedStaff = staffList.find(s => s.id === newStaffId);
     if (!selectedStaff) return;
 
-    // If already authenticated as this staff, just refresh UI
-    if (authenticatedStaffId === selectedStaffId) {
+    // Already authenticated as this staff → just refresh UI
+    if (authenticatedStaffId === newStaffId) {
       document.getElementById("dailyTaskSelectedName").textContent = `✓ ${selectedStaff.name} (Verified)`;
       renderDailyTasksUI();
       return;
     }
 
-    // If different staff, force re-authentication
+    // Different staff: logout previous and verify new
     if (authenticatedStaffId) {
-      const previousStaff = staffList.find(s => s.id === authenticatedStaffId);
-      showMessage(`👋 ${previousStaff?.name} logged out automatically`, "info");
+      const oldStaff = staffList.find(s => s.id === authenticatedStaffId);
+      showMessage(`👋 ${oldStaff?.name} logged out automatically`, "info");
       authenticatedStaffId = null;
+      updateProfileButtonVisibility();
     }
 
     showVerificationOptionsModal(selectedStaff, (success) => {
@@ -2300,7 +2294,7 @@ function initDailyStaffSelect() {
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
       } else {
-        // Clear the select value on failure so user can try again
+        // Verification failed – clear the dropdown so user can retry
         newSelect.value = "";
         authenticatedStaffId = null;
         updateProfileButtonVisibility();
@@ -2311,6 +2305,7 @@ function initDailyStaffSelect() {
     });
   };
 }
+
 
 
 function showVerificationOptionsModal(staff, callback) {
@@ -3262,7 +3257,7 @@ function initMainTabs() {
     } else if (tabId === "supervisor") {
       supervisorPane.classList.add("active-pane");
       
-      // ✅ CRITICAL: Reinitialize supervisor UI completely
+      // ✅ Rebuild supervisor UI completely
       reinitSupervisorUI();
 
       if (supervisorLoggedIn) {
@@ -3278,7 +3273,7 @@ function initMainTabs() {
     });
   }
 
-  // Remove old listeners and attach fresh ones
+  // Clean up old buttons and attach new ones
   const btns = document.querySelectorAll(".main-tab-btn");
   btns.forEach(btn => {
     const newBtn = btn.cloneNode(true);
@@ -3287,6 +3282,7 @@ function initMainTabs() {
     newBtn.addEventListener('touchstart', (e) => { e.preventDefault(); switchTab(newBtn.dataset.tab); }, { passive: false });
   });
 }
+
 
 function renderAllocationPool() {
   const container = document.getElementById("allocationPoolContainer");
@@ -3494,18 +3490,15 @@ function refreshAllViews() {
     renderDailyTasksUI();
   }
   
-  // ✅ Force refresh staff select when SOD changes
+  // ✅ Force staff dropdown to refresh
   initDailyStaffSelect();
   
   const dailySelect = document.getElementById("dailyTaskStaffSelect");
   if (dailySelect) {
     const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
-    if (sodStaff.length === 0) {
-      dailySelect.innerHTML = '<option value="">-- No staff on duty --</option>';
-    }
+    if (sodStaff.length === 0) dailySelect.innerHTML = '<option value="">-- No staff on duty --</option>';
   }
 }
-
 
 function updateDisplayInfo() { const displayDate = document.getElementById("displayDate"); const displayShift = document.getElementById("displayShift"); const dailyTaskShiftBadge = document.getElementById("dailyTaskShiftBadge"); if (displayDate) displayDate.innerText = currentDate; if (displayShift) displayShift.innerText = SHIFTS.find(s => s.value === currentShift)?.label || currentShift; if (dailyTaskShiftBadge) dailyTaskShiftBadge.innerText = currentShift === "morning" ? "🌅 Morning" : (currentShift === "afternoon" ? "🌆 Afternoon" : "🌙 Evening"); }
 
