@@ -1072,8 +1072,11 @@ async function showProfileModal(staff) {
         <button id="verifyForPatternBtn" class="profile-btn-warning" style="background: #d97706;">✓ Verify & Start Pattern Change</button>
         <div id="patternChangeArea" style="display: none; margin-top: 1rem;">
           <p style="font-size: 0.8rem; color: #b8860b; margin-bottom: 0.5rem;">Draw your NEW pattern (at least 3 dots):</p>
-          <div class="pattern-grid" id="newPatternGrid" style="margin: 1rem auto; width: 280px; gap: 1.2rem; touch-action: none;">
-            ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 70px; height: 70px;"></div>`).join('')}
+          <div style="position: relative; display: inline-block; width: 100%;">
+            <div class="pattern-grid" id="newPatternGrid" style="margin: 1rem auto; width: 280px; gap: 1.2rem; touch-action: none; position: relative; z-index: 1;">
+              ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 70px; height: 70px; background: #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;"></div>`).join('')}
+            </div>
+            <canvas id="patternCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2;"></canvas>
           </div>
           <div id="newPatternPreview" style="font-size: 0.8rem; text-align: center; margin: 0.8rem 0;">Draw your pattern...</div>
           <div id="patternDebug" style="font-size: 0.7rem; color: #666; text-align: center;"></div>
@@ -1091,7 +1094,7 @@ async function showProfileModal(staff) {
   
   document.body.appendChild(modal);
   
-  // ========== PASSWORD CHANGE LOGIC ==========
+  // ========== PASSWORD CHANGE LOGIC (unchanged) ==========
   const updateBtn = modal.querySelector('#updatePasswordBtn');
   const currentPassInput = modal.querySelector('#currentPass');
   const newPassInput = modal.querySelector('#newPass');
@@ -1158,7 +1161,7 @@ async function showProfileModal(staff) {
     };
   });
   
-  // ========== IMPROVED PATTERN DRAWING WITH LARGER DOTS & BETTER DETECTION ==========
+  // ========== PATTERN DRAWING WITH LINES (instead of dot highlighting) ==========
   const verifyPatternBtn = modal.querySelector('#verifyForPatternBtn');
   const patternCurrentPass = modal.querySelector('#patternCurrentPass');
   const patternChangeArea = modal.querySelector('#patternChangeArea');
@@ -1169,6 +1172,8 @@ async function showProfileModal(staff) {
   const newPatternPreview = modal.querySelector('#newPatternPreview');
   const patternDebug = modal.querySelector('#patternDebug');
   const newDots = modal.querySelectorAll('#newPatternGrid .pattern-dot');
+  const canvas = modal.querySelector('#patternCanvas');
+  let ctx = null;
   
   let newPatternSequence = [];
   let isDrawingNew = false;
@@ -1176,30 +1181,75 @@ async function showProfileModal(staff) {
   let patternDrawListenersAttached = false;
   let drawHandler, endDrawHandler;
   
-  // Get center coordinates of a dot
+  // Helper: get dot center coordinates
   function getDotCenter(dotElement) {
     const rect = dotElement.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const containerRect = newPatternGrid.parentElement.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2 - containerRect.left,
+      y: rect.top + rect.height / 2 - containerRect.top
+    };
   }
   
-  // Find the dot that is closest to the given point (tight radius)
-  function findClosestDot(clientX, clientY, maxRadius = 35) {
-    let closest = null;
-    let minDist = maxRadius;
-    for (let dot of newDots) {
-      const center = getDotCenter(dot);
-      const dx = clientX - center.x;
-      const dy = clientY - center.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = dot;
+  // Draw all lines based on current sequence
+  function drawLines() {
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (newPatternSequence.length < 2) return;
+    
+    ctx.beginPath();
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    for (let i = 0; i < newPatternSequence.length - 1; i++) {
+      const fromDotNum = newPatternSequence[i];
+      const toDotNum = newPatternSequence[i + 1];
+      const fromElem = document.querySelector(`#newPatternGrid .pattern-dot[data-num="${fromDotNum}"]`);
+      const toElem = document.querySelector(`#newPatternGrid .pattern-dot[data-num="${toDotNum}"]`);
+      if (fromElem && toElem) {
+        const fromCenter = getDotCenter(fromElem);
+        const toCenter = getDotCenter(toElem);
+        ctx.beginPath();
+        ctx.moveTo(fromCenter.x, fromCenter.y);
+        ctx.lineTo(toCenter.x, toCenter.y);
+        ctx.stroke();
       }
     }
-    if (closest) {
-      return { dotNum: parseInt(closest.dataset.num), element: closest };
+  }
+  
+  // Resize canvas to match grid size
+  function resizeCanvas() {
+    if (!canvas || !newPatternGrid) return;
+    const rect = newPatternGrid.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    drawLines();
+  }
+  
+  function updatePatternPreview() {
+    if (newPatternSequence.length === 0) {
+      newPatternPreview.textContent = 'Draw your pattern...';
+    } else {
+      newPatternPreview.textContent = newPatternSequence.map(() => '●').join(' → ');
     }
-    return null;
+    if (patternDebug) {
+      patternDebug.textContent = `Dots selected: ${newPatternSequence.length}`;
+    }
+    savePatternBtn.disabled = newPatternSequence.length < 3;
+    drawLines();
+  }
+  
+  function resetNewPatternDrawing() {
+    newPatternSequence = [];
+    lastAddedDot = null;
+    // No dot highlighting to remove
+    updatePatternPreview();
+    patternMsg.textContent = '';
+    patternMsg.className = 'profile-message';
   }
   
   function getRowCol(dot) {
@@ -1236,31 +1286,9 @@ async function showProfileModal(staff) {
     return null;
   }
   
-  function updatePatternPreview() {
-    if (newPatternSequence.length === 0) {
-      newPatternPreview.textContent = 'Draw your pattern...';
-    } else {
-      newPatternPreview.textContent = newPatternSequence.map(() => '●').join(' → ');
-    }
-    if (patternDebug) {
-      patternDebug.textContent = `Dots selected: ${newPatternSequence.length}`;
-    }
-    savePatternBtn.disabled = newPatternSequence.length < 3;
-  }
-  
-  function resetNewPatternDrawing() {
-    newPatternSequence = [];
-    lastAddedDot = null;
-    newDots.forEach(dot => dot.classList.remove('selected'));
-    updatePatternPreview();
-    patternMsg.textContent = '';
-    patternMsg.className = 'profile-message';
-  }
-  
   function addDot(dotNum, element) {
     if (newPatternSequence.includes(dotNum)) return;
     
-    // Auto‑insert intermediate dot only for straight lines (like 1 → 9 adds 5)
     if (lastAddedDot && !areAdjacent(lastAddedDot, dotNum)) {
       const intermediate = getIntermediateDot(lastAddedDot, dotNum);
       if (intermediate && !newPatternSequence.includes(intermediate)) {
@@ -1273,15 +1301,16 @@ async function showProfileModal(staff) {
     
     if (!newPatternSequence.includes(dotNum)) {
       newPatternSequence.push(dotNum);
-      element.classList.add('selected');
       updatePatternPreview();
       lastAddedDot = dotNum;
       if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(10);
+      resizeCanvas(); // redraw lines after each addition
     }
   }
   
-  function getDotFromEvent(e) {
+  function getDotCenterFromEvent(e) {
     e.preventDefault();
+    const rect = newPatternGrid.getBoundingClientRect();
     let clientX, clientY;
     if (e.touches && e.touches.length > 0) {
       clientX = e.touches[0].clientX;
@@ -1293,14 +1322,32 @@ async function showProfileModal(staff) {
       clientX = e.clientX;
       clientY = e.clientY;
     }
-    return findClosestDot(clientX, clientY, 35);
+    // Find closest dot using distance to center
+    let closest = null;
+    let minDist = 40;
+    for (let dot of newDots) {
+      const dotRect = dot.getBoundingClientRect();
+      const centerX = dotRect.left + dotRect.width / 2;
+      const centerY = dotRect.top + dotRect.height / 2;
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = dot;
+      }
+    }
+    if (closest) {
+      return { dotNum: parseInt(closest.dataset.num), element: closest };
+    }
+    return null;
   }
   
   function startDraw(e) {
     e.preventDefault();
     if (isDrawingNew) return;
     isDrawingNew = true;
-    const dotInfo = getDotFromEvent(e);
+    const dotInfo = getDotCenterFromEvent(e);
     if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
       addDot(dotInfo.dotNum, dotInfo.element);
     }
@@ -1309,7 +1356,7 @@ async function showProfileModal(staff) {
   function draw(e) {
     e.preventDefault();
     if (!isDrawingNew) return;
-    const dotInfo = getDotFromEvent(e);
+    const dotInfo = getDotCenterFromEvent(e);
     if (dotInfo && !newPatternSequence.includes(dotInfo.dotNum)) {
       addDot(dotInfo.dotNum, dotInfo.element);
     }
@@ -1357,6 +1404,11 @@ async function showProfileModal(staff) {
     verifyPatternBtn.disabled = true;
     verifyPatternBtn.style.opacity = '0.5';
     resetNewPatternDrawing();
+    
+    // Initialize canvas
+    ctx = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', () => resizeCanvas());
     
     removePatternDrawListeners();
     
@@ -1421,11 +1473,12 @@ async function showProfileModal(staff) {
       resetNewPatternDrawing();
       patternMsg.textContent = 'Pattern cleared. Draw a new one.';
       patternMsg.className = 'profile-message';
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
     };
     clearPatternBtn.ontouchstart = clearPatternBtn.onclick;
   }
   
-  // ========== FIXED CLOSE BUTTON ==========
+  // ========== CLOSE MODAL ==========
   const closeModal = () => {
     try {
       removePatternDrawListeners();
@@ -1453,7 +1506,6 @@ async function showProfileModal(staff) {
     if (e.target === modal) closeModal();
   };
 }
-
 
 // ============ SUPERVISOR AUTHENTICATION FUNCTIONS ============
 
@@ -2505,29 +2557,147 @@ function renderSupervisorAttendanceDashboard() {
 
 function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
   const staff = getSelectedStaff();
-  if (!staff && editIndex === null) { showMessage("Please select your name", "error"); return; }
   const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS;
   const item = list.find(i => i.id === task.id);
   if (!item) return;
+
+  // Permission check for editing
+  if (editIndex !== null) {
+    const submission = item.submissions[editIndex];
+    if (!submission) return;
+    const isOwner = (authenticatedStaffId === submission.staffId);
+    const isSupervisor = supervisorLoggedIn;
+    if (!isOwner && !isSupervisor) {
+      showMessage("❌ You can only edit your own submissions", "error");
+      return;
+    }
+  }
+
   const modal = document.createElement("div");
   modal.style.cssText = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:2000;`;
   const modalContent = document.createElement("div");
   modalContent.style.cssText = `background:white; border-radius:1.5rem; padding:1.5rem; width:90%; max-width:450px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);`;
   let title = task.id === "emailChargeForms" ? "📧 Email Charge Forms / Handover" : "🪧 Display Airline Boards";
-  modalContent.innerHTML = `<h3 style="color:#1e4a76; margin-bottom:1rem;">${title}</h3><p style="margin-bottom:1rem;">Staff: <strong>${editIndex !== null ? "Supervisor Editing" : staff?.name}</strong></p><label style="display:block; font-weight:600; margin-bottom:0.5rem;">Flight / Airline Details:</label><input type="text" id="submissionInput" value="${editValue ? escapeHtml(editValue) : ''}" placeholder="e.g., EK412, QR123, Gate A1" style="width:100%; padding:0.7rem; border-radius:1rem; border:1px solid #cbd5e1; margin-bottom:1rem;"><div style="display:flex; gap:0.8rem; justify-content:flex-end;"><button id="cancelSubBtn" style="background:#94a3b8; padding:0.5rem 1rem;">Cancel</button><button id="submitSubBtn" style="background:#0f5c3b; padding:0.5rem 1rem;">${editIndex !== null ? 'Update' : 'Submit'}</button></div>`;
+  modalContent.innerHTML = `
+    <h3 style="color:#1e4a76; margin-bottom:1rem;">${title}</h3>
+    <p style="margin-bottom:1rem;">Staff: <strong>${editIndex !== null ? (supervisorLoggedIn ? "Supervisor Editing" : item.submissions[editIndex]?.staffName) : staff?.name}</strong></p>
+    <label style="display:block; font-weight:600; margin-bottom:0.5rem;">Flight / Airline Details:</label>
+    <input type="text" id="submissionInput" value="${editValue ? escapeHtml(editValue) : ''}" placeholder="e.g., EK412, QR123, Gate A1" style="width:100%; padding:0.7rem; border-radius:1rem; border:1px solid #cbd5e1; margin-bottom:1rem;">
+    <div style="display:flex; gap:0.8rem; justify-content:flex-end;">
+      <button id="cancelSubBtn" style="background:#94a3b8; padding:0.5rem 1rem; border:none; border-radius:1rem; color:white; cursor:pointer;">Cancel</button>
+      <button id="submitSubBtn" style="background:#0f5c3b; padding:0.5rem 1rem; border:none; border-radius:1rem; color:white; cursor:pointer;">${editIndex !== null ? 'Update' : 'Submit'}</button>
+    </div>
+  `;
   modal.appendChild(modalContent);
   document.body.appendChild(modal);
+
   const input = modalContent.querySelector("#submissionInput");
   input.focus();
-  const submit = () => { const value = input.value.trim(); if (!value) { showMessage("Enter flight details", "error"); return; } if (editIndex !== null) { item.submissions[editIndex].value = value; item.submissions[editIndex].editedAt = new Date().toISOString(); item.submissions[editIndex].editedBy = "Supervisor"; } else { if (!item.submissions) item.submissions = []; item.submissions.push({ staffId: staff.id, staffName: staff.name, value, timestamp: new Date().toISOString() }); } saveDailyTasks(); renderDailyTasksUI(); renderSupervisorDailyTasks(); showMessage(`${editIndex !== null ? 'Updated' : 'Submitted'}: ${value.substring(0, 50)}`); modal.remove(); };
-  modalContent.querySelector("#submitSubBtn").onclick = submit;
-  modalContent.querySelector("#cancelSubBtn").onclick = () => modal.remove();
-  input.onkeypress = (e) => { if (e.key === 'Enter') submit(); };
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  const submit = () => {
+    const value = input.value.trim();
+    if (!value) {
+      showMessage("Enter flight details", "error");
+      return;
+    }
+    if (editIndex !== null) {
+      // Update existing submission – preserve original staffId
+      item.submissions[editIndex].value = value;
+      item.submissions[editIndex].editedAt = new Date().toISOString();
+      item.submissions[editIndex].editedBy = supervisorLoggedIn ? "Supervisor" : authenticatedStaffId;
+      saveDailyTasks();
+      renderDailyTasksUI();
+      renderSupervisorDailyTasks();
+      showMessage(`Updated: ${value.substring(0, 50)}`);
+    } else {
+      // New submission – only if staff is selected and verified
+      if (!staff || authenticatedStaffId !== staff.id) {
+        showMessage("Please select and verify your name first", "error");
+        modal.remove();
+        return;
+      }
+      if (!item.submissions) item.submissions = [];
+      item.submissions.push({
+        staffId: staff.id,
+        staffName: staff.name,
+        value,
+        timestamp: new Date().toISOString()
+      });
+      saveDailyTasks();
+      renderDailyTasksUI();
+      renderSupervisorDailyTasks();
+      showMessage(`Submitted: ${value.substring(0, 50)}`);
+    }
+    modal.remove();
+  };
+
+  // Fix button event binding (both click and touch)
+  const submitBtn = modalContent.querySelector("#submitSubBtn");
+  const cancelBtn = modalContent.querySelector("#cancelSubBtn");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    submit();
+  };
+  const handleCancel = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    modal.remove();
+  };
+
+  submitBtn.addEventListener('click', handleSubmit);
+  submitBtn.addEventListener('touchstart', handleSubmit);
+  cancelBtn.addEventListener('click', handleCancel);
+  cancelBtn.addEventListener('touchstart', handleCancel);
+
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') submit();
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
 }
 
-function editSubmission(task, isFb, index) { const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS; const item = list.find(i => i.id === task.id); if (item && item.submissions[index]) openSubmissionModal(task, isFb, index, item.submissions[index].value); }
-function deleteSubmission(task, isFb, index) { if (confirm("Delete this submission?")) { const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS; const item = list.find(i => i.id === task.id); if (item && item.submissions) { item.submissions.splice(index, 1); saveDailyTasks(); renderDailyTasksUI(); renderSupervisorDailyTasks(); showMessage("Submission deleted"); } } }
+
+function editSubmission(task, isFb, index) {
+  const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS;
+  const item = list.find(i => i.id === task.id);
+  if (item && item.submissions && item.submissions[index]) {
+    const submission = item.submissions[index];
+    const isOwner = (authenticatedStaffId === submission.staffId);
+    const isSupervisor = supervisorLoggedIn;
+    if (!isOwner && !isSupervisor) {
+      showMessage("❌ You can only edit your own submissions", "error");
+      return;
+    }
+    openSubmissionModal(task, isFb, index, submission.value);
+  }
+}
+
+
+function deleteSubmission(task, isFb, index) {
+  const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS;
+  const item = list.find(i => i.id === task.id);
+  if (item && item.submissions && item.submissions[index]) {
+    const submission = item.submissions[index];
+    const isOwner = (authenticatedStaffId === submission.staffId);
+    const isSupervisor = supervisorLoggedIn;
+    if (!isOwner && !isSupervisor) {
+      showMessage("❌ You can only delete your own submissions", "error");
+      return;
+    }
+    if (confirm("Delete this submission?")) {
+      item.submissions.splice(index, 1);
+      saveDailyTasks();
+      renderDailyTasksUI();
+      renderSupervisorDailyTasks();
+      showMessage("Submission deleted");
+    }
+  }
+}
+
 
 function signoffTaskHandler(task, isFb) {
   const staff = getSelectedStaff();
@@ -2590,10 +2760,22 @@ function renderDailyTasksUI() {
     statusHtml = `<span class="status-badge ${isCompleted ? 'status-done' : 'status-pending'}">${isCompleted ? '✅ Completed' : '⏳ Pending'}</span>`;
     if (!isCompleted) actionHtml = `<button class="task-complete-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✔️ Complete</button>`;
     } else if (task.type === "submission") {
-      const subs = task.submissions || [];
-      statusHtml = `<span class="status-badge ${subs.length ? 'status-done' : 'status-pending'}">📋 ${subs.length} submission(s)</span>`;
-      if (subs.length) statusHtml += `<div class="ack-staff-list">${subs.map((sub, idx) => `<span class="ack-staff-badge">✈️ ${escapeHtml(sub.staffName)}: ${escapeHtml(sub.value.length > 25 ? sub.value.substring(0,25)+'...' : sub.value)} <button class="edit-submission-btn" data-task-id="${task.id}" data-fb="${isFb}" data-idx="${idx}" style="min-height:44px; touch-action:manipulation;">✏️</button></span>`).join('')}</div>`;
-      actionHtml = `<button class="task-submit-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">➕ Add Flight</button>`;
+    const subs = task.submissions || [];
+    statusHtml = `<span class="status-badge ${subs.length ? 'status-done' : 'status-pending'}">📋 ${subs.length} submission(s)</span>`;
+    if (subs.length) {
+        statusHtml += `<div class="ack-staff-list">`;
+        subs.forEach((sub, idx) => {
+        const isOwner = (authenticatedStaffId === sub.staffId);
+        const canEdit = isOwner || supervisorLoggedIn;
+        statusHtml += `<span class="ack-staff-badge">✈️ ${escapeHtml(sub.staffName)}: ${escapeHtml(sub.value.length > 25 ? sub.value.substring(0,25)+'...' : sub.value)}`;
+        if (canEdit) {
+            statusHtml += `<button class="edit-submission-btn" data-task-id="${task.id}" data-fb="${isFb}" data-idx="${idx}" style="min-height:44px; touch-action:manipulation; margin-left:0.3rem;">✏️</button>`;
+        }
+        statusHtml += `</span>`;
+        });
+        statusHtml += `</div>`;
+    }
+    actionHtml = `<button class="task-submit-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">➕ Add Flight</button>`;
     }
     return `<div class="daily-task-item"><div class="daily-task-text">${task.task}</div><div class="daily-task-status">${statusHtml}${actionHtml}</div></div>`;
   }
