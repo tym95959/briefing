@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>Staff Portal | Light Gold Theme · Password Access</title>
+    <title>Staff Portal | Pattern + Numeric Password Modal</title>
     <style>
         * {
             margin: 0;
@@ -31,11 +31,9 @@
             border-radius: 48px;
             box-shadow: 0 25px 40px -12px rgba(120, 80, 20, 0.25);
             overflow: hidden;
-            transition: all 0.2s ease;
             border: 1px solid #f3de9f;
         }
 
-        /* tabs with gold undertones */
         .tabs-header {
             display: flex;
             background: #fff7e8;
@@ -84,7 +82,6 @@
             to { opacity: 1; transform: translateY(0);}
         }
 
-        /* dropdown – soft gold style */
         .field-group {
             margin-bottom: 28px;
         }
@@ -122,10 +119,8 @@
             outline: none;
             border-color: #e4b53e;
             box-shadow: 0 0 0 3px rgba(228, 185, 62, 0.25);
-            background-color: #ffffff;
         }
 
-        /* info cards – light gold elevated */
         .info-card {
             background: #fffef7;
             border-radius: 32px;
@@ -197,34 +192,253 @@
             text-align: center;
         }
 
-        @media (max-width: 700px) {
-            body { padding: 16px; }
-            .tab-content { padding: 22px 18px; }
-            .tab-btn { font-size: 1.2rem; }
-            .detail-label { width: 90px; }
+        /* ---------- MODAL STYLES (light gold theme) ---------- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0.2s, opacity 0.2s;
         }
 
-        @media (max-width: 500px) {
-            .detail-row { flex-direction: column; gap: 6px; }
-            .detail-label { width: auto; }
-            .info-card { padding: 16px; }
+        .modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .modal-container {
+            background: #fffef5;
+            border-radius: 56px;
+            max-width: 480px;
+            width: 90%;
+            padding: 24px 20px 30px;
+            box-shadow: 0 30px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid #f5e2b0;
+            text-align: center;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .modal-header h3 {
+            color: #b87c1a;
+            font-weight: 700;
+            font-size: 1.4rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #c29a46;
+            padding: 0 8px;
+        }
+
+        .modal-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #f0e0bc;
+            padding-bottom: 8px;
+        }
+
+        .modal-tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 10px 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ba8b2c;
+            cursor: pointer;
+            border-radius: 40px;
+            transition: 0.2s;
+        }
+
+        .modal-tab-btn.active-tab {
+            background: #fbefd4;
+            color: #986b1a;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .tab-pane {
+            display: none;
+            animation: fadeQuick 0.2s;
+        }
+
+        .tab-pane.active-pane {
+            display: block;
+        }
+
+        @keyframes fadeQuick {
+            from { opacity: 0; transform: translateY(4px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+
+        /* pattern grid */
+        .pattern-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            justify-items: center;
+            align-items: center;
+            margin: 20px auto;
+            width: 260px;
+        }
+
+        .dot {
+            width: 70px;
+            height: 70px;
+            background: #f9efdc;
+            border-radius: 50%;
+            border: 2px solid #e4bc78;
+            transition: 0.1s;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+
+        .dot.selected {
+            background: #e5c48a;
+            border-color: #c9912e;
+            transform: scale(0.96);
+        }
+
+        .pattern-canvas-area {
+            position: relative;
+            display: flex;
+            justify-content: center;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .pattern-wrapper {
+            position: relative;
+            width: 260px;
+            margin: 0 auto;
+        }
+
+        .pattern-status {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: #a57334;
+        }
+
+        .pattern-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 15px 0 10px;
+        }
+
+        /* numeric keypad */
+        .numeric-display {
+            background: #fcf5e6;
+            border: 1px solid #eedbba;
+            border-radius: 48px;
+            padding: 16px 20px;
+            font-size: 1.8rem;
+            font-weight: 600;
+            text-align: center;
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+            color: #754e16;
+        }
+
+        .keypad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .key-btn {
+            background: #fcf3e2;
+            border: 1px solid #eedbbc;
+            border-radius: 50px;
+            padding: 16px 0;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #825e24;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+
+        .key-btn:active { background: #ecdcaa; transform: scale(0.96);}
+        .action-btn {
+            background: #f8e9cf;
+            border-radius: 50px;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .modal-submit {
+            background: #e7c882;
+            border: none;
+            border-radius: 60px;
+            padding: 14px 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #543d12;
+            margin-top: 18px;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .modal-cancel {
+            background: #f2e2c6;
+            border: none;
+            border-radius: 60px;
+            padding: 12px 16px;
+            margin-top: 10px;
+            width: 100%;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        @media (max-width: 550px) {
+            .dot { width: 55px; height: 55px; }
+            .pattern-grid { gap: 12px; width: 210px; }
+            .pattern-wrapper { width: 210px; }
+            .modal-container { padding: 18px; }
         }
     </style>
 </head>
 <body>
 
 <div class="app-card">
-    <!-- Tab Buttons -->
     <div class="tabs-header">
         <button class="tab-btn active" data-tab="staff">👤 Staff View</button>
         <button class="tab-btn" data-tab="supervisor">🛡️ Supervisor Tab</button>
     </div>
-
     <div class="tab-content">
         <!-- STAFF VIEW PANEL -->
         <div id="staffViewPanel" class="view-panel active-panel">
             <div class="field-group">
-                <label>📋 Select staff member (password required)</label>
+                <label>📋 Select staff member</label>
                 <select id="staffSelect" class="staff-dropdown"></select>
             </div>
             <div class="info-card">
@@ -235,7 +449,7 @@
                     <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
                     <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
                 </div>
-                <div class="footer-note">🔒 Password required to view details (numerical only)</div>
+                <div class="footer-note">🔒 Password required (pattern / numeric)</div>
             </div>
             <div id="staffErrorMsg" class="error-message" style="display: none;"></div>
         </div>
@@ -243,7 +457,7 @@
         <!-- SUPERVISOR VIEW PANEL -->
         <div id="supervisorViewPanel" class="view-panel">
             <div class="field-group">
-                <label>🔐 Select staff member (supervisor password required)</label>
+                <label>🔐 Select staff member (supervisor)</label>
                 <select id="supervisorSelect" class="staff-dropdown"></select>
             </div>
             <div class="info-card">
@@ -253,365 +467,421 @@
                     <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">—</span></div>
                     <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
                     <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">🔑 Password (secret):</span><span class="detail-value">—</span></div>
+                    <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>
                 </div>
-                <div class="footer-note">🛡️ Supervisor view requires password to reveal all fields</div>
+                <div class="footer-note">🛡️ Supervisor view shows full pass after auth</div>
             </div>
             <div id="supervisorErrorMsg" class="error-message" style="display: none;"></div>
         </div>
     </div>
 </div>
 
+<!-- PASSWORD MODAL (pattern + numeric) -->
+<div id="passwordModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3 id="modalStaffName">Verify identity</h3>
+            <button class="modal-close" id="modalCloseBtn">&times;</button>
+        </div>
+        <div class="modal-tabs">
+            <button class="modal-tab-btn active-tab" data-modal-tab="pattern">🔐 Line Pattern</button>
+            <button class="modal-tab-btn" data-modal-tab="numeric">🔢 Numeric</button>
+        </div>
+        <!-- Pattern Tab -->
+        <div id="patternTab" class="tab-pane active-pane">
+            <div class="pattern-wrapper">
+                <div class="pattern-grid" id="patternGrid"></div>
+                <canvas id="patternCanvas" width="260" height="260" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none;"></canvas>
+            </div>
+            <div class="pattern-status" id="patternStatus">Draw a pattern (connect dots)</div>
+            <div class="pattern-actions">
+                <button id="resetPatternBtn" class="action-btn">⟳ Reset</button>
+            </div>
+        </div>
+        <!-- Numeric Tab -->
+        <div id="numericTab" class="tab-pane">
+            <div class="numeric-display" id="numericInput">____</div>
+            <div class="keypad-grid" id="keypad"></div>
+            <div style="display: flex; gap: 12px;">
+                <button id="clearNumericBtn" class="action-btn" style="flex:1">Clear</button>
+                <button id="deleteNumericBtn" class="action-btn" style="flex:1">⌫</button>
+            </div>
+        </div>
+        <button id="modalSubmitBtn" class="modal-submit">✓ Verify access</button>
+        <button id="modalCancelBtn" class="modal-cancel">Cancel</button>
+    </div>
+</div>
+
 <script type="module">
-    // ✅ Import staffList from external staff.js (no inline data)
     import { staffList } from './staff.js';
 
-    // --- Helper: escape HTML for safety ---
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
+    // ---------- helper utils ----------
+    function escapeHtml(str) { return String(str??'').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
+    function getStaffById(id) { return staffList.find(s => s.id === id); }
+
+    // ----- global modal state -----
+    let pendingAuth = { resolve: null, staff: null, viewType: null };  // viewType: 'staff' or 'supervisor'
+    let currentPatternSequence = [];   // array of dot numbers (1-9)
+    let currentNumericValue = '';
+    let isDrawing = false;
+    let dotElements = [];
+    let ctx = null, canvas = null, patternWrapper = null, gridRect = null;
+
+    // ----- pattern lock (3x3) numbers 1-9 -----
+    function initPatternLock() {
+        const grid = document.getElementById('patternGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        dotElements = [];
+        for (let i = 1; i <= 9; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot';
+            dot.dataset.value = i;
+            dot.addEventListener('mousedown', (e) => startPattern(e, i));
+            dot.addEventListener('touchstart', (e) => { e.preventDefault(); startPattern(e, i); });
+            grid.appendChild(dot);
+            dotElements.push(dot);
+        }
+        canvas = document.getElementById('patternCanvas');
+        ctx = canvas.getContext('2d');
+        patternWrapper = document.querySelector('.pattern-wrapper');
+        resizeAndDrawCanvas();
+        window.addEventListener('resize', () => resizeAndDrawCanvas());
+        attachGlobalEvents();
+    }
+
+    function resizeAndDrawCanvas() {
+        if (!patternWrapper || !canvas) return;
+        const rect = patternWrapper.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawPatternLines();
+    }
+
+    function getDotCenter(value) {
+        const idx = value - 1;
+        const dot = dotElements[idx];
+        if (!dot) return null;
+        const parentRect = patternWrapper.getBoundingClientRect();
+        const dotRect = dot.getBoundingClientRect();
+        const x = dotRect.left + dotRect.width/2 - parentRect.left;
+        const y = dotRect.top + dotRect.height/2 - parentRect.top;
+        return { x, y };
+    }
+
+    function drawPatternLines() {
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (currentPatternSequence.length < 2) return;
+        ctx.beginPath();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#d4a13e';
+        ctx.lineCap = 'round';
+        for (let i = 0; i < currentPatternSequence.length - 1; i++) {
+            const from = getDotCenter(currentPatternSequence[i]);
+            const to = getDotCenter(currentPatternSequence[i+1]);
+            if (from && to) {
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+            }
+        }
+        // draw dots glow
+        dotElements.forEach(dot => dot.classList.remove('selected'));
+        currentPatternSequence.forEach(val => {
+            const dot = dotElements[val-1];
+            if (dot) dot.classList.add('selected');
         });
     }
 
-    // --- Get staff object by id ---
-    function getStaffById(id) {
-        return staffList.find(s => s.id === id);
+    function startPattern(e, dotVal) {
+        e.preventDefault();
+        if (!pendingAuth.staff) return;
+        isDrawing = true;
+        const index = currentPatternSequence.indexOf(dotVal);
+        if (index === -1) {
+            currentPatternSequence.push(dotVal);
+        } else {
+            // if already visited, trim after that point (like typical pattern)
+            currentPatternSequence = currentPatternSequence.slice(0, index+1);
+        }
+        drawPatternLines();
+        updatePatternStatus();
     }
 
-    // --- Numeric password validation (only digits allowed) ---
-    function isValidNumericPassword(input) {
-        if (!input) return false;
-        return /^\d+$/.test(input.trim());
+    function onPatternMove(e) {
+        if (!isDrawing || !pendingAuth.staff) return;
+        const touch = e.touches ? e.touches[0] : e;
+        const elem = document.elementsFromPoint(touch.clientX, touch.clientY);
+        for (let el of elem) {
+            if (el.classList && el.classList.contains('dot')) {
+                const val = parseInt(el.dataset.value);
+                if (val && currentPatternSequence[currentPatternSequence.length-1] !== val) {
+                    if (!currentPatternSequence.includes(val)) {
+                        currentPatternSequence.push(val);
+                        drawPatternLines();
+                        updatePatternStatus();
+                    } else {
+                        // revisit - reset from that point?
+                        const idx = currentPatternSequence.indexOf(val);
+                        if (idx !== -1 && idx !== currentPatternSequence.length-1) {
+                            currentPatternSequence = currentPatternSequence.slice(0, idx+1);
+                            drawPatternLines();
+                            updatePatternStatus();
+                        }
+                    }
+                }
+                break;
+            }
+        }
     }
 
-    // --- Show temporary error message inside a view (auto-hide after 3 sec) ---
-    function showError(containerId, message) {
-        const errorDiv = document.getElementById(containerId);
-        if (!errorDiv) return;
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'block';
-        setTimeout(() => {
-            if (errorDiv) errorDiv.style.display = 'none';
-        }, 2800);
+    function endPattern() { isDrawing = false; }
+    function attachGlobalEvents() {
+        window.addEventListener('mouseup', endPattern);
+        window.addEventListener('touchend', endPattern);
+        window.addEventListener('mousemove', onPatternMove);
+        window.addEventListener('touchmove', (e) => { e.preventDefault(); onPatternMove(e); });
     }
 
-    // --- Clear error message ---
-    function clearError(containerId) {
-        const errorDiv = document.getElementById(containerId);
-        if (errorDiv) errorDiv.style.display = 'none';
+    function resetPattern() {
+        currentPatternSequence = [];
+        drawPatternLines();
+        updatePatternStatus();
     }
 
-    // ----- Staff View logic (limited fields, password popup) -----
-    let staffLastValidId = null;      // stores last successfully authenticated staff id for Staff View
-    let staffCurrentDisplayedId = null;
+    function updatePatternStatus() {
+        const statusDiv = document.getElementById('patternStatus');
+        if (statusDiv) statusDiv.innerText = currentPatternSequence.length ? `Pattern: ${currentPatternSequence.join(' → ')}` : 'Draw a pattern (connect dots)';
+    }
 
-    // Update staff view UI with staff data (no password shown)
+    function getPatternString() { return currentPatternSequence.join(''); }
+
+    // ----- numeric keypad -----
+    function buildKeypad() {
+        const pad = document.getElementById('keypad');
+        if (!pad) return;
+        pad.innerHTML = '';
+        for (let i = 1; i <= 9; i++) {
+            const btn = document.createElement('div');
+            btn.className = 'key-btn';
+            btn.innerText = i;
+            btn.addEventListener('click', () => appendNumeric(i.toString()));
+            pad.appendChild(btn);
+        }
+        const zeroBtn = document.createElement('div');
+        zeroBtn.className = 'key-btn';
+        zeroBtn.innerText = '0';
+        zeroBtn.addEventListener('click', () => appendNumeric('0'));
+        pad.appendChild(zeroBtn);
+        const dummy = document.createElement('div'); dummy.style.visibility = 'hidden'; pad.appendChild(dummy);
+    }
+
+    function appendNumeric(digit) {
+        if (currentNumericValue.length < 8) currentNumericValue += digit;
+        updateNumericDisplay();
+    }
+
+    function clearNumeric() { currentNumericValue = ''; updateNumericDisplay(); }
+    function deleteNumeric() { currentNumericValue = currentNumericValue.slice(0, -1); updateNumericDisplay(); }
+    function updateNumericDisplay() {
+        const disp = document.getElementById('numericInput');
+        if (disp) disp.innerText = currentNumericValue || '____';
+    }
+
+    // ----- modal UI logic with tabs -----
+    let activeModalTab = 'pattern';
+    function switchModalTab(tabId) {
+        activeModalTab = tabId;
+        document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+        document.querySelector(`.modal-tab-btn[data-modal-tab="${tabId}"]`).classList.add('active-tab');
+        document.getElementById('patternTab').classList.toggle('active-pane', tabId === 'pattern');
+        document.getElementById('numericTab').classList.toggle('active-pane', tabId === 'numeric');
+        if (tabId === 'pattern') resizeAndDrawCanvas();
+    }
+
+    function openPasswordModal(staff, viewType) {
+        return new Promise((resolve) => {
+            pendingAuth = { resolve, staff, viewType };
+            document.getElementById('modalStaffName').innerText = `🔐 ${escapeHtml(staff.name)}`;
+            // reset pattern & numeric
+            resetPattern();
+            currentNumericValue = '';
+            updateNumericDisplay();
+            activeModalTab = 'pattern';
+            switchModalTab('pattern');
+            document.getElementById('passwordModal').classList.add('active');
+        });
+    }
+
+    async function verifyAndClose() {
+        const { resolve, staff, viewType } = pendingAuth;
+        if (!staff || !resolve) {
+            closeModal(false);
+            return;
+        }
+        let inputPass = '';
+        if (activeModalTab === 'pattern') {
+            inputPass = getPatternString();
+        } else {
+            inputPass = currentNumericValue;
+        }
+        const storedPass = staff.pass ? String(staff.pass) : '';
+        if (inputPass === storedPass) {
+            closeModal(true);
+            resolve({ success: true, staff });
+        } else {
+            // wrong password: show error inside modal briefly
+            const statusDiv = activeModalTab === 'pattern' ? document.getElementById('patternStatus') : null;
+            if (statusDiv) statusDiv.innerText = '❌ Wrong pattern! Try again.';
+            else {
+                const disp = document.getElementById('numericInput');
+                const original = disp.innerText;
+                disp.innerText = '❌ Wrong PIN';
+                setTimeout(() => { if (disp) disp.innerText = original; }, 1200);
+            }
+            if (activeModalTab === 'pattern') resetPattern();
+            else clearNumeric();
+        }
+    }
+
+    function closeModal(success = false) {
+        document.getElementById('passwordModal').classList.remove('active');
+        if (pendingAuth.resolve && !success) pendingAuth.resolve({ success: false });
+        pendingAuth = { resolve: null, staff: null, viewType: null };
+    }
+
+    // ----- Staff view and Supervisor view handlers (using modal) -----
+    let staffLastValidId = null, supervisorLastValidId = null;
     function renderStaffView(staff) {
-        if (!staff) return;
         const container = document.getElementById('staffDetailsArea');
-        if (!container) return;
-        const contactDisplay = staff.contact && staff.contact.trim() !== "" ? staff.contact : "📭 Not provided";
+        if (!staff) return;
         container.innerHTML = `
             <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">${escapeHtml(staff.id)}</span></div>
             <div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">${escapeHtml(staff.name)}</span></div>
             <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value"><span class="badge-role">${escapeHtml(staff.role)}</span></span></div>
-            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(contactDisplay)}</span></div>
+            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || 'Not provided')}</span></div>
         `;
-        staffCurrentDisplayedId = staff.id;
+        staffLastValidId = staff.id;
     }
-
-    // Show empty / placeholder in staff view
-    function resetStaffViewToPlaceholder() {
-        const container = document.getElementById('staffDetailsArea');
-        if (container) {
-            container.innerHTML = `
-                <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div>
-                <div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">—</span></div>
-                <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
-                <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
-            `;
-        }
-        staffCurrentDisplayedId = null;
-    }
-
-    // password challenge for staff view
-    async function authenticateAndShowStaff(staff, selectElement, previousValidId) {
-        clearError('staffErrorMsg');
-        if (!staff) return false;
-        
-        // ask for numeric password
-        let userPass = prompt(`🔐 Enter NUMERIC password for ${staff.name}:`, "");
-        if (userPass === null) {
-            // user cancelled: revert dropdown to previous valid staff (or first if none)
-            if (previousValidId) {
-                selectElement.value = previousValidId;
-            } else {
-                // if no previous valid, set to first staff but don't show details
-                if (staffList.length) selectElement.value = staffList[0].id;
-                resetStaffViewToPlaceholder();
-            }
-            return false;
-        }
-        
-        userPass = userPass.trim();
-        if (!isValidNumericPassword(userPass)) {
-            showError('staffErrorMsg', `❌ Invalid format: only numeric digits allowed. Access denied for ${staff.name}.`);
-            // revert dropdown
-            if (previousValidId) {
-                selectElement.value = previousValidId;
-            } else {
-                if (staffList.length) selectElement.value = staffList[0].id;
-                resetStaffViewToPlaceholder();
-            }
-            return false;
-        }
-        
-        // compare with stored pass (convert both to string for safe compare)
-        if (String(userPass) === String(staff.pass)) {
-            // success: render details and update last valid
-            renderStaffView(staff);
-            staffLastValidId = staff.id;
-            return true;
-        } else {
-            showError('staffErrorMsg', `🔒 Wrong password for ${staff.name}. Access denied.`);
-            if (previousValidId) {
-                selectElement.value = previousValidId;
-            } else {
-                if (staffList.length) selectElement.value = staffList[0].id;
-                resetStaffViewToPlaceholder();
-            }
-            return false;
-        }
-    }
-
-    // ----- Supervisor View logic (full details + password) -----
-    let supervisorLastValidId = null;
-    let supervisorCurrentDisplayedId = null;
-
     function renderSupervisorView(staff) {
-        if (!staff) return;
         const container = document.getElementById('supervisorDetailsArea');
-        if (!container) return;
-        const contactDisplay = staff.contact && staff.contact.trim() !== "" ? staff.contact : "📭 Not provided";
-        const passValue = staff.pass ? staff.pass : "❌ no pass set";
+        if (!staff) return;
         container.innerHTML = `
             <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">${escapeHtml(staff.id)}</span></div>
             <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">${escapeHtml(staff.name)}</span></div>
             <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value"><strong>${escapeHtml(staff.role)}</strong></span></div>
-            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(contactDisplay)}</span></div>
-            <div class="detail-row"><span class="detail-label">🔑 Password (secret):</span><span class="detail-value"><code>${escapeHtml(passValue)}</code></span></div>
+            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || 'Not provided')}</span></div>
+            <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value"><code>${escapeHtml(staff.pass)}</code></span></div>
         `;
-        supervisorCurrentDisplayedId = staff.id;
+        supervisorLastValidId = staff.id;
+    }
+    function resetStaffPlaceholder() { 
+        document.getElementById('staffDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>`;
+        staffLastValidId = null;
+    }
+    function resetSupervisorPlaceholder() {
+        document.getElementById('supervisorDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>`;
+        supervisorLastValidId = null;
     }
 
-    function resetSupervisorViewToPlaceholder() {
-        const container = document.getElementById('supervisorDetailsArea');
-        if (container) {
-            container.innerHTML = `
-                <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div>
-                <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">—</span></div>
-                <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
-                <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
-                <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>
-            `;
-        }
-        supervisorCurrentDisplayedId = null;
-    }
-
-    async function authenticateAndShowSupervisor(staff, selectElement, previousValidId) {
-        clearError('supervisorErrorMsg');
-        if (!staff) return false;
-        
-        let userPass = prompt(`🛡️ Supervisor access · Enter NUMERIC password for ${staff.name}:`, "");
-        if (userPass === null) {
-            if (previousValidId) {
-                selectElement.value = previousValidId;
-            } else {
-                if (staffList.length) selectElement.value = staffList[0].id;
-                resetSupervisorViewToPlaceholder();
-            }
-            return false;
-        }
-        
-        userPass = userPass.trim();
-        if (!isValidNumericPassword(userPass)) {
-            showError('supervisorErrorMsg', `❌ Only numeric password allowed. Access denied for ${staff.name}.`);
-            if (previousValidId) {
-                selectElement.value = previousValidId;
-            } else {
-                if (staffList.length) selectElement.value = staffList[0].id;
-                resetSupervisorViewToPlaceholder();
-            }
-            return false;
-        }
-        
-        if (String(userPass) === String(staff.pass)) {
-            renderSupervisorView(staff);
-            supervisorLastValidId = staff.id;
-            return true;
+    async function onStaffSelect(staff, dropdown) {
+        const auth = await openPasswordModal(staff, 'staff');
+        if (auth.success) {
+            renderStaffView(staff);
         } else {
-            showError('supervisorErrorMsg', `🔒 Wrong password for ${staff.name}. Supervisor access denied.`);
-            if (previousValidId) {
-                selectElement.value = previousValidId;
+            if (staffLastValidId) {
+                dropdown.value = staffLastValidId;
+                const validStaff = getStaffById(staffLastValidId);
+                if (validStaff) renderStaffView(validStaff);
             } else {
-                if (staffList.length) selectElement.value = staffList[0].id;
-                resetSupervisorViewToPlaceholder();
+                resetStaffPlaceholder();
+                if (staffList.length) dropdown.value = staffList[0].id;
             }
-            return false;
+        }
+    }
+    async function onSupervisorSelect(staff, dropdown) {
+        const auth = await openPasswordModal(staff, 'supervisor');
+        if (auth.success) {
+            renderSupervisorView(staff);
+        } else {
+            if (supervisorLastValidId) {
+                dropdown.value = supervisorLastValidId;
+                const validStaff = getStaffById(supervisorLastValidId);
+                if (validStaff) renderSupervisorView(validStaff);
+            } else {
+                resetSupervisorPlaceholder();
+                if (staffList.length) dropdown.value = staffList[0].id;
+            }
         }
     }
 
-    // --- Populate dropdown with ONLY staff name (no extra ID/role) ---
-    function populateDropdownOnlyName(selectElement, staffArray) {
-        if (!selectElement) return;
-        selectElement.innerHTML = '';
-        staffArray.forEach(staff => {
-            const option = document.createElement('option');
-            option.value = staff.id;
-            option.textContent = staff.name;   // only staff name
-            selectElement.appendChild(option);
-        });
-        if (staffArray.length) selectElement.selectedIndex = 0;
+    function populateNameDropdown(selectEl) {
+        selectEl.innerHTML = '';
+        staffList.forEach(s => { const opt = document.createElement('option'); opt.value = s.id; opt.textContent = s.name; selectEl.appendChild(opt); });
+        if (staffList.length) selectEl.selectedIndex = 0;
     }
 
-    // --- Setup Staff View with password-on-change ---
-    function setupStaffView() {
+    function initViews() {
         const staffDropdown = document.getElementById('staffSelect');
-        if (!staffDropdown) return;
-        
-        // initial population
-        populateDropdownOnlyName(staffDropdown, staffList);
-        
-        // set initial placeholder (no details shown until password)
-        resetStaffViewToPlaceholder();
-        
-        // if there is at least one staff, store the default value but do NOT show details without password
-        if (staffList.length) {
-            staffLastValidId = null;   // no valid authentication yet
-            const firstId = staffList[0].id;
-            staffDropdown.value = firstId;
-            // do NOT auto-display – stay placeholder until user selects (or if they select we challenge)
-            // but we need to handle initial placeholder: keep empty
-            resetStaffViewToPlaceholder();
-        }
-        
-        // handle change event: password popup
+        const supDropdown = document.getElementById('supervisorSelect');
+        populateNameDropdown(staffDropdown);
+        populateNameDropdown(supDropdown);
+        resetStaffPlaceholder();
+        resetSupervisorPlaceholder();
         staffDropdown.addEventListener('change', async (e) => {
-            const selectedId = e.target.value;
-            const selectedStaff = getStaffById(selectedId);
-            if (!selectedStaff) return;
-            
-            // previous valid ID (if any authenticated before)
-            const prevValid = staffLastValidId;
-            
-            // call password authentication
-            const success = await authenticateAndShowStaff(selectedStaff, staffDropdown, prevValid);
-            if (!success) {
-                // on failure, dropdown value already reverted inside authenticateAndShowStaff
-                // but we ensure consistency: if lastValidId exists, we may have reverted to that.
-                // additionally, if no previous valid at all, we revert to first staff id? but we already reverted in function.
-                // Sync lastvalid display:
-                if (staffLastValidId) {
-                    const validStaff = getStaffById(staffLastValidId);
-                    if (validStaff) renderStaffView(validStaff);
-                    staffDropdown.value = staffLastValidId;
-                } else {
-                    resetStaffViewToPlaceholder();
-                    // ensure dropdown points to first staff (but not displayed)
-                    if (staffList.length && !staffLastValidId) {
-                        staffDropdown.value = staffList[0].id;
-                    }
-                }
-            } else {
-                // success: details already rendered, lastValidId updated
-                // no further action
-            }
+            const id = e.target.value;
+            const staff = getStaffById(id);
+            if (staff) await onStaffSelect(staff, staffDropdown);
+        });
+        supDropdown.addEventListener('change', async (e) => {
+            const id = e.target.value;
+            const staff = getStaffById(id);
+            if (staff) await onSupervisorSelect(staff, supDropdown);
         });
     }
-    
-    // --- Setup Supervisor View with password challenge ---
-    function setupSupervisorView() {
-        const supervisorDropdown = document.getElementById('supervisorSelect');
-        if (!supervisorDropdown) return;
-        
-        populateDropdownOnlyName(supervisorDropdown, staffList);
-        resetSupervisorViewToPlaceholder();
-        
-        if (staffList.length) {
-            supervisorLastValidId = null;
-            supervisorDropdown.value = staffList[0].id;
-            resetSupervisorViewToPlaceholder();
-        }
-        
-        supervisorDropdown.addEventListener('change', async (e) => {
-            const selectedId = e.target.value;
-            const selectedStaff = getStaffById(selectedId);
-            if (!selectedStaff) return;
-            
-            const prevValid = supervisorLastValidId;
-            const success = await authenticateAndShowSupervisor(selectedStaff, supervisorDropdown, prevValid);
-            if (!success) {
-                if (supervisorLastValidId) {
-                    const validStaff = getStaffById(supervisorLastValidId);
-                    if (validStaff) renderSupervisorView(validStaff);
-                    supervisorDropdown.value = supervisorLastValidId;
-                } else {
-                    resetSupervisorViewToPlaceholder();
-                    if (staffList.length && !supervisorLastValidId) {
-                        supervisorDropdown.value = staffList[0].id;
-                    }
-                }
-            } else {
-                // password ok, already rendered
-            }
-        });
-    }
-    
-    // --- Tab switching (iPad friendly) ---
-    function initTabs() {
-        const tabBtns = document.querySelectorAll('.tab-btn');
+
+    // Tabs switching (main)
+    function initMainTabs() {
+        const btns = document.querySelectorAll('.tab-btn');
         const staffPanel = document.getElementById('staffViewPanel');
-        const supervisorPanel = document.getElementById('supervisorViewPanel');
-        
-        function switchTab(tabId) {
-            if (tabId === 'staff') {
-                staffPanel.classList.add('active-panel');
-                supervisorPanel.classList.remove('active-panel');
-                tabBtns.forEach(btn => btn.classList.remove('active'));
-                document.querySelector('.tab-btn[data-tab="staff"]').classList.add('active');
-            } else if (tabId === 'supervisor') {
-                supervisorPanel.classList.add('active-panel');
-                staffPanel.classList.remove('active-panel');
-                tabBtns.forEach(btn => btn.classList.remove('active'));
-                document.querySelector('.tab-btn[data-tab="supervisor"]').classList.add('active');
-            }
-        }
-        
-        tabBtns.forEach(btn => {
+        const supPanel = document.getElementById('supervisorViewPanel');
+        btns.forEach(btn => {
             btn.addEventListener('click', () => {
-                const tabName = btn.getAttribute('data-tab');
-                if (tabName === 'staff') switchTab('staff');
-                if (tabName === 'supervisor') switchTab('supervisor');
+                const which = btn.dataset.tab;
+                btns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                if (which === 'staff') { staffPanel.classList.add('active-panel'); supPanel.classList.remove('active-panel'); }
+                else { supPanel.classList.add('active-panel'); staffPanel.classList.remove('active-panel'); }
             });
         });
     }
-    
-    // --- Initialize everything once DOM ready ---
+
+    // Modal events
+    function bindModalEvents() {
+        document.getElementById('modalCloseBtn').onclick = () => closeModal(false);
+        document.getElementById('modalCancelBtn').onclick = () => closeModal(false);
+        document.getElementById('modalSubmitBtn').onclick = verifyAndClose;
+        document.querySelectorAll('.modal-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchModalTab(btn.dataset.modalTab));
+        });
+        document.getElementById('resetPatternBtn').onclick = () => resetPattern();
+        document.getElementById('clearNumericBtn').onclick = () => clearNumeric();
+        document.getElementById('deleteNumericBtn').onclick = () => deleteNumeric();
+    }
+
+    // Start
     document.addEventListener('DOMContentLoaded', () => {
-        if (!staffList || staffList.length === 0) {
-            console.warn("staffList is empty or not loaded correctly from staff.js");
-            // show fallback message in both panels
-            document.getElementById('staffDetailsArea').innerHTML = '<div class="detail-row">⚠️ No staff data loaded. Check staff.js</div>';
-            document.getElementById('supervisorDetailsArea').innerHTML = '<div class="detail-row">⚠️ No staff data loaded. Check staff.js</div>';
-            return;
-        }
-        setupStaffView();
-        setupSupervisorView();
-        initTabs();
+        if (!staffList || staffList.length === 0) return;
+        initPatternLock();
+        buildKeypad();
+        bindModalEvents();
+        initMainTabs();
+        initViews();
     });
 </script>
 </body>
