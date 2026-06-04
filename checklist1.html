@@ -2510,9 +2510,20 @@ async function loadDailyTasks() {
 async function saveDailyTasks() {
   try {
     const docRef = db.collection("staffManagement").doc(currentDate);
-    await docRef.set({ mainTasks: MAIN_DAILY_TASKS.map(({ id, signoffs, completedBy, submissions }) => ({ id, signoffs: signoffs || [], completedBy: completedBy || null, submissions: submissions || [] })), fbTasks: FB_DAILY_TASKS.map(({ id, signoffs, completedBy }) => ({ id, signoffs: signoffs || [], completedBy: completedBy || null })), lastUpdated: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    await docRef.set({ 
+      mainTasks: MAIN_DAILY_TASKS.map(({ id, signoffs, completedBy, submissions }) => ({ 
+        id, signoffs: signoffs || [], completedBy: completedBy || null, submissions: submissions || [] 
+      })), 
+      fbTasks: FB_DAILY_TASKS.map(({ id, signoffs, completedBy }) => ({ 
+        id, signoffs: signoffs || [], completedBy: completedBy || null 
+      })), 
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp() 
+    }, { merge: true });
     return true;
-  } catch (error) { console.error("Error saving daily tasks:", error); return false; }
+  } catch (error) {
+    console.error("Error saving daily tasks:", error);
+    return false;
+  }
 }
 
 let lastSyncDate = null, lastSyncShift = null;
@@ -2603,25 +2614,40 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
   const input = modalContent.querySelector("#submissionInput");
   input.focus();
 
-  // Submit handler (async to ensure save completes)
+  // Handler for submit/update
   const handleSubmit = async () => {
-    const value = input.value.trim();
-    if (!value) {
+    const newValue = input.value.trim();
+    if (!newValue) {
       showMessage("Enter flight details", "error");
       return;
     }
+    
     if (editIndex !== null) {
       // Update existing submission
-      item.submissions[editIndex].value = value;
-      item.submissions[editIndex].editedAt = new Date().toISOString();
-      item.submissions[editIndex].editedBy = supervisorLoggedIn ? "Supervisor" : authenticatedStaffId;
-      await saveDailyTasks();
-      renderDailyTasksUI();
-      if (supervisorLoggedIn) renderSupervisorDailyTasks();
-      showMessage(`Updated: ${value.substring(0, 50)}`);
-      modal.remove();
+      const submission = item.submissions[editIndex];
+      if (!submission) {
+        showMessage("Submission not found", "error");
+        modal.remove();
+        return;
+      }
+      // Update the value
+      submission.value = newValue;
+      submission.editedAt = new Date().toISOString();
+      submission.editedBy = supervisorLoggedIn ? "Supervisor" : authenticatedStaffId;
+      
+      // Save to Firestore
+      const saved = await saveDailyTasks();
+      if (saved) {
+        // Refresh UI
+        await renderDailyTasksUI();
+        if (supervisorLoggedIn) await renderSupervisorDailyTasks();
+        showMessage(`Updated: ${newValue.substring(0, 50)}`);
+        modal.remove();
+      } else {
+        showMessage("Failed to save. Please try again.", "error");
+      }
     } else {
-      // New submission – only if staff is selected and verified
+      // New submission
       if (!staff || authenticatedStaffId !== staff.id) {
         showMessage("Please select and verify your name first", "error");
         modal.remove();
@@ -2631,14 +2657,18 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
       item.submissions.push({
         staffId: staff.id,
         staffName: staff.name,
-        value,
+        value: newValue,
         timestamp: new Date().toISOString()
       });
-      await saveDailyTasks();
-      renderDailyTasksUI();
-      if (supervisorLoggedIn) renderSupervisorDailyTasks();
-      showMessage(`Submitted: ${value.substring(0, 50)}`);
-      modal.remove();
+      const saved = await saveDailyTasks();
+      if (saved) {
+        await renderDailyTasksUI();
+        if (supervisorLoggedIn) await renderSupervisorDailyTasks();
+        showMessage(`Submitted: ${newValue.substring(0, 50)}`);
+        modal.remove();
+      } else {
+        showMessage("Failed to save. Please try again.", "error");
+      }
     }
   };
 
@@ -2646,26 +2676,31 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
     modal.remove();
   };
 
-  // Attach events directly (works on both mouse and touch)
+  // Attach events using clone to avoid duplicate handlers
   const submitBtn = modalContent.querySelector("#submitSubBtn");
   const cancelBtn = modalContent.querySelector("#cancelSubBtn");
 
-  submitBtn.onclick = (e) => {
+  const newSubmitBtn = submitBtn.cloneNode(true);
+  const newCancelBtn = cancelBtn.cloneNode(true);
+  submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
+  cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+  newSubmitBtn.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     handleSubmit();
   };
-  submitBtn.ontouchstart = (e) => {
+  newSubmitBtn.ontouchstart = (e) => {
     e.preventDefault();
     e.stopPropagation();
     handleSubmit();
   };
-  cancelBtn.onclick = (e) => {
+  newCancelBtn.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     handleCancel();
   };
-  cancelBtn.ontouchstart = (e) => {
+  newCancelBtn.ontouchstart = (e) => {
     e.preventDefault();
     e.stopPropagation();
     handleCancel();
@@ -2679,6 +2714,7 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
     if (e.target === modal) modal.remove();
   };
 }
+
 
 function editSubmission(task, isFb, index) {
   const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS;
@@ -2769,7 +2805,7 @@ function renderDailyTasksUI() {
   if (task.type === "signoff") {
     const hasSigned = staffId && task.signoffs.some(s => s.staffId === staffId);
     const signerCount = task.signoffs.length;
-    statusHtml = `<span class="status-badge ${signerCount > 0 ? 'status-done' : 'status-pending'}">${signerCount > 0 ? `✓ ${signerCount} staff signed` : '⏳ Not signed'}</span>`;
+    statusHtml = `<span class="status-badge ${signerCount > 0 ? 'status-done' : 'status-pending'}">${signerCount > 0 ? `` : '⏳ Not signed'}</span>`;
     if (!hasSigned) actionHtml = `<button class="task-signoff-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✍️ Sign Off</button>`;
     else actionHtml = `<span style="font-size:0.7rem; color:#0f5c3b;">✓ You signed</span>`;
     
@@ -2781,7 +2817,7 @@ function renderDailyTasksUI() {
   } else if (task.type === "complete") {
     const isCompleted = task.completedBy !== null;
     const completerName = isCompleted ? (staffList.find(s => s.id === task.completedBy)?.name || 'Someone') : null;
-    statusHtml = `<span class="status-badge ${isCompleted ? 'status-done' : 'status-pending'}">${isCompleted ? '✅ Completed' : '⏳ Pending'}</span>`;
+    statusHtml = `<span class="status-badge ${isCompleted ? 'status-done' : 'status-pending'}">${isCompleted ? '' : '⏳ Pending'}</span>`;
     if (!isCompleted) actionHtml = `<button class="task-complete-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✔️ Complete</button>`;
     
     // Show completer name if completed
