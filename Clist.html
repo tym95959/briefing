@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>Staff Portal | Auto‑Verify Pattern + PIN</title>
+    <title>Staff Portal | Daily Tasks with Staff Permissions</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Import your clist.js for Firebase config -->
+    <script src="./clist.js"></script>
     <style>
         * {
             margin: 0;
@@ -23,7 +28,7 @@
         }
 
         .app-card {
-            max-width: 780px;
+            max-width: 1200px;
             width: 100%;
             margin: 0 auto;
             background: #fffcf0;
@@ -38,11 +43,17 @@
             background: #fff7e8;
             border-bottom: 1px solid #f1e2bc;
             padding: 8px 24px 0 24px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tabs-buttons {
+            display: flex;
             gap: 20px;
+            flex: 1;
         }
 
         .tab-btn {
-            flex: 1;
             background: transparent;
             border: none;
             font-size: 1.35rem;
@@ -60,6 +71,94 @@
             background: #fffcf0;
             border-bottom: 3px solid #e4b822;
             font-weight: 700;
+        }
+
+        .profile-btn-container {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            position: relative;
+        }
+
+        .profile-icon-btn {
+            background: #fcf3e2;
+            border: 1px solid #e8d6a8;
+            border-radius: 60px;
+            padding: 8px 16px 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            font-weight: 500;
+            color: #7a5c1a;
+            font-size: 0.9rem;
+        }
+
+        .profile-icon-btn:hover {
+            background: #fbefd4;
+            border-color: #dbb866;
+            transform: scale(1.02);
+        }
+
+        .profile-avatar {
+            width: 28px;
+            height: 28px;
+            background: #e4bc78;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #5c3e0e;
+        }
+
+        .profile-name-short {
+            max-width: 100px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-menu {
+            position: absolute;
+            top: 58px;
+            right: 0;
+            background: #ffffffef;
+            backdrop-filter: blur(12px);
+            border-radius: 28px;
+            min-width: 200px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+            border: 1px solid #f0e2be;
+            padding: 12px 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-6px);
+            transition: 0.18s ease;
+            z-index: 25;
+        }
+
+        .profile-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .profile-menu-item {
+            padding: 10px 18px;
+            font-size: 0.85rem;
+            color: #7a5c1a;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .profile-menu-item:hover {
+            background: #faf0df;
         }
 
         .tab-content {
@@ -120,55 +219,193 @@
             box-shadow: 0 0 0 3px rgba(228, 185, 62, 0.25);
         }
 
-        .info-card {
+        /* Tasks Grid Layout */
+        .tasks-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .task-category {
             background: #fffef7;
-            border-radius: 32px;
-            padding: 22px 26px;
-            margin-top: 8px;
+            border-radius: 28px;
+            padding: 20px;
             border: 1px solid #f3e5bd;
-            box-shadow: 0 6px 14px rgba(110, 70, 10, 0.05);
+            box-shadow: 0 4px 12px rgba(110, 70, 10, 0.05);
         }
 
-        .info-title {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
+        .category-title {
+            font-size: 1.2rem;
             font-weight: 700;
-            color: #c49a2b;
-            margin-bottom: 18px;
+            color: #b87c1a;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #f0e0bc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .detail-row {
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .task-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .task-list::-webkit-scrollbar-track {
+            background: #f0e0bc;
+            border-radius: 10px;
+        }
+
+        .task-list::-webkit-scrollbar-thumb {
+            background: #e4bc78;
+            border-radius: 10px;
+        }
+
+        .task-item {
+            background: #fffcf5;
+            border-radius: 20px;
+            padding: 12px 16px;
+            border: 1px solid #f0e2be;
+            transition: all 0.2s ease;
+        }
+
+        .task-item:hover {
+            background: #fff9ef;
+            border-color: #e4bc78;
+        }
+
+        .task-text {
+            font-size: 0.9rem;
+            color: #5c4311;
+            margin-bottom: 10px;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .task-btn {
+            background: #f8e9cf;
+            border: none;
+            border-radius: 40px;
+            padding: 6px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #b8860b;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .task-btn:hover {
+            background: #e4bc78;
+            color: white;
+        }
+
+        .task-btn.completed {
+            background: #2c6e2c;
+            color: white;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .task-btn.completed:hover {
+            background: #2c6e2c;
+        }
+
+        .task-status {
+            font-size: 0.75rem;
+            color: #b28b44;
+            margin-left: auto;
+        }
+
+        .signoff-list {
             display: flex;
             flex-wrap: wrap;
-            padding: 12px 0;
-            border-bottom: 1px solid #f4e9cf;
+            gap: 8px;
+            margin-top: 8px;
         }
 
-        .detail-row:last-child {
-            border-bottom: none;
+        .signoff-badge {
+            background: #e8f0e8;
+            border-radius: 20px;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            color: #2c6e2c;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        .detail-label {
-            width: 110px;
+        .signoff-badge .delete-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #c25d2e;
+            font-size: 0.8rem;
+            padding: 0 4px;
+            font-weight: bold;
+        }
+
+        .signoff-badge .delete-btn:hover {
+            color: #a04020;
+        }
+
+        .signoff-btn {
+            background: #e4bc78;
+            border: none;
+            border-radius: 30px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.8rem;
             font-weight: 600;
-            color: #8b691b;
+            color: #5c3e0e;
+            margin-top: 8px;
+            width: 100%;
         }
 
-        .detail-value {
-            flex: 1;
-            color: #5c4311;
-            word-break: break-word;
-            font-weight: 500;
+        .signoff-btn:hover {
+            background: #d4aa5a;
         }
 
-        .badge-role {
-            background: #fcf2dc;
-            display: inline-block;
-            padding: 4px 14px;
-            border-radius: 40px;
-            font-size: 0.85rem;
-            color: #b57c1c;
+        .submission-list {
+            margin-top: 8px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .submission-item {
+            background: #f0e0bc;
+            border-radius: 16px;
+            padding: 6px 10px;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .submission-item .delete-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #c25d2e;
+            font-size: 0.8rem;
+            padding: 0 4px;
+            font-weight: bold;
         }
 
         .footer-note {
@@ -180,18 +417,98 @@
             padding-top: 16px;
         }
 
-        .error-message {
-            color: #c25d2e;
-            background: #fff2e6;
-            border-radius: 28px;
-            padding: 12px 16px;
-            margin-top: 16px;
-            font-size: 0.85rem;
-            font-weight: 500;
+        .sync-status {
+            font-size: 0.7rem;
+            margin-top: 8px;
             text-align: center;
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-block;
         }
 
-        /* ---------- MODAL STYLES (auto-verify) ---------- */
+        .sync-status.connected {
+            background: #e8f0e8;
+            color: #2c6e2c;
+        }
+
+        .sync-status.disconnected {
+            background: #fee8e8;
+            color: #c25d2e;
+        }
+
+        .current-user-badge {
+            background: #e4bc78;
+            color: #5c3e0e;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0.3s, opacity 0.3s;
+        }
+
+        .loading-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .loading-container {
+            background: #fffef5;
+            border-radius: 56px;
+            padding: 40px 50px;
+            text-align: center;
+            box-shadow: 0 30px 50px rgba(0, 0, 0, 0.3);
+            border: 1px solid #f5e2b0;
+            min-width: 300px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
+            border: 4px solid #f3e5bd;
+            border-top: 4px solid #e4bc78;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-container p {
+            color: #b87c1a;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .loading-subtext {
+            font-size: 0.8rem;
+            color: #b28b44;
+            margin-top: 8px;
+        }
+
+        /* Modal Styles */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -217,7 +534,7 @@
         .modal-container {
             background: #fffef5;
             border-radius: 56px;
-            max-width: 480px;
+            max-width: 520px;
             width: 90%;
             padding: 24px 20px 30px;
             box-shadow: 0 30px 40px rgba(0, 0, 0, 0.3);
@@ -289,7 +606,6 @@
             to { opacity: 1; transform: translateY(0);}
         }
 
-        /* pattern grid */
         .pattern-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -312,10 +628,9 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         }
 
-        .dot.selected {
-            background: #e5c48a;
-            border-color: #c9912e;
-            transform: scale(0.96);
+        .dot.temp-selected {
+            background: #c9a550;
+            border-color: #a87d2e;
         }
 
         .pattern-wrapper {
@@ -347,7 +662,6 @@
             margin: 15px 0 10px;
         }
 
-        /* numeric keypad */
         .numeric-display {
             background: #fcf5e6;
             border: 1px solid #eedbba;
@@ -359,6 +673,7 @@
             letter-spacing: 4px;
             margin-bottom: 20px;
             color: #754e16;
+            font-family: monospace;
         }
 
         .keypad-grid {
@@ -390,23 +705,56 @@
             border: none;
             cursor: pointer;
         }
+        .action-btn:active { background: #ebdaaf; }
 
-        .modal-cancel {
-            background: #f2e2c6;
-            border: none;
-            border-radius: 60px;
-            padding: 12px 16px;
-            margin-top: 14px;
-            width: 100%;
-            font-weight: 500;
-            cursor: pointer;
+        .auto-hint {
+            font-size: 0.7rem;
+            margin-top: 8px;
+            color: #b5893b;
+            background: #fff6e5;
+            border-radius: 40px;
+            padding: 4px 12px;
+            display: inline-block;
         }
 
-        @media (max-width: 550px) {
+        .change-pass-tabs {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0 20px;
+            border-bottom: 1px solid #f0e0bc;
+            padding-bottom: 6px;
+        }
+        .change-method-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 8px 12px;
+            font-weight: 600;
+            color: #b8860b;
+            cursor: pointer;
+            border-radius: 40px;
+            transition: 0.2s;
+        }
+        .change-method-btn.active-method {
+            background: #fbefd4;
+            color: #7a5516;
+        }
+        .feedback-msg {
+            margin-top: 12px;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 850px) {
+            .tasks-container {
+                grid-template-columns: 1fr;
+            }
             .dot { width: 55px; height: 55px; }
             .pattern-grid { gap: 12px; width: 210px; }
             .pattern-wrapper { width: 210px; }
             .modal-container { padding: 18px; }
+            .profile-icon-btn .profile-name-short { display: none; }
+            .profile-icon-btn { padding: 8px 12px; }
+            .tab-btn { font-size: 1rem; padding: 12px 4px 10px 4px; }
         }
     </style>
 </head>
@@ -414,30 +762,41 @@
 
 <div class="app-card">
     <div class="tabs-header">
-        <button class="tab-btn active" data-tab="staff">👤 Staff View</button>
-        <button class="tab-btn" data-tab="supervisor">🛡️ Supervisor Tab</button>
+        <div class="tabs-buttons">
+            <button class="tab-btn active" data-tab="staff">👤 Staff View</button>
+            <button class="tab-btn" data-tab="supervisor">🛡️ Supervisor Tab</button>
+        </div>
+        <div class="profile-btn-container">
+            <div class="profile-icon-btn" id="profileButton">
+                <span class="profile-avatar" id="profileAvatar">👤</span>
+                <span class="profile-name-short" id="profileShortName">Staff</span>
+            </div>
+            <div class="profile-menu" id="profileMenu">
+                <div class="profile-menu-item" id="profileViewAction">📋 View my profile</div>
+                <div class="profile-menu-item" id="profileChangePass">🔑 Create / Change Login Code</div>
+                <div class="profile-menu-item" id="profileSwitchRole">🔄 Switch role view</div>
+            </div>
+        </div>
     </div>
+
     <div class="tab-content">
-        <!-- STAFF VIEW -->
+        <!-- STAFF VIEW PANEL - Staff Selection + Daily Tasks -->
         <div id="staffViewPanel" class="view-panel active-panel">
             <div class="field-group">
-                <label>📋 Select staff member</label>
+                <label>👤 Select staff member</label>
                 <select id="staffSelect" class="staff-dropdown"></select>
             </div>
-            <div class="info-card">
-                <div class="info-title">👁️ STAFF INFORMATION (limited)</div>
-                <div id="staffDetailsArea">
-                    <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
-                </div>
-                <div class="footer-note">🔐 Draw pattern or enter PIN → auto access</div>
+            <div id="currentUserDisplay" class="current-user-badge" style="display: none;">
+                ✅ Current user: <span id="currentUserName">—</span>
             </div>
-            <div id="staffErrorMsg" class="error-message" style="display: none;"></div>
+            <div id="dailyTasksContainer" class="tasks-container">
+                <!-- Tasks will be dynamically loaded here -->
+            </div>
+            <div class="footer-note">✅ Each staff can complete tasks once. Signoffs and submissions can be deleted only by the staff who created them.</div>
+            <div id="syncStatusStaff" class="sync-status disconnected" style="margin-top:12px;">⏳ Loading tasks...</div>
         </div>
 
-        <!-- SUPERVISOR VIEW -->
+        <!-- SUPERVISOR VIEW PANEL -->
         <div id="supervisorViewPanel" class="view-panel">
             <div class="field-group">
                 <label>🔐 Select staff member (supervisor)</label>
@@ -450,16 +809,25 @@
                     <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">—</span></div>
                     <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
                     <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>
+                    <div class="detail-row"><span class="detail-label">🔢 PIN (pass):</span><span class="detail-value">—</span></div>
+                    <div class="detail-row"><span class="detail-label">🎨 Pattern:</span><span class="detail-value">—</span></div>
                 </div>
-                <div class="footer-note">🛡️ Supervisor sees pass after auth (auto‑verify)</div>
+                <div class="footer-note">🛡️ Supervisor view shows both pass and pattern</div>
             </div>
-            <div id="supervisorErrorMsg" class="error-message" style="display: none;"></div>
         </div>
     </div>
 </div>
 
-<!-- PASSWORD MODAL (auto-verify, no submit button) -->
+<!-- Loading Popup -->
+<div id="loadingPopup" class="loading-overlay">
+    <div class="loading-container">
+        <div class="spinner"></div>
+        <p>Loading staff credentials...</p>
+        <div class="loading-subtext">Please wait while we connect to Firebase</div>
+    </div>
+</div>
+
+<!-- AUTH MODAL -->
 <div id="passwordModal" class="modal-overlay">
     <div class="modal-container">
         <div class="modal-header">
@@ -467,77 +835,456 @@
             <button class="modal-close" id="modalCloseBtn">&times;</button>
         </div>
         <div class="modal-tabs">
-            <button class="modal-tab-btn active-tab" data-modal-tab="pattern">🔐 Line Pattern</button>
+            <button class="modal-tab-btn active-tab" data-modal-tab="pattern">🎨 Pattern</button>
             <button class="modal-tab-btn" data-modal-tab="numeric">🔢 Numeric PIN</button>
         </div>
-        <!-- Pattern Tab -->
         <div id="patternTab" class="tab-pane active-pane">
             <div class="pattern-wrapper">
                 <div class="pattern-grid" id="patternGrid"></div>
-                <canvas id="patternCanvas" width="260" height="260" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none;"></canvas>
+                <canvas id="patternCanvas" width="260" height="260"></canvas>
             </div>
-            <div class="pattern-status" id="patternStatus">✨ Draw a pattern (release to verify)</div>
-            <div class="pattern-actions">
-                <button id="resetPatternBtn" class="action-btn">⟳ Reset</button>
-            </div>
+            <div class="pattern-status" id="patternStatus">✏️ Draw pattern (hidden after release)</div>
+            <div class="pattern-actions"><button id="resetPatternBtn" class="action-btn">⟳ Reset</button></div>
+            <div class="auto-hint">✨ Pattern is hidden for security</div>
         </div>
-        <!-- Numeric Tab -->
         <div id="numericTab" class="tab-pane">
-            <div class="numeric-display" id="numericInput">____</div>
+            <div class="numeric-display" id="numericInput">●●●●</div>
             <div class="keypad-grid" id="keypad"></div>
             <div style="display: flex; gap: 12px;">
                 <button id="clearNumericBtn" class="action-btn" style="flex:1">Clear</button>
                 <button id="deleteNumericBtn" class="action-btn" style="flex:1">⌫</button>
             </div>
+            <div class="auto-hint">🔢 PIN is hidden for security</div>
         </div>
-        <button id="modalCancelBtn" class="modal-cancel">Cancel</button>
+    </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div id="changePasswordModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>🔐 Create or Change Login Code</h3>
+            <button class="modal-close" id="closeChangeModalBtn">&times;</button>
+        </div>
+        <div class="change-pass-tabs">
+            <button class="change-method-btn active-method" data-change-method="pattern">🎨 Pattern</button>
+            <button class="change-method-btn" data-change-method="pin">🔢 Numeric PIN (pass)</button>
+        </div>
+        <div id="changePatternPane" class="tab-pane active-pane">
+            <div class="mini-pattern-area">
+                <div class="pattern-wrapper" style="margin:0 auto;">
+                    <div class="pattern-grid" id="changePatternGrid"></div>
+                    <canvas id="changePatternCanvas" width="260" height="260"></canvas>
+                </div>
+                <div class="pattern-status" id="changePatternStatus">📌 Draw new pattern (hidden after release)</div>
+                <div class="pattern-actions"><button id="resetChangePatternBtn" class="action-btn">⟳ Reset Pattern</button></div>
+                <div class="auto-hint">✨ Pattern is hidden for security</div>
+            </div>
+        </div>
+        <div id="changePinPane" class="tab-pane">
+            <div class="numeric-display" id="changePinDisplay">●●●●●●</div>
+            <div class="keypad-grid" id="changePinKeypad"></div>
+            <div style="display: flex; gap: 12px;">
+                <button id="clearChangePinBtn" class="action-btn" style="flex:1">Clear</button>
+                <button id="deleteChangePinBtn" class="action-btn" style="flex:1">⌫</button>
+            </div>
+            <div class="auto-hint">🔢 Numeric PIN (pass) is hidden while typing</div>
+        </div>
+        <div class="confirm-buttons" style="display: flex; gap: 12px; margin-top: 20px;">
+            <button id="cancelChangeBtn" class="action-btn" style="flex:1;">Cancel</button>
+            <button id="saveNewCodeBtn" class="action-btn" style="flex:1; background:#e4bc78;">💾 Save to Firebase</button>
+        </div>
+        <div id="changeFeedback" class="feedback-msg"></div>
     </div>
 </div>
 
 <script type="module">
-    // ------------------------------
-    // IMPORT STAFF LIST FROM EXTERNAL staff.js (NO MOCK DATA)
-    // ------------------------------
-    let staffList = [];
-    let loadError = false;
+    import { staffList } from './staff.js';
     
-    try {
-        const module = await import('./staff.js');
-        staffList = module.staffList;
-        if (!staffList || !Array.isArray(staffList) || staffList.length === 0) {
-            throw new Error('staff.js must export a non-empty array named "staffList"');
+    // Daily Tasks Data
+    const MAIN_DAILY_TASKS = [
+        { id: "noticeboard", task: "📋 Read the noticeboard", type: "signoff", signoffs: [] },
+        { id: "stationaries", task: "📋 Make sure all the stationaries are available at the Reception", type: "complete", completedBy: null, completedAt: null },
+        { id: "passengerLoad", task: "📋 Briefed on daily passenger load / Expected", type: "signoff", signoffs: [] },
+        { id: "maintenanceChecklist", task: "📋 Ensure daily maintenance checklist done", type: "complete", completedBy: null, completedAt: null },
+        { id: "shiftOpen", task: "📋 Check the system and make sure the correct shift is open", type: "complete", completedBy: null, completedAt: null },
+        { id: "waterFeature", task: "📋 Make sure the water feature is well maintained and working", type: "complete", completedBy: null, completedAt: null },
+        { id: "emailChargeForms", task: "📧 EMAIL CHARGE FORMS / HANDOVER", type: "submission", submissions: [] },
+        { id: "airlineBoards", task: "🪧 DISPLAY AIRLINE BOARDS", type: "submission", submissions: [] },
+        { id: "loungeEmail", task: "📋 Check the lounge E-mail", type: "signoff", signoffs: [] },
+        { id: "flightsClosed", task: "📋 Check all the flights are closed from the system", type: "signoff", signoffs: [] },
+        { id: "tallyCards", task: "📋 Tally the lounge cards with the charge sheets", type: "signoff", signoffs: [] },
+        { id: "dailySales", task: "📋 Fill up the Daily Sales Sheet", type: "signoff", signoffs: [] },
+        { id: "salesTally", task: "📋 Check Daily Sales Sheet are tally", type: "signoff", signoffs: [] },
+        { id: "paymentReceipts", task: "📋 Tally payment receipts with payment system report", type: "signoff", signoffs: [] },
+        { id: "pettyCash", task: "📋 Handover Petty Cash Float", type: "signoff", signoffs: [] },
+        { id: "allocationHandover", task: "📋 Allocation Handover", type: "signoff", signoffs: [] },
+        { id: "Flight Closed", task: "📋 Ensure that all the flights are closed from the system", type: "complete", completedBy: null, completedAt: null },  
+        { id: "Close the Shift", task: "📋 Close the Shift", type: "complete", completedBy: null, completedAt: null },    
+        { id: "Shift Handover", task: "📋 Shift Handover, Cash count, & handover, messages, pending works, cards count & handover, system logout and handover", type: "complete", completedBy: null, completedAt: null },  
+        { id: "Settlement", task: "📋 Take the settlement report sign with initials", type: "complete", completedBy: null, completedAt: null }, 
+        { id: "Cash Count Cashier", task: "📋 Count all the receipts tally with cash and payment POS receipts and system receipts by assign cashier", type: "complete", completedBy: null, completedAt: null },   
+        { id: "Cash Count Witness", task: "📋 Count all the receipts tally with cash and payment POS receipts and system receipts by a Witness", type: "complete", completedBy: null, completedAt: null },   
+        { id: "Sign the Report", task: "📋 Sign the enclosed report, include any receipts, place all cash in the provided cash drop bag.", type: "signoff", signoffs: [] },
+        { id: "Cash Drop", task: "📋 Drop the Cash bag into the safe box located in the lounge.", type: "signoff", signoffs: [] },
+        { id: "File", task: "📋 File the Check list (All Shift).", type: "signoff", signoffs: [] },
+    ];
+
+    const FB_DAILY_TASKS = [
+        { id: "fb_cleanliness", task: "🍽️ Check and maintain the cleanliness, arrangement of buffet", type: "signoff", signoffs: [] },
+        { id: "fb_inductions", task: "🍽️ Check the inductions are ON", type: "signoff", signoffs: [] },
+        { id: "fb_nametags", task: "🍽️ Check the name tags are in good condition and placed correctly", type: "signoff", signoffs: [] },
+        { id: "fb_milkJar", task: "🍽️ Check & Re-fill the milk Jar", type: "signoff", signoffs: [] },
+        { id: "fb_buffetRisers", task: "🍽️ Clean & arrange buffet risers", type: "signoff", signoffs: [] },
+        { id: "fb_refrigerator", task: "🍽️ Re-fill the refrigerator", type: "signoff", signoffs: [] },
+        { id: "fb_washItems", task: "🍽️ Wash milk Jar, buffet tongs and plates, underliners", type: "complete", completedBy: null, completedAt: null },
+        { id: "fb_cleanToaster", task: "🍽️ Clean the toaster, tray", type: "complete", completedBy: null, completedAt: null },
+        { id: "fb_arrangeCutlery", task: "🍽️ Maintain & arrange cutlery for another shift", type: "complete", completedBy: null, completedAt: null },
+        { id: "fb_disinfect", task: "🍽️ Disinfect all touched surfaces, and counter tops", type: "complete", completedBy: null, completedAt: null },
+        { id: "fb_floor", task: "🍽️ Check the floor, carpets and vinyl flooring", type: "complete", completedBy: null, completedAt: null },
+        { id: "fb_coffeeMachine", task: "🍽️ Check the coffee machine (Coffee Beans, Milk and Chocolate)", type: "complete", completedBy: null, completedAt: null },
+        { id: "fb_cleanCoffee", task: "🍽️ Clean the coffee machine / Inside and routine Cleaning", type: "complete", completedBy: null, completedAt: null },
+        { id: "fb_refillTea", task: "🍽️ Refill the teabags, sugar and cup noodles", type: "complete", completedBy: null, completedAt: null },
+        { id: "fb_refillCondiments", task: "🍽️ Refill butter, jam, honey, tomato sauce, sweet chili, mayonnaise bottles and toothpick", type: "complete", completedBy: null, completedAt: null },
+        { id: "fb_clearTables", task: "🍽️ Check and clear the tables in a timely manner", type: "signoff", signoffs: [] },
+        { id: "fb_disinfectTables", task: "🍽️ Clear & disinfect tables and chairs after every use", type: "signoff", signoffs: [] },
+        { id: "fb_checkFloor", task: "🍽️ Check the floor & inform HK if vacuum is needed", type: "signoff", signoffs: [] },
+        { id: "fb_cleanSofa", task: "🍽️ Clean sofa", type: "signoff", signoffs: [] }
+    ];
+    
+    let db = null;
+    let firebaseConnected = false;
+    let pendingAuthResolve = null;
+    let loadingOverlay = null;
+    let currentLoggedInStaff = null;
+    
+    // Staff data structure - initially from staff.js
+    let staffData = [];
+    
+    function showLoading(message = "Loading staff credentials...") {
+        if (!loadingOverlay) {
+            loadingOverlay = document.getElementById('loadingPopup');
         }
-    } catch (err) {
-        console.error('Failed to load staff.js:', err);
-        loadError = true;
-        const errorDiv = document.createElement('div');
-        errorDiv.style.position = 'fixed';
-        errorDiv.style.bottom = '20px';
-        errorDiv.style.left = '20px';
-        errorDiv.style.right = '20px';
-        errorDiv.style.backgroundColor = '#c25d2e';
-        errorDiv.style.color = 'white';
-        errorDiv.style.padding = '16px';
-        errorDiv.style.borderRadius = '32px';
-        errorDiv.style.textAlign = 'center';
-        errorDiv.style.zIndex = '9999';
-        errorDiv.innerText = '❌ Failed to load staff data from staff.js. Please ensure the file exists and exports "staffList".';
-        document.body.appendChild(errorDiv);
+        const loadingText = loadingOverlay.querySelector('p');
+        if (loadingText) loadingText.textContent = message;
+        loadingOverlay.classList.add('active');
+        const staffDropdown = document.getElementById('staffSelect');
+        const supDropdown = document.getElementById('supervisorSelect');
+        if (staffDropdown) staffDropdown.disabled = true;
+        if (supDropdown) supDropdown.disabled = true;
     }
-
-    // Helper functions
-    function escapeHtml(str) { return String(str ?? '').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
-    function getStaffById(id) { return staffList.find(s => s.id === id); }
-
-    // Modal state
-    let pendingAuth = { resolve: null, staff: null, viewType: null };
+    
+    function hideLoading() {
+        if (loadingOverlay) {
+            loadingOverlay.classList.remove('active');
+        }
+        const staffDropdown = document.getElementById('staffSelect');
+        const supDropdown = document.getElementById('supervisorSelect');
+        if (staffDropdown) staffDropdown.disabled = false;
+        if (supDropdown) supDropdown.disabled = false;
+    }
+    
+    function initStaffData() {
+        staffData = staffList.map(staff => ({
+            id: staff.id,
+            name: staff.name,
+            role: staff.role,
+            contact: staff.contact || '',
+            pass: '',
+            pattern: ''
+        }));
+        return staffData;
+    }
+    
+    function initFirebaseFromClist() {
+        return new Promise((resolve) => {
+            const checkInterval = setInterval(() => {
+                if (typeof firebase !== 'undefined' && firebase.firestore) {
+                    clearInterval(checkInterval);
+                    try {
+                        db = firebase.firestore();
+                        firebaseConnected = true;
+                        console.log("✅ Firebase connected");
+                        resolve(true);
+                    } catch (error) {
+                        console.error("Firestore init error:", error);
+                        resolve(false);
+                    }
+                } else if (document.readyState === 'complete' && typeof firebase === 'undefined') {
+                    clearInterval(checkInterval);
+                    resolve(false);
+                }
+            }, 100);
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                if (!firebaseConnected) resolve(false);
+            }, 5000);
+        });
+    }
+    
+    async function loadCredentialsFromFirebase() {
+        if (!db || !firebaseConnected) return false;
+        try {
+            const snapshot = await db.collection('staff').get();
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const staff = staffData.find(s => s.id === doc.id);
+                if (staff) {
+                    staff.pass = data.pass || '';
+                    staff.pattern = data.pattern || '';
+                }
+            });
+            return true;
+        } catch(e) {
+            console.warn("Firebase load error:", e);
+            return false;
+        }
+    }
+    
+    async function syncStaffToFirebase(staff) {
+        if (!db || !firebaseConnected) return false;
+        try {
+            await db.collection('staff').doc(staff.id).set({
+                id: staff.id,
+                name: staff.name,
+                role: staff.role,
+                contact: staff.contact || '',
+                pass: staff.pass || '',
+                pattern: staff.pattern || '',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            return true;
+        } catch(e) { 
+            console.warn("Firebase sync error:", e);
+            return false;
+        }
+    }
+    
+    function getStaffById(id) { return staffData.find(s => s.id === id); }
+    
+    // Render Daily Tasks
+    function renderTasks() {
+        const container = document.getElementById('dailyTasksContainer');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="task-category">
+                <div class="category-title">📋 MAIN OFFICE TASKS</div>
+                <div class="task-list" id="mainTasksList"></div>
+            </div>
+            <div class="task-category">
+                <div class="category-title">🍽️ FOOD & BEVERAGE TASKS</div>
+                <div class="task-list" id="fbTasksList"></div>
+            </div>
+        `;
+        
+        renderTaskList('mainTasksList', MAIN_DAILY_TASKS);
+        renderTaskList('fbTasksList', FB_DAILY_TASKS);
+    }
+    
+    function renderTaskList(containerId, tasks) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        container.innerHTML = tasks.map(task => {
+            if (task.type === 'complete') {
+                const isCompleted = task.completedBy !== null;
+                const isCurrentUserCompleted = isCompleted && task.completedBy === currentLoggedInStaff?.name;
+                const canComplete = !isCompleted && currentLoggedInStaff;
+                
+                return `
+                    <div class="task-item">
+                        <div class="task-text">${task.task}</div>
+                        <div class="task-actions">
+                            ${canComplete ? 
+                                `<button class="task-btn" onclick="window.completeTask('${task.id}')">✅ Mark Complete</button>` :
+                                isCompleted ? 
+                                `<button class="task-btn completed" disabled>✅ Completed by ${task.completedBy} on ${task.completedAt || ''}</button>` :
+                                `<button class="task-btn" disabled>🔒 Login to complete</button>`
+                            }
+                        </div>
+                    </div>
+                `;
+            } else if (task.type === 'signoff') {
+                const signoffsHtml = task.signoffs.map(s => {
+                    const canDelete = currentLoggedInStaff && s.signedBy === currentLoggedInStaff.name;
+                    return `
+                        <div class="signoff-badge">
+                            ✍️ ${s.name} (${s.time})
+                            ${canDelete ? `<button class="delete-btn" onclick="window.removeSignoff('${task.id}', '${s.name}', '${s.time}')">×</button>` : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+                return `
+                    <div class="task-item">
+                        <div class="task-text">${task.task}</div>
+                        <div class="signoff-list" id="signoffs-${task.id}">
+                            ${signoffsHtml || '<span style="color:#b28b44; font-size:0.7rem;">No signoffs yet</span>'}
+                        </div>
+                        ${currentLoggedInStaff ? 
+                            `<button class="signoff-btn" onclick="window.addSignoff('${task.id}')">
+                                ✍️ Signoff as ${currentLoggedInStaff.name}
+                            </button>` :
+                            `<button class="signoff-btn" disabled style="opacity:0.5;">🔒 Login to signoff</button>`
+                        }
+                    </div>
+                `;
+            } else if (task.type === 'submission') {
+                const submissionsHtml = task.submissions.map(s => {
+                    const canDelete = currentLoggedInStaff && s.submittedBy === currentLoggedInStaff.name;
+                    return `
+                        <div class="submission-item">
+                            <span>📎 ${s.text} - ${s.time} (by ${s.submittedBy})</span>
+                            ${canDelete ? `<button class="delete-btn" onclick="window.removeSubmission('${task.id}', '${s.time}')">×</button>` : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+                return `
+                    <div class="task-item">
+                        <div class="task-text">${task.task}</div>
+                        <div class="submission-list" id="submissions-${task.id}">
+                            ${submissionsHtml || '<span style="color:#b28b44; font-size:0.7rem;">No submissions yet</span>'}
+                        </div>
+                        ${currentLoggedInStaff ? 
+                            `<div class="add-signoff">
+                                <input type="text" id="submission-text-${task.id}" placeholder="File name or description">
+                                <button onclick="window.addSubmission('${task.id}')">Add Submission</button>
+                            </div>` :
+                            `<div class="add-signoff">
+                                <input type="text" id="submission-text-${task.id}" placeholder="File name or description" disabled>
+                                <button disabled style="opacity:0.5;">🔒 Login to submit</button>
+                            </div>`
+                        }
+                    </div>
+                `;
+            }
+            return '';
+        }).join('');
+    }
+    
+    // Global functions for task actions with permission checks
+    window.completeTask = function(taskId) {
+        if (!currentLoggedInStaff) {
+            alert('Please login first');
+            return;
+        }
+        
+        let task = MAIN_DAILY_TASKS.find(t => t.id === taskId);
+        if (!task) task = FB_DAILY_TASKS.find(t => t.id === taskId);
+        
+        if (task && task.type === 'complete') {
+            if (task.completedBy !== null) {
+                alert(`This task was already completed by ${task.completedBy}. Only one staff member can complete this task.`);
+                return;
+            }
+            
+            task.completedBy = currentLoggedInStaff.name;
+            task.completedAt = new Date().toLocaleString();
+            renderTasks();
+            alert(`✓ Task marked as complete by ${currentLoggedInStaff.name}`);
+        }
+    };
+    
+    window.addSignoff = function(taskId) {
+        if (!currentLoggedInStaff) {
+            alert('Please login first');
+            return;
+        }
+        
+        let task = MAIN_DAILY_TASKS.find(t => t.id === taskId);
+        if (!task) task = FB_DAILY_TASKS.find(t => t.id === taskId);
+        
+        if (task && task.type === 'signoff') {
+            task.signoffs.push({ 
+                name: currentLoggedInStaff.name, 
+                time: new Date().toLocaleString(), 
+                signedBy: currentLoggedInStaff.name 
+            });
+            renderTasks();
+            alert(`✓ Signoff added by ${currentLoggedInStaff.name}`);
+        }
+    };
+    
+    window.removeSignoff = function(taskId, signoffName, signoffTime) {
+        if (!currentLoggedInStaff) {
+            alert('Please login first');
+            return;
+        }
+        
+        let task = MAIN_DAILY_TASKS.find(t => t.id === taskId);
+        if (!task) task = FB_DAILY_TASKS.find(t => t.id === taskId);
+        
+        if (task && task.type === 'signoff') {
+            const signoff = task.signoffs.find(s => s.name === signoffName && s.time === signoffTime);
+            if (signoff && signoff.signedBy === currentLoggedInStaff.name) {
+                task.signoffs = task.signoffs.filter(s => !(s.name === signoffName && s.time === signoffTime));
+                renderTasks();
+                alert(`✓ Signoff removed by ${currentLoggedInStaff.name}`);
+            } else {
+                alert('You can only delete your own signoffs');
+            }
+        }
+    };
+    
+    window.addSubmission = function(taskId) {
+        if (!currentLoggedInStaff) {
+            alert('Please login first');
+            return;
+        }
+        
+        const input = document.getElementById(`submission-text-${taskId}`);
+        const text = input.value.trim();
+        if (!text) {
+            alert('Please enter submission details');
+            return;
+        }
+        
+        let task = MAIN_DAILY_TASKS.find(t => t.id === taskId);
+        if (!task) task = FB_DAILY_TASKS.find(t => t.id === taskId);
+        
+        if (task && task.type === 'submission') {
+            task.submissions.push({ 
+                text: text, 
+                time: new Date().toLocaleString(), 
+                submittedBy: currentLoggedInStaff.name 
+            });
+            input.value = '';
+            renderTasks();
+            alert(`✓ Submission added by ${currentLoggedInStaff.name}`);
+        }
+    };
+    
+    window.removeSubmission = function(taskId, time) {
+        if (!currentLoggedInStaff) {
+            alert('Please login first');
+            return;
+        }
+        
+        let task = MAIN_DAILY_TASKS.find(t => t.id === taskId);
+        if (!task) task = FB_DAILY_TASKS.find(t => t.id === taskId);
+        
+        if (task && task.type === 'submission') {
+            const submission = task.submissions.find(s => s.time === time);
+            if (submission && submission.submittedBy === currentLoggedInStaff.name) {
+                task.submissions = task.submissions.filter(s => s.time !== time);
+                renderTasks();
+                alert(`✓ Submission removed by ${currentLoggedInStaff.name}`);
+            } else {
+                alert('You can only delete your own submissions');
+            }
+        }
+    };
+    
+    // Auth related functions
+    let pendingAuth = { staff: null, viewType: null, selectEl: null, prevDropdownValue: null };
     let currentPatternSequence = [];
     let currentNumericValue = '';
     let isDrawing = false;
-    let dotElements = [];
-    let ctx = null, canvas = null, patternWrapper = null;
-
-    // ---------- PATTERN LOCK (auto-verify on release) ----------
+    let dotElements = [], ctx, canvas, patternWrapper;
+    let supervisorLastValidId = null;
+    
     function initPatternLock() {
         const grid = document.getElementById('patternGrid');
         if (!grid) return;
@@ -554,412 +1301,424 @@
         }
         canvas = document.getElementById('patternCanvas');
         ctx = canvas.getContext('2d');
-        patternWrapper = document.querySelector('.pattern-wrapper');
-        resizeAndDrawCanvas();
-        window.addEventListener('resize', () => resizeAndDrawCanvas());
+        patternWrapper = document.querySelector('#patternTab .pattern-wrapper');
+        resizeCanvas();
+        window.addEventListener('resize', () => resizeCanvas());
         attachGlobalEvents();
     }
-
-    function resizeAndDrawCanvas() {
+    
+    function resizeCanvas() {
         if (!patternWrapper || !canvas) return;
         const rect = patternWrapper.getBoundingClientRect();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-        canvas.style.width = `${rect.width}px`;
-        canvas.style.height = `${rect.height}px`;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawPatternLines();
+        canvas.width = rect.width; canvas.height = rect.height;
+        canvas.style.width = `${rect.width}px`; canvas.style.height = `${rect.height}px`;
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-
-    function getDotCenter(value) {
-        const idx = value - 1;
-        const dot = dotElements[idx];
-        if (!dot) return null;
-        const parentRect = patternWrapper.getBoundingClientRect();
-        const dotRect = dot.getBoundingClientRect();
-        const x = dotRect.left + dotRect.width/2 - parentRect.left;
-        const y = dotRect.top + dotRect.height/2 - parentRect.top;
-        return { x, y };
-    }
-
-    function drawPatternLines() {
-        if (!ctx) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (currentPatternSequence.length < 2) return;
-        ctx.beginPath();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#d4a13e';
-        ctx.lineCap = 'round';
-        for (let i = 0; i < currentPatternSequence.length - 1; i++) {
-            const from = getDotCenter(currentPatternSequence[i]);
-            const to = getDotCenter(currentPatternSequence[i+1]);
-            if (from && to) {
-                ctx.beginPath();
-                ctx.moveTo(from.x, from.y);
-                ctx.lineTo(to.x, to.y);
-                ctx.stroke();
-            }
-        }
-        dotElements.forEach(dot => dot.classList.remove('selected'));
-        currentPatternSequence.forEach(val => {
-            const dot = dotElements[val-1];
-            if (dot) dot.classList.add('selected');
-        });
-    }
-
-    function startPattern(e, dotVal) {
-        e.preventDefault();
+    
+    function startPattern(e, val) {
         if (!pendingAuth.staff) return;
-        isDrawing = true;
-        const index = currentPatternSequence.indexOf(dotVal);
-        if (index === -1) {
-            currentPatternSequence.push(dotVal);
-        } else {
-            currentPatternSequence = currentPatternSequence.slice(0, index+1);
-        }
-        drawPatternLines();
+        e.preventDefault(); isDrawing = true;
+        const idx = currentPatternSequence.indexOf(val);
+        if (idx === -1) currentPatternSequence.push(val);
+        else currentPatternSequence = currentPatternSequence.slice(0, idx+1);
+        dotElements.forEach((dot, index) => {
+            if (currentPatternSequence.includes(index + 1)) dot.classList.add('temp-selected');
+            else dot.classList.remove('temp-selected');
+        });
         updatePatternStatus();
     }
-
+    
     function onPatternMove(e) {
         if (!isDrawing || !pendingAuth.staff) return;
         const touch = e.touches ? e.touches[0] : e;
         const elem = document.elementsFromPoint(touch.clientX, touch.clientY);
         for (let el of elem) {
-            if (el.classList && el.classList.contains('dot')) {
+            if (el.classList?.contains('dot')) {
                 const val = parseInt(el.dataset.value);
                 if (val && currentPatternSequence[currentPatternSequence.length-1] !== val) {
-                    if (!currentPatternSequence.includes(val)) {
-                        currentPatternSequence.push(val);
-                        drawPatternLines();
-                        updatePatternStatus();
-                    } else {
-                        const idx = currentPatternSequence.indexOf(val);
-                        if (idx !== -1 && idx !== currentPatternSequence.length-1) {
-                            currentPatternSequence = currentPatternSequence.slice(0, idx+1);
-                            drawPatternLines();
-                            updatePatternStatus();
-                        }
-                    }
+                    if (!currentPatternSequence.includes(val)) currentPatternSequence.push(val);
+                    else { const idx = currentPatternSequence.indexOf(val); if (idx !== -1 && idx !== currentPatternSequence.length-1) currentPatternSequence = currentPatternSequence.slice(0, idx+1); }
+                    dotElements.forEach((dot, index) => {
+                        if (currentPatternSequence.includes(index + 1)) dot.classList.add('temp-selected');
+                        else dot.classList.remove('temp-selected');
+                    });
+                    updatePatternStatus();
                 }
                 break;
             }
         }
     }
-
-    function endPattern() {
-        if (!isDrawing) return;
-        isDrawing = false;
-        // AUTO-VERIFY pattern when drawing ends
-        if (pendingAuth.staff && currentPatternSequence.length > 0) {
-            autoVerifyPattern();
-        }
-    }
-
-    function autoVerifyPattern() {
-        const staff = pendingAuth.staff;
-        if (!staff) return;
-        const patternString = currentPatternSequence.join('');
-        const storedPass = String(staff.pass ?? '');
-        if (patternString === storedPass) {
-            // SUCCESS: close modal and resolve
-            closeModalAndResolve(true);
-        } else {
-            // Wrong pattern: show error, reset after short delay
-            const statusDiv = document.getElementById('patternStatus');
-            if (statusDiv) {
-                statusDiv.innerText = '❌ Wrong pattern! Resetting...';
-                statusDiv.style.color = '#c25d2e';
-            }
-            setTimeout(() => {
+    
+    function endPattern() { 
+        if(isDrawing) { 
+            isDrawing = false;
+            dotElements.forEach(dot => dot.classList.remove('selected', 'temp-selected'));
+            if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if(pendingAuth.staff && pendingAuthResolve && currentPatternSequence.length > 0) {
+                attemptAutoVerify('pattern');
+            } else {
                 resetPattern();
-                if (statusDiv) {
-                    statusDiv.innerText = 'Draw a pattern (connect dots)';
-                    statusDiv.style.color = '#a57334';
-                }
-            }, 1000);
-        }
+            }
+        } 
     }
-
-    function resetPattern() {
-        currentPatternSequence = [];
-        drawPatternLines();
-        updatePatternStatus();
-    }
-
-    function updatePatternStatus() {
-        const statusDiv = document.getElementById('patternStatus');
-        if (statusDiv) statusDiv.innerText = currentPatternSequence.length ? `Pattern: ${currentPatternSequence.join(' → ')}` : 'Draw a pattern (connect dots)';
-    }
-
+    
     function attachGlobalEvents() {
-        window.addEventListener('mouseup', endPattern);
+        window.addEventListener('mouseup', endPattern); 
         window.addEventListener('touchend', endPattern);
-        window.addEventListener('mousemove', onPatternMove);
+        window.addEventListener('mousemove', onPatternMove); 
         window.addEventListener('touchmove', (e) => { e.preventDefault(); onPatternMove(e); });
     }
-
-    // ---------- NUMERIC KEYPAD (auto-verify on exact match) ----------
+    
+    function resetPattern() { 
+        currentPatternSequence = []; 
+        dotElements.forEach(dot => dot.classList.remove('selected', 'temp-selected'));
+        if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const statusEl = document.getElementById('patternStatus');
+        if (statusEl) statusEl.innerText = "✏️ Draw pattern (hidden after release)";
+    }
+    
+    function updatePatternStatus() { 
+        const s = document.getElementById('patternStatus'); 
+        if(s) s.innerText = currentPatternSequence.length ? `Pattern: ${'●'.repeat(currentPatternSequence.length)} dots selected` : 'Draw a pattern'; 
+    }
+    
+    function getPatternString() { return currentPatternSequence.join(''); }
+    
     function buildKeypad() {
-        const pad = document.getElementById('keypad');
-        if (!pad) return;
+        const pad = document.getElementById('keypad'); if(!pad) return;
         pad.innerHTML = '';
-        for (let i = 1; i <= 9; i++) {
-            const btn = document.createElement('div');
-            btn.className = 'key-btn';
-            btn.innerText = i;
-            btn.addEventListener('click', () => appendNumeric(i.toString()));
-            pad.appendChild(btn);
+        for(let i=1;i<=9;i++) { 
+            const btn = document.createElement('div'); btn.className='key-btn'; btn.innerText=i; 
+            btn.addEventListener('click',()=>appendNumeric(i.toString())); pad.appendChild(btn); 
         }
-        const zeroBtn = document.createElement('div');
-        zeroBtn.className = 'key-btn';
-        zeroBtn.innerText = '0';
-        zeroBtn.addEventListener('click', () => appendNumeric('0'));
-        pad.appendChild(zeroBtn);
-        const dummy = document.createElement('div'); dummy.style.visibility = 'hidden'; pad.appendChild(dummy);
+        const zeroBtn = document.createElement('div'); zeroBtn.className='key-btn'; zeroBtn.innerText='0'; 
+        zeroBtn.addEventListener('click',()=>appendNumeric('0')); pad.appendChild(zeroBtn);
+        const dummy = document.createElement('div'); dummy.style.visibility='hidden'; pad.appendChild(dummy);
     }
-
-    function appendNumeric(digit) {
-        if (currentNumericValue.length < 8) currentNumericValue += digit;
-        updateNumericDisplay();
-        autoVerifyNumeric();
-    }
-
-    function clearNumeric() { 
-        currentNumericValue = ''; 
+    
+    function appendNumeric(digit) { 
+        if(!pendingAuth.staff) return; 
+        if(currentNumericValue.length<8) currentNumericValue += digit; 
         updateNumericDisplay(); 
+        const storedPass = String(pendingAuth.staff.pass || ''); 
+        if(storedPass && currentNumericValue === storedPass && pendingAuthResolve) attemptAutoVerify('numeric');
     }
     
-    function deleteNumeric() { 
-        currentNumericValue = currentNumericValue.slice(0, -1); 
-        updateNumericDisplay();
-        autoVerifyNumeric();  // also verify after deletion (in case it becomes correct)
+    function clearNumeric() { currentNumericValue=''; updateNumericDisplay(); }
+    function deleteNumeric() { currentNumericValue=currentNumericValue.slice(0,-1); updateNumericDisplay(); }
+    function updateNumericDisplay() { 
+        const disp=document.getElementById('numericInput'); 
+        if(disp) disp.innerText = '●'.repeat(currentNumericValue.length) || '●●●●'; 
     }
     
-    function updateNumericDisplay() {
-        const disp = document.getElementById('numericInput');
-        if (disp) disp.innerText = currentNumericValue || '____';
-    }
-
-    function autoVerifyNumeric() {
+    async function attemptAutoVerify(source) {
+        if(!pendingAuth.staff || !pendingAuthResolve) return;
         const staff = pendingAuth.staff;
-        if (!staff) return;
-        const storedPass = String(staff.pass ?? '');
-        if (currentNumericValue.length > 0 && currentNumericValue === storedPass) {
-            closeModalAndResolve(true);
-        } else if (currentNumericValue.length === storedPass.length && currentNumericValue !== storedPass) {
-            // Wrong PIN with full length: show error and clear
-            const disp = document.getElementById('numericInput');
-            const originalText = disp.innerText;
-            disp.innerText = '❌ Wrong PIN';
-            disp.style.color = '#c25d2e';
-            setTimeout(() => {
-                clearNumeric();
-                if (disp) {
-                    disp.innerText = '____';
-                    disp.style.color = '#754e16';
-                }
-            }, 1000);
+        let isValid = false;
+        if (source === 'pattern') isValid = getPatternString() === String(staff.pattern || '');
+        else isValid = currentNumericValue === String(staff.pass || '');
+        
+        if(isValid) {
+            const resolve = pendingAuthResolve;
+            pendingAuthResolve = null;
+            closeAuthModal(true);
+            resolve({ success: true, staff: staff });
+            
+            if(pendingAuth.viewType === 'staff') {
+                currentLoggedInStaff = staff;
+                document.getElementById('currentUserDisplay').style.display = 'inline-block';
+                document.getElementById('currentUserName').innerHTML = staff.name;
+                document.getElementById('profileShortName').innerHTML = staff.name.split(' ')[0];
+                document.getElementById('profileAvatar').innerHTML = staff.name.charAt(0).toUpperCase();
+                renderTasks();
+                updateFirebaseStatus(true, `✓ Logged in as ${staff.name}`);
+            } else if (pendingAuth.viewType === 'supervisor') {
+                renderSupervisorView(staff, pendingAuth.selectEl);
+            }
+        } else {
+            if(source === 'pattern') { resetPattern(); } 
+            else { clearNumeric(); }
+            const statusDiv = document.getElementById(source === 'pattern' ? 'patternStatus' : 'numericInput');
+            if(statusDiv) {
+                statusDiv.innerText = source === 'pattern' ? '❌ Wrong pattern!' : '❌ Wrong';
+                statusDiv.style.color = '#c25d2e';
+                setTimeout(() => {
+                    if(source === 'pattern') statusDiv.innerText = 'Draw pattern (hidden after release)';
+                    else updateNumericDisplay();
+                    statusDiv.style.color = '#a57334';
+                }, 1200);
+            }
         }
     }
-
-    // ---------- MODAL LIFE CYCLE (auto-close on success) ----------
-    function openPasswordModal(staff, viewType) {
+    
+    function closeAuthModal(success=false) {
+        document.getElementById('passwordModal').classList.remove('active');
+        if(!success && pendingAuthResolve && pendingAuth.selectEl && pendingAuth.prevDropdownValue) {
+            const resolve = pendingAuthResolve;
+            pendingAuthResolve = null;
+            if (pendingAuth.selectEl) pendingAuth.selectEl.value = pendingAuth.prevDropdownValue;
+            resolve({ success: false });
+        }
+        resetPattern(); currentNumericValue = ''; updateNumericDisplay();
+    }
+    
+    function openPasswordModal(staff, viewType, selectEl, prevVal) {
         return new Promise((resolve) => {
-            pendingAuth = { resolve, staff, viewType };
-            document.getElementById('modalStaffName').innerText = `🔐 ${escapeHtml(staff.name)}`;
-            // Reset pattern & numeric
-            resetPattern();
-            currentNumericValue = '';
-            updateNumericDisplay();
-            // Reset any error styling
-            const statusDiv = document.getElementById('patternStatus');
-            if (statusDiv) {
-                statusDiv.innerText = 'Draw a pattern (connect dots)';
-                statusDiv.style.color = '#a57334';
-            }
-            const numericDisp = document.getElementById('numericInput');
-            if (numericDisp) numericDisp.style.color = '#754e16';
-            // Ensure pattern tab is active by default
-            const activeTab = document.querySelector('.modal-tab-btn.active-tab')?.dataset.modalTab || 'pattern';
-            switchModalTab(activeTab);
+            pendingAuth = { staff, viewType, selectEl, prevDropdownValue: prevVal };
+            pendingAuthResolve = resolve;
+            document.getElementById('modalStaffName').innerHTML = `🔐 ${staff.name}`;
+            resetPattern(); currentNumericValue = ''; updateNumericDisplay();
+            document.querySelector('.modal-tab-btn.active-tab')?.click();
             document.getElementById('passwordModal').classList.add('active');
+            setTimeout(() => resizeCanvas(), 30);
         });
     }
-
-    function closeModalAndResolve(success) {
-        const modal = document.getElementById('passwordModal');
-        modal.classList.remove('active');
-        if (pendingAuth.resolve) {
-            pendingAuth.resolve({ success, staff: pendingAuth.staff });
-        }
-        pendingAuth = { resolve: null, staff: null, viewType: null };
-    }
-
-    function closeModalWithoutSuccess() {
-        closeModalAndResolve(false);
-    }
-
-    // Modal tab switching
-    let activeModalTab = 'pattern';
-    function switchModalTab(tabId) {
-        activeModalTab = tabId;
-        document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active-tab'));
-        document.querySelector(`.modal-tab-btn[data-modal-tab="${tabId}"]`).classList.add('active-tab');
-        document.getElementById('patternTab').classList.toggle('active-pane', tabId === 'pattern');
-        document.getElementById('numericTab').classList.toggle('active-pane', tabId === 'numeric');
-        if (tabId === 'pattern') {
-            setTimeout(() => resizeAndDrawCanvas(), 10);
-        }
-    }
-
-    // ---------- RENDER STAFF / SUPERVISOR VIEWS ----------
-    let staffLastValidId = null, supervisorLastValidId = null;
     
-    function renderStaffView(staff) {
-        const container = document.getElementById('staffDetailsArea');
-        if (!staff) return;
-        container.innerHTML = `
-            <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">${escapeHtml(staff.id)}</span></div>
-            <div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">${escapeHtml(staff.name)}</span></div>
-            <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value"><span class="badge-role">${escapeHtml(staff.role)}</span></span></div>
-            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || 'Not provided')}</span></div>
+    function updateFirebaseStatus(connected, message) {
+        const statusEl = document.getElementById('syncStatusStaff');
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.className = connected ? 'sync-status connected' : 'sync-status disconnected';
+        }
+    }
+    
+    function renderSupervisorView(staff, dropdownEl=null) {
+        document.getElementById('supervisorDetailsArea').innerHTML = `
+            <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">${staff.id}</span></div>
+            <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">${staff.name}</span></div>
+            <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value"><strong>${staff.role}</strong></span></div>
+            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${staff.contact || '—'}</span></div>
+            <div class="detail-row"><span class="detail-label">🔢 PIN (pass):</span><span class="detail-value"><code>${staff.pass || 'Not set'}</code></span></div>
+            <div class="detail-row"><span class="detail-label">🎨 Pattern:</span><span class="detail-value"><code>${staff.pattern || 'Not set'}</code></span></div>
         `;
-        staffLastValidId = staff.id;
+        supervisorLastValidId = staff.id; 
+        if(dropdownEl && staff.id !== dropdownEl.value) dropdownEl.value = staff.id;
+        document.getElementById('profileShortName').innerHTML = staff.name.split(' ')[0];
+        document.getElementById('profileAvatar').innerHTML = staff.name.charAt(0).toUpperCase();
     }
     
-    function renderSupervisorView(staff) {
-        const container = document.getElementById('supervisorDetailsArea');
-        if (!staff) return;
-        container.innerHTML = `
-            <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">${escapeHtml(staff.id)}</span></div>
-            <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">${escapeHtml(staff.name)}</span></div>
-            <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value"><strong>${escapeHtml(staff.role)}</strong></span></div>
-            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || 'Not provided')}</span></div>
-            <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value"><code>${escapeHtml(staff.pass)}</code></span></div>
-        `;
-        supervisorLastValidId = staff.id;
+    // Change password module
+    let changeMode = 'pattern', changePatternSeq = [], changePinValue = '', activeStaffForChange = null;
+    let changeDotElements = [], changeCtx, changeCanvas, changeWrapper;
+    let isDrawingChange = false;
+    
+    function initChangePatternGrid() {
+        const grid = document.getElementById('changePatternGrid'); if(!grid) return;
+        grid.innerHTML = ''; changeDotElements = [];
+        for(let i=1;i<=9;i++) {
+            const dot = document.createElement('div'); dot.className = 'dot'; dot.dataset.value = i;
+            dot.addEventListener('mousedown', (e) => startChangePattern(e, i));
+            dot.addEventListener('touchstart', (e) => { e.preventDefault(); startChangePattern(e, i); });
+            grid.appendChild(dot); changeDotElements.push(dot);
+        }
+        changeCanvas = document.getElementById('changePatternCanvas'); changeCtx = changeCanvas.getContext('2d');
+        changeWrapper = document.querySelector('#changePatternPane .pattern-wrapper');
+        window.addEventListener('resize', () => resizeChangeCanvas());
+        window.addEventListener('mouseup', endChangePattern); window.addEventListener('touchend', endChangePattern);
+        window.addEventListener('mousemove', onChangePatternMove); window.addEventListener('touchmove', (e) => { e.preventDefault(); onChangePatternMove(e); });
     }
     
-    function resetStaffPlaceholder() { 
-        document.getElementById('staffDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>`;
-        staffLastValidId = null;
+    function resizeChangeCanvas() { if(!changeWrapper || !changeCanvas) return; const rect = changeWrapper.getBoundingClientRect(); changeCanvas.width = rect.width; changeCanvas.height = rect.height; }
+    
+    function startChangePattern(e, val) { 
+        e.preventDefault(); isDrawingChange = true; 
+        const idx = changePatternSeq.indexOf(val); 
+        if(idx === -1) changePatternSeq.push(val); 
+        else changePatternSeq = changePatternSeq.slice(0, idx+1); 
+        changeDotElements.forEach((dot, index) => {
+            if (changePatternSeq.includes(index + 1)) dot.classList.add('temp-selected');
+            else dot.classList.remove('temp-selected');
+        });
+        document.getElementById('changePatternStatus').innerHTML = `Pattern: ${'●'.repeat(changePatternSeq.length)} dots selected`; 
     }
     
-    function resetSupervisorPlaceholder() {
-        document.getElementById('supervisorDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>`;
-        supervisorLastValidId = null;
+    function onChangePatternMove(e) { 
+        if(!isDrawingChange) return; 
+        const touch = e.touches ? e.touches[0] : e; 
+        const elem = document.elementsFromPoint(touch.clientX, touch.clientY); 
+        for(let el of elem) { 
+            if(el.classList?.contains('dot')) { 
+                const val = parseInt(el.dataset.value); 
+                if(val && changePatternSeq[changePatternSeq.length-1] !== val) { 
+                    if(!changePatternSeq.includes(val)) changePatternSeq.push(val); 
+                    else { const idx = changePatternSeq.indexOf(val); if(idx !== -1 && idx !== changePatternSeq.length-1) changePatternSeq = changePatternSeq.slice(0, idx+1); } 
+                    changeDotElements.forEach((dot, index) => {
+                        if (changePatternSeq.includes(index + 1)) dot.classList.add('temp-selected');
+                        else dot.classList.remove('temp-selected');
+                    });
+                    document.getElementById('changePatternStatus').innerHTML = `Pattern: ${'●'.repeat(changePatternSeq.length)} dots selected`; 
+                } break; 
+            } 
+        } 
     }
-
-    async function onStaffSelect(staff, dropdown) {
-        const auth = await openPasswordModal(staff, 'staff');
-        if (auth.success) {
-            renderStaffView(staff);
+    
+    function endChangePattern() { isDrawingChange = false; changeDotElements.forEach(dot => dot.classList.remove('selected', 'temp-selected')); if(changeCtx) changeCtx.clearRect(0, 0, changeCanvas.width, changeCanvas.height); }
+    function resetChangePattern() { changePatternSeq = []; changeDotElements.forEach(dot => dot.classList.remove('selected', 'temp-selected')); document.getElementById('changePatternStatus').innerHTML = '📌 Draw new pattern (hidden after release)'; }
+    
+    function buildChangePinKeypad() {
+        const pad = document.getElementById('changePinKeypad'); if(!pad) return;
+        pad.innerHTML = '';
+        for(let i=1;i<=9;i++) { 
+            const btn = document.createElement('div'); btn.className='key-btn'; btn.innerText=i; 
+            btn.addEventListener('click',()=>{ changePinValue += i.toString(); if(changePinValue.length>8) changePinValue = changePinValue.slice(0,8); document.getElementById('changePinDisplay').innerHTML = '●'.repeat(changePinValue.length) || '●●●●●●'; }); 
+            pad.appendChild(btn); 
+        }
+        const zero = document.createElement('div'); zero.className='key-btn'; zero.innerText='0'; 
+        zero.addEventListener('click',()=>{ changePinValue += '0'; if(changePinValue.length>8) changePinValue = changePinValue.slice(0,8); document.getElementById('changePinDisplay').innerHTML = '●'.repeat(changePinValue.length) || '●●●●●●'; }); 
+        pad.appendChild(zero);
+        const dummy = document.createElement('div'); dummy.style.visibility='hidden'; pad.appendChild(dummy);
+        document.getElementById('clearChangePinBtn').onclick = () => { changePinValue = ''; document.getElementById('changePinDisplay').innerHTML = '●●●●●●'; };
+        document.getElementById('deleteChangePinBtn').onclick = () => { changePinValue = changePinValue.slice(0,-1); document.getElementById('changePinDisplay').innerHTML = '●'.repeat(changePinValue.length) || '●●●●●●'; };
+    }
+    
+    async function saveNewCode() {
+        let newCode = changeMode === 'pattern' ? changePatternSeq.join('') : changePinValue;
+        if(!newCode) { document.getElementById('changeFeedback').innerHTML = '<span style="color:#c25d2e;">⚠️ Please draw a pattern or enter a PIN</span>'; return; }
+        if(!/^\d+$/.test(newCode)) { document.getElementById('changeFeedback').innerHTML = '<span style="color:#c25d2e;">❌ Only numbers allowed</span>'; return; }
+        if(changeMode === 'pattern' && newCode.length < 3) { document.getElementById('changeFeedback').innerHTML = '<span style="color:#c25d2e;">⚠️ Pattern must connect at least 3 dots</span>'; return; }
+        if(changeMode === 'pin' && newCode.length < 4) { document.getElementById('changeFeedback').innerHTML = '<span style="color:#c25d2e;">⚠️ PIN must be at least 4 digits</span>'; return; }
+        
+        document.getElementById('changeFeedback').innerHTML = '<span>💾 Saving to Firebase...</span>';
+        if (changeMode === 'pattern') activeStaffForChange.pattern = newCode;
+        else activeStaffForChange.pass = newCode;
+        
+        const synced = await syncStaffToFirebase(activeStaffForChange);
+        if(synced) {
+            document.getElementById('changeFeedback').innerHTML = `<span style="color:#2c6e2c;">✅ ${changeMode === 'pattern' ? 'Pattern' : 'PIN'} saved to Firebase!</span>`;
+            setTimeout(() => document.getElementById('changePasswordModal').classList.remove('active'), 1200);
         } else {
-            if (staffLastValidId) {
-                dropdown.value = staffLastValidId;
-                const validStaff = getStaffById(staffLastValidId);
-                if (validStaff) renderStaffView(validStaff);
-            } else {
-                resetStaffPlaceholder();
-                if (staffList.length) dropdown.value = staffList[0].id;
-            }
+            document.getElementById('changeFeedback').innerHTML = '<span style="color:#e67e22;">⚠️ Saved locally (Firebase sync failed)</span>';
+            setTimeout(() => document.getElementById('changePasswordModal').classList.remove('active'), 1500);
         }
     }
     
-    async function onSupervisorSelect(staff, dropdown) {
-        const auth = await openPasswordModal(staff, 'supervisor');
-        if (auth.success) {
-            renderSupervisorView(staff);
-        } else {
-            if (supervisorLastValidId) {
-                dropdown.value = supervisorLastValidId;
-                const validStaff = getStaffById(supervisorLastValidId);
-                if (validStaff) renderSupervisorView(validStaff);
-            } else {
-                resetSupervisorPlaceholder();
-                if (staffList.length) dropdown.value = staffList[0].id;
-            }
-        }
-    }
-
-    function populateDropdowns() {
+    // Initialize app
+    async function initApp() {
+        showLoading("Loading staff data...");
+        initStaffData();
+        await initFirebaseFromClist();
+        if (firebaseConnected) await loadCredentialsFromFirebase();
+        
+        initPatternLock(); buildKeypad(); initChangePatternGrid(); buildChangePinKeypad();
+        
+        // Modal controls
+        document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.addEventListener('click',()=>{ 
+            const tabId=btn.dataset.modalTab; 
+            document.querySelectorAll('.modal-tab-btn').forEach(b=>b.classList.remove('active-tab')); 
+            btn.classList.add('active-tab'); 
+            document.getElementById('patternTab').classList.toggle('active-pane',tabId==='pattern'); 
+            document.getElementById('numericTab').classList.toggle('active-pane',tabId==='numeric'); 
+            if(tabId==='pattern') setTimeout(()=>resizeCanvas(),30); 
+        }));
+        
+        document.getElementById('resetPatternBtn').onclick = resetPattern;
+        document.getElementById('clearNumericBtn').onclick = clearNumeric;
+        document.getElementById('deleteNumericBtn').onclick = deleteNumeric;
+        document.getElementById('modalCloseBtn').onclick = () => closeAuthModal(false);
+        
+        // Populate staff dropdown
         const staffDropdown = document.getElementById('staffSelect');
         const supDropdown = document.getElementById('supervisorSelect');
         staffDropdown.innerHTML = '';
         supDropdown.innerHTML = '';
-        staffList.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s.id;
-            opt.textContent = s.name;
-            staffDropdown.appendChild(opt);
-            const opt2 = document.createElement('option');
-            opt2.value = s.id;
-            opt2.textContent = s.name;
-            supDropdown.appendChild(opt2);
+        staffData.forEach(s => { 
+            staffDropdown.appendChild(new Option(s.name, s.id)); 
+            supDropdown.appendChild(new Option(s.name, s.id)); 
         });
-        if (staffList.length) {
-            staffDropdown.selectedIndex = 0;
-            supDropdown.selectedIndex = 0;
+        
+        if(staffData.length) { 
+            staffDropdown.value = staffData[0].id; 
+            supDropdown.value = staffData[0].id; 
+            renderSupervisorView(staffData[0], supDropdown); 
         }
-    }
-
-    function initViews() {
-        if (loadError || !staffList.length) return;
-        populateDropdowns();
-        resetStaffPlaceholder();
-        resetSupervisorPlaceholder();
-        const staffDropdown = document.getElementById('staffSelect');
-        const supDropdown = document.getElementById('supervisorSelect');
-        staffDropdown.addEventListener('change', async (e) => {
-            const staff = getStaffById(e.target.value);
-            if (staff) await onStaffSelect(staff, staffDropdown);
+        
+        // Staff selection - when user selects a staff, prompt for password
+        staffDropdown.addEventListener('change', async (e) => { 
+            const s = getStaffById(e.target.value); 
+            if(s) {
+                const result = await openPasswordModal(s, 'staff', staffDropdown, staffDropdown.value);
+                if(result?.success) {
+                    currentLoggedInStaff = s;
+                    document.getElementById('currentUserDisplay').style.display = 'inline-block';
+                    document.getElementById('currentUserName').innerHTML = s.name;
+                    document.getElementById('profileShortName').innerHTML = s.name.split(' ')[0];
+                    document.getElementById('profileAvatar').innerHTML = s.name.charAt(0).toUpperCase();
+                    renderTasks();
+                    updateFirebaseStatus(true, `✓ Logged in as ${s.name}`);
+                }
+            }
         });
-        supDropdown.addEventListener('change', async (e) => {
-            const staff = getStaffById(e.target.value);
-            if (staff) await onSupervisorSelect(staff, supDropdown);
+        
+        supDropdown.addEventListener('change', async (e) => { 
+            const s = getStaffById(e.target.value); 
+            if(s) {
+                const result = await openPasswordModal(s, 'supervisor', supDropdown, supDropdown.value);
+                if(result?.success) renderSupervisorView(s, supDropdown);
+            }
         });
-    }
-
-    function initMainTabs() {
-        const btns = document.querySelectorAll('.tab-btn');
-        const staffPanel = document.getElementById('staffViewPanel');
-        const supPanel = document.getElementById('supervisorViewPanel');
-        btns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const which = btn.dataset.tab;
-                btns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                if (which === 'staff') { staffPanel.classList.add('active-panel'); supPanel.classList.remove('active-panel'); }
-                else { supPanel.classList.add('active-panel'); staffPanel.classList.remove('active-panel'); }
-            });
+        
+        // Profile menu
+        const profileBtn = document.getElementById('profileButton'), profileMenu = document.getElementById('profileMenu');
+        profileBtn.addEventListener('click',(e)=>{ e.stopPropagation(); profileMenu.classList.toggle('show'); });
+        document.addEventListener('click',()=>profileMenu.classList.remove('show'));
+        
+        document.getElementById('profileViewAction').onclick = () => { 
+            if(currentLoggedInStaff) alert(`👤 ${currentLoggedInStaff.name}\nRole: ${currentLoggedInStaff.role}\nContact: ${currentLoggedInStaff.contact}\nPIN: ${currentLoggedInStaff.pass ? '●●●●' : 'Not set'}\nPattern: ${currentLoggedInStaff.pattern ? '●●●' : 'Not set'}`); 
+            else alert('No staff logged in. Please select a staff member and login.');
+            profileMenu.classList.remove('show'); 
+        };
+        
+        document.getElementById('profileChangePass').onclick = () => { 
+            const s = currentLoggedInStaff; 
+            if(s) { 
+                activeStaffForChange = s; 
+                changePatternSeq = []; changePinValue = ''; resetChangePattern(); 
+                document.getElementById('changePinDisplay').innerHTML = '●●●●●●'; 
+                document.getElementById('changeFeedback').innerHTML = ''; 
+                document.getElementById('changePasswordModal').classList.add('active'); 
+            } else alert('Please login first to change your credentials');
+            profileMenu.classList.remove('show'); 
+        };
+        
+        document.getElementById('profileSwitchRole').onclick = () => { 
+            const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab; 
+            if(activeTab === 'staff') document.querySelector('.tab-btn[data-tab="supervisor"]')?.click(); 
+            else document.querySelector('.tab-btn[data-tab="staff"]')?.click(); 
+            profileMenu.classList.remove('show'); 
+        };
+        
+        document.querySelectorAll('.change-method-btn').forEach(btn => { 
+            btn.addEventListener('click',()=>{ 
+                changeMode = btn.dataset.changeMethod; 
+                document.querySelectorAll('.change-method-btn').forEach(b=>b.classList.remove('active-method')); 
+                btn.classList.add('active-method'); 
+                document.getElementById('changePatternPane').classList.toggle('active-pane', changeMode==='pattern'); 
+                document.getElementById('changePinPane').classList.toggle('active-pane', changeMode==='pin'); 
+                if(changeMode==='pattern') setTimeout(()=>resizeChangeCanvas(),30); 
+            }); 
         });
-    }
-
-    function bindModalEvents() {
-        document.getElementById('modalCloseBtn').onclick = () => closeModalWithoutSuccess();
-        document.getElementById('modalCancelBtn').onclick = () => closeModalWithoutSuccess();
-        document.querySelectorAll('.modal-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => switchModalTab(btn.dataset.modalTab));
+        
+        document.getElementById('resetChangePatternBtn').onclick = resetChangePattern;
+        document.getElementById('saveNewCodeBtn').onclick = saveNewCode;
+        document.getElementById('cancelChangeBtn').onclick = () => document.getElementById('changePasswordModal').classList.remove('active');
+        document.getElementById('closeChangeModalBtn').onclick = () => document.getElementById('changePasswordModal').classList.remove('active');
+        
+        document.querySelectorAll('.tab-btn').forEach(btn=>{ 
+            btn.addEventListener('click',()=>{ 
+                const which=btn.dataset.tab; 
+                document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); 
+                btn.classList.add('active'); 
+                document.getElementById('staffViewPanel').classList.toggle('active-panel',which==='staff'); 
+                document.getElementById('supervisorViewPanel').classList.toggle('active-panel',which==='supervisor'); 
+            }); 
         });
-        document.getElementById('resetPatternBtn').onclick = () => resetPattern();
-        document.getElementById('clearNumericBtn').onclick = () => clearNumeric();
-        document.getElementById('deleteNumericBtn').onclick = () => deleteNumeric();
+        
+        renderTasks();
+        hideLoading();
+        updateFirebaseStatus(false, "📋 Select a staff member and login to start");
     }
-
-    // Start app (only if no load error)
-    if (!loadError && staffList.length) {
-        document.addEventListener('DOMContentLoaded', () => {
-            initPatternLock();
-            buildKeypad();
-            bindModalEvents();
-            initMainTabs();
-            initViews();
-        });
-    } else if (loadError) {
-        // Show disabled UI
-        document.querySelectorAll('select, button').forEach(el => el.disabled = true);
-    }
+    
+    initApp();
 </script>
 </body>
 </html>
