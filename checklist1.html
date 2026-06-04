@@ -2603,7 +2603,8 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
     <p style="margin-bottom:1rem;">Staff: <strong>${escapeHtml(staffNameDisplay)}</strong></p>
     <label style="display:block; font-weight:600; margin-bottom:0.5rem;">Flight / Airline Details:</label>
     <input type="text" id="submissionInput" value="${editValue ? escapeHtml(editValue) : ''}" placeholder="e.g., EK412, QR123, Gate A1" style="width:100%; padding:0.7rem; border-radius:1rem; border:1px solid #cbd5e1; margin-bottom:1rem;">
-    <div style="display:flex; gap:0.8rem; justify-content:flex-end;">
+    <div style="display:flex; gap:0.8rem; justify-content:flex-end; flex-wrap:wrap;">
+      ${editIndex !== null ? `<button id="deleteSubBtn" style="background:#ef4444; padding:0.5rem 1rem; border:none; border-radius:1rem; color:white; cursor:pointer;">🗑️ Delete</button>` : ''}
       <button id="cancelSubBtn" style="background:#94a3b8; padding:0.5rem 1rem; border:none; border-radius:1rem; color:white; cursor:pointer;">Cancel</button>
       <button id="submitSubBtn" style="background:#0f5c3b; padding:0.5rem 1rem; border:none; border-radius:1rem; color:white; cursor:pointer;">${editIndex !== null ? 'Update' : 'Submit'}</button>
     </div>
@@ -2614,7 +2615,18 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
   const input = modalContent.querySelector("#submissionInput");
   input.focus();
 
-  // Handler for submit/update
+  // Helper to save and refresh UI
+  async function saveAndRefresh() {
+    const saved = await saveDailyTasks();
+    if (saved) {
+      await renderDailyTasksUI();
+      if (supervisorLoggedIn) await renderSupervisorDailyTasks();
+      return true;
+    }
+    return false;
+  }
+
+  // Submit (Update or Create)
   const handleSubmit = async () => {
     const newValue = input.value.trim();
     if (!newValue) {
@@ -2623,28 +2635,23 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
     }
     
     if (editIndex !== null) {
-      // Update existing submission
+      // Update existing
       const submission = item.submissions[editIndex];
       if (!submission) {
         showMessage("Submission not found", "error");
         modal.remove();
         return;
       }
-      // Update the value
       submission.value = newValue;
       submission.editedAt = new Date().toISOString();
       submission.editedBy = supervisorLoggedIn ? "Supervisor" : authenticatedStaffId;
       
-      // Save to Firestore
-      const saved = await saveDailyTasks();
-      if (saved) {
-        // Refresh UI
-        await renderDailyTasksUI();
-        if (supervisorLoggedIn) await renderSupervisorDailyTasks();
+      const ok = await saveAndRefresh();
+      if (ok) {
         showMessage(`Updated: ${newValue.substring(0, 50)}`);
         modal.remove();
       } else {
-        showMessage("Failed to save. Please try again.", "error");
+        showMessage("Save failed", "error");
       }
     } else {
       // New submission
@@ -2660,14 +2667,27 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
         value: newValue,
         timestamp: new Date().toISOString()
       });
-      const saved = await saveDailyTasks();
-      if (saved) {
-        await renderDailyTasksUI();
-        if (supervisorLoggedIn) await renderSupervisorDailyTasks();
+      const ok = await saveAndRefresh();
+      if (ok) {
         showMessage(`Submitted: ${newValue.substring(0, 50)}`);
         modal.remove();
       } else {
-        showMessage("Failed to save. Please try again.", "error");
+        showMessage("Save failed", "error");
+      }
+    }
+  };
+
+  // Delete handler
+  const handleDelete = async () => {
+    if (!confirm("Delete this submission permanently?")) return;
+    if (editIndex !== null) {
+      item.submissions.splice(editIndex, 1);
+      const ok = await saveAndRefresh();
+      if (ok) {
+        showMessage("Submission deleted");
+        modal.remove();
+      } else {
+        showMessage("Delete failed", "error");
       }
     }
   };
@@ -2676,35 +2696,27 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
     modal.remove();
   };
 
-  // Attach events using clone to avoid duplicate handlers
+  // Get buttons and replace with clones to avoid duplicate events
   const submitBtn = modalContent.querySelector("#submitSubBtn");
   const cancelBtn = modalContent.querySelector("#cancelSubBtn");
+  const deleteBtn = modalContent.querySelector("#deleteSubBtn");
 
   const newSubmitBtn = submitBtn.cloneNode(true);
-  const newCancelBtn = cancelBtn.cloneNode(true);
   submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
-  cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+  newSubmitBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); handleSubmit(); };
+  newSubmitBtn.ontouchstart = (e) => { e.preventDefault(); e.stopPropagation(); handleSubmit(); };
 
-  newSubmitBtn.onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleSubmit();
-  };
-  newSubmitBtn.ontouchstart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleSubmit();
-  };
-  newCancelBtn.onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleCancel();
-  };
-  newCancelBtn.ontouchstart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleCancel();
-  };
+  const newCancelBtn = cancelBtn.cloneNode(true);
+  cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+  newCancelBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); handleCancel(); };
+  newCancelBtn.ontouchstart = (e) => { e.preventDefault(); e.stopPropagation(); handleCancel(); };
+
+  if (deleteBtn) {
+    const newDeleteBtn = deleteBtn.cloneNode(true);
+    deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+    newDeleteBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); };
+    newDeleteBtn.ontouchstart = (e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); };
+  }
 
   input.onkeypress = (e) => {
     if (e.key === 'Enter') handleSubmit();
@@ -2714,7 +2726,6 @@ function openSubmissionModal(task, isFb, editIndex = null, editValue = null) {
     if (e.target === modal) modal.remove();
   };
 }
-
 
 function editSubmission(task, isFb, index) {
   const list = isFb ? FB_DAILY_TASKS : MAIN_DAILY_TASKS;
