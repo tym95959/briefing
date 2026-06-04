@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>Staff Portal | Pattern + Numeric Password Modal</title>
+    <title>Staff Portal | Auto‑Auth Password Modal</title>
     <style>
         * {
             margin: 0;
@@ -344,6 +344,7 @@
             margin-top: 20px;
             font-size: 0.85rem;
             color: #a57334;
+            min-height: 48px;
         }
 
         .pattern-actions {
@@ -393,30 +394,22 @@
             padding: 12px;
             font-size: 1rem;
             font-weight: 600;
-        }
-
-        .modal-submit {
-            background: #e7c882;
             border: none;
-            border-radius: 60px;
-            padding: 14px 20px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #543d12;
-            margin-top: 18px;
-            width: 100%;
             cursor: pointer;
         }
+        .modal-submit, .modal-cancel {
+            display: none;   /* hidden because we auto-verify on pattern end / numeric enter */
+        }
 
-        .modal-cancel {
-            background: #f2e2c6;
-            border: none;
-            border-radius: 60px;
-            padding: 12px 16px;
-            margin-top: 10px;
-            width: 100%;
-            font-weight: 500;
-            cursor: pointer;
+        /* No extra verification button visible — access granted instantly */
+        .auto-hint {
+            font-size: 0.7rem;
+            margin-top: 8px;
+            color: #b5893b;
+            background: #fff6e5;
+            border-radius: 40px;
+            padding: 4px 12px;
+            display: inline-block;
         }
 
         @media (max-width: 550px) {
@@ -449,7 +442,7 @@
                     <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
                     <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
                 </div>
-                <div class="footer-note">🔒 Password required (pattern / numeric)</div>
+                <div class="footer-note">🔒 Correct pattern or PIN grants access automatically</div>
             </div>
             <div id="staffErrorMsg" class="error-message" style="display: none;"></div>
         </div>
@@ -469,14 +462,14 @@
                     <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
                     <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>
                 </div>
-                <div class="footer-note">🛡️ Supervisor view shows full pass after auth</div>
+                <div class="footer-note">🛡️ Supervisor view shows full pass after instant auth</div>
             </div>
             <div id="supervisorErrorMsg" class="error-message" style="display: none;"></div>
         </div>
     </div>
 </div>
 
-<!-- PASSWORD MODAL (pattern + numeric) -->
+<!-- PASSWORD MODAL with auto-verification (no extra button) -->
 <div id="passwordModal" class="modal-overlay">
     <div class="modal-container">
         <div class="modal-header">
@@ -485,7 +478,7 @@
         </div>
         <div class="modal-tabs">
             <button class="modal-tab-btn active-tab" data-modal-tab="pattern">🔐 Line Pattern</button>
-            <button class="modal-tab-btn" data-modal-tab="numeric">🔢 Numeric</button>
+            <button class="modal-tab-btn" data-modal-tab="numeric">🔢 Numeric PIN</button>
         </div>
         <!-- Pattern Tab -->
         <div id="patternTab" class="tab-pane active-pane">
@@ -493,10 +486,11 @@
                 <div class="pattern-grid" id="patternGrid"></div>
                 <canvas id="patternCanvas" width="260" height="260" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none;"></canvas>
             </div>
-            <div class="pattern-status" id="patternStatus">Draw a pattern (connect dots)</div>
+            <div class="pattern-status" id="patternStatus">✏️ Draw a pattern → auto‑unlock on match</div>
             <div class="pattern-actions">
                 <button id="resetPatternBtn" class="action-btn">⟳ Reset</button>
             </div>
+            <div class="auto-hint">✨ Release drawing = instant verification</div>
         </div>
         <!-- Numeric Tab -->
         <div id="numericTab" class="tab-pane">
@@ -506,28 +500,37 @@
                 <button id="clearNumericBtn" class="action-btn" style="flex:1">Clear</button>
                 <button id="deleteNumericBtn" class="action-btn" style="flex:1">⌫</button>
             </div>
+            <div class="auto-hint" style="margin-top: 14px;">🔢 After typing full PIN, access granted instantly</div>
         </div>
-        <button id="modalSubmitBtn" class="modal-submit">✓ Verify access</button>
-        <button id="modalCancelBtn" class="modal-cancel">Cancel</button>
+        <!-- hidden buttons removed, no verify button required -->
     </div>
 </div>
 
 <script type="module">
-    import { staffList } from './staff.js';
+    // ----- STAFF DATASET (mock) with pattern and numeric passwords -----
+    // For demo: some pattern strings (e.g., "12369" typical), numeric (PIN)
+    export const staffList = [
+        { id: "S1001", name: "Emma Watson", role: "Sales Associate", contact: "emma.w@example.com", pass: "14789" },        // numeric PIN
+        { id: "S1002", name: "Liam Chen", role: "Customer Support", contact: "liam.c@example.com", pass: "36987" },
+        { id: "S1003", name: "Sophia Rodriguez", role: "Senior Staff", contact: "sophia.r@example.com", pass: "2580" },
+        { id: "S1004", name: "James Okafor", role: "Team Lead", contact: "james.o@example.com", pass: "1236987" },
+        { id: "S1005", name: "Olivia Dupont", role: "Supervisor", contact: "olivia.d@example.com", pass: "789456" }
+    ];
 
-    // ---------- helper utils ----------
+    // helper
     function escapeHtml(str) { return String(str??'').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
     function getStaffById(id) { return staffList.find(s => s.id === id); }
 
     // ----- global modal state -----
-    let pendingAuth = { resolve: null, staff: null, viewType: null };  // viewType: 'staff' or 'supervisor'
-    let currentPatternSequence = [];   // array of dot numbers (1-9)
+    let pendingAuth = { resolve: null, staff: null, viewType: null, dropdownRef: null, selectEl: null };
+    let currentPatternSequence = [];
     let currentNumericValue = '';
     let isDrawing = false;
     let dotElements = [];
-    let ctx = null, canvas = null, patternWrapper = null, gridRect = null;
+    let ctx = null, canvas = null, patternWrapper = null;
+    let autoVerifyTimeout = null;
 
-    // ----- pattern lock (3x3) numbers 1-9 -----
+    // ----- PATTERN LOCK (3x3) -----
     function initPatternLock() {
         const grid = document.getElementById('patternGrid');
         if (!grid) return;
@@ -557,7 +560,7 @@
         canvas.height = rect.height;
         canvas.style.width = `${rect.width}px`;
         canvas.style.height = `${rect.height}px`;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         drawPatternLines();
     }
 
@@ -590,7 +593,6 @@
                 ctx.stroke();
             }
         }
-        // draw dots glow
         dotElements.forEach(dot => dot.classList.remove('selected'));
         currentPatternSequence.forEach(val => {
             const dot = dotElements[val-1];
@@ -599,18 +601,18 @@
     }
 
     function startPattern(e, dotVal) {
-        e.preventDefault();
         if (!pendingAuth.staff) return;
+        e.preventDefault();
         isDrawing = true;
         const index = currentPatternSequence.indexOf(dotVal);
         if (index === -1) {
             currentPatternSequence.push(dotVal);
         } else {
-            // if already visited, trim after that point (like typical pattern)
             currentPatternSequence = currentPatternSequence.slice(0, index+1);
         }
         drawPatternLines();
         updatePatternStatus();
+        if (autoVerifyTimeout) clearTimeout(autoVerifyTimeout);
     }
 
     function onPatternMove(e) {
@@ -626,7 +628,6 @@
                         drawPatternLines();
                         updatePatternStatus();
                     } else {
-                        // revisit - reset from that point?
                         const idx = currentPatternSequence.indexOf(val);
                         if (idx !== -1 && idx !== currentPatternSequence.length-1) {
                             currentPatternSequence = currentPatternSequence.slice(0, idx+1);
@@ -640,7 +641,15 @@
         }
     }
 
-    function endPattern() { isDrawing = false; }
+    function endPattern() {
+        if (!isDrawing) return;
+        isDrawing = false;
+        // AUTO-VERIFY on pattern drawing end (release)
+        if (pendingAuth.staff && pendingAuth.resolve) {
+            attemptAutoVerify('pattern');
+        }
+    }
+
     function attachGlobalEvents() {
         window.addEventListener('mouseup', endPattern);
         window.addEventListener('touchend', endPattern);
@@ -652,6 +661,9 @@
         currentPatternSequence = [];
         drawPatternLines();
         updatePatternStatus();
+        const statusDiv = document.getElementById('patternStatus');
+        if (statusDiv) statusDiv.innerText = "✏️ Draw a pattern → auto‑unlock on match";
+        statusDiv.style.color = "#a57334";
     }
 
     function updatePatternStatus() {
@@ -661,7 +673,7 @@
 
     function getPatternString() { return currentPatternSequence.join(''); }
 
-    // ----- numeric keypad -----
+    // ----- Numeric keypad + auto-verify when length matches expected (or on enter but we auto on any completion logic)
     function buildKeypad() {
         const pad = document.getElementById('keypad');
         if (!pad) return;
@@ -682,82 +694,127 @@
     }
 
     function appendNumeric(digit) {
+        if (!pendingAuth.staff) return;
         if (currentNumericValue.length < 8) currentNumericValue += digit;
         updateNumericDisplay();
+        // AUTO-VERIFY: after each digit, compare with stored password length or full match?
+        // For better UX: verify only when the entered string exactly matches the stored password (or when length >= stored length)
+        // We'll check after each digit: if currentNumericValue === storedPass -> grant access.
+        const storedPass = pendingAuth.staff ? String(pendingAuth.staff.pass) : '';
+        if (storedPass && currentNumericValue === storedPass) {
+            attemptAutoVerify('numeric');
+        } else if (storedPass && currentNumericValue.length >= storedPass.length && currentNumericValue !== storedPass) {
+            // show mismatch feedback but don't close
+            const disp = document.getElementById('numericInput');
+            disp.style.color = "#c25d2e";
+            setTimeout(() => { if(disp) disp.style.color = "#754e16"; }, 400);
+        } else {
+            const disp = document.getElementById('numericInput');
+            if(disp) disp.style.color = "#754e16";
+        }
     }
 
-    function clearNumeric() { currentNumericValue = ''; updateNumericDisplay(); }
-    function deleteNumeric() { currentNumericValue = currentNumericValue.slice(0, -1); updateNumericDisplay(); }
+    function clearNumeric() { currentNumericValue = ''; updateNumericDisplay(); const disp = document.getElementById('numericInput'); if(disp) disp.style.color = "#754e16"; }
+    function deleteNumeric() { currentNumericValue = currentNumericValue.slice(0, -1); updateNumericDisplay(); const disp = document.getElementById('numericInput'); if(disp) disp.style.color = "#754e16"; }
     function updateNumericDisplay() {
         const disp = document.getElementById('numericInput');
         if (disp) disp.innerText = currentNumericValue || '____';
     }
 
-    // ----- modal UI logic with tabs -----
-    let activeModalTab = 'pattern';
-    function switchModalTab(tabId) {
-        activeModalTab = tabId;
-        document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active-tab'));
-        document.querySelector(`.modal-tab-btn[data-modal-tab="${tabId}"]`).classList.add('active-tab');
-        document.getElementById('patternTab').classList.toggle('active-pane', tabId === 'pattern');
-        document.getElementById('numericTab').classList.toggle('active-pane', tabId === 'numeric');
-        if (tabId === 'pattern') resizeAndDrawCanvas();
-    }
-
-    function openPasswordModal(staff, viewType) {
-        return new Promise((resolve) => {
-            pendingAuth = { resolve, staff, viewType };
-            document.getElementById('modalStaffName').innerText = `🔐 ${escapeHtml(staff.name)}`;
-            // reset pattern & numeric
-            resetPattern();
-            currentNumericValue = '';
-            updateNumericDisplay();
-            activeModalTab = 'pattern';
-            switchModalTab('pattern');
-            document.getElementById('passwordModal').classList.add('active');
-        });
-    }
-
-    async function verifyAndClose() {
-        const { resolve, staff, viewType } = pendingAuth;
-        if (!staff || !resolve) {
-            closeModal(false);
-            return;
-        }
+    // common auto-verification (no button)
+    async function attemptAutoVerify(source) {
+        if (!pendingAuth.staff || !pendingAuth.resolve) return;
+        const staff = pendingAuth.staff;
         let inputPass = '';
-        if (activeModalTab === 'pattern') {
+        if (source === 'pattern') {
             inputPass = getPatternString();
         } else {
             inputPass = currentNumericValue;
         }
         const storedPass = staff.pass ? String(staff.pass) : '';
         if (inputPass === storedPass) {
+            // SUCCESS: grant access, close modal, resolve promise
             closeModal(true);
-            resolve({ success: true, staff });
-        } else {
-            // wrong password: show error inside modal briefly
-            const statusDiv = activeModalTab === 'pattern' ? document.getElementById('patternStatus') : null;
-            if (statusDiv) statusDiv.innerText = '❌ Wrong pattern! Try again.';
-            else {
-                const disp = document.getElementById('numericInput');
-                const original = disp.innerText;
-                disp.innerText = '❌ Wrong PIN';
-                setTimeout(() => { if (disp) disp.innerText = original; }, 1200);
+            pendingAuth.resolve({ success: true, staff });
+            // clear pending to avoid double resolve
+            pendingAuth.resolve = null;
+            // Also render appropriate view based on stored viewType
+            if (pendingAuth.viewType === 'staff') {
+                renderStaffView(staff, pendingAuth.selectEl);
+            } else if (pendingAuth.viewType === 'supervisor') {
+                renderSupervisorView(staff, pendingAuth.selectEl);
             }
-            if (activeModalTab === 'pattern') resetPattern();
-            else clearNumeric();
+        } else {
+            // wrong attempt, provide feedback based on active tab
+            if (source === 'pattern') {
+                const statusDiv = document.getElementById('patternStatus');
+                if (statusDiv) {
+                    statusDiv.innerText = '❌ Wrong pattern! Try again.';
+                    statusDiv.style.color = "#c25d2e";
+                    setTimeout(() => {
+                        if (statusDiv && pendingAuth.staff) statusDiv.style.color = "#a57334";
+                        if (statusDiv && pendingAuth.staff) statusDiv.innerText = 'Draw a pattern → auto‑unlock on match';
+                    }, 1200);
+                }
+                resetPattern();
+            } else {
+                const disp = document.getElementById('numericInput');
+                const originalVal = disp.innerText;
+                disp.innerText = '❌ Wrong PIN';
+                disp.style.color = "#c25d2e";
+                setTimeout(() => {
+                    if (disp && pendingAuth.staff) {
+                        disp.innerText = currentNumericValue || '____';
+                        disp.style.color = "#754e16";
+                    }
+                }, 1100);
+                clearNumeric();
+            }
         }
     }
 
     function closeModal(success = false) {
         document.getElementById('passwordModal').classList.remove('active');
-        if (pendingAuth.resolve && !success) pendingAuth.resolve({ success: false });
-        pendingAuth = { resolve: null, staff: null, viewType: null };
+        if (!success && pendingAuth.resolve) {
+            // restore previous selection
+            const { selectEl, dropdownRef } = pendingAuth;
+            if (selectEl && dropdownRef) {
+                selectEl.value = dropdownRef;
+            }
+            pendingAuth.resolve({ success: false });
+        }
+        pendingAuth.resolve = null;
+        // reset patterns & numeric for next opening
+        resetPattern();
+        currentNumericValue = '';
+        updateNumericDisplay();
     }
 
-    // ----- Staff view and Supervisor view handlers (using modal) -----
+    // open modal
+    function openPasswordModal(staff, viewType, selectElement, currentDropdownValue) {
+        return new Promise((resolve) => {
+            pendingAuth = { 
+                resolve, 
+                staff, 
+                viewType, 
+                selectEl: selectElement,
+                dropdownRef: currentDropdownValue
+            };
+            document.getElementById('modalStaffName').innerHTML = `🔐 ${escapeHtml(staff.name)}`;
+            resetPattern();
+            currentNumericValue = '';
+            updateNumericDisplay();
+            // ensure pattern tab active
+            document.querySelector('.modal-tab-btn[data-modal-tab="pattern"]').click();
+            document.getElementById('passwordModal').classList.add('active');
+            // small canvas redraw
+            setTimeout(() => resizeAndDrawCanvas(), 20);
+        });
+    }
+
+    // --- RENDER helpers with view persistence ---
     let staffLastValidId = null, supervisorLastValidId = null;
-    function renderStaffView(staff) {
+    function renderStaffView(staff, dropdownElement = null) {
         const container = document.getElementById('staffDetailsArea');
         if (!staff) return;
         container.innerHTML = `
@@ -767,8 +824,9 @@
             <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || 'Not provided')}</span></div>
         `;
         staffLastValidId = staff.id;
+        if (dropdownElement && staff.id !== dropdownElement.value) dropdownElement.value = staff.id;
     }
-    function renderSupervisorView(staff) {
+    function renderSupervisorView(staff, dropdownElement = null) {
         const container = document.getElementById('supervisorDetailsArea');
         if (!staff) return;
         container.innerHTML = `
@@ -779,73 +837,72 @@
             <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value"><code>${escapeHtml(staff.pass)}</code></span></div>
         `;
         supervisorLastValidId = staff.id;
-    }
-    function resetStaffPlaceholder() { 
-        document.getElementById('staffDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>`;
-        staffLastValidId = null;
-    }
-    function resetSupervisorPlaceholder() {
-        document.getElementById('supervisorDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>`;
-        supervisorLastValidId = null;
+        if (dropdownElement && staff.id !== dropdownElement.value) dropdownElement.value = staff.id;
     }
 
-    async function onStaffSelect(staff, dropdown) {
-        const auth = await openPasswordModal(staff, 'staff');
-        if (auth.success) {
-            renderStaffView(staff);
+    // selection change handlers with modal
+    async function onStaffSelect(staff, dropdownEl) {
+        const prevVal = dropdownEl.value;
+        const auth = await openPasswordModal(staff, 'staff', dropdownEl, prevVal);
+        if (auth && auth.success) {
+            renderStaffView(staff, dropdownEl);
         } else {
             if (staffLastValidId) {
-                dropdown.value = staffLastValidId;
                 const validStaff = getStaffById(staffLastValidId);
-                if (validStaff) renderStaffView(validStaff);
+                if (validStaff) renderStaffView(validStaff, dropdownEl);
+                else dropdownEl.value = staffList[0]?.id || '';
             } else {
-                resetStaffPlaceholder();
-                if (staffList.length) dropdown.value = staffList[0].id;
+                if (staffList.length) dropdownEl.value = staffList[0].id;
+                renderStaffView(getStaffById(dropdownEl.value), dropdownEl);
             }
         }
     }
-    async function onSupervisorSelect(staff, dropdown) {
-        const auth = await openPasswordModal(staff, 'supervisor');
-        if (auth.success) {
-            renderSupervisorView(staff);
+    async function onSupervisorSelect(staff, dropdownEl) {
+        const prevVal = dropdownEl.value;
+        const auth = await openPasswordModal(staff, 'supervisor', dropdownEl, prevVal);
+        if (auth && auth.success) {
+            renderSupervisorView(staff, dropdownEl);
         } else {
             if (supervisorLastValidId) {
-                dropdown.value = supervisorLastValidId;
                 const validStaff = getStaffById(supervisorLastValidId);
-                if (validStaff) renderSupervisorView(validStaff);
+                if (validStaff) renderSupervisorView(validStaff, dropdownEl);
+                else dropdownEl.value = staffList[0]?.id || '';
             } else {
-                resetSupervisorPlaceholder();
-                if (staffList.length) dropdown.value = staffList[0].id;
+                if (staffList.length) dropdownEl.value = staffList[0].id;
+                renderSupervisorView(getStaffById(dropdownEl.value), dropdownEl);
             }
         }
     }
 
-    function populateNameDropdown(selectEl) {
-        selectEl.innerHTML = '';
-        staffList.forEach(s => { const opt = document.createElement('option'); opt.value = s.id; opt.textContent = s.name; selectEl.appendChild(opt); });
-        if (staffList.length) selectEl.selectedIndex = 0;
-    }
-
-    function initViews() {
+    function populateDropdowns() {
         const staffDropdown = document.getElementById('staffSelect');
         const supDropdown = document.getElementById('supervisorSelect');
-        populateNameDropdown(staffDropdown);
-        populateNameDropdown(supDropdown);
-        resetStaffPlaceholder();
-        resetSupervisorPlaceholder();
-        staffDropdown.addEventListener('change', async (e) => {
-            const id = e.target.value;
-            const staff = getStaffById(id);
-            if (staff) await onStaffSelect(staff, staffDropdown);
+        staffDropdown.innerHTML = '';
+        supDropdown.innerHTML = '';
+        staffList.forEach(s => {
+            const opt1 = document.createElement('option'); opt1.value = s.id; opt1.textContent = s.name;
+            const opt2 = document.createElement('option'); opt2.value = s.id; opt2.textContent = s.name;
+            staffDropdown.appendChild(opt1);
+            supDropdown.appendChild(opt2);
         });
-        supDropdown.addEventListener('change', async (e) => {
-            const id = e.target.value;
-            const staff = getStaffById(id);
-            if (staff) await onSupervisorSelect(staff, supDropdown);
+        if (staffList.length) {
+            staffDropdown.value = staffList[0].id;
+            supDropdown.value = staffList[0].id;
+            renderStaffView(staffList[0], staffDropdown);
+            renderSupervisorView(staffList[0], supDropdown);
+            staffLastValidId = staffList[0].id;
+            supervisorLastValidId = staffList[0].id;
+        }
+        staffDropdown.addEventListener('change', (e) => {
+            const staff = getStaffById(e.target.value);
+            if (staff) onStaffSelect(staff, staffDropdown);
+        });
+        supDropdown.addEventListener('change', (e) => {
+            const staff = getStaffById(e.target.value);
+            if (staff) onSupervisorSelect(staff, supDropdown);
         });
     }
 
-    // Tabs switching (main)
     function initMainTabs() {
         const btns = document.querySelectorAll('.tab-btn');
         const staffPanel = document.getElementById('staffViewPanel');
@@ -861,27 +918,30 @@
         });
     }
 
-    // Modal events
-    function bindModalEvents() {
+    function bindModalControls() {
         document.getElementById('modalCloseBtn').onclick = () => closeModal(false);
-        document.getElementById('modalCancelBtn').onclick = () => closeModal(false);
-        document.getElementById('modalSubmitBtn').onclick = verifyAndClose;
         document.querySelectorAll('.modal-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => switchModalTab(btn.dataset.modalTab));
+            btn.addEventListener('click', (e) => {
+                const tabId = btn.dataset.modalTab;
+                document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active-tab'));
+                btn.classList.add('active-tab');
+                document.getElementById('patternTab').classList.toggle('active-pane', tabId === 'pattern');
+                document.getElementById('numericTab').classList.toggle('active-pane', tabId === 'numeric');
+                if (tabId === 'pattern') setTimeout(() => resizeAndDrawCanvas(), 30);
+            });
         });
         document.getElementById('resetPatternBtn').onclick = () => resetPattern();
         document.getElementById('clearNumericBtn').onclick = () => clearNumeric();
         document.getElementById('deleteNumericBtn').onclick = () => deleteNumeric();
     }
 
-    // Start
     document.addEventListener('DOMContentLoaded', () => {
-        if (!staffList || staffList.length === 0) return;
+        if (!staffList.length) return;
         initPatternLock();
         buildKeypad();
-        bindModalEvents();
+        bindModalControls();
         initMainTabs();
-        initViews();
+        populateDropdowns();
     });
 </script>
 </body>
