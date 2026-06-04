@@ -2218,43 +2218,41 @@ function showPatternModal(staff, onSuccess, onCancel) {
 
 // Update initDailyStaffSelect
 function initDailyStaffSelect() {
-  const selectContainer = document.getElementById("dailyTaskStaffSelect");
-  if (!selectContainer) return;
+  const select = document.getElementById("dailyTaskStaffSelect");
+  if (!select) return;
 
-  // Build fresh options based on current SOD (excluding HK)
-  const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
-  const currentVal = selectContainer.value;
-  selectContainer.innerHTML = '<option value="">-- Select Staff --</option>' +
-    sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
-
-  // If previously authenticated staff is still in SOD, keep them selected
-  if (authenticatedStaffId && sodStaff.some(s => s.id === authenticatedStaffId)) {
-    selectContainer.value = authenticatedStaffId;
-    const staff = staffList.find(s => s.id === authenticatedStaffId);
-    if (staff) document.getElementById("dailyTaskSelectedName").textContent = `✓ ${staff.name} (Verified)`;
-  } else if (authenticatedStaffId) {
-    // Previously authenticated staff is no longer on duty → force logout
-    authenticatedStaffId = null;
-    updateProfileButtonVisibility();
-    document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
-    selectContainer.value = "";
-    renderDailyTasksUI();
-  } else {
-    document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
+  // Update options based on current SOD (excluding HK)
+  function updateOptions() {
+    const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">-- Select Staff --</option>' +
+      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+    // Restore previous value if still valid, otherwise clear
+    if (currentVal && sodStaff.some(s => s.id === currentVal)) {
+      select.value = currentVal;
+    } else if (authenticatedStaffId && sodStaff.some(s => s.id === authenticatedStaffId)) {
+      select.value = authenticatedStaffId;
+    } else {
+      select.value = "";
+    }
+    return sodStaff;
   }
 
-  // Update selfSelect as well
-  const selfSelect = document.getElementById("staffSelfSelect");
-  if (selfSelect) {
+  // Update selfSelect dropdown too
+  function updateSelfSelect() {
+    const selfSelect = document.getElementById("staffSelfSelect");
+    if (!selfSelect) return;
+    const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
     selfSelect.innerHTML = '<option value="">-- Select --</option>' +
       sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
   }
 
-  // Remove old listener and attach a fresh one
-  const newSelect = selectContainer.cloneNode(true);
-  selectContainer.parentNode.replaceChild(newSelect, selectContainer);
+  // Remove old listener to avoid duplicates
+  const oldHandler = select.onchange;
+  if (oldHandler) select.onchange = null;
 
-  newSelect.onchange = async function() {
+  // Attach new persistent handler
+  select.onchange = async function() {
     const newStaffId = this.value;
     if (!newStaffId) {
       if (authenticatedStaffId) {
@@ -2271,14 +2269,14 @@ function initDailyStaffSelect() {
     const selectedStaff = staffList.find(s => s.id === newStaffId);
     if (!selectedStaff) return;
 
-    // Already authenticated as this staff → just refresh UI
+    // Already authenticated – just refresh UI
     if (authenticatedStaffId === newStaffId) {
       document.getElementById("dailyTaskSelectedName").textContent = `✓ ${selectedStaff.name} (Verified)`;
       renderDailyTasksUI();
       return;
     }
 
-    // Different staff: logout previous and verify new
+    // Different staff – logout previous, verify new
     if (authenticatedStaffId) {
       const oldStaff = staffList.find(s => s.id === authenticatedStaffId);
       showMessage(`👋 ${oldStaff?.name} logged out automatically`, "info");
@@ -2294,8 +2292,8 @@ function initDailyStaffSelect() {
         renderDailyTasksUI();
         showMessage(`✅ Welcome ${selectedStaff.name}`);
       } else {
-        // Verification failed – clear the dropdown so user can retry
-        newSelect.value = "";
+        // Verification failed – clear selection so user can retry
+        select.value = "";
         authenticatedStaffId = null;
         updateProfileButtonVisibility();
         document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Verification failed";
@@ -2304,7 +2302,23 @@ function initDailyStaffSelect() {
       }
     });
   };
+
+  // Initial population
+  const sodStaff = updateOptions();
+  updateSelfSelect();
+
+  // Restore authenticated staff if still on duty
+  if (authenticatedStaffId && sodStaff.some(s => s.id === authenticatedStaffId)) {
+    select.value = authenticatedStaffId;
+    const staff = staffList.find(s => s.id === authenticatedStaffId);
+    if (staff) document.getElementById("dailyTaskSelectedName").textContent = `✓ ${staff.name} (Verified)`;
+  } else if (authenticatedStaffId) {
+    authenticatedStaffId = null;
+    updateProfileButtonVisibility();
+    document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
+  }
 }
+
 
 
 
@@ -3489,16 +3503,39 @@ function refreshAllViews() {
     loadCompleteStaffDashboard();
     renderDailyTasksUI();
   }
-  
-  // ✅ Force staff dropdown to refresh
-  initDailyStaffSelect();
-  
-  const dailySelect = document.getElementById("dailyTaskStaffSelect");
-  if (dailySelect) {
+
+  // ✅ Only update options, don't re‑initialize the whole dropdown
+  const select = document.getElementById("dailyTaskStaffSelect");
+  if (select) {
     const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
-    if (sodStaff.length === 0) dailySelect.innerHTML = '<option value="">-- No staff on duty --</option>';
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">-- Select Staff --</option>' +
+      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
+    // Restore previous valid selection
+    if (currentVal && sodStaff.some(s => s.id === currentVal)) {
+      select.value = currentVal;
+    } else if (authenticatedStaffId && sodStaff.some(s => s.id === authenticatedStaffId)) {
+      select.value = authenticatedStaffId;
+    } else {
+      select.value = "";
+      if (authenticatedStaffId) {
+        authenticatedStaffId = null;
+        updateProfileButtonVisibility();
+        document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
+        renderDailyTasksUI();
+      }
+    }
+  }
+
+  // Also update selfSelect
+  const selfSelect = document.getElementById("staffSelfSelect");
+  if (selfSelect) {
+    const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
+    selfSelect.innerHTML = '<option value="">-- Select --</option>' +
+      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
   }
 }
+
 
 function updateDisplayInfo() { const displayDate = document.getElementById("displayDate"); const displayShift = document.getElementById("displayShift"); const dailyTaskShiftBadge = document.getElementById("dailyTaskShiftBadge"); if (displayDate) displayDate.innerText = currentDate; if (displayShift) displayShift.innerText = SHIFTS.find(s => s.value === currentShift)?.label || currentShift; if (dailyTaskShiftBadge) dailyTaskShiftBadge.innerText = currentShift === "morning" ? "🌅 Morning" : (currentShift === "afternoon" ? "🌆 Afternoon" : "🌙 Evening"); }
 
