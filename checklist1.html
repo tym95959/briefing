@@ -1089,10 +1089,74 @@ async function showProfileModal(staff) {
   
   document.body.appendChild(modal);
   
-  // (Password logic unchanged – keep your existing code here)
-  // ... (updateBtn, tabs, etc.) ...
-
-  // ========== IMPROVED PATTERN DRAWING ==========
+  // ========== PASSWORD CHANGE LOGIC ==========
+  const updateBtn = modal.querySelector('#updatePasswordBtn');
+  const currentPassInput = modal.querySelector('#currentPass');
+  const newPassInput = modal.querySelector('#newPass');
+  const confirmPassInput = modal.querySelector('#confirmPass');
+  const passwordMsg = modal.querySelector('#passwordMessage');
+  
+  updateBtn.onclick = async () => {
+    const currentPass = currentPassInput.value;
+    const newPass = newPassInput.value;
+    const confirmPass = confirmPassInput.value;
+    
+    if (!currentPass || !newPass || !confirmPass) {
+      passwordMsg.textContent = '❌ Please fill all fields';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    if (newPass !== confirmPass) {
+      passwordMsg.textContent = '❌ New passwords do not match';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    if (newPass.length < 4) {
+      passwordMsg.textContent = '❌ Password must be at least 4 digits';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    if (currentPass !== staff.pass) {
+      passwordMsg.textContent = '❌ Current password is incorrect';
+      passwordMsg.className = 'profile-message error';
+      return;
+    }
+    
+    const success = await saveUserCredentials(staff.id, { pass: newPass, pattern: staff.pattern });
+    if (success) {
+      staff.pass = newPass;
+      passwordMsg.textContent = '✅ Password updated successfully!';
+      passwordMsg.className = 'profile-message success';
+      currentPassInput.value = '';
+      newPassInput.value = '';
+      confirmPassInput.value = '';
+      showMessage(`Password updated for ${staff.name}`);
+    } else {
+      passwordMsg.textContent = '❌ Failed to update password';
+      passwordMsg.className = 'profile-message error';
+    }
+  };
+  
+  // ========== TAB SWITCHING ==========
+  const tabs = modal.querySelectorAll('.profile-tab');
+  const passwordSection = modal.querySelector('#passwordSection');
+  const patternSection = modal.querySelector('#patternSection');
+  
+  tabs.forEach(tab => {
+    tab.onclick = () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      if (tab.dataset.tab === 'password') {
+        passwordSection.style.display = 'block';
+        patternSection.style.display = 'none';
+      } else {
+        passwordSection.style.display = 'none';
+        patternSection.style.display = 'block';
+      }
+    };
+  });
+  
+  // ========== IMPROVED PATTERN DRAWING (supports N-shape & clear button) ==========
   const verifyPatternBtn = modal.querySelector('#verifyForPatternBtn');
   const patternCurrentPass = modal.querySelector('#patternCurrentPass');
   const patternChangeArea = modal.querySelector('#patternChangeArea');
@@ -1110,7 +1174,7 @@ async function showProfileModal(staff) {
   let patternDrawListenersAttached = false;
   let drawHandler, endDrawHandler;
   
-  // Helper: get row & column (0‑based)
+  // Helper: get 0‑based row/col
   function getRowCol(dot) {
     const r = Math.floor((dot - 1) / 3);
     const c = (dot - 1) % 3;
@@ -1125,26 +1189,24 @@ async function showProfileModal(staff) {
     return Math.abs(p.row - q.row) <= 1 && Math.abs(p.col - q.col) <= 1;
   }
   
-  // Get the dot that lies strictly between two dots (for straight lines)
-  // Returns null if not a straight line or no dot in between
+  // Get the dot that lies strictly between two dots on a straight line
   function getIntermediateDot(a, b) {
     const p = getRowCol(a);
     const q = getRowCol(b);
     const rowDiff = q.row - p.row;
     const colDiff = q.col - p.col;
-    // Only straight horizontal, vertical, or diagonal lines
+    // vertical line
     if (Math.abs(rowDiff) === 2 && colDiff === 0) {
-      // vertical middle
       const midRow = p.row + (rowDiff / 2);
       return midRow * 3 + p.col + 1;
     }
+    // horizontal line
     if (Math.abs(colDiff) === 2 && rowDiff === 0) {
-      // horizontal middle
       const midCol = p.col + (colDiff / 2);
       return p.row * 3 + midCol + 1;
     }
+    // diagonal line
     if (Math.abs(rowDiff) === 2 && Math.abs(colDiff) === 2) {
-      // diagonal middle
       const midRow = p.row + (rowDiff / 2);
       const midCol = p.col + (colDiff / 2);
       return midRow * 3 + midCol + 1;
@@ -1176,12 +1238,10 @@ async function showProfileModal(staff) {
   function addDot(dotNum, element) {
     if (newPatternSequence.includes(dotNum)) return;
     
-    // If we are adding a dot that is not adjacent to the last one,
-    // we might need to insert an intermediate dot (if any)
+    // If not adjacent to last dot, try to insert an intermediate dot (straight line only)
     if (lastAddedDot && !areAdjacent(lastAddedDot, dotNum)) {
       const intermediate = getIntermediateDot(lastAddedDot, dotNum);
       if (intermediate && !newPatternSequence.includes(intermediate)) {
-        // Automatically add the intermediate dot first
         const intermediateElem = document.querySelector(`#newPatternGrid .pattern-dot[data-num="${intermediate}"]`);
         if (intermediateElem) {
           addDot(intermediate, intermediateElem);
@@ -1344,6 +1404,7 @@ async function showProfileModal(staff) {
   savePatternBtn.onclick = savePattern;
   savePatternBtn.ontouchstart = savePattern;
   
+  // Clear button handler
   if (clearPatternBtn) {
     clearPatternBtn.onclick = () => {
       resetNewPatternDrawing();
@@ -1353,14 +1414,27 @@ async function showProfileModal(staff) {
     clearPatternBtn.ontouchstart = clearPatternBtn.onclick;
   }
   
+  // Close modal with full cleanup
   const closeModal = () => {
     removePatternDrawListeners();
     modal.remove();
   };
   
-  modal.querySelector('#closeProfileBtn').onclick = closeModal;
-  modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+  const closeBtn = modal.querySelector('#closeProfileBtn');
+  if (closeBtn) {
+    closeBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal();
+    };
+  }
+  
+  // Also close when clicking outside the content
+  modal.onclick = (e) => {
+    if (e.target === modal) closeModal();
+  };
 }
+
 
 // ============ SUPERVISOR AUTHENTICATION FUNCTIONS ============
 
