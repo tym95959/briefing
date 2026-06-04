@@ -398,15 +398,13 @@ hr { margin: 1rem 0; }
   padding: 0.8rem;
   margin-bottom: 0.6rem;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .daily-task-text {
-  flex: 1;
-  min-width: 180px;
+  width: 100%;
   font-size: 0.85rem;
   font-weight: 500;
   color: #1e293b;
@@ -417,7 +415,22 @@ hr { margin: 1rem 0; }
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+
+/* Smaller buttons */
+.daily-task-status button {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.7rem;
+  min-height: 32px;
+}
+
+/* Style for signed-by / completed-by text */
+.task-details {
+  font-size: 0.7rem;
+  color: #555;
+  margin-top: 0.2rem;
+  width: 100%;
 }
 
 #globalControlBar {
@@ -2810,52 +2823,56 @@ function renderDailyTasksUI() {
   if (!staff) { mainContainer.innerHTML = '<div class="info-card">⚠️ Please select your name from the dropdown above to sign off tasks</div>'; fbContainer.innerHTML = '<div class="info-card">⚠️ Please select your name from the dropdown above to sign off tasks</div>'; return; }
   if (authenticatedStaffId !== staff.id) { mainContainer.innerHTML = '<div class="info-card" style="background: #fef3c7; border-left-color: #f59e0b;">🔐 Please verify your password first by selecting your name from the dropdown above.</div>'; fbContainer.innerHTML = '<div class="info-card" style="background: #fef3c7; border-left-color: #f59e0b;">🔐 Please verify your password first by selecting your name from the dropdown above.</div>'; return; }
   
-  function renderSingleTask(task, isFb) {
+ function renderSingleTask(task, isFb) {
   const staffId = staff?.id;
-  let statusHtml = "", actionHtml = "";
+  let statusHtml = "", actionHtml = "", detailsHtml = "";
+  
   if (task.type === "signoff") {
     const hasSigned = staffId && task.signoffs.some(s => s.staffId === staffId);
     const signerCount = task.signoffs.length;
-    statusHtml = `<span class="status-badge ${signerCount > 0 ? 'status-done' : 'status-pending'}">${signerCount > 0 ? `` : '⏳ Not signed'}</span>`;
-    if (!hasSigned) actionHtml = `<button class="task-signoff-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✍️ Sign Off</button>`;
+    statusHtml = `<span class="status-badge ${signerCount > 0 ? 'status-done' : 'status-pending'}">${signerCount > 0 ? `✓ ${signerCount} signed` : '⏳ Not signed'}</span>`;
+    if (!hasSigned) actionHtml = `<button class="task-signoff-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:32px; touch-action:manipulation;">✍️ Sign Off</button>`;
     else actionHtml = `<span style="font-size:0.7rem; color:#0f5c3b;">✓ You signed</span>`;
     
-    // Show names of who signed (if any)
     if (task.signoffs.length > 0) {
       const names = task.signoffs.map(s => s.staffName).join(', ');
-      statusHtml += `<div style="font-size:0.7rem; color:#555; margin-top:0.2rem;">✍️ Signed by: ${escapeHtml(names)}</div>`;
+      detailsHtml = `<div class="task-details">✍️ Signed by: ${escapeHtml(names)}</div>`;
     }
   } else if (task.type === "complete") {
     const isCompleted = task.completedBy !== null;
     const completerName = isCompleted ? (staffList.find(s => s.id === task.completedBy)?.name || 'Someone') : null;
-    statusHtml = `<span class="status-badge ${isCompleted ? 'status-done' : 'status-pending'}">${isCompleted ? '' : '⏳ Pending'}</span>`;
-    if (!isCompleted) actionHtml = `<button class="task-complete-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">✔️ Complete</button>`;
-    
-    // Show completer name if completed
+    statusHtml = `<span class="status-badge ${isCompleted ? 'status-done' : 'status-pending'}">${isCompleted ? '✅ Completed' : '⏳ Pending'}</span>`;
+    if (!isCompleted) actionHtml = `<button class="task-complete-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:32px; touch-action:manipulation;">✔️ Complete</button>`;
     if (isCompleted && completerName) {
-      statusHtml += `<div style="font-size:0.7rem; color:#555; margin-top:0.2rem;">✅ Completed by: ${escapeHtml(completerName)}</div>`;
+      detailsHtml = `<div class="task-details">✅ Completed by: ${escapeHtml(completerName)}</div>`;
     }
   } else if (task.type === "submission") {
     const subs = task.submissions || [];
     statusHtml = `<span class="status-badge ${subs.length ? 'status-done' : 'status-pending'}">📋 ${subs.length} submission(s)</span>`;
     if (subs.length) {
-      statusHtml += `<div class="ack-staff-list" style="margin-top:0.2rem;">`;
+      detailsHtml = `<div class="task-details">`;
       subs.forEach((sub, idx) => {
         const isOwner = (authenticatedStaffId === sub.staffId);
         const canEdit = isOwner || supervisorLoggedIn;
-        statusHtml += `<span style="display:inline-block; background:#f1f5f9; border-radius:1rem; padding:0.2rem 0.5rem; margin:0.2rem;">✈️ ${escapeHtml(sub.staffName)}: ${escapeHtml(sub.value.length > 25 ? sub.value.substring(0,25)+'...' : sub.value)}`;
+        detailsHtml += `<span style="display:inline-block; background:#f1f5f9; border-radius:1rem; padding:0.2rem 0.5rem; margin:0.2rem;">✈️ ${escapeHtml(sub.staffName)}: ${escapeHtml(sub.value.length > 25 ? sub.value.substring(0,25)+'...' : sub.value)}`;
         if (canEdit) {
-          statusHtml += `<button class="edit-submission-btn" data-task-id="${task.id}" data-fb="${isFb}" data-idx="${idx}" style="background:#d97706; color:white; border:none; border-radius:0.5rem; padding:0.1rem 0.4rem; margin-left:0.3rem; cursor:pointer;">✏️</button>`;
+          detailsHtml += `<button class="edit-submission-btn" data-task-id="${task.id}" data-fb="${isFb}" data-idx="${idx}" style="background:#d97706; color:white; border:none; border-radius:0.5rem; padding:0.1rem 0.4rem; margin-left:0.3rem; cursor:pointer; font-size:0.7rem;">✏️</button>`;
         }
-        statusHtml += `</span>`;
+        detailsHtml += `</span>`;
       });
-      statusHtml += `</div>`;
+      detailsHtml += `</div>`;
     }
-    actionHtml = `<button class="task-submit-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:44px; touch-action:manipulation;">➕ Add Flight</button>`;
+    actionHtml = `<button class="task-submit-btn" data-id="${task.id}" data-fb="${isFb}" style="min-height:32px; touch-action:manipulation;">➕ Add Flight</button>`;
   }
-  return `<div class="daily-task-item"><div class="daily-task-text">${task.task}</div><div class="daily-task-status">${statusHtml}${actionHtml}</div></div>`;
-}
   
+  return `<div class="daily-task-item">
+            <div class="daily-task-text">${task.task}</div>
+            ${detailsHtml}
+            <div class="daily-task-status">${statusHtml}${actionHtml}</div>
+          </div>`;
+}
+
+
   mainContainer.innerHTML = MAIN_DAILY_TASKS.map(task => renderSingleTask(task, false)).join('');
   fbContainer.innerHTML = FB_DAILY_TASKS.map(task => renderSingleTask(task, true)).join('');
   
