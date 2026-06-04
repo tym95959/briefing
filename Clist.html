@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-    <title>Staff Portal | Pattern + Numeric Password Modal</title>
+    <title>Staff Portal | Firebase + Pattern/Numeric Auto‑Login</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- External clist.js (contains Firebase config & initialization) -->
+    <script src="clist.js"></script>
     <style>
         * {
             margin: 0;
@@ -11,29 +16,24 @@
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
         }
-
         body {
             background: linear-gradient(135deg, #f9e7b3 0%, #f5dc9c 100%);
-            font-family: system-ui, -apple-system, 'Segoe UI', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+            font-family: system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
             padding: 24px 20px;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-
-        /* main card – warm light gold */
         .app-card {
             max-width: 780px;
             width: 100%;
-            margin: 0 auto;
             background: #fffcf0;
             border-radius: 48px;
-            box-shadow: 0 25px 40px -12px rgba(120, 80, 20, 0.25);
+            box-shadow: 0 25px 40px -12px rgba(120,80,20,0.25);
             overflow: hidden;
             border: 1px solid #f3de9f;
         }
-
         .tabs-header {
             display: flex;
             background: #fff7e8;
@@ -41,7 +41,6 @@
             padding: 8px 24px 0 24px;
             gap: 20px;
         }
-
         .tab-btn {
             flex: 1;
             background: transparent;
@@ -51,57 +50,35 @@
             padding: 16px 8px 14px 8px;
             color: #b8860b;
             cursor: pointer;
-            transition: 0.2s ease;
             border-radius: 32px 32px 0 0;
-            letter-spacing: -0.3px;
+            transition: 0.2s;
         }
-
         .tab-btn.active {
             color: #8b6508;
             background: #fffcf0;
             border-bottom: 3px solid #e4b822;
-            font-weight: 700;
         }
-
         .tab-content {
             padding: 28px 26px 32px 26px;
             background: #fffcf0;
         }
-
-        .view-panel {
-            display: none;
-            animation: fadeIn 0.25s ease;
-        }
-
-        .view-panel.active-panel {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px);}
-            to { opacity: 1; transform: translateY(0);}
-        }
-
-        .field-group {
-            margin-bottom: 28px;
-        }
-
+        .view-panel { display: none; animation: fadeIn 0.2s; }
+        .view-panel.active-panel { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: translateY(0);} }
+        .field-group { margin-bottom: 28px; }
         .field-group label {
             display: flex;
             align-items: center;
             gap: 8px;
             font-weight: 600;
-            font-size: 1rem;
             color: #7a5c1a;
             margin-bottom: 12px;
         }
-
         select {
             width: 100%;
             padding: 16px 20px;
             font-size: 1rem;
-            font-weight: 500;
-            background-color: #fffcf0;
+            background: #fffcf0;
             border: 1.5px solid #e8d6a8;
             border-radius: 36px;
             color: #5c4311;
@@ -111,25 +88,15 @@
             background-repeat: no-repeat;
             background-position: right 20px center;
             background-size: 20px;
-            transition: 0.2s;
-            font-family: inherit;
         }
-
-        select:focus {
-            outline: none;
-            border-color: #e4b53e;
-            box-shadow: 0 0 0 3px rgba(228, 185, 62, 0.25);
-        }
-
         .info-card {
             background: #fffef7;
             border-radius: 32px;
             padding: 22px 26px;
             margin-top: 8px;
             border: 1px solid #f3e5bd;
-            box-shadow: 0 6px 14px rgba(110, 70, 10, 0.05);
+            box-shadow: 0 6px 14px rgba(110,70,10,0.05);
         }
-
         .info-title {
             font-size: 0.8rem;
             text-transform: uppercase;
@@ -138,68 +105,91 @@
             color: #c49a2b;
             margin-bottom: 18px;
         }
-
         .detail-row {
             display: flex;
             flex-wrap: wrap;
             padding: 12px 0;
             border-bottom: 1px solid #f4e9cf;
         }
-
-        .detail-row:last-child {
-            border-bottom: none;
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { width: 110px; font-weight: 600; color: #8b691b; }
+        .detail-value { flex: 1; color: #5c4311; word-break: break-word; }
+        .badge-role { background: #fcf2dc; display: inline-block; padding: 4px 14px; border-radius: 40px; color: #b57c1c; }
+        .footer-note { margin-top: 20px; text-align: center; font-size: 0.7rem; color: #b28b44; border-top: 1px solid #f1e4c4; padding-top: 16px; }
+        .error-message { color: #c25d2e; background: #fff2e6; border-radius: 28px; padding: 12px 16px; margin-top: 16px; text-align: center; }
+        
+        /* Add staff section */
+        .add-staff-section {
+            margin-top: 32px;
+            background: #fff7ec;
+            border-radius: 32px;
+            padding: 20px;
+            border: 1px solid #eedbba;
         }
-
-        .detail-label {
-            width: 110px;
-            font-weight: 600;
-            color: #8b691b;
-        }
-
-        .detail-value {
-            flex: 1;
-            color: #5c4311;
-            word-break: break-word;
-            font-weight: 500;
-        }
-
-        .badge-role {
-            background: #fcf2dc;
-            display: inline-block;
-            padding: 4px 14px;
-            border-radius: 40px;
-            font-size: 0.85rem;
-            color: #b57c1c;
-        }
-
-        .footer-note {
-            margin-top: 20px;
-            text-align: center;
-            font-size: 0.7rem;
-            color: #b28b44;
-            border-top: 1px solid #f1e4c4;
-            padding-top: 16px;
-        }
-
-        .error-message {
-            color: #c25d2e;
-            background: #fff2e6;
-            border-radius: 28px;
+        .add-staff-section h4 { color: #9b732a; margin-bottom: 16px; }
+        input, textarea {
+            width: 100%;
             padding: 12px 16px;
-            margin-top: 16px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            text-align: center;
+            margin-bottom: 12px;
+            background: #fffef5;
+            border: 1px solid #eedbba;
+            border-radius: 28px;
+            font-size: 0.95rem;
         }
-
-        /* ---------- MODAL STYLES (light gold theme) ---------- */
+        .mini-pattern {
+            margin: 10px 0;
+            background: #fffaf0;
+            border-radius: 28px;
+            padding: 12px;
+        }
+        .pattern-grid-mini {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 180px;
+            margin: 10px auto;
+        }
+        .dot-mini {
+            width: 45px;
+            height: 45px;
+            background: #f9efdc;
+            border-radius: 50%;
+            border: 2px solid #e4bc78;
+            cursor: pointer;
+        }
+        .dot-mini.selected { background: #e5c48a; transform: scale(0.96); }
+        .keypad-mini {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+        .key-mini {
+            background: #fcf3e2;
+            border: 1px solid #eedbbc;
+            border-radius: 40px;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .save-btn {
+            background: #e7c882;
+            border: none;
+            border-radius: 40px;
+            padding: 12px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 12px;
+            cursor: pointer;
+        }
+        /* Modal styles (same as before, but auto-submit) */
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
             backdrop-filter: blur(5px);
             display: flex;
             align-items: center;
@@ -207,224 +197,47 @@
             z-index: 1000;
             visibility: hidden;
             opacity: 0;
-            transition: visibility 0.2s, opacity 0.2s;
+            transition: 0.2s;
         }
-
-        .modal-overlay.active {
-            visibility: visible;
-            opacity: 1;
-        }
-
+        .modal-overlay.active { visibility: visible; opacity: 1; }
         .modal-container {
             background: #fffef5;
             border-radius: 56px;
             max-width: 480px;
             width: 90%;
             padding: 24px 20px 30px;
-            box-shadow: 0 30px 40px rgba(0, 0, 0, 0.3);
-            border: 1px solid #f5e2b0;
             text-align: center;
         }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 18px;
-            flex-wrap: wrap;
-        }
-
-        .modal-header h3 {
-            color: #b87c1a;
-            font-weight: 700;
-            font-size: 1.4rem;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 28px;
-            cursor: pointer;
-            color: #c29a46;
-            padding: 0 8px;
-        }
-
-        .modal-tabs {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-            border-bottom: 1px solid #f0e0bc;
-            padding-bottom: 8px;
-        }
-
+        .modal-tabs { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 1px solid #f0e0bc; padding-bottom: 8px; }
         .modal-tab-btn {
             flex: 1;
             background: transparent;
             border: none;
-            padding: 10px 12px;
-            font-size: 1.1rem;
+            padding: 10px;
             font-weight: 600;
             color: #ba8b2c;
             cursor: pointer;
             border-radius: 40px;
-            transition: 0.2s;
         }
-
-        .modal-tab-btn.active-tab {
-            background: #fbefd4;
-            color: #986b1a;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-        }
-
-        .tab-pane {
-            display: none;
-            animation: fadeQuick 0.2s;
-        }
-
-        .tab-pane.active-pane {
-            display: block;
-        }
-
-        @keyframes fadeQuick {
-            from { opacity: 0; transform: translateY(4px);}
-            to { opacity: 1; transform: translateY(0);}
-        }
-
-        /* pattern grid */
+        .modal-tab-btn.active-tab { background: #fbefd4; color: #986b1a; }
+        .tab-pane { display: none; }
+        .tab-pane.active-pane { display: block; }
         .pattern-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 20px;
-            justify-items: center;
-            align-items: center;
+            width: 260px;
             margin: 20px auto;
-            width: 260px;
         }
-
-        .dot {
-            width: 70px;
-            height: 70px;
-            background: #f9efdc;
-            border-radius: 50%;
-            border: 2px solid #e4bc78;
-            transition: 0.1s;
-            cursor: pointer;
-            position: relative;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-        }
-
-        .dot.selected {
-            background: #e5c48a;
-            border-color: #c9912e;
-            transform: scale(0.96);
-        }
-
-        .pattern-canvas-area {
-            position: relative;
-            display: flex;
-            justify-content: center;
-        }
-
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .pattern-wrapper {
-            position: relative;
-            width: 260px;
-            margin: 0 auto;
-        }
-
-        .pattern-status {
-            margin-top: 20px;
-            font-size: 0.85rem;
-            color: #a57334;
-        }
-
-        .pattern-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin: 15px 0 10px;
-        }
-
-        /* numeric keypad */
-        .numeric-display {
-            background: #fcf5e6;
-            border: 1px solid #eedbba;
-            border-radius: 48px;
-            padding: 16px 20px;
-            font-size: 1.8rem;
-            font-weight: 600;
-            text-align: center;
-            letter-spacing: 4px;
-            margin-bottom: 20px;
-            color: #754e16;
-        }
-
-        .keypad-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin: 15px 0;
-        }
-
-        .key-btn {
-            background: #fcf3e2;
-            border: 1px solid #eedbbc;
-            border-radius: 50px;
-            padding: 16px 0;
-            font-size: 1.6rem;
-            font-weight: 600;
-            color: #825e24;
-            cursor: pointer;
-            transition: 0.1s;
-        }
-
-        .key-btn:active { background: #ecdcaa; transform: scale(0.96);}
-        .action-btn {
-            background: #f8e9cf;
-            border-radius: 50px;
-            padding: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-        }
-
-        .modal-submit {
-            background: #e7c882;
-            border: none;
-            border-radius: 60px;
-            padding: 14px 20px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #543d12;
-            margin-top: 18px;
-            width: 100%;
-            cursor: pointer;
-        }
-
-        .modal-cancel {
-            background: #f2e2c6;
-            border: none;
-            border-radius: 60px;
-            padding: 12px 16px;
-            margin-top: 10px;
-            width: 100%;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        @media (max-width: 550px) {
-            .dot { width: 55px; height: 55px; }
-            .pattern-grid { gap: 12px; width: 210px; }
-            .pattern-wrapper { width: 210px; }
-            .modal-container { padding: 18px; }
-        }
+        .dot { width: 70px; height: 70px; background: #f9efdc; border-radius: 50%; border: 2px solid #e4bc78; cursor: pointer; }
+        .dot.selected { background: #e5c48a; }
+        .pattern-wrapper { position: relative; width: 260px; margin: 0 auto; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .numeric-display { background: #fcf5e6; border-radius: 48px; padding: 16px; font-size: 1.8rem; letter-spacing: 4px; margin-bottom: 20px; }
+        .keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 15px 0; }
+        .key-btn { background: #fcf3e2; border-radius: 50px; padding: 16px; font-size: 1.6rem; cursor: pointer; }
+        .action-btn { background: #f8e9cf; border-radius: 50px; padding: 12px; margin: 8px 4px; display: inline-block; cursor: pointer; }
+        @media (max-width: 550px) { .dot { width: 55px; height: 55px; } .pattern-grid { width: 210px; } .pattern-wrapper { width: 210px; } }
     </style>
 </head>
 <body>
@@ -435,453 +248,328 @@
         <button class="tab-btn" data-tab="supervisor">🛡️ Supervisor Tab</button>
     </div>
     <div class="tab-content">
-        <!-- STAFF VIEW PANEL -->
+        <!-- STAFF VIEW -->
         <div id="staffViewPanel" class="view-panel active-panel">
-            <div class="field-group">
-                <label>📋 Select staff member</label>
-                <select id="staffSelect" class="staff-dropdown"></select>
-            </div>
+            <div class="field-group"><label>📋 Select staff member</label><select id="staffSelect"></select></div>
             <div class="info-card">
                 <div class="info-title">👁️ STAFF INFORMATION (limited)</div>
-                <div id="staffDetailsArea">
-                    <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
-                </div>
-                <div class="footer-note">🔒 Password required (pattern / numeric)</div>
+                <div id="staffDetailsArea"><div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div>...</div>
+                <div class="footer-note">🔒 Authenticate with pattern or numeric</div>
             </div>
-            <div id="staffErrorMsg" class="error-message" style="display: none;"></div>
+            <div id="staffErrorMsg" class="error-message" style="display:none"></div>
         </div>
-
-        <!-- SUPERVISOR VIEW PANEL -->
+        <!-- SUPERVISOR VIEW + ADD STAFF -->
         <div id="supervisorViewPanel" class="view-panel">
-            <div class="field-group">
-                <label>🔐 Select staff member (supervisor)</label>
-                <select id="supervisorSelect" class="staff-dropdown"></select>
-            </div>
+            <div class="field-group"><label>🔐 Select staff member</label><select id="supervisorSelect"></select></div>
             <div class="info-card">
                 <div class="info-title">🛡️ SUPERVISOR DASHBOARD · full credentials</div>
-                <div id="supervisorDetailsArea">
-                    <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>
-                    <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>
-                </div>
-                <div class="footer-note">🛡️ Supervisor view shows full pass after auth</div>
+                <div id="supervisorDetailsArea"><div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div>...</div>
+                <div class="footer-note">Full access after authentication</div>
             </div>
-            <div id="supervisorErrorMsg" class="error-message" style="display: none;"></div>
+            <div id="supervisorErrorMsg" class="error-message" style="display:none"></div>
+            
+            <!-- Add new staff section -->
+            <div class="add-staff-section">
+                <h4>➕ Add new staff member</h4>
+                <input type="text" id="newName" placeholder="Full name" autocomplete="off">
+                <input type="text" id="newRole" placeholder="Role (e.g. Supervisor, Staff)">
+                <input type="text" id="newContact" placeholder="Contact (optional)">
+                <label>🔐 Pattern password (draw on grid):</label>
+                <div class="mini-pattern">
+                    <div class="pattern-grid-mini" id="miniPatternGrid"></div>
+                    <div style="text-align:center"><button type="button" id="resetMiniPattern" class="action-btn">Reset pattern</button></div>
+                </div>
+                <label>🔢 Numeric password:</label>
+                <div class="keypad-mini" id="miniKeypad"></div>
+                <div><input type="text" id="miniNumericDisplay" placeholder="Numeric password" readonly style="background:#faf0e0; text-align:center"></div>
+                <button id="saveNewStaffBtn" class="save-btn">💾 Save to Firebase</button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- PASSWORD MODAL (pattern + numeric) -->
+<!-- PASSWORD MODAL (auto-submit) -->
 <div id="passwordModal" class="modal-overlay">
     <div class="modal-container">
-        <div class="modal-header">
-            <h3 id="modalStaffName">Verify identity</h3>
-            <button class="modal-close" id="modalCloseBtn">&times;</button>
-        </div>
         <div class="modal-tabs">
             <button class="modal-tab-btn active-tab" data-modal-tab="pattern">🔐 Line Pattern</button>
             <button class="modal-tab-btn" data-modal-tab="numeric">🔢 Numeric</button>
         </div>
-        <!-- Pattern Tab -->
         <div id="patternTab" class="tab-pane active-pane">
-            <div class="pattern-wrapper">
-                <div class="pattern-grid" id="patternGrid"></div>
-                <canvas id="patternCanvas" width="260" height="260" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none;"></canvas>
-            </div>
-            <div class="pattern-status" id="patternStatus">Draw a pattern (connect dots)</div>
-            <div class="pattern-actions">
-                <button id="resetPatternBtn" class="action-btn">⟳ Reset</button>
-            </div>
+            <div class="pattern-wrapper"><div class="pattern-grid" id="patternGrid"></div><canvas id="patternCanvas" width="260" height="260"></canvas></div>
+            <div class="pattern-status" id="patternStatus">Draw a pattern → auto‑verify</div>
+            <button id="resetPatternBtn" class="action-btn">⟳ Reset</button>
         </div>
-        <!-- Numeric Tab -->
         <div id="numericTab" class="tab-pane">
             <div class="numeric-display" id="numericInput">____</div>
             <div class="keypad-grid" id="keypad"></div>
-            <div style="display: flex; gap: 12px;">
-                <button id="clearNumericBtn" class="action-btn" style="flex:1">Clear</button>
-                <button id="deleteNumericBtn" class="action-btn" style="flex:1">⌫</button>
-            </div>
+            <div><button id="clearNumericBtn" class="action-btn">Clear</button><button id="deleteNumericBtn" class="action-btn">⌫</button></div>
         </div>
-        <button id="modalSubmitBtn" class="modal-submit">✓ Verify access</button>
-        <button id="modalCancelBtn" class="modal-cancel">Cancel</button>
+        <div style="margin-top:12px; font-size:0.7rem;">✨ Auto‑verifies: pattern on release, numeric when length matches</div>
     </div>
 </div>
 
-<script type="module">
-    import { staffList } from './staff.js';
+<script>
+    // Wait for Firebase to be ready (clist.js already initialized)
+    const db = firebase.firestore();
+    const staffCollection = db.collection('staff');
 
-    // ---------- helper utils ----------
-    function escapeHtml(str) { return String(str??'').replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
-    function getStaffById(id) { return staffList.find(s => s.id === id); }
-
-    // ----- global modal state -----
-    let pendingAuth = { resolve: null, staff: null, viewType: null };  // viewType: 'staff' or 'supervisor'
-    let currentPatternSequence = [];   // array of dot numbers (1-9)
-    let currentNumericValue = '';
+    let currentModalResolve = null;
+    let currentStaffTarget = null;
+    let currentMode = null; // 'staff' or 'supervisor'
+    let activeModalTab = 'pattern';
+    let patternSequence = [];
+    let numericInputStr = '';
+    let storedPattern = '';
+    let storedNumeric = '';
     let isDrawing = false;
     let dotElements = [];
-    let ctx = null, canvas = null, patternWrapper = null, gridRect = null;
+    let ctx, canvas, patternWrapper;
 
-    // ----- pattern lock (3x3) numbers 1-9 -----
-    function initPatternLock() {
+    // ---------- Helper ----------
+    function escapeHtml(str) { return String(str??'').replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+    // ---------- Firestore: load staff into dropdowns ----------
+    let allStaff = [];
+    function refreshStaffDropdowns() {
+        const staffSelect = document.getElementById('staffSelect');
+        const supSelect = document.getElementById('supervisorSelect');
+        if (!staffSelect) return;
+        staffSelect.innerHTML = '';
+        supSelect.innerHTML = '';
+        allStaff.forEach(s => {
+            const opt1 = document.createElement('option'); opt1.value = s.id; opt1.textContent = s.name;
+            const opt2 = opt1.cloneNode(true);
+            staffSelect.appendChild(opt1);
+            supSelect.appendChild(opt2);
+        });
+        if (allStaff.length) { staffSelect.selectedIndex = 0; supSelect.selectedIndex = 0; }
+    }
+
+    // Listen to realtime updates
+    staffCollection.onSnapshot(snapshot => {
+        allStaff = [];
+        snapshot.forEach(doc => { allStaff.push({ id: doc.id, ...doc.data() }); });
+        refreshStaffDropdowns();
+    }, error => console.error("Firestore error:", error));
+
+    // Seed default staff if empty (Mohamed with pattern "12369" and numeric "1234")
+    async function seedDefaultStaff() {
+        const snap = await staffCollection.limit(1).get();
+        if (snap.empty) {
+            await staffCollection.add({
+                name: "Mohamed",
+                role: "Supervisor",
+                contact: "",
+                pattern: "12369",   // typical pattern: top-left to bottom-right
+                numeric: "1234"
+            });
+            console.log("Default staff seeded.");
+        }
+    }
+    seedDefaultStaff();
+
+    // ---------- Staff details rendering after auth ----------
+    function renderStaffView(staff) {
+        const container = document.getElementById('staffDetailsArea');
+        container.innerHTML = `
+            <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">${escapeHtml(staff.id)}</span></div>
+            <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">${escapeHtml(staff.name)}</span></div>
+            <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value"><span class="badge-role">${escapeHtml(staff.role)}</span></span></div>
+            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || '—')}</span></div>
+        `;
+    }
+    function renderSupervisorView(staff) {
+        const container = document.getElementById('supervisorDetailsArea');
+        container.innerHTML = `
+            <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">${escapeHtml(staff.id)}</span></div>
+            <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">${escapeHtml(staff.name)}</span></div>
+            <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value"><strong>${escapeHtml(staff.role)}</strong></span></div>
+            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || '—')}</span></div>
+            <div class="detail-row"><span class="detail-label">🔒 Pattern:</span><span class="detail-value"><code>${escapeHtml(staff.pattern || '—')}</code></span></div>
+            <div class="detail-row"><span class="detail-label">🔢 Numeric:</span><span class="detail-value"><code>${escapeHtml(staff.numeric || '—')}</code></span></div>
+        `;
+    }
+
+    // ---------- Modal auto-submit logic ----------
+    function closeModal(success) { 
+        document.getElementById('passwordModal').classList.remove('active');
+        if (currentModalResolve) currentModalResolve(success);
+        currentModalResolve = null;
+    }
+    async function verifyAndClose() {
+        let input = '';
+        if (activeModalTab === 'pattern') input = patternSequence.join('');
+        else input = numericInputStr;
+        const stored = activeModalTab === 'pattern' ? storedPattern : storedNumeric;
+        if (input === stored) {
+            closeModal(true);
+        } else {
+            // show error briefly
+            const statusDiv = document.getElementById('patternStatus');
+            if (activeModalTab === 'pattern') statusDiv.innerText = '❌ Wrong pattern! Try again.';
+            else document.getElementById('numericInput').innerText = '❌ Wrong PIN';
+            setTimeout(() => {
+                if (activeModalTab === 'pattern') statusDiv.innerText = 'Draw a pattern → auto‑verify';
+                else document.getElementById('numericInput').innerText = numericInputStr || '____';
+            }, 1000);
+            if (activeModalTab === 'pattern') resetPattern();
+            else clearNumeric();
+        }
+    }
+    function resetPattern() { patternSequence = []; drawPatternLines(); updatePatternStatus(); }
+    function clearNumeric() { numericInputStr = ''; updateNumericDisplay(); }
+    function updateNumericDisplay() { document.getElementById('numericInput').innerText = numericInputStr || '____'; }
+    function appendNumeric(d) { numericInputStr += d; updateNumericDisplay(); if (numericInputStr.length === storedNumeric.length) verifyAndClose(); }
+    function deleteNumeric() { numericInputStr = numericInputStr.slice(0,-1); updateNumericDisplay(); }
+
+    // Pattern drawing logic
+    function initPatternModal() {
         const grid = document.getElementById('patternGrid');
-        if (!grid) return;
         grid.innerHTML = '';
         dotElements = [];
-        for (let i = 1; i <= 9; i++) {
-            const dot = document.createElement('div');
-            dot.className = 'dot';
-            dot.dataset.value = i;
+        for (let i=1;i<=9;i++) {
+            const dot = document.createElement('div'); dot.className = 'dot'; dot.dataset.val = i;
             dot.addEventListener('mousedown', (e) => startPattern(e, i));
             dot.addEventListener('touchstart', (e) => { e.preventDefault(); startPattern(e, i); });
             grid.appendChild(dot);
             dotElements.push(dot);
         }
-        canvas = document.getElementById('patternCanvas');
-        ctx = canvas.getContext('2d');
+        canvas = document.getElementById('patternCanvas'); ctx = canvas.getContext('2d');
         patternWrapper = document.querySelector('.pattern-wrapper');
-        resizeAndDrawCanvas();
-        window.addEventListener('resize', () => resizeAndDrawCanvas());
-        attachGlobalEvents();
-    }
-
-    function resizeAndDrawCanvas() {
-        if (!patternWrapper || !canvas) return;
-        const rect = patternWrapper.getBoundingClientRect();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
-        canvas.style.width = `${rect.width}px`;
-        canvas.style.height = `${rect.height}px`;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawPatternLines();
-    }
-
-    function getDotCenter(value) {
-        const idx = value - 1;
-        const dot = dotElements[idx];
-        if (!dot) return null;
-        const parentRect = patternWrapper.getBoundingClientRect();
-        const dotRect = dot.getBoundingClientRect();
-        const x = dotRect.left + dotRect.width/2 - parentRect.left;
-        const y = dotRect.top + dotRect.height/2 - parentRect.top;
-        return { x, y };
-    }
-
-    function drawPatternLines() {
-        if (!ctx) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (currentPatternSequence.length < 2) return;
-        ctx.beginPath();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#d4a13e';
-        ctx.lineCap = 'round';
-        for (let i = 0; i < currentPatternSequence.length - 1; i++) {
-            const from = getDotCenter(currentPatternSequence[i]);
-            const to = getDotCenter(currentPatternSequence[i+1]);
-            if (from && to) {
-                ctx.beginPath();
-                ctx.moveTo(from.x, from.y);
-                ctx.lineTo(to.x, to.y);
-                ctx.stroke();
-            }
-        }
-        // draw dots glow
-        dotElements.forEach(dot => dot.classList.remove('selected'));
-        currentPatternSequence.forEach(val => {
-            const dot = dotElements[val-1];
-            if (dot) dot.classList.add('selected');
-        });
-    }
-
-    function startPattern(e, dotVal) {
-        e.preventDefault();
-        if (!pendingAuth.staff) return;
-        isDrawing = true;
-        const index = currentPatternSequence.indexOf(dotVal);
-        if (index === -1) {
-            currentPatternSequence.push(dotVal);
-        } else {
-            // if already visited, trim after that point (like typical pattern)
-            currentPatternSequence = currentPatternSequence.slice(0, index+1);
-        }
-        drawPatternLines();
-        updatePatternStatus();
-    }
-
-    function onPatternMove(e) {
-        if (!isDrawing || !pendingAuth.staff) return;
-        const touch = e.touches ? e.touches[0] : e;
-        const elem = document.elementsFromPoint(touch.clientX, touch.clientY);
-        for (let el of elem) {
-            if (el.classList && el.classList.contains('dot')) {
-                const val = parseInt(el.dataset.value);
-                if (val && currentPatternSequence[currentPatternSequence.length-1] !== val) {
-                    if (!currentPatternSequence.includes(val)) {
-                        currentPatternSequence.push(val);
-                        drawPatternLines();
-                        updatePatternStatus();
-                    } else {
-                        // revisit - reset from that point?
-                        const idx = currentPatternSequence.indexOf(val);
-                        if (idx !== -1 && idx !== currentPatternSequence.length-1) {
-                            currentPatternSequence = currentPatternSequence.slice(0, idx+1);
-                            drawPatternLines();
-                            updatePatternStatus();
-                        }
-                    }
-                }
-                break;
-            }
-        }
-    }
-
-    function endPattern() { isDrawing = false; }
-    function attachGlobalEvents() {
+        window.addEventListener('resize', () => resizeCanvas());
+        resizeCanvas();
         window.addEventListener('mouseup', endPattern);
         window.addEventListener('touchend', endPattern);
         window.addEventListener('mousemove', onPatternMove);
         window.addEventListener('touchmove', (e) => { e.preventDefault(); onPatternMove(e); });
     }
-
-    function resetPattern() {
-        currentPatternSequence = [];
-        drawPatternLines();
-        updatePatternStatus();
-    }
-
-    function updatePatternStatus() {
-        const statusDiv = document.getElementById('patternStatus');
-        if (statusDiv) statusDiv.innerText = currentPatternSequence.length ? `Pattern: ${currentPatternSequence.join(' → ')}` : 'Draw a pattern (connect dots)';
-    }
-
-    function getPatternString() { return currentPatternSequence.join(''); }
-
-    // ----- numeric keypad -----
-    function buildKeypad() {
-        const pad = document.getElementById('keypad');
-        if (!pad) return;
-        pad.innerHTML = '';
-        for (let i = 1; i <= 9; i++) {
-            const btn = document.createElement('div');
-            btn.className = 'key-btn';
-            btn.innerText = i;
-            btn.addEventListener('click', () => appendNumeric(i.toString()));
-            pad.appendChild(btn);
+    function resizeCanvas() { if(!patternWrapper) return; const rect = patternWrapper.getBoundingClientRect(); canvas.width = rect.width; canvas.height = rect.height; canvas.style.width = `${rect.width}px`; canvas.style.height = `${rect.height}px`; drawPatternLines(); }
+    function getDotCenter(val) { const idx = val-1; const dot = dotElements[idx]; if(!dot) return null; const prect = patternWrapper.getBoundingClientRect(); const drect = dot.getBoundingClientRect(); return { x: drect.left + drect.width/2 - prect.left, y: drect.top + drect.height/2 - prect.top }; }
+    function drawPatternLines() {
+        if(!ctx) return; ctx.clearRect(0,0,canvas.width,canvas.height); if(patternSequence.length<2) return;
+        ctx.beginPath(); ctx.lineWidth=4; ctx.strokeStyle='#d4a13e';
+        for(let i=0;i<patternSequence.length-1;i++) {
+            const from = getDotCenter(patternSequence[i]), to = getDotCenter(patternSequence[i+1]);
+            if(from && to) { ctx.beginPath(); ctx.moveTo(from.x,from.y); ctx.lineTo(to.x,to.y); ctx.stroke(); }
         }
-        const zeroBtn = document.createElement('div');
-        zeroBtn.className = 'key-btn';
-        zeroBtn.innerText = '0';
-        zeroBtn.addEventListener('click', () => appendNumeric('0'));
-        pad.appendChild(zeroBtn);
-        const dummy = document.createElement('div'); dummy.style.visibility = 'hidden'; pad.appendChild(dummy);
+        dotElements.forEach(d => d.classList.remove('selected'));
+        patternSequence.forEach(v => { if(dotElements[v-1]) dotElements[v-1].classList.add('selected'); });
     }
+    function startPattern(e, val) { if(!currentModalResolve) return; isDrawing=true; if(!patternSequence.includes(val)) patternSequence.push(val); else { const idx = patternSequence.indexOf(val); patternSequence = patternSequence.slice(0, idx+1); } drawPatternLines(); updatePatternStatus(); }
+    function onPatternMove(e) { if(!isDrawing) return; const point = e.touches ? e.touches[0] : e; const elem = document.elementsFromPoint(point.clientX, point.clientY); for(let el of elem) { if(el.classList && el.classList.contains('dot')) { const v = parseInt(el.dataset.val); if(v && patternSequence[patternSequence.length-1] !== v) { if(!patternSequence.includes(v)) patternSequence.push(v); else { const idx = patternSequence.indexOf(v); patternSequence = patternSequence.slice(0, idx+1); } drawPatternLines(); updatePatternStatus(); } break; } } }
+    function endPattern() { if(isDrawing && currentModalResolve) { isDrawing=false; verifyAndClose(); } else isDrawing=false; }
+    function updatePatternStatus() { document.getElementById('patternStatus').innerText = patternSequence.length ? `Pattern: ${patternSequence.join('→')}` : 'Draw a pattern → auto‑verify'; }
 
-    function appendNumeric(digit) {
-        if (currentNumericValue.length < 8) currentNumericValue += digit;
-        updateNumericDisplay();
-    }
-
-    function clearNumeric() { currentNumericValue = ''; updateNumericDisplay(); }
-    function deleteNumeric() { currentNumericValue = currentNumericValue.slice(0, -1); updateNumericDisplay(); }
-    function updateNumericDisplay() {
-        const disp = document.getElementById('numericInput');
-        if (disp) disp.innerText = currentNumericValue || '____';
-    }
-
-    // ----- modal UI logic with tabs -----
-    let activeModalTab = 'pattern';
-    function switchModalTab(tabId) {
-        activeModalTab = tabId;
-        document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active-tab'));
-        document.querySelector(`.modal-tab-btn[data-modal-tab="${tabId}"]`).classList.add('active-tab');
-        document.getElementById('patternTab').classList.toggle('active-pane', tabId === 'pattern');
-        document.getElementById('numericTab').classList.toggle('active-pane', tabId === 'numeric');
-        if (tabId === 'pattern') resizeAndDrawCanvas();
-    }
-
-    function openPasswordModal(staff, viewType) {
+    function openModal(staff, mode) {
         return new Promise((resolve) => {
-            pendingAuth = { resolve, staff, viewType };
-            document.getElementById('modalStaffName').innerText = `🔐 ${escapeHtml(staff.name)}`;
-            // reset pattern & numeric
-            resetPattern();
-            currentNumericValue = '';
+            currentModalResolve = resolve;
+            currentStaffTarget = staff;
+            currentMode = mode;
+            storedPattern = staff.pattern || '';
+            storedNumeric = staff.numeric || '';
+            patternSequence = [];
+            numericInputStr = '';
             updateNumericDisplay();
+            resetPattern();
             activeModalTab = 'pattern';
-            switchModalTab('pattern');
+            document.querySelectorAll('.modal-tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+            document.querySelector('.modal-tab-btn[data-modal-tab="pattern"]').classList.add('active-tab');
+            document.getElementById('patternTab').classList.add('active-pane');
+            document.getElementById('numericTab').classList.remove('active-pane');
+            resizeCanvas();
             document.getElementById('passwordModal').classList.add('active');
         });
     }
 
-    async function verifyAndClose() {
-        const { resolve, staff, viewType } = pendingAuth;
-        if (!staff || !resolve) {
-            closeModal(false);
-            return;
-        }
-        let inputPass = '';
-        if (activeModalTab === 'pattern') {
-            inputPass = getPatternString();
-        } else {
-            inputPass = currentNumericValue;
-        }
-        const storedPass = staff.pass ? String(staff.pass) : '';
-        if (inputPass === storedPass) {
-            closeModal(true);
-            resolve({ success: true, staff });
-        } else {
-            // wrong password: show error inside modal briefly
-            const statusDiv = activeModalTab === 'pattern' ? document.getElementById('patternStatus') : null;
-            if (statusDiv) statusDiv.innerText = '❌ Wrong pattern! Try again.';
-            else {
-                const disp = document.getElementById('numericInput');
-                const original = disp.innerText;
-                disp.innerText = '❌ Wrong PIN';
-                setTimeout(() => { if (disp) disp.innerText = original; }, 1200);
-            }
-            if (activeModalTab === 'pattern') resetPattern();
-            else clearNumeric();
-        }
+    // ---------- Dropdown selection handlers ----------
+    async function onStaffSelect() {
+        const select = document.getElementById('staffSelect');
+        const staffId = select.value;
+        const staff = allStaff.find(s => s.id === staffId);
+        if(!staff) return;
+        const ok = await openModal(staff, 'staff');
+        if(ok) renderStaffView(staff);
+        else { if(allStaff.length) select.value = allStaff[0].id; }
+    }
+    async function onSupervisorSelect() {
+        const select = document.getElementById('supervisorSelect');
+        const staffId = select.value;
+        const staff = allStaff.find(s => s.id === staffId);
+        if(!staff) return;
+        const ok = await openModal(staff, 'supervisor');
+        if(ok) renderSupervisorView(staff);
+        else { if(allStaff.length) select.value = allStaff[0].id; }
     }
 
-    function closeModal(success = false) {
-        document.getElementById('passwordModal').classList.remove('active');
-        if (pendingAuth.resolve && !success) pendingAuth.resolve({ success: false });
-        pendingAuth = { resolve: null, staff: null, viewType: null };
+    // ---------- Add new staff (pattern + numeric) ----------
+    let miniPatternSeq = [];
+    let miniNumeric = '';
+    function renderMiniPattern() { const grid=document.getElementById('miniPatternGrid'); grid.innerHTML=''; for(let i=1;i<=9;i++){ const d=document.createElement('div'); d.className='dot-mini'; d.dataset.val=i; d.addEventListener('click',()=>{ if(!miniPatternSeq.includes(i)) miniPatternSeq.push(i); else miniPatternSeq=miniPatternSeq.slice(0, miniPatternSeq.indexOf(i)+1); renderMiniPattern(); }); if(miniPatternSeq.includes(i)) d.classList.add('selected'); grid.appendChild(d); } }
+    function resetMiniPattern() { miniPatternSeq=[]; renderMiniPattern(); }
+    function buildMiniKeypad() { const pad=document.getElementById('miniKeypad'); pad.innerHTML=''; for(let i=1;i<=9;i++){ const b=document.createElement('div'); b.className='key-mini'; b.textContent=i; b.onclick=()=>{ miniNumeric+=i; document.getElementById('miniNumericDisplay').value=miniNumeric; }; pad.appendChild(b); } const z=document.createElement('div'); z.className='key-mini'; z.textContent='0'; z.onclick=()=>{ miniNumeric+=0; document.getElementById('miniNumericDisplay').value=miniNumeric; }; pad.appendChild(z); const cl=document.createElement('div'); cl.className='key-mini'; cl.textContent='⌫'; cl.onclick=()=>{ miniNumeric=miniNumeric.slice(0,-1); document.getElementById('miniNumericDisplay').value=miniNumeric; }; pad.appendChild(cl); }
+    async function saveNewStaff() {
+        const name = document.getElementById('newName').value.trim();
+        const role = document.getElementById('newRole').value.trim();
+        const contact = document.getElementById('newContact').value.trim();
+        if(!name) { alert("Name required"); return; }
+        const patternStr = miniPatternSeq.join('');
+        const numericStr = miniNumeric;
+        if(!patternStr && !numericStr) { alert("Set at least pattern or numeric password"); return; }
+        await staffCollection.add({ name, role, contact, pattern: patternStr, numeric: numericStr });
+        document.getElementById('newName').value = '';
+        document.getElementById('newRole').value = '';
+        document.getElementById('newContact').value = '';
+        miniPatternSeq = []; renderMiniPattern();
+        miniNumeric = ''; document.getElementById('miniNumericDisplay').value = '';
+        alert("Staff saved to Firebase!");
     }
 
-    // ----- Staff view and Supervisor view handlers (using modal) -----
-    let staffLastValidId = null, supervisorLastValidId = null;
-    function renderStaffView(staff) {
-        const container = document.getElementById('staffDetailsArea');
-        if (!staff) return;
-        container.innerHTML = `
-            <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">${escapeHtml(staff.id)}</span></div>
-            <div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">${escapeHtml(staff.name)}</span></div>
-            <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value"><span class="badge-role">${escapeHtml(staff.role)}</span></span></div>
-            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || 'Not provided')}</span></div>
-        `;
-        staffLastValidId = staff.id;
-    }
-    function renderSupervisorView(staff) {
-        const container = document.getElementById('supervisorDetailsArea');
-        if (!staff) return;
-        container.innerHTML = `
-            <div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">${escapeHtml(staff.id)}</span></div>
-            <div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">${escapeHtml(staff.name)}</span></div>
-            <div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value"><strong>${escapeHtml(staff.role)}</strong></span></div>
-            <div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">${escapeHtml(staff.contact || 'Not provided')}</span></div>
-            <div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value"><code>${escapeHtml(staff.pass)}</code></span></div>
-        `;
-        supervisorLastValidId = staff.id;
-    }
-    function resetStaffPlaceholder() { 
-        document.getElementById('staffDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Full name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div>`;
-        staffLastValidId = null;
-    }
-    function resetSupervisorPlaceholder() {
-        document.getElementById('supervisorDetailsArea').innerHTML = `<div class="detail-row"><span class="detail-label">ID:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Name:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Role:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">Contact:</span><span class="detail-value">—</span></div><div class="detail-row"><span class="detail-label">🔑 Password:</span><span class="detail-value">—</span></div>`;
-        supervisorLastValidId = null;
-    }
-
-    async function onStaffSelect(staff, dropdown) {
-        const auth = await openPasswordModal(staff, 'staff');
-        if (auth.success) {
-            renderStaffView(staff);
-        } else {
-            if (staffLastValidId) {
-                dropdown.value = staffLastValidId;
-                const validStaff = getStaffById(staffLastValidId);
-                if (validStaff) renderStaffView(validStaff);
-            } else {
-                resetStaffPlaceholder();
-                if (staffList.length) dropdown.value = staffList[0].id;
-            }
-        }
-    }
-    async function onSupervisorSelect(staff, dropdown) {
-        const auth = await openPasswordModal(staff, 'supervisor');
-        if (auth.success) {
-            renderSupervisorView(staff);
-        } else {
-            if (supervisorLastValidId) {
-                dropdown.value = supervisorLastValidId;
-                const validStaff = getStaffById(supervisorLastValidId);
-                if (validStaff) renderSupervisorView(validStaff);
-            } else {
-                resetSupervisorPlaceholder();
-                if (staffList.length) dropdown.value = staffList[0].id;
-            }
-        }
-    }
-
-    function populateNameDropdown(selectEl) {
-        selectEl.innerHTML = '';
-        staffList.forEach(s => { const opt = document.createElement('option'); opt.value = s.id; opt.textContent = s.name; selectEl.appendChild(opt); });
-        if (staffList.length) selectEl.selectedIndex = 0;
-    }
-
-    function initViews() {
-        const staffDropdown = document.getElementById('staffSelect');
-        const supDropdown = document.getElementById('supervisorSelect');
-        populateNameDropdown(staffDropdown);
-        populateNameDropdown(supDropdown);
-        resetStaffPlaceholder();
-        resetSupervisorPlaceholder();
-        staffDropdown.addEventListener('change', async (e) => {
-            const id = e.target.value;
-            const staff = getStaffById(id);
-            if (staff) await onStaffSelect(staff, staffDropdown);
-        });
-        supDropdown.addEventListener('change', async (e) => {
-            const id = e.target.value;
-            const staff = getStaffById(id);
-            if (staff) await onSupervisorSelect(staff, supDropdown);
-        });
-    }
-
-    // Tabs switching (main)
-    function initMainTabs() {
+    // ---------- Tab switching ----------
+    function initTabs() {
         const btns = document.querySelectorAll('.tab-btn');
         const staffPanel = document.getElementById('staffViewPanel');
         const supPanel = document.getElementById('supervisorViewPanel');
         btns.forEach(btn => {
             btn.addEventListener('click', () => {
-                const which = btn.dataset.tab;
                 btns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                if (which === 'staff') { staffPanel.classList.add('active-panel'); supPanel.classList.remove('active-panel'); }
+                if(btn.dataset.tab === 'staff') { staffPanel.classList.add('active-panel'); supPanel.classList.remove('active-panel'); }
                 else { supPanel.classList.add('active-panel'); staffPanel.classList.remove('active-panel'); }
             });
         });
     }
 
-    // Modal events
-    function bindModalEvents() {
-        document.getElementById('modalCloseBtn').onclick = () => closeModal(false);
-        document.getElementById('modalCancelBtn').onclick = () => closeModal(false);
-        document.getElementById('modalSubmitBtn').onclick = verifyAndClose;
-        document.querySelectorAll('.modal-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => switchModalTab(btn.dataset.modalTab));
-        });
-        document.getElementById('resetPatternBtn').onclick = () => resetPattern();
-        document.getElementById('clearNumericBtn').onclick = () => clearNumeric();
-        document.getElementById('deleteNumericBtn').onclick = () => deleteNumeric();
-    }
-
-    // Start
+    // ---------- DOM ready ----------
     document.addEventListener('DOMContentLoaded', () => {
-        if (!staffList || staffList.length === 0) return;
-        initPatternLock();
-        buildKeypad();
-        bindModalEvents();
-        initMainTabs();
-        initViews();
+        initTabs();
+        initPatternModal();
+        document.getElementById('staffSelect').addEventListener('change', onStaffSelect);
+        document.getElementById('supervisorSelect').addEventListener('change', onSupervisorSelect);
+        document.getElementById('resetPatternBtn').addEventListener('click', resetPattern);
+        document.getElementById('clearNumericBtn').addEventListener('click', clearNumeric);
+        document.getElementById('deleteNumericBtn').addEventListener('click', deleteNumeric);
+        // numeric keypad for modal
+        const keypadDiv = document.getElementById('keypad');
+        for(let i=1;i<=9;i++) { const btn = document.createElement('div'); btn.className='key-btn'; btn.textContent=i; btn.onclick=()=>appendNumeric(i.toString()); keypadDiv.appendChild(btn); }
+        const zero = document.createElement('div'); zero.className='key-btn'; zero.textContent='0'; zero.onclick=()=>appendNumeric('0'); keypadDiv.appendChild(zero);
+        // tab switching in modal
+        document.querySelectorAll('.modal-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                activeModalTab = btn.dataset.modalTab;
+                document.querySelectorAll('.modal-tab-btn').forEach(b=>b.classList.remove('active-tab'));
+                btn.classList.add('active-tab');
+                document.getElementById('patternTab').classList.toggle('active-pane', activeModalTab==='pattern');
+                document.getElementById('numericTab').classList.toggle('active-pane', activeModalTab==='numeric');
+                if(activeModalTab==='pattern') resizeCanvas();
+            });
+        });
+        // Add staff UI
+        renderMiniPattern(); buildMiniKeypad();
+        document.getElementById('resetMiniPattern').onclick = resetMiniPattern;
+        document.getElementById('saveNewStaffBtn').onclick = saveNewStaff;
+        // close modal on overlay click (simple)
+        document.getElementById('passwordModal').addEventListener('click', (e) => { if(e.target === document.getElementById('passwordModal')) closeModal(false); });
     });
 </script>
 </body>
