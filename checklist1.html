@@ -1792,18 +1792,50 @@ function showSupervisorVerification(staff) {
   document.getElementById('superVerificationArea').style.display = 'block';
 }
 
+
+function refreshSupervisorLogin() {
+  // Reset the supervisor select element and reattach events
+  const oldSelect = document.getElementById('supervisorSelect');
+  if (!oldSelect) return;
+
+  // Completely rebuild the supervisor select with fresh DOM
+  const parent = oldSelect.parentNode;
+  const newSelect = document.createElement('select');
+  newSelect.id = 'supervisorSelect';
+  newSelect.style.cssText = oldSelect.style.cssText;
+  parent.replaceChild(newSelect, oldSelect);
+
+  // Re-run the full initialization (which includes fixSelectForIPad and event binding)
+  initSupervisorLogin();
+
+  // If a supervisor was previously logged in, restore UI state
+  if (supervisorLoggedIn && supervisorAuthStaffId) {
+    const staff = staffList.find(s => s.id === supervisorAuthStaffId);
+    if (staff) {
+      // Re-authenticate silently (skip password prompt)
+      document.getElementById("superAuthArea").style.display = "none";
+      document.getElementById("superDashboard").style.display = "block";
+      setGlobalControlsEnabled(true);
+      refreshAllViews();
+    } else {
+      // Invalid session – force logout
+      logoutSupervisor();
+    }
+  }
+}
+
+
 function initSupervisorLogin() {
   let supervisorSelect = document.getElementById('supervisorSelect');
   if (!supervisorSelect) return;
 
-  // Apply iPad fix: clone to reset iOS internal state
+  // iPad fix: clone to reset iOS internal state
   supervisorSelect = fixSelectForIPad(supervisorSelect);
 
   const supervisors = staffList.filter(s => s.role === "Supervisor");
   supervisorSelect.innerHTML = '<option value="">-- Select Supervisor --</option>' +
     supervisors.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
 
-  // Replace with fresh clone to avoid stale event handlers
   const newSelect = supervisorSelect.cloneNode(true);
   supervisorSelect.parentNode.replaceChild(newSelect, supervisorSelect);
 
@@ -1823,10 +1855,8 @@ function initSupervisorLogin() {
     }
   };
 
-  // Use both events for maximum iPad compatibility
   newSelect.addEventListener('change', handleSupervisorChange);
   newSelect.addEventListener('input', handleSupervisorChange);
-  // Prevent touchstart from blocking native dropdown
   newSelect.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
 }
 
@@ -3134,7 +3164,52 @@ function renderAllSod() {
 }
 
 
-function initMainTabs() { const staffPane = document.getElementById("staffMainPane"); const supervisorPane = document.getElementById("supervisorMainPane"); function switchTab(tabId) { staffPane.classList.remove("active-pane"); supervisorPane.classList.remove("active-pane"); if (tabId === "staff") { staffPane.classList.add("active-pane"); renderBreakTimeBadges(); loadCompleteStaffDashboard(); renderDailyTasksUI(); updateStaffDisplay(); } else if (tabId === "supervisor") { supervisorPane.classList.add("active-pane"); if (supervisorLoggedIn) refreshAllViews(); else { document.getElementById("superAuthArea").style.display = "block"; document.getElementById("superDashboard").style.display = "none"; } } document.querySelectorAll(".main-tab-btn").forEach(b => { if (b.dataset.tab === tabId) b.classList.add("active"); else b.classList.remove("active"); }); } const btns = document.querySelectorAll(".main-tab-btn"); btns.forEach(btn => { const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn); const handleTabClick = function(e) { e.preventDefault(); switchTab(this.dataset.tab); }; newBtn.addEventListener('click', handleTabClick); newBtn.addEventListener('touchstart', handleTabClick, { passive: false }); }); }
+function initMainTabs() {
+  const staffPane = document.getElementById("staffMainPane");
+  const supervisorPane = document.getElementById("supervisorMainPane");
+
+  function switchTab(tabId) {
+    staffPane.classList.remove("active-pane");
+    supervisorPane.classList.remove("active-pane");
+
+    if (tabId === "staff") {
+      staffPane.classList.add("active-pane");
+      renderBreakTimeBadges();
+      loadCompleteStaffDashboard();
+      renderDailyTasksUI();
+      updateStaffDisplay();
+    } else if (tabId === "supervisor") {
+      supervisorPane.classList.add("active-pane");
+      
+      // ✅ CRITICAL: Refresh supervisor login UI every time we enter supervisor view
+      refreshSupervisorLogin();
+
+      if (supervisorLoggedIn) {
+        refreshAllViews();
+      } else {
+        document.getElementById("superAuthArea").style.display = "block";
+        document.getElementById("superDashboard").style.display = "none";
+      }
+    }
+
+    document.querySelectorAll(".main-tab-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.tab === tabId);
+    });
+  }
+
+  const btns = document.querySelectorAll(".main-tab-btn");
+  btns.forEach(btn => {
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    const handleTabClick = function(e) {
+      e.preventDefault();
+      switchTab(this.dataset.tab);
+    };
+    newBtn.addEventListener('click', handleTabClick);
+    newBtn.addEventListener('touchstart', handleTabClick, { passive: false });
+  });
+}
+
 
 function renderAllocationPool() {
   const container = document.getElementById("allocationPoolContainer");
