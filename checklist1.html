@@ -398,22 +398,24 @@ hr { margin: 1rem 0; }
   padding: 0.8rem;
   margin-bottom: 0.6rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 0.5rem;
 }
 
 .daily-task-text {
-  flex: 2;
+  width: 100%;
   font-size: 0.85rem;
   font-weight: 500;
   color: #1e293b;
+  margin-bottom: 0.25rem;
 }
 
 .daily-task-status {
+  width: 100%;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
@@ -1070,12 +1072,12 @@ async function showProfileModal(staff) {
         <button id="verifyForPatternBtn" class="profile-btn-warning" style="background: #d97706;">✓ Verify & Start Pattern Change</button>
         <div id="patternChangeArea" style="display: none; margin-top: 1rem;">
           <p style="font-size: 0.8rem; color: #b8860b; margin-bottom: 0.5rem;">Draw your NEW pattern (at least 3 dots):</p>
-          <div class="pattern-grid" id="newPatternGrid" style="margin: 0.5rem auto; width: 200px; gap: 0.5rem; touch-action: none;">
-            ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 50px; height: 50px;"></div>`).join('')}
+          <div class="pattern-grid" id="newPatternGrid" style="margin: 1rem auto; width: 280px; gap: 1.2rem; touch-action: none;">
+            ${[1,2,3,4,5,6,7,8,9].map(i => `<div class="pattern-dot" data-num="${i}" style="width: 70px; height: 70px;"></div>`).join('')}
           </div>
-          <div id="newPatternPreview" style="font-size: 0.7rem; text-align: center; margin: 0.5rem 0;">Draw your pattern...</div>
+          <div id="newPatternPreview" style="font-size: 0.8rem; text-align: center; margin: 0.8rem 0;">Draw your pattern...</div>
           <div id="patternDebug" style="font-size: 0.7rem; color: #666; text-align: center;"></div>
-          <div style="display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.5rem;">
+          <div style="display: flex; gap: 0.8rem; justify-content: center; margin-top: 0.8rem;">
             <button id="savePatternBtn" class="profile-btn" style="background: #0f5c3b;">💾 Save New Pattern</button>
             <button id="clearPatternBtn" class="profile-btn" style="background: #6b7280;">🗑️ Clear</button>
           </div>
@@ -1156,7 +1158,7 @@ async function showProfileModal(staff) {
     };
   });
   
-  // ========== ROBUST PATTERN DRAWING (supports complex patterns) ==========
+  // ========== IMPROVED PATTERN DRAWING WITH LARGER DOTS & BETTER DETECTION ==========
   const verifyPatternBtn = modal.querySelector('#verifyForPatternBtn');
   const patternCurrentPass = modal.querySelector('#patternCurrentPass');
   const patternChangeArea = modal.querySelector('#patternChangeArea');
@@ -1174,14 +1176,14 @@ async function showProfileModal(staff) {
   let patternDrawListenersAttached = false;
   let drawHandler, endDrawHandler;
   
-  // Get dot center coordinates
+  // Get center coordinates of a dot
   function getDotCenter(dotElement) {
     const rect = dotElement.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   }
   
-  // Find closest dot within radius
-  function findClosestDot(clientX, clientY, maxRadius = 50) {
+  // Find the dot that is closest to the given point (tight radius)
+  function findClosestDot(clientX, clientY, maxRadius = 35) {
     let closest = null;
     let minDist = maxRadius;
     for (let dot of newDots) {
@@ -1258,6 +1260,7 @@ async function showProfileModal(staff) {
   function addDot(dotNum, element) {
     if (newPatternSequence.includes(dotNum)) return;
     
+    // Auto‑insert intermediate dot only for straight lines (like 1 → 9 adds 5)
     if (lastAddedDot && !areAdjacent(lastAddedDot, dotNum)) {
       const intermediate = getIntermediateDot(lastAddedDot, dotNum);
       if (intermediate && !newPatternSequence.includes(intermediate)) {
@@ -1290,7 +1293,7 @@ async function showProfileModal(staff) {
       clientX = e.clientX;
       clientY = e.clientY;
     }
-    return findClosestDot(clientX, clientY, 55);
+    return findClosestDot(clientX, clientY, 35);
   }
   
   function startDraw(e) {
@@ -1422,7 +1425,7 @@ async function showProfileModal(staff) {
     clearPatternBtn.ontouchstart = clearPatternBtn.onclick;
   }
   
-  // ========== FIXED CLOSE BUTTON HANDLER ==========
+  // ========== FIXED CLOSE BUTTON ==========
   const closeModal = () => {
     try {
       removePatternDrawListeners();
@@ -1440,18 +1443,17 @@ async function showProfileModal(staff) {
       e.stopPropagation();
       closeModal();
     };
-    // Remove any existing listeners to avoid duplicates
     closeBtn.removeEventListener('click', handleClose);
     closeBtn.removeEventListener('touchstart', handleClose);
     closeBtn.addEventListener('click', handleClose);
     closeBtn.addEventListener('touchstart', handleClose);
   }
   
-  // Also close when clicking on the background overlay
   modal.onclick = (e) => {
     if (e.target === modal) closeModal();
   };
 }
+
 
 // ============ SUPERVISOR AUTHENTICATION FUNCTIONS ============
 
