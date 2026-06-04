@@ -3548,30 +3548,10 @@ function refreshAllViews() {
     renderDailyTasksUI();
   }
 
-  // ✅ Update staff dropdown options without replacing the element
-  const select = document.getElementById("dailyTaskStaffSelect");
-  if (select) {
-    const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
-    const currentVal = select.value;
-    select.innerHTML = '<option value="">-- Select Staff --</option>' +
-      sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
-    // Preserve selection if valid
-    if (currentVal && sodStaff.some(s => s.id === currentVal)) {
-      select.value = currentVal;
-    } else if (authenticatedStaffId && sodStaff.some(s => s.id === authenticatedStaffId)) {
-      select.value = authenticatedStaffId;
-    } else {
-      select.value = "";
-      if (authenticatedStaffId) {
-        authenticatedStaffId = null;
-        updateProfileButtonVisibility();
-        document.getElementById("dailyTaskSelectedName").textContent = "⚠️ Select your name";
-        renderDailyTasksUI();
-      }
-    }
-  }
+  // ✅ Refresh staff dropdown WITHOUT breaking the onchange handler
+  initDailyStaffSelect();
 
-  // Also update selfSelect
+  // Also update selfSelect separately
   const selfSelect = document.getElementById("staffSelfSelect");
   if (selfSelect) {
     const sodStaff = staffList.filter(s => staffOnDutyIds.has(s.id) && s.role.toLowerCase() !== 'hk');
@@ -3579,7 +3559,6 @@ function refreshAllViews() {
       sodStaff.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.role})</option>`).join('');
   }
 }
-
 
 
 function updateDisplayInfo() { const displayDate = document.getElementById("displayDate"); const displayShift = document.getElementById("displayShift"); const dailyTaskShiftBadge = document.getElementById("dailyTaskShiftBadge"); if (displayDate) displayDate.innerText = currentDate; if (displayShift) displayShift.innerText = SHIFTS.find(s => s.value === currentShift)?.label || currentShift; if (dailyTaskShiftBadge) dailyTaskShiftBadge.innerText = currentShift === "morning" ? "🌅 Morning" : (currentShift === "afternoon" ? "🌆 Afternoon" : "🌙 Evening"); }
