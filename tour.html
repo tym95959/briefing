@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Tournament Admin Pro | Complete Admin Dashboard</title>
+    <script>
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            const message = args[0] || '';
+            if (typeof message === 'string' && 
+                (message.includes('enableMultiTabIndexedDbPersistence') || 
+                 message.includes('will be deprecated') ||
+                 message.includes('Tracking Prevention'))) {
+                return;
+            }
+            originalWarn.apply(console, args);
+        };
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #e0f7fa;
+            --bg-secondary: #b2ebf2;
+            --bg-card: #ffffff;
+            --bg-panel: #e0f7facc;
+            --text-primary: #004d40;
+            --text-secondary: #00695c;
+            --border-color: #26a69a;
+            --accent-gold: #ffa000;
+            --accent-teal: #00897b;
+            --accent-red: #e53935;
+            --accent-green: #43a047;
+            --accent-blue: #1e88e5;
+            --accent-purple: #8e24aa;
+            --accent-orange: #fb8c00;
+            --stat-bg: #e0f2f1;
+            --header-bg: #b2dfdb;
+            --input-bg: #ffffff;
+            --shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        body.dark {
+            --bg-primary: #0a2e2e;
+            --bg-secondary: #0d3d3d;
+            --bg-card: #115555;
+            --bg-panel: #0a3a3acc;
+            --text-primary: #d4f1f1;
+            --text-secondary: #a8e6cf;
+            --border-color: #2a7a7a;
+            --accent-gold: #f0b27a;
+            --accent-teal: #1abc9c;
+            --accent-red: #e74c3c;
+            --accent-green: #2ecc71;
+            --accent-blue: #3498db;
+            --accent-purple: #9b59b6;
+            --accent-orange: #f39c12;
+            --stat-bg: #0a4a4a;
+            --header-bg: #0a5a5a;
+            --input-bg: #0d3d3d;
+            --shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        body {
+            background: var(--bg-primary);
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            padding: 20px;
+            min-height: 100vh;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+        
+        .container { max-width: 1900px; margin: 0 auto; }
+        
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 1.5rem;
+            background: var(--bg-secondary);
+            padding: 10px;
+            border-radius: 3rem;
+            border: 1px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 2rem;
+            cursor: pointer;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+        
+        .tab-btn.active {
+            background: var(--accent-gold);
+            color: #1a1a2e;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .tournament-header {
+            background: var(--bg-secondary);
+            border-radius: 2rem;
+            padding: 1rem 2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+        
+        input, select, button { border-radius: 2rem; padding: 8px 16px; border: none; outline: none; }
+        input, select { background: var(--input-bg); color: var(--text-primary); border: 1px solid var(--border-color); }
+        
+        .btn-gold { background: var(--accent-gold); color: #1a1a2e; font-weight: bold; cursor: pointer; }
+        .btn-teal { background: var(--accent-teal); color: white; cursor: pointer; }
+        .btn-red { background: var(--accent-red); color: white; cursor: pointer; }
+        .btn-purple { background: var(--accent-purple); color: white; cursor: pointer; }
+        .btn-blue { background: var(--accent-blue); color: white; cursor: pointer; }
+        .btn-green { background: var(--accent-green); color: white; cursor: pointer; }
+        .btn-sm { padding: 4px 10px; font-size: 0.7rem; margin: 2px; }
+        
+        .setup-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        .setup-left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .teams-panel, .standings-table, .fixtures-panel-bottom, .settings-panel, .media-panel, .invite-panel, .registrations-panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(4px);
+            border-radius: 2rem;
+            padding: 1.2rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        .settings-group {
+            margin-bottom: 15px;
+        }
+        
+        .settings-group label {
+            display: inline-block;
+            width: 140px;
+            font-weight: bold;
+        }
+        
+        .team-list, .fixture-list, .registrations-list, .invite-codes-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border-radius: 1rem;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        
+        .team-card-item, .fixture-item, .registration-item, .invite-item {
+            background: var(--bg-secondary);
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: center; border-bottom: 1px solid var(--border-color); }
+        th { background: var(--header-bg); }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 2rem;
+            padding: 2rem;
+            min-width: 400px;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 2px solid var(--accent-gold);
+        }
+        
+        .match-scoreboard-section {
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+            border-radius: 2rem;
+            padding: 2rem;
+            border: 3px solid var(--accent-gold);
+            box-shadow: var(--shadow);
+        }
+        
+        .scoreboard-teams {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .team-score-box {
+            flex: 1;
+            text-align: center;
+            padding: 30px 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 1.5rem;
+        }
+        
+        .team-name-large { font-size: 2.5rem; font-weight: bold; color: var(--accent-gold); margin-bottom: 20px; }
+        .team-score-large { font-size: 6rem; font-weight: 800; color: var(--accent-orange); font-family: monospace; }
+        .vs-divider-large { font-size: 2.5rem; font-weight: bold; background: var(--bg-card); width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 3px solid var(--accent-gold); }
+        
+        .timer-area { text-align: center; padding: 25px; background: rgba(0,0,0,0.2); border-radius: 1.5rem; }
+        .clock-large { font-size: 5rem; font-family: monospace; font-weight: bold; color: var(--accent-red); letter-spacing: 8px; }
+        
+        .fixtures-list-horizontal {
+            max-height: 120px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border-radius: 1rem;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .fixture-item-horizontal {
+            background: var(--bg-secondary);
+            padding: 8px 15px;
+            border-radius: 2rem;
+            cursor: pointer;
+            white-space: nowrap;
+            border: 1px solid var(--border-color);
+        }
+        
+        .fixture-item-horizontal.active-match { background: var(--accent-gold); color: #1a1a2e; font-weight: bold; }
+        .fixture-item-horizontal.completed { background: var(--accent-green); color: white; }
+        
+        .sync-status { font-size: 0.7rem; background: var(--bg-card); padding: 4px 10px; border-radius: 2rem; }
+        .auto-save-badge { background: var(--accent-teal); font-size: 0.7rem; padding: 4px 10px; border-radius: 2rem; color: white; }
+        
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .media-item {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .media-item img, .media-item video { width: 100%; height: 150px; object-fit: cover; }
+        .media-item audio { width: 100%; padding: 10px; }
+        
+        .delete-media {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .media-caption { padding: 8px; font-size: 0.8rem; text-align: center; }
+        
+        h3 { color: var(--accent-gold); margin-bottom: 10px; }
+        .generate-fixtures-btn { width: 100%; margin: 10px 0; }
+        .current-match-label { background: var(--accent-gold); padding: 10px; border-radius: 2rem; text-align: center; font-weight: bold; color: #1a1a2e; margin-bottom: 15px; }
+        .fixtures-header { display: flex; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+        .score-controls-row { display: flex; justify-content: center; gap: 30px; margin: 20px 0; flex-wrap: wrap; }
+        .timer-controls-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .btn-set-live { background: var(--accent-blue); color: white; padding: 8px 20px; border-radius: 2rem; border: none; cursor: pointer; }
+        
+        .status-badge { padding: 4px 12px; border-radius: 2rem; font-size: 0.8rem; display: inline-block; }
+        .status-pending { background: #ffa000; color: #1a1a2e; }
+        .status-approved { background: #43a047; color: white; }
+        .status-rejected { background: #e53935; color: white; }
+        
+        .invite-item code { background: var(--bg-primary); padding: 4px 8px; border-radius: 0.5rem; font-size: 0.9rem; font-family: monospace; }
+        
+        .action-buttons { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+        
+        .copy-btn { background: var(--accent-blue); color: white; border: none; padding: 4px 12px; border-radius: 1rem; cursor: pointer; font-size: 0.7rem; }
+        .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #ccc; border-top-color: #333; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="setup">🏆 TOURNAMENT SETUP</button>
+        <button class="tab-btn" data-tab="registrations">📋 REGISTRATIONS</button>
+        <button class="tab-btn" data-tab="media">📸 MEDIA GALLERY</button>
+        <button class="tab-btn" data-tab="invites">🔑 INVITE CODES</button>
+        <button class="tab-btn" data-tab="match">🎮 MATCH CONTROL</button>
+    </div>
+    
+    <!-- Tournament Setup Tab -->
+    <div id="setupTab" class="tab-content active">
+        <div class="tournament-header">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <input type="text" id="tournamentName" placeholder="Tournament Name" value="World Cup 2026" style="min-width: 180px;">
+                <select id="sportType">
+                    <option value="futsal">⚽ FUTSAL (5v5)</option>
+                    <option value="6aside">🏃 6-A-SIDE (6v6)</option>
+                    <option value="handball">🤾 HANDBALL (7v7)</option>
+                    <option value="beachhandball">🏖️ BEACH HANDBALL (4v4)</option>
+                    <option value="custom">🎨 CUSTOM</option>
+                </select>
+                <div id="customSportDiv" style="display: none;">
+                    <input type="number" id="customPlayersCount" value="5" min="2" max="15" placeholder="Players" style="width:80px">
+                    <input type="text" id="customSportName" placeholder="Sport Name" value="Custom Sport" style="width:120px">
+                </div>
+                <span id="sportRulesBadge" class="auto-save-badge">⚽ FUTSAL (5v5)</span>
+                <span id="tournamentStatusBadge" class="auto-save-badge">🟢 Setup Mode</span>
+                <button id="themeToggle" class="btn-purple">🌙 Dark Mode</button>
+                <span id="firebaseSyncBadge" class="sync-status">⏳ Connecting...</span>
+            </div>
+            <div>
+                <button id="loadTournamentBtn" class="btn-blue">📂 Load Tournament</button>
+                <button id="newTournamentBtn" class="btn-purple">🆕 New Tournament</button>
+            </div>
+        </div>
+        <div class="setup-grid">
+            <div class="setup-left-panel">
+                <div class="teams-panel"><h3>🏷️ TEAMS (Auto-save to Firestore)</h3><button id="addTeamBtn" class="btn-teal" style="width:100%; margin-bottom:10px;">➕ Add Team</button><div id="teamsList" class="team-list"></div></div>
+                <div class="settings-panel"><h3>⚙️ TOURNAMENT SETTINGS</h3>
+                    <div class="settings-group"><label>🏆 Style:</label><select id="tournamentStyle"><option value="league">League (Round Robin)</option><option value="knockout">Knockout</option></select></div>
+                    <div class="settings-group"><label>⏱️ Min/half:</label><input type="number" id="matchMinutes" value="20"></div>
+                    <div class="settings-group"><label>📊 Halves:</label><input type="number" id="numHalves" value="2"></div>
+                    <div class="settings-group"><label>⏸️ Timeout (min):</label><input type="number" id="timeoutDuration" value="1" step="0.5"></div>
+                    <div class="settings-group"><label>🔢 Timeouts/team:</label><input type="number" id="timeoutsPerTeam" value="2"></div>
+                    <button id="applySettingsBtn" class="btn-teal btn-sm">💾 Apply</button></div>
+            </div>
+            <div class="setup-left-panel">
+                <div class="standings-table"><h3>📊 STANDINGS</h3><table id="standingsTable"><thead><tr><th>Team</th><th>Pld</th><th>W</th><th>D</th><th>L</th><th>Pts</th><th>GD</th></tr></thead><tbody id="standingsBody"></tbody>}~</div>
+                <div class="fixtures-panel-bottom"><h3>📋 FIXTURES</h3><button id="generateDrawBtn" class="btn-purple generate-fixtures-btn">🎲 GENERATE FIXTURES & LOCK</button><div id="fixturesList" class="fixture-list"></div></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Registrations Tab -->
+    <div id="registrationsTab" class="tab-content">
+        <div class="registrations-panel"><h3>📋 TEAM REGISTRATIONS</h3><div id="registrationsList" class="registrations-list">Loading...</div></div>
+    </div>
+    
+    <!-- Media Gallery Tab -->
+    <div id="mediaTab" class="tab-content">
+        <div class="media-panel"><h3>📸 TOURNAMENT MEDIA GALLERY</h3>
+            <button id="addMediaBtn" class="btn-teal" style="margin-bottom: 1rem;">➕ Add Image/Video/Audio</button>
+            <div id="mediaGrid" class="media-grid">Loading...</div>
+        </div>
+    </div>
+    
+    <!-- Invite Codes Tab -->
+    <div id="invitesTab" class="tab-content">
+        <div class="invite-panel"><h3>🔑 INVITATION CODES</h3>
+            <button id="generateInviteBtn" class="btn-green" style="margin-bottom: 1rem;">➕ Generate New Invite Code</button>
+            <div id="inviteCodesList" class="invite-codes-list">Loading invite codes...</div>
+            <p style="margin-top: 1rem; font-size: 0.8rem;">Share these codes with teams. Each code can be used once for this tournament.</p>
+        </div>
+    </div>
+    
+    <!-- Match Control Tab -->
+    <div id="matchTab" class="tab-content">
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div class="teams-panel">
+                <div class="fixtures-header"><h3>📅 FIXTURES</h3><button id="setLiveMatchBtn" class="btn-set-live">▶ SET SELECTED LIVE</button><button id="skipMatchBtn" class="btn-red btn-sm">⏭️ Skip Selected</button></div>
+                <div id="matchFixturesList" class="fixtures-list-horizontal"></div>
+            </div>
+            <div class="match-scoreboard-section">
+                <div class="current-match-label" id="currentMatchLabel">⚡ No Live Match</div>
+                <div class="scoreboard-teams">
+                    <div class="team-score-box"><div class="team-name-large" id="matchTeamAName">HOME</div><div class="team-score-large" id="matchTeamAScore">0</div></div>
+                    <div class="vs-divider-large">VS</div>
+                    <div class="team-score-box"><div class="team-name-large" id="matchTeamBName">AWAY</div><div class="team-score-large" id="matchTeamBScore">0</div></div>
+                </div>
+                <div class="timer-area">
+                    <div class="clock-large" id="matchTimerDisplay">00:00</div>
+                    <div class="period-text" id="matchPeriodInfo">READY</div>
+                    <div id="matchGameStatus" style="margin-top:10px;">READY</div>
+                </div>
+                <div class="score-controls-row">
+                    <div><button id="matchScoreAPlus" class="btn-green">+1 HOME</button><button id="matchScoreAMinus" class="btn-red">-1 HOME</button></div>
+                    <div><button id="matchScoreBPlus" class="btn-green">+1 AWAY</button><button id="matchScoreBMinus" class="btn-red">-1 AWAY</button></div>
+                </div>
+                <div class="timer-controls-row">
+                    <button id="matchStartTimerBtn" class="btn-gold">▶ START</button>
+                    <button id="matchPauseTimerBtn" class="btn-teal">⏸ PAUSE</button>
+                    <button id="matchResetTimerBtn" class="btn-teal">🔄 RESET</button>
+                    <button id="matchTimeoutBtn" class="btn-red">⏱️ TIMEOUT</button>
+                    <button id="endMatchBtn" class="btn-purple">🏁 END MATCH</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<div id="teamModal" class="modal"><div class="modal-content"><h3>Register Team</h3><input type="text" id="modalTeamName" placeholder="Team Name" style="width:100%"><div id="modalPlayersList" style="margin:10px 0"></div><button id="addPlayerBtn" class="btn-teal btn-sm">+ Add Player</button><div style="margin-top:15px"><button id="modalConfirmBtn" class="btn-gold">Confirm</button><button id="modalCancelBtn" class="btn-red">Cancel</button></div></div></div>
+<div id="mediaModal" class="modal"><div class="modal-content"><h3>Add Media</h3><select id="mediaType" style="width:100%"><option value="image">🖼️ Image URL</option><option value="video">🎬 Video URL</option><option value="audio">🎵 Audio URL</option></select><input type="url" id="mediaUrl" placeholder="Media URL" style="width:100%; margin:10px 0"><input type="text" id="mediaCaption" placeholder="Caption" style="width:100%"><div style="margin-top:15px"><button id="saveMediaBtn" class="btn-gold">Save</button><button id="cancelMediaBtn" class="btn-red">Cancel</button></div></div></div>
+<div id="infoModal" class="modal"><div class="modal-content"><h3 id="infoModalTitle">Info</h3><p id="infoModalMessage"></p><button id="infoModalClose" class="btn-gold">OK</button></div></div>
+
+<script>
+    // Global state
+    let teams = [], fixtures = [], tournamentStats = {}, tournamentStyle = "league", currentSport = "futsal";
+    let tournamentLocked = false, matchMinutes = 20, numHalves = 2, timeoutDuration = 1, timeoutsPerTeam = 2, customPlayersCount = 5, customSportName = "Custom Sport";
+    let currentMatch = null, matchTimerSeconds = 1200, matchTimerInterval = null, isMatchTimerRunning = false;
+    let selectedMatchFixtureId = null;
+    let currentTournamentId = null;
+    
+    const sportRulesDef = { 
+        futsal: { name: "Futsal", playersCount: 5, displayName: "⚽ FUTSAL (5v5)" }, 
+        "6aside": { name: "6-a-side", playersCount: 6, displayName: "🏃 6-A-SIDE (6v6)" }, 
+        handball: { name: "Handball", playersCount: 7, displayName: "🤾 HANDBALL (7v7)" }, 
+        beachhandball: { name: "Beach Handball", playersCount: 4, displayName: "🏖️ BEACH HANDBALL (4v4)" }, 
+        custom: { name: "Custom", playersCount: 5, displayName: "🎨 CUSTOM" } 
+    };
+    
+    function getRules() { 
+        if(currentSport === "custom") return { name: customSportName, playersCount: customPlayersCount, displayName: `🎨 ${customSportName} (${customPlayersCount}v${customPlayersCount})` }; 
+        return sportRulesDef[currentSport] || sportRulesDef.futsal; 
+    }
+    
+    function generateId() { return Date.now() + '-' + Math.random().toString(36).substr(2, 8); }
+    
+    function showInfo(title, msg) { 
+        const m = document.getElementById("infoModal"); 
+        if(m) {
+            document.getElementById("infoModalTitle").innerText = title; 
+            document.getElementById("infoModalMessage").innerHTML = msg; 
+            m.style.display = "flex"; 
+            document.getElementById("infoModalClose").onclick = () => m.style.display = "none";
+        }
+    }
+    
+    function getTournamentId() { 
+        const nameInput = document.getElementById("tournamentName");
+        const id = (nameInput ? nameInput.value.trim() || "Tournament" : "Tournament").replace(/[^a-zA-Z0-9]/g, '_');
+        currentTournamentId = id;
+        return id;
+    }
+    
+    // Auto-save to Firestore
+    async function autoSaveToFirestore() {
+        if(!window.firebaseFirestore) return;
+        const tournamentId = getTournamentId();
+        const tournamentData = {
+            name: document.getElementById("tournamentName")?.value.trim() || "Tournament",
+            sport: currentSport, customPlayersCount, customSportName, teams, fixtures, tournamentStats,
+            tournamentStyle, tournamentLocked, matchMinutes, numHalves, timeoutDuration, timeoutsPerTeam,
+            updatedAt: new Date().toISOString()
+        };
+        try {
+            await window.firebaseFirestore.collection('tournaments').doc(tournamentId).set(tournamentData);
+            console.log("Auto-saved to Firestore");
+        } catch(e) { console.error("Auto-save error:", e); }
+    }
+    
+    async function loadFromFirestore() {
+        if(!window.firebaseFirestore) return;
+        const tournamentId = getTournamentId();
+        try {
+            const doc = await window.firebaseFirestore.collection('tournaments').doc(tournamentId).get();
+            if(!doc.exists) { 
+                console.log("No existing tournament found"); 
+                return; 
+            }
+            const data = doc.data();
+            teams = data.teams || []; fixtures = data.fixtures || []; tournamentStats = data.tournamentStats || {};
+            tournamentStyle = data.tournamentStyle || "league"; tournamentLocked = data.tournamentLocked || false;
+            matchMinutes = data.matchMinutes || 20; numHalves = data.numHalves || 2;
+            timeoutDuration = data.timeoutDuration || 1; timeoutsPerTeam = data.timeoutsPerTeam || 2;
+            currentSport = data.sport || "futsal"; customPlayersCount = data.customPlayersCount || 5; customSportName = data.customSportName || "Custom Sport";
+            
+            if(document.getElementById("matchMinutes")) document.getElementById("matchMinutes").value = matchMinutes;
+            if(document.getElementById("numHalves")) document.getElementById("numHalves").value = numHalves;
+            if(document.getElementById("timeoutDuration")) document.getElementById("timeoutDuration").value = timeoutDuration;
+            if(document.getElementById("timeoutsPerTeam")) document.getElementById("timeoutsPerTeam").value = timeoutsPerTeam;
+            if(document.getElementById("tournamentStyle")) document.getElementById("tournamentStyle").value = tournamentStyle;
+            if(document.getElementById("sportType")) document.getElementById("sportType").value = currentSport;
+            if(document.getElementById("customPlayersCount")) document.getElementById("customPlayersCount").value = customPlayersCount;
+            if(document.getElementById("customSportName")) document.getElementById("customSportName").value = customSportName;
+            
+            renderTeams(); renderFixtures(); renderMatchFixtures(); renderStandings(); 
+            updateSportSelectionUI(); updateMatchTime();
+            
+            if(tournamentLocked) { 
+                if(document.getElementById("tournamentStatusBadge")) document.getElementById("tournamentStatusBadge").innerHTML = "🔒 Locked";
+                if(document.getElementById("addTeamBtn")) document.getElementById("addTeamBtn").disabled = true;
+                if(document.getElementById("generateDrawBtn")) document.getElementById("generateDrawBtn").disabled = true;
+            } else { 
+                if(document.getElementById("tournamentStatusBadge")) document.getElementById("tournamentStatusBadge").innerHTML = "🟢 Setup Mode";
+                if(document.getElementById("addTeamBtn")) document.getElementById("addTeamBtn").disabled = false;
+                if(document.getElementById("generateDrawBtn")) document.getElementById("generateDrawBtn").disabled = false;
+            }
+            showInfo("Loaded", `Tournament "${data.name}" loaded!`);
+        } catch(e) { showInfo("Error", e.message); }
+    }
+    
+    // Render functions
+    function renderTeams() { 
+        const container = document.getElementById("teamsList"); 
+        if(!container) return;
+        if(teams.length === 0){ container.innerHTML="<div>No teams. Click 'Add Team'</div>"; return; } 
+        container.innerHTML = teams.map(t => `<div class="team-card-item">🏆 ${t.name} (${t.players?.length||0} players) ${!tournamentLocked ? `<button data-id="${t.id}" class="remove-team btn-red btn-sm">❌</button>` : ''}</div>`).join(""); 
+        if(!tournamentLocked) document.querySelectorAll(".remove-team").forEach(btn => btn.onclick = async (e) => { 
+            let id = btn.getAttribute("data-id"); 
+            teams = teams.filter(t => t.id !== id); 
+            delete tournamentStats[id]; 
+            renderTeams(); renderStandings(); await autoSaveToFirestore(); 
+        }); 
+    }
+    
+    function renderStandings() { 
+        const tbody = document.getElementById("standingsBody"); 
+        if(!tbody) return;
+        tbody.innerHTML = ""; 
+        Object.values(tournamentStats).sort((a,b)=>b.points-a.points).forEach(s => tbody.innerHTML += `<tr><td><strong>${s.name}</strong></td><td>${s.played}</td><td>${s.won}</td><td>${s.draw}</td><td>${s.lost}</td><td>${s.points}</td><td>${s.gf-s.ga}</td></tr>`); 
+    }
+    
+    function renderFixtures() { 
+        const container = document.getElementById("fixturesList"); 
+        if(!container) return;
+        if(fixtures.length===0){ container.innerHTML="<div>No fixtures. Generate fixtures to lock tournament.</div>"; return; } 
+        container.innerHTML = fixtures.map(f => `<div class="fixture-item">${f.teamAName} vs ${f.teamBName} ${f.played ? (f.skipped ? '⏭️ SKIPPED' : `✅ ${f.scoreA}-${f.scoreB}`) : "⚡ Pending"}</div>`).join(""); 
+    }
+    
+    function renderMatchFixtures() { 
+        const container = document.getElementById("matchFixturesList"); 
+        if(!container) return;
+        if(fixtures.length===0){ container.innerHTML="<div>No fixtures. Generate in Setup tab.</div>"; return; } 
+        container.innerHTML = fixtures.map(f => `<div class="fixture-item-horizontal ${f.played ? 'completed' : ''}" data-id="${f.id}">${f.teamAName} vs ${f.teamBName}</div>`).join(""); 
+        document.querySelectorAll("#matchFixturesList .fixture-item-horizontal").forEach(el => el.onclick = () => { 
+            document.querySelectorAll("#matchFixturesList .fixture-item-horizontal").forEach(e => e.classList.remove("active-match")); 
+            el.classList.add("active-match"); 
+            selectedMatchFixtureId = el.getAttribute("data-id"); 
+        }); 
+    }
+    
+    // ============ INVITE CODES - FIXED ============
+    async function generateInviteCode() {
+        if (!window.firebaseFirestore) { 
+            showInfo("Error", "Firebase not ready. Please wait."); 
+            return; 
+        }
+        
+        const tournamentId = getTournamentId();
+        const tournamentName = document.getElementById("tournamentName").value.trim() || "Tournament";
+        
+        if (!tournamentId) {
+            showInfo("Error", "Please enter a tournament name first");
+            return;
+        }
+        
+        // Generate a unique code
+        const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const code = `${tournamentName.substring(0, 6).toUpperCase().replace(/[^A-Z0-9]/g, '')}-${randomNum}`;
+        
+        try {
+            // Check if code already exists
+            const existingCode = await window.firebaseFirestore.collection('inviteCodes').doc(code).get();
+            if (existingCode.exists) {
+                const newCode = `${code}-${Date.now().toString().slice(-4)}`;
+                await window.firebaseFirestore.collection('inviteCodes').doc(newCode).set({
+                    code: newCode,
+                    tournamentId: tournamentId,
+                    tournamentName: tournamentName,
+                    used: false,
+                    createdAt: new Date().toISOString()
+                });
+                showInfo("Code Generated", `Invite code: ${newCode}\n\nShare this code with a team to register for "${tournamentName}".`);
+            } else {
+                await window.firebaseFirestore.collection('inviteCodes').doc(code).set({
+                    code: code,
+                    tournamentId: tournamentId,
+                    tournamentName: tournamentName,
+                    used: false,
+                    createdAt: new Date().toISOString()
+                });
+                showInfo("Code Generated", `Invite code: ${code}\n\nShare this code with a team to register for "${tournamentName}".`);
+            }
+            await loadInviteCodes();
+        } catch(e) { 
+            console.error("Error generating code:", e);
+            showInfo("Error", "Failed to generate code: " + e.message); 
+        }
+    }
+    
+    async function loadInviteCodes() {
+        const container = document.getElementById("inviteCodesList");
+        if(!container) return;
+        
+        if (!window.firebaseFirestore) { 
+            container.innerHTML = "<div>⏳ Waiting for Firebase connection...</div>"; 
+            return; 
+        }
+        
+        const tournamentId = getTournamentId();
+        if (!tournamentId) {
+            container.innerHTML = "<div>⚠️ Please enter a tournament name first. The tournament name is used to generate invite codes.</div>";
+            return;
+        }
+        
+        try {
+            container.innerHTML = '<div class="loading-spinner" style="margin: 20px auto;"></div><div style="text-align:center">Loading invite codes...</div>';
+            
+            const snapshot = await window.firebaseFirestore.collection('inviteCodes')
+                .where('tournamentId', '==', tournamentId)
+                .get();
+            
+            if(snapshot.empty) { 
+                container.innerHTML = "<div>📭 No invite codes yet. Click 'Generate New Invite Code' to create one.</div>"; 
+                return; 
+            }
+            
+            container.innerHTML = "";
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const statusColor = data.used ? '#e53935' : '#43a047';
+                const statusText = data.used ? '❌ Used' : '✅ Available';
+                const usedByText = data.usedBy ? ` (Used by: ${data.usedBy})` : '';
+                
+                container.innerHTML += `
+                    <div class="invite-item">
+                        <code style="font-size: 1rem; font-weight: bold;">${doc.id}</code>
+                        <span style="color: ${statusColor};">${statusText}${usedByText}</span>
+                        <div class="action-buttons">
+                            <button class="copy-code btn-sm btn-blue" data-code="${doc.id}">📋 Copy</button>
+                            <button class="delete-code btn-red btn-sm" data-id="${doc.id}">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Add copy functionality
+            document.querySelectorAll('.copy-code').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const code = btn.getAttribute('data-code');
+                    await navigator.clipboard.writeText(code);
+                    showInfo("Copied!", `Invite code "${code}" copied to clipboard!`);
+                });
+            });
+            
+            // Add delete functionality
+            document.querySelectorAll('.delete-code').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if(confirm("Delete this invite code?")) {
+                        await window.firebaseFirestore.collection('inviteCodes').doc(btn.dataset.id).delete();
+                        await loadInviteCodes();
+                        showInfo("Deleted", "Invite code removed");
+                    }
+                });
+            });
+        } catch(e) { 
+            console.error("Error loading invite codes:", e);
+            container.innerHTML = `<div>❌ Error loading invite codes: ${e.message}</div>`; 
+        }
+    }
+    
+    // ============ REGISTRATIONS MANAGEMENT ============
+    async function loadRegistrations() {
+        const container = document.getElementById("registrationsList");
+        if(!container) return;
+        if(!window.firebaseFirestore) { 
+            container.innerHTML = "<div>Waiting for Firebase...</div>"; 
+            return; 
+        }
+        
+        const tournamentId = getTournamentId();
+        if (!tournamentId) {
+            container.innerHTML = "<div>Please enter a tournament name first.</div>";
+            return;
+        }
+        
+        try {
+            const snapshot = await window.firebaseFirestore.collection('teamRegistrations')
+                .where('tournamentId', '==', tournamentId)
+                .get();
+                
+            if(snapshot.empty) { 
+                container.innerHTML = "<div>No registrations yet for this tournament</div>"; 
+                return; 
+            }
+            
+            container.innerHTML = "";
+            for (const doc of snapshot.docs) {
+                const r = doc.data();
+                const statusClass = r.status === 'approved' ? 'status-approved' : (r.status === 'rejected' ? 'status-rejected' : 'status-pending');
+                const statusText = r.status === 'approved' ? '✅ Approved' : (r.status === 'rejected' ? '❌ Rejected' : '⏳ Pending');
+                
+                container.innerHTML += `
+                    <div class="registration-item">
+                        <div>
+                            <strong>🏆 ${r.teamName}</strong><br>
+                            👔 Coach: ${r.coach || '-'} | 📧 ${r.contactEmail || '-'}<br>
+                            👥 ${r.players?.length || 0} players | 🎽 ${r.jerseyColor || '-'}
+                        </div>
+                        <div class="action-buttons">
+                            <select class="status-select" data-id="${doc.id}" data-current="${r.status}">
+                                <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>⏳ Pending</option>
+                                <option value="approved" ${r.status === 'approved' ? 'selected' : ''}>✅ Approve</option>
+                                <option value="rejected" ${r.status === 'rejected' ? 'selected' : ''}>❌ Reject</option>
+                            </select>
+                            <button class="delete-reg btn-red btn-sm" data-id="${doc.id}">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            document.querySelectorAll('.status-select').forEach(select => {
+                select.onchange = async (e) => {
+                    const id = select.dataset.id;
+                    const newStatus = select.value;
+                    await window.firebaseFirestore.collection('teamRegistrations').doc(id).update({ status: newStatus });
+                    showInfo("Status Updated", `Team status changed to ${newStatus}`);
+                    await loadRegistrations();
+                };
+            });
+            
+            document.querySelectorAll('.delete-reg').forEach(btn => {
+                btn.onclick = async (e) => {
+                    if(confirm("Delete this registration?")) {
+                        await window.firebaseFirestore.collection('teamRegistrations').doc(btn.dataset.id).delete();
+                        await loadRegistrations();
+                        showInfo("Deleted", "Registration removed");
+                    }
+                };
+            });
+        } catch(e) { 
+            console.error("Error loading registrations:", e);
+            container.innerHTML = `<div>Error loading registrations: ${e.message}</div>`; 
+        }
+    }
+    
+    // Media Management
+    async function loadMedia() {
+        const container = document.getElementById("mediaGrid");
+        if(!container) return;
+        if(!window.firebaseFirestore) { container.innerHTML = "<div>Waiting for Firebase...</div>"; return; }
+        
+        const tournamentId = getTournamentId();
+        if (!tournamentId) {
+            container.innerHTML = "<div>Please enter a tournament name first.</div>";
+            return;
+        }
+        
+        try {
+            const snapshot = await window.firebaseFirestore.collection('tournamentMedia')
+                .where('tournamentId', '==', tournamentId)
+                .get();
+            if(snapshot.empty) { container.innerHTML = "<div>No media added yet. Click 'Add Media' to upload.</div>"; return; }
+            container.innerHTML = "";
+            snapshot.forEach(doc => {
+                const m = doc.data();
+                let mediaHtml = '';
+                if(m.type === 'image') mediaHtml = `<img src="${m.url}" alt="${m.caption || ''}">`;
+                else if(m.type === 'video') mediaHtml = `<video src="${m.url}" controls></video>`;
+                else if(m.type === 'audio') mediaHtml = `<audio src="${m.url}" controls style="width:100%"></audio>`;
+                container.innerHTML += `<div class="media-item">${mediaHtml}<div class="media-caption">${m.caption || ''}</div><button class="delete-media" data-id="${doc.id}">✖</button></div>`;
+            });
+            document.querySelectorAll('.delete-media').forEach(btn => btn.onclick = async () => { 
+                await window.firebaseFirestore.collection('tournamentMedia').doc(btn.dataset.id).delete(); 
+                loadMedia(); 
+                showInfo("Deleted", "Media removed");
+            });
+        } catch(e) { container.innerHTML = `<div>Error loading media: ${e.message}</div>`; console.error(e); }
+    }
+    
+    // Match functions
+    function syncLiveMatchToRealtimeDB() { 
+        if(window.firebaseRealtimeDB && currentMatch) { 
+            window.firebaseRealtimeDB.ref('liveMatch').set({ 
+                matchId: currentMatch.id, 
+                teamA: { name: currentMatch.teamAName, score: currentMatch.scoreA }, 
+                teamB: { name: currentMatch.teamBName, score: currentMatch.scoreB }, 
+                timer: document.getElementById("matchTimerDisplay")?.innerText, 
+                status: document.getElementById("matchGameStatus")?.innerText 
+            }); 
+        } 
+    }
+    
+    function setLiveMatch() { 
+        if(!tournamentLocked) return showInfo("Locked", "Generate fixtures first"); 
+        if(!selectedMatchFixtureId) return showInfo("Select", "Click a fixture first"); 
+        let fixture = fixtures.find(f => f.id === selectedMatchFixtureId); 
+        if(!fixture || fixture.played) return showInfo("Error", "Match already played"); 
+        currentMatch = JSON.parse(JSON.stringify(fixture)); 
+        currentMatch.scoreA=0; currentMatch.scoreB=0; 
+        matchTimerSeconds = matchMinutes * 60;
+        if(document.getElementById("matchTimerDisplay")) document.getElementById("matchTimerDisplay").innerHTML = `${Math.floor(matchTimerSeconds/60).toString().padStart(2,'0')}:${(matchTimerSeconds%60).toString().padStart(2,'0')}`;
+        if(document.getElementById("matchTeamAName")) document.getElementById("matchTeamAName").innerHTML = fixture.teamAName;
+        if(document.getElementById("matchTeamBName")) document.getElementById("matchTeamBName").innerHTML = fixture.teamBName;
+        if(document.getElementById("matchTeamAScore")) document.getElementById("matchTeamAScore").innerHTML = "0";
+        if(document.getElementById("matchTeamBScore")) document.getElementById("matchTeamBScore").innerHTML = "0";
+        if(document.getElementById("currentMatchLabel")) document.getElementById("currentMatchLabel").innerHTML = `🔥 LIVE: ${fixture.teamAName} vs ${fixture.teamBName}`;
+        syncLiveMatchToRealtimeDB(); 
+        showInfo("Match Set", `${fixture.teamAName} vs ${fixture.teamBName} is now live!`);
+    }
+    
+    function endMatch() { 
+        if(!currentMatch || currentMatch.played) return; 
+        if(confirm("End match? This will record the result.")) { 
+            currentMatch.played = true; 
+            const orig = fixtures.find(f => f.id === currentMatch.id); 
+            if(orig) { orig.played = true; orig.scoreA = currentMatch.scoreA; orig.scoreB = currentMatch.scoreB; } 
+            const sA = tournamentStats[currentMatch.teamAId], sB = tournamentStats[currentMatch.teamBId]; 
+            if(sA && sB) { 
+                sA.played++; sB.played++; 
+                sA.gf += currentMatch.scoreA; sA.ga += currentMatch.scoreB; 
+                sB.gf += currentMatch.scoreB; sB.ga += currentMatch.scoreA; 
+                if(currentMatch.scoreA > currentMatch.scoreB) { sA.won++; sB.lost++; sA.points+=3; } 
+                else if(currentMatch.scoreB > currentMatch.scoreA) { sB.won++; sA.lost++; sB.points+=3; } 
+                else { sA.draw++; sB.draw++; sA.points+=1; sB.points+=1; } 
+            } 
+            renderStandings(); renderFixtures(); renderMatchFixtures(); 
+            currentMatch = null; 
+            if(document.getElementById("currentMatchLabel")) document.getElementById("currentMatchLabel").innerHTML = "⚡ Match Ended";
+            autoSaveToFirestore(); 
+            showInfo("Complete", "Result recorded!"); 
+        } 
+    }
+    
+    function matchStartTimer() { 
+        if(!currentMatch) return; 
+        if(matchTimerInterval) clearInterval(matchTimerInterval); 
+        isMatchTimerRunning=true; 
+        if(document.getElementById("matchGameStatus")) document.getElementById("matchGameStatus").innerHTML="LIVE";
+        matchTimerInterval = setInterval(() => { 
+            if(isMatchTimerRunning && matchTimerSeconds>0) { 
+                matchTimerSeconds--; 
+                if(document.getElementById("matchTimerDisplay")) document.getElementById("matchTimerDisplay").innerHTML = `${Math.floor(matchTimerSeconds/60).toString().padStart(2,'0')}:${(matchTimerSeconds%60).toString().padStart(2,'0')}`;
+                syncLiveMatchToRealtimeDB(); 
+            } 
+        },1000); 
+    }
+    
+    function matchPauseTimer() { 
+        isMatchTimerRunning=false; 
+        if(matchTimerInterval) clearInterval(matchTimerInterval); 
+        if(document.getElementById("matchGameStatus")) document.getElementById("matchGameStatus").innerHTML="PAUSED";
+        syncLiveMatchToRealtimeDB(); 
+    }
+    
+    function matchResetTimer() { 
+        matchTimerSeconds = matchMinutes*60; 
+        if(document.getElementById("matchTimerDisplay")) document.getElementById("matchTimerDisplay").innerHTML = `${Math.floor(matchTimerSeconds/60).toString().padStart(2,'0')}:${(matchTimerSeconds%60).toString().padStart(2,'0')}`;
+        isMatchTimerRunning=false; 
+        if(matchTimerInterval) clearInterval(matchTimerInterval); 
+        if(document.getElementById("matchGameStatus")) document.getElementById("matchGameStatus").innerHTML="Reset";
+        syncLiveMatchToRealtimeDB(); 
+    }
+    
+    function updateMatchTime() { 
+        matchTimerSeconds = matchMinutes*60; 
+        if(document.getElementById("matchTimerDisplay")) document.getElementById("matchTimerDisplay").innerHTML = `${Math.floor(matchTimerSeconds/60).toString().padStart(2,'0')}:${(matchTimerSeconds%60).toString().padStart(2,'0')}`;
+        if(document.getElementById("matchPeriodInfo")) document.getElementById("matchPeriodInfo").innerHTML = `${matchMinutes} min halves`;
+    }
+    
+    function updateSportSelectionUI() { 
+        const rules = getRules(); 
+        if(document.getElementById("sportRulesBadge")) document.getElementById("sportRulesBadge").innerHTML = rules.displayName;
+        const customDiv = document.getElementById("customSportDiv");
+        if(customDiv) customDiv.style.display = document.getElementById("sportType")?.value === "custom" ? "inline-block" : "none";
+    }
+    
+    function generateFixtures() { 
+        if(tournamentLocked) return showInfo("Locked", "Already locked"); 
+        if(teams.length < 2) return showInfo("Error", "Need at least 2 teams"); 
+        tournamentStyle = document.getElementById("tournamentStyle")?.value || "league"; 
+        fixtures = []; 
+        if(tournamentStyle === "league") { 
+            for(let i=0;i<teams.length;i++) for(let j=i+1;j<teams.length;j++) fixtures.push({ id: generateId(), teamAId: teams[i].id, teamBId: teams[j].id, teamAName: teams[i].name, teamBName: teams[j].name, played: false, scoreA:0, scoreB:0, skipped:false }); 
+        } else { 
+            let shuffled = [...teams]; 
+            for(let i=shuffled.length-1;i>0;i--){ let j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];} 
+            for(let i=0;i<shuffled.length;i+=2) if(i+1<shuffled.length) fixtures.push({ id: generateId(), teamAId: shuffled[i].id, teamBId: shuffled[i+1].id, teamAName: shuffled[i].name, teamBName: shuffled[i+1].name, played:false, scoreA:0, scoreB:0, skipped:false }); 
+        } 
+        renderFixtures(); renderMatchFixtures(); 
+        tournamentLocked = true; 
+        if(document.getElementById("tournamentStatusBadge")) document.getElementById("tournamentStatusBadge").innerHTML = "🔒 Locked";
+        if(document.getElementById("addTeamBtn")) document.getElementById("addTeamBtn").disabled = true;
+        if(document.getElementById("generateDrawBtn")) document.getElementById("generateDrawBtn").disabled = true;
+        autoSaveToFirestore(); 
+        showInfo("Success", `${fixtures.length} fixtures generated! Tournament locked.`);
+    }
+    
+    function skipCurrentMatch() {
+        if(!currentMatch || currentMatch.played) { showInfo("Error", "No active match to skip"); return; }
+        if(confirm(`Skip ${currentMatch.teamAName} vs ${currentMatch.teamBName}?`)) {
+            currentMatch.played = true;
+            currentMatch.skipped = true;
+            const orig = fixtures.find(f => f.id === currentMatch.id);
+            if(orig) { orig.played = true; orig.skipped = true; }
+            currentMatch = null;
+            renderMatchFixtures();
+            if(document.getElementById("currentMatchLabel")) document.getElementById("currentMatchLabel").innerHTML = "⚡ Match Skipped";
+            autoSaveToFirestore();
+            showInfo("Skipped", "Match has been skipped.");
+        }
+    }
+    
+    // Team modal
+    function openTeamModal() { 
+        const required = getRules().playersCount; 
+        let pending = []; 
+        for(let i=0;i<required;i++) pending.push({ name: `Player ${i+1}`, jersey: i+1 }); 
+        for(let i=0;i<3;i++) pending.push({ name: `Sub ${i+1}`, jersey: required+i+1 }); 
+        if(document.getElementById("modalTeamName")) document.getElementById("modalTeamName").value="";
+        const container = document.getElementById("modalPlayersList"); 
+        if(!container) return;
+        container.innerHTML = pending.map((p,idx)=>`<div><input type="text" value="${p.name}" data-idx="${idx}" class="player-name-modal" style="width:150px"><input type="number" value="${p.jersey}" data-idx="${idx}" class="player-jersey-modal" style="width:60px"><button class="remove-player-modal btn-red btn-sm" data-idx="${idx}">X</button></div>`).join(""); 
+        if(document.getElementById("teamModal")) document.getElementById("teamModal").style.display="flex";
+        const confirmBtn = document.getElementById("modalConfirmBtn");
+        if(confirmBtn) confirmBtn.onclick = async () => { 
+            let teamName = document.getElementById("modalTeamName")?.value.trim(); 
+            if(!teamName) return showInfo("Error", "Team name required");
+            let players = []; 
+            document.querySelectorAll(".player-name-modal").forEach((inp, idx) => { 
+                let jersey = parseInt(document.querySelector(`.player-jersey-modal[data-idx="${idx}"]`)?.value || idx+1); 
+                players.push({ id: generateId(), name: inp.value, jersey: jersey, isSub: idx >= required, onPitch: idx < required }); 
+            }); 
+            teams.push({ id: generateId(), name: teamName, players }); 
+            tournamentStats[teams[teams.length-1].id] = { name: teamName, played:0, won:0, draw:0, lost:0, points:0, gf:0, ga:0 }; 
+            renderTeams(); 
+            if(document.getElementById("teamModal")) document.getElementById("teamModal").style.display="none"; 
+            await autoSaveToFirestore(); 
+            showInfo("Team Added", `Team "${teamName}" saved to Firestore!`);
+        }; 
+        const cancelBtn = document.getElementById("modalCancelBtn");
+        if(cancelBtn) cancelBtn.onclick = () => { if(document.getElementById("teamModal")) document.getElementById("teamModal").style.display="none"; };
+    }
+    
+    // Add player button in modal
+    if(document.getElementById("addPlayerBtn")) {
+        document.getElementById("addPlayerBtn").onclick = () => { 
+            const container = document.getElementById("modalPlayersList"); 
+            if(container) {
+                const idx = container.children.length; 
+                const div = document.createElement("div"); 
+                div.innerHTML = `<input type="text" placeholder="Player Name" data-idx="${idx}" class="player-name-modal" style="width:150px"><input type="number" placeholder="Jersey #" data-idx="${idx}" class="player-jersey-modal" style="width:60px"><button class="remove-player-modal btn-red btn-sm" data-idx="${idx}">X</button>`; 
+                container.appendChild(div);
+            }
+        };
+    }
+    
+    // Setup event listeners
+    document.getElementById("addTeamBtn")?.addEventListener('click', openTeamModal);
+    document.getElementById("generateDrawBtn")?.addEventListener('click', generateFixtures);
+    document.getElementById("setLiveMatchBtn")?.addEventListener('click', setLiveMatch);
+    document.getElementById("endMatchBtn")?.addEventListener('click', endMatch);
+    document.getElementById("matchStartTimerBtn")?.addEventListener('click', matchStartTimer);
+    document.getElementById("matchPauseTimerBtn")?.addEventListener('click', matchPauseTimer);
+    document.getElementById("matchResetTimerBtn")?.addEventListener('click', matchResetTimer);
+    document.getElementById("matchTimeoutBtn")?.addEventListener('click', () => { if(currentMatch) { matchPauseTimer(); showInfo("Timeout", "Timeout called! Match paused."); } else showInfo("Timeout", "Set a live match first"); });
+    document.getElementById("skipMatchBtn")?.addEventListener('click', skipCurrentMatch);
+    document.getElementById("loadTournamentBtn")?.addEventListener('click', loadFromFirestore);
+    document.getElementById("newTournamentBtn")?.addEventListener('click', () => { if(confirm("Reset all data?")){ teams=[]; fixtures=[]; tournamentStats={}; tournamentLocked=false; currentMatch=null; renderTeams(); renderFixtures(); renderMatchFixtures(); renderStandings(); autoSaveToFirestore(); showInfo("Reset", "New tournament ready"); } });
+    document.getElementById("themeToggle")?.addEventListener('click', () => { document.body.classList.toggle('dark'); localStorage.setItem('darkMode', document.body.classList.contains('dark')); });
+    document.getElementById("sportType")?.addEventListener('change', () => { currentSport = document.getElementById("sportType").value; updateSportSelectionUI(); autoSaveToFirestore(); });
+    document.getElementById("applySettingsBtn")?.addEventListener('click', () => { 
+        matchMinutes = parseInt(document.getElementById("matchMinutes")?.value || 20);
+        numHalves = parseInt(document.getElementById("numHalves")?.value || 2);
+        timeoutDuration = parseFloat(document.getElementById("timeoutDuration")?.value || 1);
+        timeoutsPerTeam = parseInt(document.getElementById("timeoutsPerTeam")?.value || 2);
+        updateMatchTime(); autoSaveToFirestore(); showInfo("Settings","Applied"); 
+    });
+    document.getElementById("addMediaBtn")?.addEventListener('click', () => { if(document.getElementById("mediaModal")) document.getElementById("mediaModal").style.display = "flex"; });
+    document.getElementById("saveMediaBtn")?.addEventListener('click', async () => { 
+        const type = document.getElementById("mediaType")?.value;
+        const url = document.getElementById("mediaUrl")?.value;
+        const caption = document.getElementById("mediaCaption")?.value;
+        if(!url) { showInfo("Error", "URL required"); return; }
+        const tournamentId = getTournamentId();
+        await window.firebaseFirestore.collection('tournamentMedia').add({ type, url, caption, tournamentId, createdAt: new Date().toISOString() });
+        if(document.getElementById("mediaModal")) document.getElementById("mediaModal").style.display = "none";
+        if(document.getElementById("mediaUrl")) document.getElementById("mediaUrl").value = "";
+        if(document.getElementById("mediaCaption")) document.getElementById("mediaCaption").value = "";
+        loadMedia(); 
+        showInfo("Success", "Media added to gallery!");
+    });
+    document.getElementById("cancelMediaBtn")?.addEventListener('click', () => { if(document.getElementById("mediaModal")) document.getElementById("mediaModal").style.display = "none"; });
+    document.getElementById("generateInviteBtn")?.addEventListener('click', generateInviteCode);
+    
+    // Score buttons
+    document.getElementById("matchScoreAPlus")?.addEventListener('click', () => { if(currentMatch){ currentMatch.scoreA++; if(document.getElementById("matchTeamAScore")) document.getElementById("matchTeamAScore").innerHTML = currentMatch.scoreA; syncLiveMatchToRealtimeDB(); } });
+    document.getElementById("matchScoreBPlus")?.addEventListener('click', () => { if(currentMatch){ currentMatch.scoreB++; if(document.getElementById("matchTeamBScore")) document.getElementById("matchTeamBScore").innerHTML = currentMatch.scoreB; syncLiveMatchToRealtimeDB(); } });
+    document.getElementById("matchScoreAMinus")?.addEventListener('click', () => { if(currentMatch && currentMatch.scoreA>0){ currentMatch.scoreA--; if(document.getElementById("matchTeamAScore")) document.getElementById("matchTeamAScore").innerHTML = currentMatch.scoreA; syncLiveMatchToRealtimeDB(); } });
+    document.getElementById("matchScoreBMinus")?.addEventListener('click', () => { if(currentMatch && currentMatch.scoreB>0){ currentMatch.scoreB--; if(document.getElementById("matchTeamBScore")) document.getElementById("matchTeamBScore").innerHTML = currentMatch.scoreB; syncLiveMatchToRealtimeDB(); } });
+    
+    // Tab switching - refresh data when switching to invite tab
+    document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", async () => { 
+        document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active")); 
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); 
+        btn.classList.add("active"); 
+        const tabId = btn.getAttribute("data-tab");
+        if(document.getElementById(tabId + "Tab")) document.getElementById(tabId + "Tab").classList.add("active");
+        if(tabId === "registrations") await loadRegistrations();
+        if(tabId === "media") await loadMedia();
+        if(tabId === "invites") await loadInviteCodes();
+        if(tabId === "match") renderMatchFixtures();
+    }));
+    
+    // Initialize
+    if(localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
+    updateSportSelectionUI(); updateMatchTime();
+    
+    let checkCount = 0;
+    const checkFirebase = setInterval(async () => {
+        checkCount++;
+        if(window.firebaseFirestore) {
+            clearInterval(checkFirebase);
+            await loadFromFirestore();
+            await loadRegistrations();
+            await loadMedia();
+            if(document.getElementById("firebaseSyncBadge")) document.getElementById("firebaseSyncBadge").innerHTML = "🟢 Connected";
+        } else if(checkCount > 20) {
+            clearInterval(checkFirebase);
+            if(document.getElementById("firebaseSyncBadge")) document.getElementById("firebaseSyncBadge").innerHTML = "⚠️ Offline Mode";
+            if(document.getElementById("inviteCodesList")) document.getElementById("inviteCodesList").innerHTML = "<div>⚠️ Firebase connection failed. Check your internet and Firebase configuration.</div>";
+        }
+    }, 500);
+    
+    setInterval(() => { if(currentMatch) syncLiveMatchToRealtimeDB(); }, 3000);
+</script>
+</body>
+</html>
