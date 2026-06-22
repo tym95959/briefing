@@ -4,14 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>Koveli Lounge | Complete Hub</title>
+    
+    <!-- ===== iOS PWA META TAGS ===== -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Koveli Hub">
+    
+    <!-- ===== iOS ICONS ===== -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='56' fill='%231d6f90'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-size='280' font-family='sans-serif' fill='white'%3EK%3C/text%3E%3C/svg%3E">
+    
+    <!-- ===== iOS SPLASH SCREENS ===== -->
+    <link rel="apple-touch-startup-image" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1242 2208'%3E%3Crect width='1242' height='2208' fill='%231d6f90'/%3E%3Ctext x='50%25' y='45%25' dominant-baseline='central' text-anchor='middle' font-size='120' font-family='sans-serif' fill='white'%3EKoveli Lounge%3C/text%3E%3Ctext x='50%25' y='55%25' dominant-baseline='central' text-anchor='middle' font-size='60' font-family='sans-serif' fill='%23cce3ef'%3ELounge Operations%3C/text%3E%3C/svg%3E">
+    
     <!-- Google Fonts + Font Awesome 6 -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- PWA Manifest (separate file) -->
+    
+    <!-- PWA Manifest (Android/Chrome) -->
     <link rel="manifest" href="manifest.json">
-    <!-- Theme color for PWA -->
     <meta name="theme-color" content="#1f6f90">
+    
     <style>
+        /* ... (all your existing styles) ... */
         * {
             margin: 0;
             padding: 0;
@@ -150,8 +164,11 @@
             display: flex;
             justify-content: center;
             width: 100%;
+            flex-wrap: wrap;
+            gap: 12px;
         }
-        #installBtn {
+        
+        #installBtn, #iosInstallBtn {
             background: #1f6f90;
             border: none;
             color: white;
@@ -169,19 +186,48 @@
             border: 1px solid rgba(255,255,255,0.25);
             letter-spacing: -0.2px;
         }
-        #installBtn i {
+        
+        #installBtn i, #iosInstallBtn i {
             font-size: 1.4rem;
         }
-        #installBtn:hover {
+        
+        #installBtn:hover, #iosInstallBtn:hover {
             background: #165f7a;
             transform: scale(1.02);
             box-shadow: 0 16px 28px -8px #1d6f8f80;
         }
-        #installBtn:active {
+        
+        #installBtn:active, #iosInstallBtn:active {
             transform: scale(0.96);
         }
-        #installBtn.hidden {
+        
+        #installBtn.hidden, #iosInstallBtn.hidden {
             display: none;
+        }
+
+        /* iOS-specific install instructions */
+        .ios-install-hint {
+            background: rgba(29, 111, 143, 0.08);
+            border-radius: 16px;
+            padding: 16px 24px;
+            font-size: 0.9rem;
+            color: #1a3e52;
+            text-align: center;
+            border: 1px solid rgba(29, 111, 143, 0.15);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .ios-install-hint i {
+            color: #1f6f90;
+            margin: 0 4px;
+        }
+        .ios-install-hint .highlight {
+            background: #1f6f90;
+            color: white;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
         }
 
         @media (max-width: 760px) {
@@ -191,6 +237,16 @@
             .icon-bg { width: 75px; height: 75px; font-size: 2.2rem; border-radius: 32px; }
             .app-name { font-size: 0.85rem; }
             .app-hint { font-size: 0.55rem; }
+            #installBtn, #iosInstallBtn { 
+                padding: 12px 24px; 
+                font-size: 0.95rem;
+                width: 100%;
+                justify-content: center;
+            }
+            .ios-install-hint { 
+                font-size: 0.8rem; 
+                padding: 12px 16px;
+            }
         }
 
         @media (min-width: 761px) and (max-width: 1024px) {
@@ -259,22 +315,51 @@
     </div>
 </div>
 
+<!-- ===== INSTALL BUTTONS ===== -->
 <div class="install-wrapper">
-    <button id="installBtn" class="hidden"><i class="fas fa-download"></i> Install Koveli Lounge</button>
+    <!-- Android/Chrome install button -->
+    <button id="installBtn" class="hidden"><i class="fas fa-download"></i> Install App</button>
+    
+    <!-- iOS install hint (shows when not in standalone mode) -->
+    <div id="iosInstallHint" class="ios-install-hint hidden">
+        <i class="fas fa-apple"></i> 
+        To install on iPhone/iPad: tap 
+        <span class="highlight"><i class="fas fa-share-alt"></i> Share</span> 
+        then 
+        <span class="highlight"><i class="fas fa-plus-circle"></i> Add to Home Screen</span>
+    </div>
 </div>
 
 <script>
     (function() {
         "use strict";
 
+        // ===== DETECT iOS =====
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isStandalone = window.navigator.standalone === true;
+        const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+
+        // ===== INSTALL BUTTON (Android/Chrome) =====
         let deferredPrompt = null;
         const installBtn = document.getElementById('installBtn');
+        const iosHint = document.getElementById('iosInstallHint');
 
+        // Show iOS hint if on iOS and NOT in standalone mode
+        if (isIOS && !isStandalone && !isInStandaloneMode) {
+            iosHint.classList.remove('hidden');
+            console.log('📱 iOS device detected - showing Add to Home Screen instructions');
+        }
+
+        // Chrome/Android install prompt
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             installBtn.classList.remove('hidden');
             console.log('📲 PWA: beforeinstallprompt fired');
+            
+            // Hide iOS hint on Android
+            iosHint.classList.add('hidden');
         });
 
         installBtn.addEventListener('click', async () => {
@@ -287,15 +372,20 @@
                 }
                 deferredPrompt = null;
             } else {
-                alert('Installation not available. Open this page in Chrome or Edge and use "Add to Home Screen".');
+                // Fallback for browsers that support PWA but no prompt
+                if (!isIOS) {
+                    alert('To install, open this page in Chrome and use "Add to Home Screen" from the menu.');
+                }
             }
         });
 
         window.addEventListener('appinstalled', () => {
             installBtn.classList.add('hidden');
+            iosHint.classList.add('hidden');
             console.log('✅ Koveli Lounge installed as PWA');
         });
 
+        // ===== SERVICE WORKER =====
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js')
                 .then(reg => {
@@ -306,6 +396,7 @@
                 });
         }
 
+        // ===== CLEANUP & VALIDATION =====
         const mainButtons = document.querySelectorAll('.app-card');
         const expectedPages = ['checklist.html', 'shower.html', 'briefing.html', 'handover.html', 'survey.html', 'maintenance.html', 'roster.html'];
         
@@ -356,6 +447,7 @@
             sanitizeLegacyElements();
             ensureSevenOnly();
             console.log("📱💎 Koveli Lounge | 7-button hub + PWA ready (manifest.json, sw.js)");
+            console.log(`📱 iOS: ${isIOS}, Standalone: ${isStandalone || isInStandaloneMode}`);
         });
 
         const styleTag = document.createElement('style');
