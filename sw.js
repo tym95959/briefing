@@ -5,7 +5,7 @@ const ASSETS_TO_CACHE = [
   'index.html',
   'manifest.json',
   // Add your other HTML pages here if they exist
-  // 'checklist.html',
+   'CL2.html',
   // 'shower.html',
   // 'briefing.html',
   // 'handover.html',
