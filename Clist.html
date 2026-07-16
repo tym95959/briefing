@@ -4666,45 +4666,226 @@
     };
     
     // ========== PRINT ALLOCATION ==========
+// ========== PRINT ALLOCATION REPORT ==========
 function printAllocation() {
     const dateInput = document.getElementById('supervisorDate');
     const shiftSelect = document.getElementById('supervisorShift');
     if (!dateInput || !shiftSelect) return;
-    const date = dateInput.value, shift = shiftSelect.value;
-    const content = document.getElementById('allocationTableContainer');
-    if (!content) return;
-    const printWindow = window.open('', '_blank');
-    const tableHTML = content.innerHTML;
+    
+    const date = dateInput.value;
+    const shift = shiftSelect.value;
+    const timeSlots = getTimeSlots(shift);
+    const areas = getAreas();
+    
+    // Build the allocation table data
+    let tableRows = '';
+    areas.forEach(area => {
+        tableRows += `
+            <tr>
+                <td class="area-header">${area}</td>
+        `;
+        timeSlots.forEach(slot => {
+            const allocationKey = `${area}_${slot}`;
+            let assignedStaff = window.currentAllocations?.[allocationKey] || [];
+            if (!Array.isArray(assignedStaff)) {
+                assignedStaff = assignedStaff ? [assignedStaff] : [];
+            }
+            const staffNames = assignedStaff.map(id => {
+                const staff = staffData.find(s => s.id === id);
+                return staff ? staff.name : '';
+            }).filter(name => name).join(', ');
+            
+            tableRows += `<td>${staffNames || '-'}</td>`;
+        });
+        tableRows += `</tr>`;
+    });
+    
+    // Open print window
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    
     printWindow.document.write(`
         <html>
         <head>
             <title>Staff Allocation - ${date} (${shift})</title>
             <style>
-                body { font-family: system-ui; padding: 40px; background: white; }
-                h1 { color: #b87c1a; }
-                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                th, td { border: 1px solid #aaa; padding: 8px; text-align: center; }
-                th { background: #f8e9cf; }
-                .area-header { background: #f0e0bc; font-weight: 700; text-align: left; padding-left: 12px; }
-                .no-print { display: none; }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Courier New', monospace;
+                    background: white; 
+                    padding: 30px;
+                }
+                
+                .report-container {
+                    max-width: 1000px;
+                    margin: 0 auto;
+                }
+                
+                .report-header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    padding-bottom: 10px;
+                    border-bottom: 3px double #000;
+                }
+                
+                .report-header h1 {
+                    font-size: 22px;
+                    letter-spacing: 2px;
+                }
+                
+                .report-header .info {
+                    font-size: 14px;
+                    margin-top: 4px;
+                }
+                
+                .allocation-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 13px;
+                    margin-top: 10px;
+                }
+                
+                .allocation-table th,
+                .allocation-table td {
+                    border: 1px solid #000;
+                    padding: 8px 6px;
+                    text-align: center;
+                }
+                
+                .allocation-table th {
+                    background: #f0e0bc;
+                    font-weight: 700;
+                    font-size: 12px;
+                }
+                
+                .allocation-table .area-header {
+                    background: #f8e9cf;
+                    font-weight: 700;
+                    text-align: left;
+                    padding-left: 12px;
+                    font-size: 12px;
+                    width: 120px;
+                }
+                
+                .allocation-table .area-header:before {
+                    content: "▸ ";
+                }
+                
+                .separator-row td {
+                    background: #e8e8e8;
+                    padding: 2px;
+                    border: 1px solid #000;
+                }
+                
+                .separator-row td:before {
+                    content: "─";
+                    letter-spacing: 2px;
+                }
+                
+                .footer {
+                    margin-top: 30px;
+                    padding-top: 15px;
+                    border-top: 1px solid #ccc;
+                    font-size: 12px;
+                    display: flex;
+                    justify-content: space-between;
+                }
+                
+                .signature-line {
+                    display: inline-block;
+                    width: 200px;
+                    border-bottom: 1px solid #000;
+                    margin-left: 5px;
+                }
+                
+                /* Two copies side by side */
+                .copies-container {
+                    display: flex;
+                    gap: 30px;
+                    page-break-after: always;
+                }
+                
+                .copy {
+                    flex: 1;
+                    border: 2px solid #000;
+                    padding: 20px;
+                    border-radius: 4px;
+                    background: white;
+                }
+                
                 @media print {
-                    body { padding: 20px; }
-                    .no-print { display: none; }
+                    body { padding: 15px; }
+                    .copy { border: 2px solid #000; }
+                    .no-print { display: none !important; }
+                    .copies-container { page-break-after: always; gap: 20px; }
                 }
             </style>
         </head>
         <body>
-            <h1>📋 Staff Allocation - ${date} (${shift})</h1>
-            ${tableHTML}
-            <div class="no-print" style="margin-top: 30px; text-align: center;">
-                <button onclick="window.print()">🖨️ Print</button>
+            <div class="no-print" style="text-align: center; padding: 10px; background: #f0f0f0; margin-bottom: 20px; border-radius: 8px;">
+                <button onclick="window.print()" style="padding: 8px 25px; font-size: 14px; cursor: pointer; background: #2c6e2c; color: white; border: none; border-radius: 6px; margin-right: 10px;">🖨️ Print</button>
+                <button onclick="window.close()" style="padding: 8px 25px; font-size: 14px; cursor: pointer; background: #c25d2e; color: white; border: none; border-radius: 6px;">Close</button>
+                <span style="margin-left: 20px; font-size: 13px; color: #555;">Two copies per page</span>
+            </div>
+            
+            <div class="copies-container">
+                <!-- Copy 1 -->
+                <div class="copy">
+                    <div class="report-header">
+                        <h1>📋 STAFF ALLOCATION</h1>
+                        <div class="info">${shift === 'Morning' ? '🌅 Morning Shift' : '🌙 Evening Shift'} | ${date}</div>
+                    </div>
+                    
+                    <table class="allocation-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">Area / Time</th>
+                                ${timeSlots.map(slot => `<th>${slot}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                    
+                    <div class="footer">
+                        <span>Supervisor: <span class="signature-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+                        <span>Date: <span class="signature-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+                    </div>
+                </div>
+                
+                <!-- Copy 2 (duplicate) -->
+                <div class="copy">
+                    <div class="report-header">
+                        <h1>📋 STAFF ALLOCATION</h1>
+                        <div class="info">${shift === 'Morning' ? '🌅 Morning Shift' : '🌙 Evening Shift'} | ${date}</div>
+                    </div>
+                    
+                    <table class="allocation-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">Area / Time</th>
+                                ${timeSlots.map(slot => `<th>${slot}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                    
+                    <div class="footer">
+                        <span>Supervisor: <span class="signature-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+                        <span>Date: <span class="signature-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+                    </div>
+                </div>
             </div>
         </body>
         </html>
     `);
+    
     printWindow.document.close();
 }
-    // Escape HTML helper
+   
+// Escape HTML helper
     function escapeHtml(str) {
         if (!str) return '';
         return String(str).replace(/[&<>]/g, function(m) {
