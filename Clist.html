@@ -4220,8 +4220,10 @@
                 
                 <div class="allocation-title" style="margin-top: 20px;">📋 STAFF ALLOCATION</div>
                 <div id="allocationTableContainer"></div>
-                <button id="saveAllocationBtn" class="save-allocation-btn">💾 Save Staff Allocation</button>
-            </div>
+                <div style="display: flex; gap: 12px; margin-top: 15px; flex-wrap: wrap;">
+                    <button id="saveAllocationBtn" class="save-allocation-btn" style="flex: 1; min-width: 120px;">💾 Save Allocation</button>
+                    <button id="printAllocationBtn" class="save-allocation-btn" style="flex: 1; min-width: 120px; background: #e4bc78; color: #5c3e0e;">🖨️ Print Allocation</button>
+                </div>
             
             <div class="allocation-container" style="margin-top: 25px;">
                 <div class="allocation-title">⏰ BREAK REQUESTS</div>
@@ -4388,6 +4390,7 @@
         if (dropdownEl && staff.id !== dropdownEl.value) dropdownEl.value = staff.id;
         document.getElementById('profileShortName').innerHTML = staff.name.split(' ')[0];
         document.getElementById('profileAvatar').innerHTML = staff.name.charAt(0).toUpperCase();
+        document.getElementById('printAllocationBtn').addEventListener('click', printAllocation);
     }
     
     function showTemporaryFeedback(message) {
@@ -4662,6 +4665,45 @@
         }
     };
     
+    // ========== PRINT ALLOCATION ==========
+function printAllocation() {
+    const dateInput = document.getElementById('supervisorDate');
+    const shiftSelect = document.getElementById('supervisorShift');
+    if (!dateInput || !shiftSelect) return;
+    const date = dateInput.value, shift = shiftSelect.value;
+    const content = document.getElementById('allocationTableContainer');
+    if (!content) return;
+    const printWindow = window.open('', '_blank');
+    const tableHTML = content.innerHTML;
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Staff Allocation - ${date} (${shift})</title>
+            <style>
+                body { font-family: system-ui; padding: 40px; background: white; }
+                h1 { color: #b87c1a; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #aaa; padding: 8px; text-align: center; }
+                th { background: #f8e9cf; }
+                .area-header { background: #f0e0bc; font-weight: 700; text-align: left; padding-left: 12px; }
+                .no-print { display: none; }
+                @media print {
+                    body { padding: 20px; }
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <h1>📋 Staff Allocation - ${date} (${shift})</h1>
+            ${tableHTML}
+            <div class="no-print" style="margin-top: 30px; text-align: center;">
+                <button onclick="window.print()">🖨️ Print</button>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
     // Escape HTML helper
     function escapeHtml(str) {
         if (!str) return '';
