@@ -450,68 +450,20 @@ function renderAllocationTab() {
 
   const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
   const periods = getPeriodsForShift(selectedShift);
+  
+  // Get duty data for the current shift
   const currentDuty = dutyData[selectedShift] || {};
   const onDutyCount = Object.values(currentDuty).filter(v => v === true).length;
 
+  // Get area data for the current shift
+  const currentAreas = areaData[selectedShift] || {};
   const areaRows = AREAS.filter(area => {
     for (const period of periods) {
-      const assigned = areaData[selectedShift]?.[period]?.[area] || [];
+      const assigned = currentAreas[period]?.[area] || [];
       if (assigned.length > 0) return true;
     }
     return false;
   });
-
-  if (areaRows.length === 0) {
-    return `
-      <div class="allocation-date-section">
-        <div class="date-shift-selector">
-          <label>📅 Date <input type="date" id="allocationDate" value="${selectedDate}" /></label>
-          <label>🕒 Shift <select id="shiftSelect">
-            ${SHIFTS.map(s => `<option value="${s}" ${s === selectedShift ? 'selected' : ''}>${s}</option>`).join('')}
-          </select></label>
-          <button class="btn-load" id="loadAllocationBtn">📂 Load</button>
-          <button class="btn-load" id="syncShiftBtn" style="background:#34d399;color:#fff;margin-left:0.5rem;">📌 Sync with Shift</button>
-        </div>
-        <div class="shift-indicators">
-          <span class="shift-badge ${selectedShift === 'Morning' ? 'morning' : 'evening'}">
-            ${selectedShift === 'Morning' ? '🌅' : '🌙'} ${selectedShift}
-          </span>
-          <button class="btn-print" id="printAllocationBtn">🖨️ Print (2 copies)</button>
-        </div>
-      </div>
-
-      <div class="allocation-section">
-        <div class="section-header">
-          <h3>👥 Staff on Duty (${selectedShift})</h3>
-          <span class="duty-count">${onDutyCount} / ${staffUsers.length} on duty</span>
-          <button class="save-btn" id="saveDutyBtn" ${!hasUnsavedDuty ? 'disabled' : ''}>💾 Save Duty</button>
-        </div>
-        <div class="allocation-grid" id="dutyGrid">
-          ${staffUsers.map(u => {
-            const isOnDuty = currentDuty[u.displayName] || false;
-            return `
-              <div class="allocation-card ${isOnDuty ? 'on-duty' : ''}" data-name="${u.displayName}" role="button" tabindex="0" aria-pressed="${isOnDuty}">
-                <span class="avatar">${getAvatar(u.displayName)}</span>
-                <span class="name">${u.displayName}</span>
-                <span class="role-badge">${u.role || 'staff'}</span>
-                <span class="status ${isOnDuty ? 'on-duty' : 'off-duty'}">
-                  ${isOnDuty ? '✓' : '○'}
-                </span>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-
-      <div class="allocation-section">
-        <div class="section-header">
-          <h3>🗺️ Area Assignment</h3>
-          <button class="save-btn" id="saveAreasBtn" ${!hasUnsavedAreas ? 'disabled' : ''}>💾 Save Areas</button>
-        </div>
-        <div class="empty-state" style="padding:1rem;">No staff assigned to any area yet.</div>
-      </div>
-    `;
-  }
 
   return `
     <div class="allocation-date-section">
@@ -559,40 +511,43 @@ function renderAllocationTab() {
         <h3>🗺️ Area Assignment (Floor & Pantry can share)</h3>
         <button class="save-btn" id="saveAreasBtn" ${!hasUnsavedAreas ? 'disabled' : ''}>💾 Save Areas</button>
       </div>
-      <div class="area-matrix-wrapper">
-        <table class="area-matrix">
-          <thead><tr><th>Area</th>${periods.map(p => `<th>${p}</th>`).join('')}</tr></thead>
-          <tbody>
-            ${areaRows.map(area => {
-              const isShared = SHARED_AREAS.includes(area);
-              return `
-                <tr>
-                  <td class="area-label">${area} ${isShared ? '<span style="font-size:0.6rem;color:#6b7280;">(shared)</span>' : ''}</td>
-                  ${periods.map(period => {
-                    const assigned = areaData[selectedShift]?.[period]?.[area] || [];
-                    const onDutyStaff = staffUsers.filter(u => (dutyData[selectedShift]?.[u.displayName] || false) === true);
-                    return `
-                      <td>
-                        <select multiple class="area-select" data-area="${area}" data-period="${period}" size="${Math.min(onDutyStaff.length + 1, 4)}">
-                          ${onDutyStaff.map(u => `<option value="${u.displayName}" ${assigned.includes(u.displayName) ? 'selected' : ''}>${u.displayName}</option>`).join('')}
-                        </select>
-                        <div class="area-assigned-tags">
-                          ${assigned.map(name => `
-                            <span class="staff-tag">
-                              👤 ${name}
-                              <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
-                            </span>
-                          `).join('')}
-                        </div>
-                      </td>
-                    `;
-                  }).join('')}
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
+      ${areaRows.length === 0 ? 
+        `<div class="empty-state" style="padding:1rem;">No staff assigned to any area yet.</div>` :
+        `<div class="area-matrix-wrapper">
+          <table class="area-matrix">
+            <thead><tr><th>Area</th>${periods.map(p => `<th>${p}</th>`).join('')}</tr></thead>
+            <tbody>
+              ${areaRows.map(area => {
+                const isShared = SHARED_AREAS.includes(area);
+                return `
+                  <tr>
+                    <td class="area-label">${area} ${isShared ? '<span style="font-size:0.6rem;color:#6b7280;">(shared)</span>' : ''}</td>
+                    ${periods.map(period => {
+                      const assigned = currentAreas[period]?.[area] || [];
+                      const onDutyStaff = staffUsers.filter(u => (dutyData[selectedShift]?.[u.displayName] || false) === true);
+                      return `
+                        <td>
+                          <select multiple class="area-select" data-area="${area}" data-period="${period}" size="${Math.min(onDutyStaff.length + 1, 4)}">
+                            ${onDutyStaff.map(u => `<option value="${u.displayName}" ${assigned.includes(u.displayName) ? 'selected' : ''}>${u.displayName}</option>`).join('')}
+                          </select>
+                          <div class="area-assigned-tags">
+                            ${assigned.map(name => `
+                              <span class="staff-tag">
+                                👤 ${name}
+                                <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
+                              </span>
+                            `).join('')}
+                          </div>
+                        </td>
+                      `;
+                    }).join('')}
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`
+      }
     </div>
   `;
 }
@@ -627,26 +582,63 @@ async function loadAllocationData() {
   }
 
   try {
+    // Load allocation data for the specific date
     const docRef = db.collection('allocations').doc(selectedDate);
     const docSnap = await docRef.get();
     if (docSnap.exists) {
       const data = docSnap.data();
-      dutyData = data.duty || {};
-      areaData = data.areas || {};
-    } else {
+      // Initialize dutyData and areaData with all shifts
       dutyData = {};
       areaData = {};
+      
+      SHIFTS.forEach(shift => {
+        // Get duty data for this shift
+        dutyData[shift] = data.duty?.[shift] || {};
+        
+        // Get area data for this shift
+        areaData[shift] = data.areas?.[shift] || {};
+        
+        // Ensure all staff are initialized for duty
+        const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+        staffUsers.forEach(u => {
+          if (dutyData[shift][u.displayName] === undefined) {
+            dutyData[shift][u.displayName] = false;
+          }
+        });
+        
+        // Ensure area data structure is complete
+        const periods = getPeriodsForShift(shift);
+        periods.forEach(period => {
+          if (!areaData[shift][period]) {
+            areaData[shift][period] = {};
+          }
+          AREAS.forEach(area => {
+            if (!areaData[shift][period][area]) {
+              areaData[shift][period][area] = [];
+            }
+          });
+        });
+      });
+    } else {
+      // Initialize empty data for all shifts
+      dutyData = {};
+      areaData = {};
+      
       SHIFTS.forEach(shift => {
         dutyData[shift] = {};
         areaData[shift] = {};
+        
+        const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+        staffUsers.forEach(u => {
+          dutyData[shift][u.displayName] = false;
+        });
+        
         const periods = getPeriodsForShift(shift);
         periods.forEach(period => {
           areaData[shift][period] = {};
-        });
-        users.forEach(u => {
-          if (u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager') {
-            dutyData[shift][u.displayName] = false;
-          }
+          AREAS.forEach(area => {
+            areaData[shift][period][area] = [];
+          });
         });
       });
     }
@@ -809,7 +801,25 @@ async function saveDuty() {
   if (!currentUser) return;
   try {
     const docRef = db.collection('allocations').doc(selectedDate);
-    await docRef.set({ duty: dutyData, updatedDutyBy: currentUser.displayName, updatedDutyAt: new Date().toISOString() }, { merge: true });
+    
+    // Get existing data to preserve other shifts
+    const docSnap = await docRef.get();
+    let existingData = {};
+    if (docSnap.exists) {
+      existingData = docSnap.data();
+    }
+    
+    // Update only the current shift's duty data
+    const updateData = {
+      duty: {
+        ...existingData.duty,
+        [selectedShift]: dutyData[selectedShift] || {}
+      },
+      updatedDutyBy: currentUser.displayName,
+      updatedDutyAt: new Date().toISOString()
+    };
+    
+    await docRef.set(updateData, { merge: true });
     hasUnsavedDuty = false;
     document.getElementById('saveDutyBtn').disabled = true;
     showNotification('✅ Duty status saved!', 'success');
@@ -822,46 +832,48 @@ async function saveDuty() {
 async function saveAreas() {
   if (!currentUser) return;
 
-  SHIFTS.forEach(shift => {
-    if (areaData[shift]) {
-      const periods = getPeriodsForShift(shift);
-      periods.forEach(period => {
-        if (areaData[shift][period]) {
-          AREAS.forEach(area => {
-            if (!areaData[shift][period][area] || areaData[shift][period][area].length === 0) {
-              delete areaData[shift][period][area];
-            }
-          });
-          if (Object.keys(areaData[shift][period]).length === 0) {
-            delete areaData[shift][period];
+  // Clean up empty entries for the current shift only
+  const currentShift = selectedShift;
+  if (areaData[currentShift]) {
+    const periods = getPeriodsForShift(currentShift);
+    periods.forEach(period => {
+      if (areaData[currentShift][period]) {
+        AREAS.forEach(area => {
+          if (!areaData[currentShift][period][area] || areaData[currentShift][period][area].length === 0) {
+            delete areaData[currentShift][period][area];
           }
+        });
+        if (Object.keys(areaData[currentShift][period]).length === 0) {
+          delete areaData[currentShift][period];
         }
-      });
-      if (Object.keys(areaData[shift]).length === 0) {
-        delete areaData[shift];
       }
+    });
+    if (Object.keys(areaData[currentShift]).length === 0) {
+      delete areaData[currentShift];
     }
-  });
+  }
 
   const docRef = db.collection('allocations').doc(selectedDate);
+  
+  // Get existing data to preserve other shifts
+  const docSnap = await docRef.get();
+  let existingData = {};
+  if (docSnap.exists) {
+    existingData = docSnap.data();
+  }
+  
+  // Update only the current shift's area data
   const updateData = {
+    areas: {
+      ...existingData.areas,
+      [selectedShift]: areaData[selectedShift] || {}
+    },
     updatedAreasBy: currentUser.displayName,
     updatedAreasAt: new Date().toISOString()
   };
 
-  if (Object.keys(areaData).length === 0) {
-    updateData.areas = firebase.firestore.FieldValue.delete();
-  } else {
-    updateData.areas = areaData;
-  }
-
   try {
-    const docSnap = await docRef.get();
-    if (docSnap.exists) {
-      await docRef.update(updateData);
-    } else {
-      await docRef.set(updateData, { merge: true });
-    }
+    await docRef.set(updateData, { merge: true });
     
     hasUnsavedAreas = false;
     const saveBtn = document.getElementById('saveAreasBtn');
@@ -876,6 +888,8 @@ async function saveAreas() {
 
 function printAllocation() {
   const periods = getPeriodsForShift(selectedShift);
+  const currentAreas = areaData[selectedShift] || {};
+  
   const tableHtml = (copyNum) => `
     <div class="copy-container">
       <h3>${copyNum === 1 ? 'Copy 1' : 'Copy 2'}</h3>
@@ -888,7 +902,7 @@ function printAllocation() {
               <tr>
                 <td class="area-label">${area} ${isShared ? '(shared)' : ''}</td>
                 ${periods.map(period => {
-                  const assigned = areaData[selectedShift]?.[period]?.[area] || [];
+                  const assigned = currentAreas[period]?.[area] || [];
                   return `<td>${assigned.map(name => `<span class="staff-tag">${name}</span>`).join('') || '—'}</td>`;
                 }).join('')}
               </tr>
@@ -1278,6 +1292,8 @@ async function loadShiftSettings() {
     const settingsSnap = await settingsRef.get();
     if (settingsSnap.exists) {
       currentShiftSettings = settingsSnap.data();
+      selectedDate = currentShiftSettings.date || selectedDate;
+      selectedShift = currentShiftSettings.shift || selectedShift;
     } else {
       currentShiftSettings = { date: new Date().toISOString().slice(0,10), shift: 'Morning' };
     }
@@ -1308,6 +1324,8 @@ async function saveShiftSettings() {
   try {
     await db.collection('settings').doc('currentShift').set({ date, shift });
     currentShiftSettings = { date, shift };
+    selectedDate = date;
+    selectedShift = shift;
     showNotification('✅ Shift settings saved!', 'success');
     const container = document.getElementById('tabContent');
     if (container) container.innerHTML = renderShiftTab();
