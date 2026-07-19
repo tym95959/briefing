@@ -156,13 +156,21 @@ function renderChecklistTab() {
     return `<div class="empty-state">Please sign in to view tasks.</div>`;
   }
   return `
-    <div class="category-tabs">
-      <button class="category-tab ${currentCategory === 'main' ? 'active' : ''}" data-cat="main">
-        Main Tasks <span class="badge">${MAIN_DAILY_TASKS.length}</span>
-      </button>
-      <button class="category-tab ${currentCategory === 'fb' ? 'active' : ''}" data-cat="fb">
-        Food & Beverage <span class="badge">${FB_DAILY_TASKS.length}</span>
-      </button>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
+      <div class="category-tabs">
+        <button class="category-tab ${currentCategory === 'main' ? 'active' : ''}" data-cat="main">
+          Main Tasks <span class="badge">${MAIN_DAILY_TASKS.length}</span>
+        </button>
+        <button class="category-tab ${currentCategory === 'fb' ? 'active' : ''}" data-cat="fb">
+          Food & Beverage <span class="badge">${FB_DAILY_TASKS.length}</span>
+        </button>
+      </div>
+      <div class="shift-indicator" style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:#6b7280;">
+        <span>📅 ${currentShiftSettings.date}</span>
+        <span class="shift-badge ${currentShiftSettings.shift === 'Morning' ? 'morning' : 'evening'}" style="font-size:0.75rem; padding:0.2rem 0.6rem; border-radius:12px; background:${currentShiftSettings.shift === 'Morning' ? '#fef3c7' : '#e0e7ff'};">
+          ${currentShiftSettings.shift}
+        </span>
+      </div>
     </div>
     <div id="taskListContainer">
       <div class="loading-state"><div class="spinner-small"></div>Loading tasks…</div>
@@ -420,13 +428,27 @@ function renderAllocationTab() {
 
   const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
   const periods = getPeriodsForShift(currentShiftSettings.shift);
+  
+  // Get duty data for the current shift
   const currentDuty = dutyData[currentShiftSettings.shift] || {};
   const onDutyStaff = staffUsers.filter(u => currentDuty[u.displayName] === true);
   const onDutyCount = onDutyStaff.length;
 
+  // Get area data for the current shift
+  const currentAreas = areaData[currentShiftSettings.shift] || {};
+  
+  // Check if any area has assignments for the current shift
+  const hasAreaAssignments = AREAS.some(area => {
+    for (const period of periods) {
+      const assigned = currentAreas[period]?.[area] || [];
+      if (assigned.length > 0) return true;
+    }
+    return false;
+  });
+
   const docExists = Object.keys(dutyData).length > 0 || Object.keys(areaData).length > 0;
   let debugInfo = '';
-  if (!docExists) {
+  if (!docExists || !hasAreaAssignments) {
     debugInfo = `
       <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:0.5rem;padding:0.75rem;margin-bottom:1rem;">
         <strong style="color:#991b1b;">⚠️ No allocation data found for ${currentShiftSettings.date} · ${currentShiftSettings.shift}</strong>
@@ -485,7 +507,7 @@ function renderAllocationTab() {
                 <tr>
                   <td class="area-label">${area} ${isShared ? '<span style="font-size:0.6rem;color:#6b7280;">(shared)</span>' : ''}</td>
                   ${periods.map(period => {
-                    const assigned = areaData[currentShiftSettings.shift]?.[period]?.[area] || [];
+                    const assigned = currentAreas[period]?.[area] || [];
                     return `
                       <td>
                         <div class="area-assigned-tags">
@@ -529,15 +551,26 @@ async function loadAllocationData() {
     if (docSnap.exists) {
       const data = docSnap.data();
       console.log('📊 [Staff] Raw data:', data);
+      
+      // Get duty data for all shifts
       dutyData = data.duty || {};
+      // Get area data for all shifts
       areaData = data.areas || {};
+      
       console.log('✅ [Staff] dutyData:', dutyData);
       console.log('✅ [Staff] areaData:', areaData);
+      
       if (dutyData[shift]) {
         const onDutyNames = Object.keys(dutyData[shift]).filter(key => dutyData[shift][key] === true);
         console.log(`✅ [Staff] On‑duty staff for "${shift}":`, onDutyNames);
       } else {
         console.warn(`⚠️ [Staff] No duty data for shift "${shift}". Available shifts:`, Object.keys(dutyData));
+      }
+      
+      if (areaData[shift]) {
+        console.log(`✅ [Staff] Area data for "${shift}":`, areaData[shift]);
+      } else {
+        console.warn(`⚠️ [Staff] No area data for shift "${shift}". Available shifts:`, Object.keys(areaData));
       }
     } else {
       dutyData = {};
@@ -599,6 +632,7 @@ function renderLeaveTab() {
     <div class="leave-date-section">
       <div class="date-display">
         <span class="label">📅 Date: <strong>${currentShiftSettings.date}</strong></span>
+        <span class="label">🕒 Shift: <strong>${currentShiftSettings.shift}</strong></span>
       </div>
     </div>
     <div class="allocation-section">
@@ -695,7 +729,7 @@ function renderBreakTab() {
               <td><span class="break-status ${r.status}">${r.status}</span></td>
               <td>${r.reason || '—'}</td>
               <td>
-                ${(!isReadOnly && isOwn) ? `<button class="delete-own-break" data-id="${r.id}">🗑️ Delete</button>` : '—'}
+                ${(!isReadOnly && isOwn && r.status === 'pending') ? `<button class="delete-own-break" data-id="${r.id}">🗑️ Delete</button>` : '—'}
               </td>
             </tr>
           `;
@@ -718,6 +752,7 @@ function renderBreakTab() {
 async function loadBreakData() {
   if (!currentUser && !isLoggedOut) return;
 
+  // Load current shift settings first
   try {
     const settingsRef = db.collection('settings').doc('currentShift');
     const settingsSnap = await settingsRef.get();
@@ -726,6 +761,7 @@ async function loadBreakData() {
     } else {
       currentShiftSettings = { date: new Date().toISOString().slice(0,10), shift: 'Morning' };
     }
+    console.log('📅 [Break] Current shift settings:', currentShiftSettings);
   } catch (err) {
     console.error('Error loading shift settings:', err);
   }
@@ -838,8 +874,11 @@ function updateTabContent() {
           const docRef = db.collection('allocations').doc(date);
           const docSnap = await docRef.get();
           if (docSnap.exists) {
-            console.log('🔍 [Check Firestore] Document data:', docSnap.data());
-            showNotification(`✅ Document exists! Check console for data.`, 'success');
+            const data = docSnap.data();
+            console.log('🔍 [Check Firestore] Document data:', data);
+            const shifts = Object.keys(data.duty || {});
+            const areas = Object.keys(data.areas || {});
+            showNotification(`✅ Document exists! Shifts: ${shifts.join(', ')}. Check console for details.`, 'success');
           } else {
             console.warn('🔍 [Check Firestore] No document for date:', date);
             showNotification(`❌ No document found for ${date}.`, 'error');
