@@ -10,9 +10,110 @@ const PERIODS = {
 };
 const SHARED_AREAS = ['Floor', 'Pantry'];
 const LEAVE_TYPES = ['FRL', 'SL', 'Absent'];
+const STAFF_DUTY = ['Morning', 'Evening', 'Night'];
+
 const REASON_OPTIONS = {
-  FRL: ['Family emergency', 'Child care', 'Elder care', 'Family event', 'Personal matter', 'Other'],
-  SL: ['Fever', 'Headache', 'Stomach ache', "Doctor's appointment", 'Personal illness', 'Fatigue', 'Other']
+  FRL: [
+    'Moving to a new House',
+    'To attend a family event',
+    'To take family to and from Island',
+    'Urgent work at home',
+    'Baby sitting',
+    'Parent-Teacher meeting',
+    'House Renovation',
+    'Family member sick/admitted',
+    'Court appearance',
+    'To attend a funeral'
+  ],
+  SL: [
+    'Abdominal pain',
+    'Abdominal Bleeding',
+    'Abdominal Thyroid Function',
+    'Abrasion Wound',
+    'Accident Injuries',
+    'ACL Reconstruction',
+    'ACL Tear',
+    'Acute Exacerbation for COPD',
+    'Acute Febrile Illness',
+    'Acute Nasopharyngitis',
+    'Acute Respiratory Infection',
+    'Acute Rhinitis',
+    'Adjustment Disorder',
+    'Admitted in Hospital',
+    'AGE',
+    'Allergic',
+    'Ankle Fracture',
+    'Ankle Sprain',
+    'Anxiety',
+    'APD/MSD',
+    'Appendisitis',
+    'Arm Pain',
+    'Arm Sprain',
+    'Arthritis',
+    'Asthma',
+    'Back Pain',
+    'Bacterial Conjunctivitis',
+    'Bed Rest',
+    'Body Pain',
+    'Bronchitis',
+    'Burn Injury',
+    'Cervical Disc Disorder',
+    'Chest Pain',
+    'Chickenpox',
+    'Chikungunya',
+    'Chronic Sinusitis',
+    'Clavicle Fracture',
+    'Common Cold / Flu and Fever',
+    'Conjunctivitis',
+    'Constipation',
+    'Contusion of Lower Back',
+    'Coronary Artery Disease',
+    'Cough',
+    'Cramp & Spasm',
+    'Crush Injury',
+    'Dehydration',
+    'Dengue',
+    'Dental issue',
+    'Depression',
+    'Diabetes',
+    'Diarrhea',
+    'Disorder of Refraction',
+    'Dizziness',
+    'Ear Pain',
+    'Eye Infection',
+    'Fatigue',
+    'Fever',
+    'Food Poison',
+    'Fracture',
+    'Gastric',
+    'Giddiness',
+    'Hand Pain',
+    'Headache',
+    'Hernia',
+    'Hypertension / Blood Pressure',
+    'Infection',
+    'Injury',
+    'Joint Pain',
+    'Knee Injury',
+    'Lactose Intolerance',
+    'Leg Fracture',
+    'Leg Pain',
+    'Loose Motion',
+    'Lumber Strain',
+    'Medical Appointments',
+    'Medical Illness',
+    'Menstrual Pain',
+    'Migraines',
+    'Minor surgery',
+    'Muscle Pain',
+    'Pharyngitis',
+    'Physical injuries',
+    'Senile Cataract',
+    'Spasrnodic Torticollis',
+    'Stomach upset',
+    'Tonsillitis',
+    'Viral Conjunctivitis'
+  ]
 };
 
 // ---- State ----
@@ -976,6 +1077,9 @@ function renderLeaveTab() {
 
   const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
   const leaveTypeOptions = LEAVE_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+  const staffDutyOptions = STAFF_DUTY.map(d => `<option value="${d}">${d}</option>`).join('');
+  
+  // Get initial reasons for FRL
   const initialReasons = REASON_OPTIONS['FRL'] || [];
   const reasonOptionsHtml = initialReasons.map(r => `<option value="${r}">${r}</option>`).join('');
 
@@ -985,11 +1089,12 @@ function renderLeaveTab() {
   } else {
     entriesHtml = `
       <table class="leave-table">
-        <thead><tr><th>Staff</th><th>Type</th><th>Reason</th><th>Reported At</th><th>Action</th></tr></thead>
+        <thead><tr><th>Staff</th><th>Staff Duty</th><th>Type</th><th>Reason</th><th>Reported At</th><th>Action</th></tr></thead>
         <tbody>
           ${leaveEntries.map((entry, idx) => `
             <tr>
               <td>${entry.displayName}</td>
+              <td><span class="staff-duty-badge">${entry.staffDuty || '—'}</span></td>
               <td><span class="leave-type-badge ${entry.type.toLowerCase()}">${entry.type}</span></td>
               <td>${entry.reason || '—'}</td>
               <td>${entry.reportedAt || '—'}</td>
@@ -1018,6 +1123,13 @@ function renderLeaveTab() {
           <select id="leaveStaffSelect">
             <option value="">— Select —</option>
             ${staffUsers.map(u => `<option value="${u.email}">${u.displayName}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Staff Duty</label>
+          <select id="staffDutySelect">
+            <option value="">— Select —</option>
+            ${staffDutyOptions}
           </select>
         </div>
         <div class="form-group">
@@ -1082,12 +1194,17 @@ async function loadLeaveData() {
 
 async function addLeaveEntry() {
   const staffSelect = document.getElementById('leaveStaffSelect');
+  const staffDutySelect = document.getElementById('staffDutySelect');
   const typeSelect = document.getElementById('leaveTypeSelect');
   const reasonSelect = document.getElementById('leaveReasonSelect');
   const timeInput = document.getElementById('leaveTimeInput');
 
   const staffEmail = staffSelect.value;
   if (!staffEmail) { showNotification('Please select a staff member.', 'error'); return; }
+  
+  const staffDuty = staffDutySelect.value;
+  if (!staffDuty) { showNotification('Please select staff duty.', 'error'); return; }
+  
   const type = typeSelect.value;
   const reason = type === 'Absent' ? '' : reasonSelect.value;
   const reportedAt = timeInput.value;
@@ -1103,6 +1220,7 @@ async function addLeaveEntry() {
   const entry = {
     staffEmail,
     displayName: staff.displayName,
+    staffDuty: staffDuty,
     type,
     reason: reason || '',
     reportedAt,
@@ -1143,8 +1261,15 @@ function printLeaveReport() {
     return;
   }
   const rows = leaveEntries.map(e => `
-    <tr><td>${e.displayName}</td><td>${e.type}</td><td>${e.reason || '—'}</td><td>${e.reportedAt || '—'}</td></tr>
+    <tr>
+      <td>${e.displayName}</td>
+      <td>${e.staffDuty || '—'}</td>
+      <td>${e.type}</td>
+      <td>${e.reason || '—'}</td>
+      <td>${e.reportedAt || '—'}</td>
+    </tr>
   `).join('');
+  
   const html = `
     <!DOCTYPE html>
     <html><head><title>Leave Report - ${selectedDate}</title>
@@ -1158,12 +1283,29 @@ function printLeaveReport() {
       .frl { background: #fef3c7; }
       .sl { background: #dbeafe; }
       .absent { background: #fee2e2; }
+      .staff-duty-badge { 
+        display: inline-block; 
+        padding: 0 8px; 
+        border-radius: 12px; 
+        font-size: 0.7rem; 
+        font-weight: 500;
+        background: #e5e7eb;
+        color: #374151;
+      }
     </style>
     </head><body>
     <h1>📋 Leave Report</h1>
     <div class="sub">Date: ${selectedDate}</div>
     <table>
-      <thead><tr><th>Staff</th><th>Type</th><th>Reason</th><th>Reported At</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Staff</th>
+          <th>Staff Duty</th>
+          <th>Type</th>
+          <th>Reason</th>
+          <th>Reported At</th>
+        </tr>
+      </thead>
       <tbody>${rows}</tbody>
     </table>
     <p style="margin-top:1rem;font-size:0.85rem;color:#888;">
