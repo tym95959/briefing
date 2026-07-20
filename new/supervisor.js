@@ -1,6 +1,7 @@
 // supervisor.js – Full Supervisor Dashboard with simplified Print Checklist
 
 import { MAIN_DAILY_TASKS, FB_DAILY_TASKS, getTasksByCategory } from './task.js';
+import { REASON_OPTIONS, getReasonsForType } from './leaveReasons.js';
 
 const AREAS = ['Welcome', 'Reception', 'Buffet', 'Floor', 'Pantry'];
 const SHIFTS = ['Morning', 'Evening'];
@@ -11,110 +12,6 @@ const PERIODS = {
 const SHARED_AREAS = ['Floor', 'Pantry'];
 const LEAVE_TYPES = ['FRL', 'SL', 'Absent'];
 const STAFF_DUTY = ['Morning', 'Evening', 'Night'];
-
-const REASON_OPTIONS = {
-  FRL: [
-    'Moving to a new House',
-    'To attend a family event',
-    'To take family to and from Island',
-    'Urgent work at home',
-    'Baby sitting',
-    'Parent-Teacher meeting',
-    'House Renovation',
-    'Family member sick/admitted',
-    'Court appearance',
-    'To attend a funeral'
-  ],
-  SL: [
-    'Abdominal pain',
-    'Abdominal Bleeding',
-    'Abdominal Thyroid Function',
-    'Abrasion Wound',
-    'Accident Injuries',
-    'ACL Reconstruction',
-    'ACL Tear',
-    'Acute Exacerbation for COPD',
-    'Acute Febrile Illness',
-    'Acute Nasopharyngitis',
-    'Acute Respiratory Infection',
-    'Acute Rhinitis',
-    'Adjustment Disorder',
-    'Admitted in Hospital',
-    'AGE',
-    'Allergic',
-    'Ankle Fracture',
-    'Ankle Sprain',
-    'Anxiety',
-    'APD/MSD',
-    'Appendisitis',
-    'Arm Pain',
-    'Arm Sprain',
-    'Arthritis',
-    'Asthma',
-    'Back Pain',
-    'Bacterial Conjunctivitis',
-    'Bed Rest',
-    'Body Pain',
-    'Bronchitis',
-    'Burn Injury',
-    'Cervical Disc Disorder',
-    'Chest Pain',
-    'Chickenpox',
-    'Chikungunya',
-    'Chronic Sinusitis',
-    'Clavicle Fracture',
-    'Common Cold / Flu and Fever',
-    'Conjunctivitis',
-    'Constipation',
-    'Contusion of Lower Back',
-    'Coronary Artery Disease',
-    'Cough',
-    'Cramp & Spasm',
-    'Crush Injury',
-    'Dehydration',
-    'Dengue',
-    'Dental issue',
-    'Depression',
-    'Diabetes',
-    'Diarrhea',
-    'Disorder of Refraction',
-    'Dizziness',
-    'Ear Pain',
-    'Eye Infection',
-    'Fatigue',
-    'Fever',
-    'Food Poison',
-    'Fracture',
-    'Gastric',
-    'Giddiness',
-    'Hand Pain',
-    'Headache',
-    'Hernia',
-    'Hypertension / Blood Pressure',
-    'Infection',
-    'Injury',
-    'Joint Pain',
-    'Knee Injury',
-    'Lactose Intolerance',
-    'Leg Fracture',
-    'Leg Pain',
-    'Loose Motion',
-    'Lumber Strain',
-    'Medical Appointments',
-    'Medical Illness',
-    'Menstrual Pain',
-    'Migraines',
-    'Minor surgery',
-    'Muscle Pain',
-    'Pharyngitis',
-    'Physical injuries',
-    'Senile Cataract',
-    'Spasrnodic Torticollis',
-    'Stomach upset',
-    'Tonsillitis',
-    'Viral Conjunctivitis'
-  ]
-};
 
 // ---- State ----
 let currentUser = null;
@@ -1135,7 +1032,7 @@ function renderLeaveTab() {
   const leaveTypeOptions = LEAVE_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
   const staffDutyOptions = STAFF_DUTY.map(d => `<option value="${d}">${d}</option>`).join('');
   
-  // Get initial reasons for FRL
+  // Get reasons from the imported REASON_OPTIONS
   const initialReasons = REASON_OPTIONS['FRL'] || [];
   const reasonOptionsHtml = initialReasons.map(r => `<option value="${r}">${r}</option>`).join('');
 
