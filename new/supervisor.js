@@ -70,6 +70,8 @@ function render() {
       <div>
         <span class="user-badge">👤 <strong>${userDisplay}</strong></span>
         <button class="back-btn" id="switchUserBtn">⟳ Switch User</button>
+        <a href="staff-dashboard.html" class="back-btn staff-view-btn">👥 Staff View</a>
+        <a href="signup.html" class="back-btn signup-btn">📝 Sign Up</a>
         <a href="dashboard.html" class="back-btn">← Back</a>
       </div>
     </div>
@@ -147,7 +149,11 @@ function renderTasksTab() {
           Food & Beverage <span class="badge">${FB_DAILY_TASKS.length}</span>
         </button>
       </div>
-      <button class="btn-print" id="printChecklistBtn">🖨️ Print Checklist</button>
+      <div style="display:flex; gap:0.5rem; align-items:center;">
+        <label style="font-size:0.85rem; color:rgba(0,0,0,0.6);">📅 <input type="date" id="taskDate" value="${selectedDate}" style="padding:0.3rem 0.5rem; border:1px solid rgba(0,0,0,0.08); border-radius:0.5rem;" /></label>
+        <button class="btn-load" id="loadTasksBtn">📂 Load</button>
+        <button class="btn-print" id="printChecklistBtn">🖨️ Print Checklist</button>
+      </div>
     </div>
     <div id="taskListContainer">
       ${currentUser ? '<div class="loading-state"><div class="spinner-small"></div>Loading tasks…</div>' :
@@ -163,6 +169,13 @@ async function loadTasks() {
     container.innerHTML = `<div class="empty-state">Please sign in first.</div>`;
     return;
   }
+  
+  // Get the date from the date picker if available
+  const taskDateInput = document.getElementById('taskDate');
+  if (taskDateInput) {
+    selectedDate = taskDateInput.value;
+  }
+  
   try {
     const docRef = db.collection('checklists').doc(`shift_${selectedDate}`);
     const docSnap = await docRef.get();
@@ -264,6 +277,12 @@ function renderTasks(tasks, savedData, docRef) {
       loadTasks();
     });
   });
+  
+  // Add load tasks button event
+  const loadTasksBtn = document.getElementById('loadTasksBtn');
+  if (loadTasksBtn) {
+    loadTasksBtn.addEventListener('click', loadTasks);
+  }
 }
 
 async function handleComplete(taskId, docRef) {
@@ -334,7 +353,11 @@ async function printChecklistReport() {
   }
 
   try {
-    const docRef = db.collection('checklists').doc(`shift_${selectedDate}`);
+    // Get the date from the date picker if available
+    const taskDateInput = document.getElementById('taskDate');
+    const printDate = taskDateInput ? taskDateInput.value : selectedDate;
+
+    const docRef = db.collection('checklists').doc(`shift_${printDate}`);
     const docSnap = await docRef.get();
     const savedData = docSnap.exists ? docSnap.data() : {};
 
@@ -376,7 +399,7 @@ async function printChecklistReport() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Daily Checklist Report - ${selectedDate}</title>
+        <title>Daily Checklist Report - ${printDate}</title>
         <style>
           * { box-sizing: border-box; }
           body { font-family: Arial, sans-serif; padding: 0.5in; }
@@ -392,7 +415,7 @@ async function printChecklistReport() {
       </head>
       <body>
         <h1>📋 Daily Checklist Report</h1>
-        <div class="sub">Date: ${selectedDate} · Shift: ${selectedShift}</div>
+        <div class="sub">Date: ${printDate} · Shift: ${selectedShift}</div>
         <table>
           <thead>
             <tr><th>Task</th><th>Details</th></tr>
@@ -570,10 +593,7 @@ async function loadAllocationData() {
   const dateInput = document.getElementById('allocationDate');
   const shiftSelect = document.getElementById('shiftSelect');
   
-  if (currentShiftSettings.date && dateInput) {
-    dateInput.value = currentShiftSettings.date;
-    selectedDate = currentShiftSettings.date;
-  } else if (dateInput) {
+  if (dateInput) {
     selectedDate = dateInput.value;
   }
   
@@ -973,7 +993,7 @@ function renderLeaveTab() {
 
   let entriesHtml = '';
   if (leaveEntries.length === 0) {
-    entriesHtml = `<div class="empty-state">No leave entries for today.</div>`;
+    entriesHtml = `<div class="empty-state">No leave entries for selected date.</div>`;
   } else {
     entriesHtml = `
       <table class="leave-table">
@@ -997,6 +1017,7 @@ function renderLeaveTab() {
     <div class="leave-date-section">
       <label>📅 Date <input type="date" id="leaveDate" value="${selectedDate}" /></label>
       <button class="btn-load" id="loadLeaveBtn">📂 Load</button>
+      <button class="btn-print" id="printLeaveBtn">🖨️ Print Leave Report</button>
     </div>
     <div class="allocation-section">
       <div class="section-header">
@@ -1027,8 +1048,7 @@ function renderLeaveTab() {
     </div>
     <div class="allocation-section">
       <div class="section-header">
-        <h3>📋 Today's Leave Entries</h3>
-        <button class="btn-print" id="printLeaveBtn">🖨️ Print Leave Report</button>
+        <h3>📋 Leave Entries for ${selectedDate}</h3>
       </div>
       ${entriesHtml}
     </div>
@@ -1050,7 +1070,9 @@ async function loadLeaveData() {
   }
 
   const dateInput = document.getElementById('leaveDate');
-  if (dateInput) selectedDate = dateInput.value;
+  if (dateInput) {
+    selectedDate = dateInput.value;
+  }
 
   try {
     const docRef = db.collection('leaves').doc(selectedDate);
@@ -1060,6 +1082,7 @@ async function loadLeaveData() {
     } else {
       leaveEntries = [];
     }
+    showNotification(`📋 Loaded ${leaveEntries.length} leave entries for ${selectedDate}`, 'info');
   } catch (err) {
     console.error('Error loading leaves:', err);
     showNotification('Failed to load leave data.', 'error');
@@ -1155,6 +1178,9 @@ function printLeaveReport() {
       <thead><tr><th>Staff</th><th>Type</th><th>Reason</th><th>Reported At</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    <p style="margin-top:1rem;font-size:0.85rem;color:#888;">
+      Printed on ${new Date().toLocaleString()}
+    </p>
     </body></html>
   `;
   const win = window.open('', '_blank');
