@@ -546,7 +546,6 @@ async function printChecklistReport() {
 }
 
 // ================== ALLOCATION TAB ==================
-// ================== ALLOCATION TAB ==================
 function renderAllocationTab() {
   if (isFetchingUsers) {
     return `<div class="loading-state"><div class="spinner-small"></div>Loading staff list…</div>`;
@@ -580,7 +579,7 @@ function renderAllocationTab() {
   // Get area data for the current shift
   const currentAreas = areaData[selectedShift] || {};
   
-  // Show all areas, not just those with assignments
+  // Show all areas
   const areaRows = AREAS;
 
   return `
@@ -638,7 +637,7 @@ function renderAllocationTab() {
                   <td class="area-label">${area} ${isShared ? '<span style="font-size:0.6rem;color:#6b7280;">(shared)</span>' : ''}</td>
                   ${periods.map(period => {
                     const assigned = currentAreas[period]?.[area] || [];
-                    // Show ALL staff in dropdown, not just on-duty staff
+                    // Show ALL staff in dropdown
                     return `
                       <td>
                         <select multiple class="area-select" data-area="${area}" data-period="${period}" size="${Math.min(staffUsers.length + 1, 4)}">
@@ -663,41 +662,6 @@ function renderAllocationTab() {
       </div>
     </div>
   `;
-}
-
-// ================== ALLOCATION LOGIC ==================
-
-function updateAreaSelects() {
-  const selects = document.querySelectorAll('.area-select');
-  const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
-  selects.forEach(select => {
-    const shift = selectedShift;
-    const period = select.dataset.period;
-    const area = select.dataset.area;
-    const assigned = areaData[shift]?.[period]?.[area] || [];
-    select.innerHTML = '';
-    // Show ALL staff in dropdown, not just on-duty staff
-    staffUsers.forEach(u => {
-      const opt = document.createElement('option');
-      opt.value = u.displayName;
-      opt.textContent = u.displayName;
-      if (assigned.includes(u.displayName)) opt.selected = true;
-      select.appendChild(opt);
-    });
-    const container = select.parentElement;
-    let tagsDiv = container.querySelector('.area-assigned-tags');
-    if (!tagsDiv) {
-      tagsDiv = document.createElement('div');
-      tagsDiv.className = 'area-assigned-tags';
-      container.appendChild(tagsDiv);
-    }
-    tagsDiv.innerHTML = assigned.map(name => `
-      <span class="staff-tag">
-        👤 ${name}
-        <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
-      </span>
-    `).join('');
-  });
 }
 
 // ================== ALLOCATION LOGIC ==================
@@ -825,10 +789,10 @@ function updateAreaSelects() {
     const shift = selectedShift;
     const period = select.dataset.period;
     const area = select.dataset.area;
-    const onDutyStaff = staffUsers.filter(u => (dutyData[shift]?.[u.displayName] || false) === true);
     const assigned = areaData[shift]?.[period]?.[area] || [];
     select.innerHTML = '';
-    onDutyStaff.forEach(u => {
+    // Show ALL staff in dropdown
+    staffUsers.forEach(u => {
       const opt = document.createElement('option');
       opt.value = u.displayName;
       opt.textContent = u.displayName;
