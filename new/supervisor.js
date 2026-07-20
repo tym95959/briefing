@@ -150,8 +150,8 @@ function renderTasksTab() {
         </button>
       </div>
       <div style="display:flex; gap:0.5rem; align-items:center;">
-        <label style="font-size:0.85rem; color:rgba(0,0,0,0.6);">📅 <input type="date" id="taskDate" value="${selectedDate}" style="padding:0.3rem 0.5rem; border:1px solid rgba(0,0,0,0.08); border-radius:0.5rem;" /></label>
-        <button class="btn-load" id="loadTasksBtn">📂 Load</button>
+        <span style="font-size:0.85rem; color:rgba(0,0,0,0.6);">📅 ${selectedDate} · 🕒 ${selectedShift}</span>
+        <button class="btn-load" id="refreshTasksBtn">🔄 Refresh</button>
         <button class="btn-print" id="printChecklistBtn">🖨️ Print Checklist</button>
       </div>
     </div>
@@ -170,11 +170,9 @@ async function loadTasks() {
     return;
   }
   
-  // Get the date from the date picker if available
-  const taskDateInput = document.getElementById('taskDate');
-  if (taskDateInput) {
-    selectedDate = taskDateInput.value;
-  }
+  // Use the current shift settings
+  selectedDate = currentShiftSettings.date || selectedDate;
+  selectedShift = currentShiftSettings.shift || selectedShift;
   
   try {
     const docRef = db.collection('checklists').doc(`shift_${selectedDate}`);
@@ -278,10 +276,10 @@ function renderTasks(tasks, savedData, docRef) {
     });
   });
   
-  // Add load tasks button event
-  const loadTasksBtn = document.getElementById('loadTasksBtn');
-  if (loadTasksBtn) {
-    loadTasksBtn.addEventListener('click', loadTasks);
+  // Add refresh tasks button event
+  const refreshBtn = document.getElementById('refreshTasksBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadTasks);
   }
 }
 
@@ -353,9 +351,8 @@ async function printChecklistReport() {
   }
 
   try {
-    // Get the date from the date picker if available
-    const taskDateInput = document.getElementById('taskDate');
-    const printDate = taskDateInput ? taskDateInput.value : selectedDate;
+    // Use the current shift settings
+    const printDate = currentShiftSettings.date || selectedDate;
 
     const docRef = db.collection('checklists').doc(`shift_${printDate}`);
     const docSnap = await docRef.get();
@@ -1243,8 +1240,15 @@ function renderBreakTab() {
 
 async function loadBreakRequests() {
   if (!currentUser) return;
+  
+  // Use the current shift settings
+  selectedDate = currentShiftSettings.date || selectedDate;
+  selectedShift = currentShiftSettings.shift || selectedShift;
+  
   try {
     const snapshot = await db.collection('break_requests')
+      .where('date', '==', selectedDate)
+      .where('shift', '==', selectedShift)
       .orderBy('requestedAt', 'desc')
       .get();
     breakRequests = [];
@@ -1296,7 +1300,7 @@ function renderShiftTab() {
     <div class="allocation-section">
       <h3>📅 Set Current Shift</h3>
       <p style="color: rgba(0,0,0,0.5); margin-bottom: 1rem;">
-        This determines the date and shift that will be used for allocation and break requests.
+        This determines the date and shift that will be used for tasks, allocation, and break requests.
       </p>
       <div class="shift-form">
         <div class="form-group">
@@ -1363,7 +1367,8 @@ async function saveShiftSettings() {
     if (container) container.innerHTML = renderShiftTab();
     attachShiftEvents();
     
-    // Reload allocation and break data with new settings
+    // Reload all data with new settings
+    if (currentTab === 'tasks') loadTasks();
     if (currentTab === 'allocation') loadAllocationData();
     if (currentTab === 'break') loadBreakRequests();
   } catch (err) {
