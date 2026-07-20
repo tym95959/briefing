@@ -1,2354 +1,1864 @@
-// ============================================================
-// GLOBALS
-// ============================================================
-let currentMode = 'local'; // 'local' or 'multiple'
-let manifestEntries = [];
-let processingEntries = [];
-let failedEntries = [];
-let nextId = 1;
-let isGuestModeActive = false;
-let pendingGuestParentId = null;
-let currentShiftData = { date: '', shift: '', status: '' };
-let currentUser = { name: 'OPERATOR', username: 'operator', rcno: 'N/A', level: 'OPERATOR' };
-let currentTab = 'manifest';
-let rtdbRef = null;
-let fieldHistory = new Map();
-let editingCell = null;
-let savingPasses = [];
+// supervisor.js – Full Supervisor Dashboard with simplified Print Checklist
 
-// ===== CHAT ALERT VARIABLES =====
-let chatAlertListener = null;
-let unreadChatCount = 0;
-let chatAlertContainer = null;
-let notifiedMessages = new Set();
+import { MAIN_DAILY_TASKS, FB_DAILY_TASKS, getTasksByCategory } from './task.js';
+import { REASON_OPTIONS, getReasonsForType } from './leaveReasons.js';
 
-// ===== FOCUS MANAGEMENT VARIABLES =====
-let isProcessingAction = false;
-let activeEditableCell = null;
-let isEditingCell = false;
+const AREAS = ['Welcome', 'Reception', 'Buffet', 'Floor', 'Pantry'];
+const SHIFTS = ['Morning', 'Evening'];
+const PERIODS = {
+  Morning: ['07:30-10:30', '10:30-13:30', '13:30-15:30'],
+  Evening: ['15:30-18:30', '18:30-21:00', '21:00-23:30']
+};
+const SHARED_AREAS = ['Floor', 'Pantry'];
+const LEAVE_TYPES = ['FRL', 'SL', 'Absent'];
+const STAFF_DUTY = ['Morning', 'Evening', 'Night'];
 
-// ===== CACHE SYSTEMS =====
-const flightStatusCache = new Map();
-const duplicateCache = new Map();
-const FLIGHT_CACHE_DURATION = 30000; // 30 seconds
-const DUPLICATE_CACHE_DURATION = 5000; // 5 seconds
+// ---- State ----
+let currentUser = null;
+let currentCategory = 'main';
+let currentTab = 'tasks';
+let selectedDate = new Date().toISOString().slice(0, 10);
+let selectedShift = 'Morning';
+let users = [];
+let dutyData = {};
+let areaData = {};
+let leaveEntries = [];
+let breakRequests = [];
+let currentShiftSettings = { date: selectedDate, shift: 'Morning' };
+let hasUnsavedDuty = false;
+let hasUnsavedAreas = false;
+let isFetchingUsers = false;
+let userFetchError = null;
+let isLoadingAllocation = false;
+let isLoadingLeaves = false;
 
-// ============================================================
-// HELPER FUNCTIONS
-// ============================================================
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+const root = document.getElementById('root');
+
+// ================== HELPERS ==================
+function showNotification(msg, type = 'success') {
+  const existing = document.querySelector('.notification');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.className = `notification ${type}`;
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 3000);
 }
 
-function getAirlineName(iataCode) {
-    if (!iataCode) return '';
-    const code = iataCode.toUpperCase();
-    if (window.airlineData && window.airlineData.airlines_flying_to_maldives) {
-        const found = window.airlineData.airlines_flying_to_maldives.find(a => a.iata === code);
-        if (found) return found.airline;
-        return code;
-    }
-    return code;
+function getAvatar(name) {
+  if (!name) return '👤';
+  const emojis = ['😊', '😎', '🤩', '👨‍💼', '👩‍💼', '🧑‍💼', '👨‍⚕️', '👩‍⚕️', '👨‍🍳', '👩‍🍳'];
+  const index = name.charCodeAt(0) % emojis.length;
+  return emojis[index] || '👤';
 }
 
-function getAirlineFromFlight(flightNo) {
-    if (!flightNo) return '';
-    const match = String(flightNo).match(/^([A-Z]{2})/);
-    return match ? match[1] : '';
+function getPeriodsForShift(shift) {
+  return PERIODS[shift] || [];
 }
 
-function getAirlineDisplay(iataCode) {
-    if (!iataCode) return '—';
-    return getAirlineName(iataCode) || iataCode;
+function getAvailableStaffForArea(shift, period, area, assignedStaff) {
+  const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+  const isShared = SHARED_AREAS.includes(area);
+  
+  // Get all staff that are on duty
+  const onDutyStaff = staffUsers.filter(u => (dutyData[shift]?.[u.displayName] || false) === true);
+  
+  if (isShared) {
+    // For shared areas, show all on-duty staff
+    return onDutyStaff;
+  }
+  
+  // For non-shared areas, exclude staff already assigned to other non-shared areas
+  const nonSharedAreas = AREAS.filter(a => !SHARED_AREAS.includes(a) && a !== area);
+  const staffAssignedToOtherAreas = new Set();
+  
+  nonSharedAreas.forEach(otherArea => {
+    const otherAssigned = areaData[shift]?.[period]?.[otherArea] || [];
+    otherAssigned.forEach(name => staffAssignedToOtherAreas.add(name));
+  });
+  
+  // Also exclude staff already assigned to this area (they're already in the dropdown)
+  // But we want to show them as selected, not remove them
+  const assignedSet = new Set(assignedStaff);
+  
+  return onDutyStaff.filter(u => {
+    // If staff is already assigned to this area, keep them (they'll show as selected)
+    if (assignedSet.has(u.displayName)) return true;
+    // If staff is assigned to another non-shared area, remove them
+    return !staffAssignedToOtherAreas.has(u.displayName);
+  });
 }
 
-function calculatePax(seatNo, passengerName) {
-    if (passengerName && String(passengerName).toLowerCase().includes('delay')) return 0;
-    if (!seatNo) return 1;
-    const letters = (String(seatNo).match(/[A-Za-z]/g) || []);
-    return Math.max(1, letters.length);
-}
+// ================== RENDER ==================
+function render() {
+  const userDisplay = currentUser ? currentUser.displayName : 'Not signed in';
+  const totalTasks = MAIN_DAILY_TASKS.length + FB_DAILY_TASKS.length;
+  const pendingBreakCount = breakRequests.filter(r => r.status === 'pending').length;
 
-function generateId() {
-    return Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-}
+  root.innerHTML = `
+    <div class="checklist-header">
+      <h1>🛠️ Supervisor Dashboard</h1>
+      <div>
+        <span class="user-badge">👤 <strong>${userDisplay}</strong></span>
+        <button class="back-btn" id="switchUserBtn">⟳ Switch User</button>
+        <a href="staff-dashboard.html" class="back-btn staff-view-btn">👥 Staff View</a>
+        <a href="signup.html" class="back-btn signup-btn">📝 Sign Up</a>
+        <a href="dashboard.html" class="back-btn">← Back</a>
+      </div>
+    </div>
+    <div class="supervisor-tabs">
+      <button class="supervisor-tab ${currentTab === 'tasks' ? 'active' : ''}" data-tab="tasks">
+        📋 Tasks <span class="badge">${totalTasks}</span>
+      </button>
+      <button class="supervisor-tab ${currentTab === 'allocation' ? 'active' : ''}" data-tab="allocation">
+        👥 Allocation <span class="badge">${users.length}</span>
+      </button>
+      <button class="supervisor-tab ${currentTab === 'leaves' ? 'active' : ''}" data-tab="leaves">
+        📝 Leave Report <span class="badge">${leaveEntries.length}</span>
+      </button>
+      <button class="supervisor-tab ${currentTab === 'break' ? 'active' : ''}" data-tab="break">
+        ☕ Break Requests <span class="badge">${pendingBreakCount}</span>
+      </button>
+      <button class="supervisor-tab ${currentTab === 'shift' ? 'active' : ''}" data-tab="shift">
+        📅 Set Shift
+      </button>
+    </div>
+    <div id="tabContent">
+      ${currentTab === 'tasks' ? renderTasksTab() :
+        currentTab === 'allocation' ? renderAllocationTab() :
+        currentTab === 'leaves' ? renderLeaveTab() :
+        currentTab === 'break' ? renderBreakTab() :
+        renderShiftTab()}
+    </div>
+  `;
 
-function getCurrentEntryTime() {
-    const now = new Date();
-    return now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
+  document.getElementById('switchUserBtn').addEventListener('click', () => showAuthModal());
 
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function showStatus(message, type = 'info') {
-    const statusEl = document.getElementById('extractStatus');
-    if (!statusEl) return;
-    statusEl.className = `status-badge ${type}`;
-    statusEl.innerHTML = message;
-}
-
-function getTodayDate() {
-    return new Date().toISOString().split('T')[0];
-}
-
-// ============================================================
-// FOCUS MANAGEMENT
-// ============================================================
-function focusToCodeInput(selectText = true) {
-    if (isEditingCell || isEditingManifestField()) {
-        return;
-    }
-    const input = document.getElementById('codeInput');
-    if (input && document.activeElement !== input) {
-        input.focus();
-        if (selectText) {
-            input.select();
-        }
-    }
-}
-
-function isEditingManifestField() {
-    const active = document.activeElement;
-    if (active && active.classList && active.classList.contains('editable-cell')) {
-        return true;
-    }
-    return activeEditableCell !== null && document.activeElement === activeEditableCell;
-}
-
-// ============================================================
-// USER SESSION
-// ============================================================
-function getUserSession() {
-    try {
-        const loggedInUser = localStorage.getItem('loggedInUser');
-        if (loggedInUser) {
-            const parsed = JSON.parse(loggedInUser);
-            if (parsed.username || parsed.userName || parsed.name) {
-                return {
-                    username: parsed.username || parsed.userName || parsed.name || 'Guest',
-                    name: parsed.name || parsed.userName || parsed.username || 'Guest',
-                    level: parsed.level || parsed.Level || 'operator',
-                    right: parsed.right || parsed.Right || parsed.level || 'operator',
-                    rcno: parsed.rcno || parsed.RCNo || parsed.employeeId || 'N/A'
-                };
-            }
-        }
-        const username = localStorage.getItem('username') ||
-                        localStorage.getItem('userName') ||
-                        localStorage.getItem('name');
-        const level = localStorage.getItem('level') ||
-                      localStorage.getItem('right') ||
-                      localStorage.getItem('userLevel') ||
-                      'operator';
-        const rcno = localStorage.getItem('rcno') ||
-                     localStorage.getItem('RCNo') ||
-                     localStorage.getItem('employeeId') ||
-                     'N/A';
-        if (username) {
-            return {
-                username: username,
-                name: localStorage.getItem('name') || username,
-                level: level,
-                right: level,
-                rcno: rcno
-            };
-        }
-        const currentUser = localStorage.getItem('currentUser');
-        if (currentUser) {
-            const parsed = JSON.parse(currentUser);
-            if (parsed.username || parsed.name) {
-                return {
-                    username: parsed.username || parsed.name,
-                    name: parsed.name || parsed.username,
-                    level: parsed.level || parsed.right || 'operator',
-                    right: parsed.right || parsed.level || 'operator',
-                    rcno: parsed.rcno || 'N/A'
-                };
-            }
-        }
-        return { username: 'Guest', name: 'Guest', level: 'guest', right: 'guest', rcno: 'N/A' };
-    } catch (e) {
-        return { username: 'Guest', name: 'Guest', level: 'guest', right: 'guest', rcno: 'N/A' };
-    }
-}
-
-function isShiftActive() {
-    return currentShiftData.shift === 'MORNING' || currentShiftData.shift === 'EVENING';
-}
-
-// ============================================================
-// FIREBASE DATABASE ROUTING
-// ============================================================
-function getFirestoreForFlight(flightNo) {
-    if (!flightNo) return window.defaultCardDb;
-    const prefix = String(flightNo).substring(0, 2).toUpperCase();
-    if (prefix === 'DE' || prefix === 'OS' || prefix === 'WK' || prefix === 'NO') return window.deoswknoDb;
-    if (prefix === 'MU' || prefix === 'VS' || prefix === 'SU' || prefix === 'KC') return window.muvssukcDb;
-    if (prefix === 'EY' || prefix === 'FZ' || prefix === 'TK' || prefix === 'MH') return window.eyfztkmhDb;
-    if (prefix === 'BA') return window.baDb;
-    if (prefix === 'EK') return window.ekDb;
-    if (prefix === 'QR') return window.qrDb;
-    if (prefix === 'SQ') return window.sqDb;
-    return window.defaultCardDb;
-}
-
-function getFirestoreNameForFlight(flightNo) {
-    if (!flightNo) return "Default DB";
-    const prefix = String(flightNo).substring(0, 2).toUpperCase();
-    if (prefix === 'DE' || prefix === 'OS' || prefix === 'WK' || prefix === 'NO') return "DE/OS/WK/NO DB";
-    if (prefix === 'MU' || prefix === 'VS' || prefix === 'SU' || prefix === 'KC') return "MU/VS/SU/KC DB";
-    if (prefix === 'EY' || prefix === 'FZ' || prefix === 'TK' || prefix === 'MH') return "EY/FZ/TK/MH DB";
-    if (prefix === 'BA') return "BA DB";
-    if (prefix === 'EK') return "EK DB";
-    if (prefix === 'QR') return "QR DB";
-    if (prefix === 'SQ') return "SQ DB";
-    return "Default DB";
-}
-
-// ============================================================
-// FLIGHT STATUS CHECK FROM RTDB (with cache)
-// ============================================================
-async function checkFlightStatus(flightNo) {
-    if (currentMode !== 'multiple' || !window.rtdb) {
-        return { isClosed: false, status: 'open' };
-    }
-    
-    const cacheKey = flightNo.toUpperCase().trim();
-    const cached = flightStatusCache.get(cacheKey);
-    
-    if (cached && (Date.now() - cached.timestamp < FLIGHT_CACHE_DURATION)) {
-        return cached.data;
-    }
-    
-    try {
-        const snapshot = await window.rtdb.ref('flightStatus')
-            .child(cacheKey)
-            .once('value');
-        
-        const data = snapshot.val();
-        let result = { isClosed: false, status: 'open' };
-        
-        if (data?.closed === true || data?.status === 'closed') {
-            result = { isClosed: true, status: 'closed', closedAt: data.closedAt };
-        }
-        
-        flightStatusCache.set(cacheKey, {
-            data: result,
-            timestamp: Date.now()
-        });
-        
-        return result;
-        
-    } catch (error) {
-        console.warn('Flight status check failed:', error);
-        return { isClosed: false, status: 'open' };
-    }
-}
-
-// ============================================================
-// OPTIMIZED DUPLICATE CHECK (1 Firestore read with index)
-// ============================================================
-async function checkDuplicateSeat(flightNo, seatNo, excludeId = null, date = null) {
-    const today = date || getTodayDate();
-    const normalizedFlight = (flightNo || '').toUpperCase().trim();
-    const normalizedSeat = (seatNo || '').toUpperCase().trim();
-    const cacheKey = `${normalizedFlight}_${normalizedSeat}_${today}`;
-    
-    // STEP 1: Check cache (0 reads)
-    const cached = duplicateCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp < DUPLICATE_CACHE_DURATION)) {
-        return cached.result;
-    }
-    
-    // STEP 2: Check local manifest (0 reads)
-    const localDuplicate = manifestEntries.some(entry => {
-        if (excludeId !== null && entry.id === excludeId) return false;
-        const entryDate = entry.timestamp ? entry.timestamp.split('T')[0] : today;
-        return (entry.flightNo || '').toUpperCase().trim() === normalizedFlight &&
-               (entry.seatNo || '').toUpperCase().trim() === normalizedSeat &&
-               entryDate === today;
+  document.querySelectorAll('.supervisor-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentTab = btn.dataset.tab;
+      render();
+      if (currentTab === 'tasks' && currentUser) loadTasks();
+      else if (currentTab === 'allocation') loadAllocationData();
+      else if (currentTab === 'leaves') loadLeaveData();
+      else if (currentTab === 'break') loadBreakRequests();
+      else if (currentTab === 'shift') loadShiftSettings();
     });
-    
-    if (localDuplicate) {
-        const entry = manifestEntries.find(e => 
-            (e.flightNo || '').toUpperCase().trim() === normalizedFlight &&
-            (e.seatNo || '').toUpperCase().trim() === normalizedSeat &&
-            (e.timestamp ? e.timestamp.split('T')[0] : today) === today
-        );
-        const result = { duplicate: true, source: 'manifest', entry: entry };
-        duplicateCache.set(cacheKey, { result, timestamp: Date.now() });
-        return result;
-    }
-    
-    // STEP 3: Check processing entries (0 reads)
-    const processingDuplicate = processingEntries.some(entry => {
-        if (excludeId !== null && entry.id === excludeId) return false;
-        const entryDate = entry.timestamp ? entry.timestamp.split('T')[0] : today;
-        return (entry.flightNo || '').toUpperCase().trim() === normalizedFlight &&
-               (entry.seatNo || '').toUpperCase().trim() === normalizedSeat &&
-               entryDate === today;
-    });
-    
-    if (processingDuplicate) {
-        const entry = processingEntries.find(e => 
-            (e.flightNo || '').toUpperCase().trim() === normalizedFlight &&
-            (e.seatNo || '').toUpperCase().trim() === normalizedSeat &&
-            (e.timestamp ? e.timestamp.split('T')[0] : today) === today
-        );
-        const result = { duplicate: true, source: 'processing', entry: entry };
-        duplicateCache.set(cacheKey, { result, timestamp: Date.now() });
-        return result;
-    }
-    
-    // STEP 4: Check RTDB manifest (1 read)
-    if (currentMode === 'multiple' && window.rtdb) {
-        try {
-            const snapshot = await window.rtdb.ref('passengerManifest_v2/manifest')
-                .orderByChild('flightNo')
-                .equalTo(normalizedFlight)
-                .once('value');
-            
-            const data = snapshot.val();
-            if (data) {
-                for (const [key, entry] of Object.entries(data)) {
-                    if (excludeId !== null && entry.id === excludeId) continue;
-                    const entryDate = entry.timestamp ? entry.timestamp.split('T')[0] : today;
-                    if (entryDate === today && 
-                        entry.seatNo && entry.seatNo.toUpperCase().trim() === normalizedSeat) {
-                        const result = { duplicate: true, source: 'rtdb', entry: entry };
-                        duplicateCache.set(cacheKey, { result, timestamp: Date.now() });
-                        return result;
-                    }
-                }
-            }
-        } catch (error) {
-            console.warn('RTDB duplicate check failed:', error);
-        }
-    }
-    
-    // STEP 5: Check Firestore (1 read with limit(1) + index)
-    if (currentMode === 'multiple') {
-        try {
-            const db = getFirestoreForFlight(normalizedFlight);
-            if (db) {
-                const querySnapshot = await db.collection('KoveliPass')
-                    .where('flightNo', '==', normalizedFlight)
-                    .where('seatNo', '==', normalizedSeat)
-                    .where('date', '==', today)
-                    .limit(1)
-                    .get();
-                
-                if (!querySnapshot.empty) {
-                    const doc = querySnapshot.docs[0];
-                    const data = doc.data();
-                    const result = { 
-                        duplicate: true, 
-                        source: 'firestore', 
-                        entry: {
-                            passengerName: data.pName || data.passengerName || 'Unknown',
-                            flightNo: data.flightNo,
-                            seatNo: data.seatNo,
-                            date: data.date,
-                            docId: doc.id
-                        }
-                    };
-                    
-                    duplicateCache.set(cacheKey, { result, timestamp: Date.now() });
-                    return result;
-                }
-            }
-        } catch (error) {
-            console.warn('Firestore duplicate check failed:', error);
-        }
-    }
-    
-    // No duplicate found
-    const result = { duplicate: false };
-    duplicateCache.set(cacheKey, { result, timestamp: Date.now() });
-    return result;
+  });
+
+  if (currentTab === 'tasks' && currentUser) loadTasks();
+  else if (currentTab === 'allocation') loadAllocationData();
+  else if (currentTab === 'leaves') loadLeaveData();
+  else if (currentTab === 'break') loadBreakRequests();
+  else if (currentTab === 'shift') loadShiftSettings();
+
+  if (currentTab === 'tasks') {
+    attachPrintChecklistEvent();
+  }
+
+  if (!currentUser) showAuthModal();
 }
 
-// ============================================================
-// EXTRACT FQTV
-// ============================================================
-function extractFQTV(codeInput, flightNoPart, isM1orM2) {
-    let fqtvValue = '';
-    const trimmedCode = codeInput.trim();
-    const words = trimmedCode.split(' ').filter(w => w.trim() !== '');
-    const flightNoWord = words.find(w => /^[A-Z]{2}\d+[A-Z]?$/.test(w)) || flightNoPart;
-    const flightPrefix = flightNoWord ? flightNoWord.substring(0, 2) : '';
-
-    if (flightPrefix === 'EK') {
-        const partnerFQTVMatch = trimmedCode.match(/\s+([A-Z]{2})\s+(\d{6,})/);
-        if (partnerFQTVMatch) fqtvValue = partnerFQTVMatch[1] + '-' + partnerFQTVMatch[2];
-    } else if (flightPrefix === 'QR') {
-        const partnerFQTVMatch = trimmedCode.match(/ ([A-Z]{2}) (\d{6,})(?:\s+(N[0123]))?/);
-        if (partnerFQTVMatch) {
-            const airlineCode = partnerFQTVMatch[1];
-            const number = partnerFQTVMatch[2];
-            const cardS = partnerFQTVMatch[3];
-            if (airlineCode === 'QR' && cardS === 'N1') fqtvValue = airlineCode + '-' + number + '/P';
-            else if (airlineCode === 'QR' && cardS === 'N2') fqtvValue = airlineCode + '-' + number + '/G';
-            else if (airlineCode === 'QR' && cardS === 'N3') fqtvValue = airlineCode + '-' + number + '/S';
-            else if (airlineCode != 'QR' && cardS === 'N1') fqtvValue = airlineCode + '-' + number + '/EMER';
-            else if (airlineCode != 'QR' && cardS === 'N2') fqtvValue = airlineCode + '-' + number + '/SAPP';
-        }
-    } else if (flightPrefix === 'BA') {
-        const partnerFQTVMatch = trimmedCode.match(/ ([A-Z]{2}) (\d{6,})(?:\s+(Y[0123]))?/);
-        if (partnerFQTVMatch) {
-            const airlineCode = partnerFQTVMatch[1];
-            const number = partnerFQTVMatch[2];
-            const cardS = partnerFQTVMatch[3];
-            if (airlineCode === 'BA' && cardS === 'Y1') fqtvValue = airlineCode + '-' + number + '/G';
-            else if (airlineCode === 'BA' && cardS === 'Y2') fqtvValue = airlineCode + '-' + number + '/S';
-            else if (airlineCode != 'BA' && cardS === 'Y1') fqtvValue = airlineCode + '-' + number + '/EMER';
-            else if (airlineCode != 'BA' && cardS === 'Y2') fqtvValue = airlineCode + '-' + number + '/SAPP';
-        }
-    } else if (flightPrefix === 'MH') {
-        const partnerFQTVMatch = trimmedCode.match(/ ([A-Z]{2}) (\d{6,})(?:\s+(Y[0123]))?/);
-        if (partnerFQTVMatch) {
-            const airlineCode = partnerFQTVMatch[1];
-            const number = partnerFQTVMatch[2];
-            const cardS = partnerFQTVMatch[3];
-            if (airlineCode === 'MH' && cardS === 'Y1') fqtvValue = airlineCode + '-' + number + '/P';
-            else if (airlineCode === 'MH' && cardS === 'Y2') fqtvValue = airlineCode + '-' + number + '/G';
-            else if (airlineCode === 'MH' && cardS === 'Y3') fqtvValue = airlineCode + '-' + number + '/S';
-            else if (airlineCode !== 'MH' && cardS === 'Y1') fqtvValue = airlineCode + '-' + number + '/PLAT';
-            else if (airlineCode !== 'MH' && cardS === 'Y2') fqtvValue = airlineCode + '-' + number + '/SAPP';
-            else if (airlineCode !== 'MH' && cardS === 'Y3') fqtvValue = "";
-        }
-    } else if (['FZ','OS','EY','SU','VS','KC','DE','NO','WK','SV'].includes(flightPrefix)) {
-        const partnerFQTVMatch = trimmedCode.match(/ ([A-Z]{2}) (\d{6,})/);
-        if (partnerFQTVMatch) fqtvValue = partnerFQTVMatch[1] + '-' + partnerFQTVMatch[2];
-    } else if (flightPrefix === 'UL') {
-        const partnerFQTVMatch = trimmedCode.match(/ ([A-Z]{2}) (\d{6,})/);
-        const words = trimmedCode.trim().split(/\s+/);
-        const thirdLastWord = words[words.length - 3] || '';
-        const firstFive = thirdLastWord.slice(0, 5);
-        const result = firstFive.slice(1);
-        if (partnerFQTVMatch) fqtvValue = partnerFQTVMatch[1] + '-' + partnerFQTVMatch[2] + '/' + result;
-    }
-    return fqtvValue;
+function attachPrintChecklistEvent() {
+  const printBtn = document.getElementById('printChecklistBtn');
+  if (printBtn) {
+    const newBtn = printBtn.cloneNode(true);
+    printBtn.parentNode.replaceChild(newBtn, printBtn);
+    newBtn.addEventListener('click', printChecklistReport);
+  }
 }
 
-// ============================================================
-// BOARDING PASS PARSING
-// ============================================================
-function runOriginalParsing(inputCodeValue) {
-    let inputCode = String(inputCodeValue).toUpperCase().replace(/\s+/g, ' ').trim();
-    if (!inputCode.trim()) return { success: false, error: 'Empty code' };
-
-    const isTKVCPO = inputCode.startsWith('TKVCPO');
-    const isMFormat = inputCode.startsWith('M1') || inputCode.startsWith('M2') || inputCode.startsWith('M');
-
-    if (isTKVCPO) {
-        const tk07Position = inputCode.search(/TK07|TK69/);
-        const mlePosition = inputCode.indexOf('MLE');
-        if (tk07Position === -1) {
-            return { success: false, error: 'TKVCPO MUST CONTAIN TK07' };
-        }
-
-        let namePart = inputCode.substring(6, tk07Position).trim();
-        let flightNoPart = inputCode.length > tk07Position + 4 ? inputCode.substring(tk07Position, tk07Position + 6) : '';
-        let airline = flightNoPart && flightNoPart.length >= 2
-            ? getAirlineName(flightNoPart.substring(0, 2))
-            : 'TURKISH AIRLINES';
-
-        let seatNo = '';
-        let classChar = 'Y';
-        if (mlePosition !== -1 && inputCode.length > mlePosition + 11) {
-            seatNo = (inputCode.charAt(mlePosition + 8) || '') +
-                     (inputCode.charAt(mlePosition + 9) || '') +
-                     (inputCode.charAt(mlePosition + 10) || '');
-            classChar = inputCode.charAt(mlePosition + 11) || 'Y';
-        }
-
-        let pName = namePart.replace(/[^A-Z\s]/g, '').trim();
-        if (!pName || pName.length < 2) pName = 'PASSENGER';
-
-        const pax = calculatePax(seatNo, pName);
-
-        return {
-            success: true,
-            pnr: 'TKVCPO',
-            passengerName: pName,
-            flightNo: flightNoPart || 'UNKNOWN',
-            classCode: classChar,
-            seatNo: seatNo || '-',
-            airlineCode: flightNoPart ? flightNoPart.substring(0, 2) : 'TK',
-            fqtvValue: '',
-            serialNo: '',
-            pax: pax,
-            rawCode: inputCodeValue
-        };
-    }
-
-    const mleWord = /MLE[A-Z0-9]{5}/i;
-    const match = mleWord.exec(inputCode);
-    if (!match) return { success: false, error: 'No valid PNR found' };
-
-    const fullMatch = match[0];
-    const endIndex = match.index + fullMatch.length;
-    const textAfter = inputCode.substring(endIndex);
-    const phrases = textAfter.trim().split(/\s+/);
-    const firstTwoLetters = inputCode.substring(0, 2);
-    const textBeforePNR = inputCode.substring(0, match.index - 8).trim();
-    const rawPNR = inputCode.substring(0, match.index).replace(/\s/g, '').slice(-6);
-    const PNR = rawPNR.length === 7 ? rawPNR.slice(0) : rawPNR;
-
-    let passengerName = '';
-    let flightNo = '';
-    let airlineCode = '';
-    let classCode = 'Y';
-    let seatNo = '';
-    let fqtvValue = '';
-    let serialNo = '';
-
-    if (firstTwoLetters === 'M1' || firstTwoLetters === 'M2') {
-        passengerName = textBeforePNR.substring(2).trim();
-    } else if (firstTwoLetters === 'M ') {
-        passengerName = inputCode.substring(1, match.index).trim();
-    } else {
-        passengerName = textBeforePNR;
-    }
-    if (!passengerName || passengerName.length < 2) {
-        const nameMatch = inputCode.match(/^([A-Z\/\s]{3,20})/);
-        if (nameMatch) passengerName = nameMatch[1].trim();
-    }
-
-    let flightCode = match[0].slice(-2);
-    const flightNumber = inputCode.substring(endIndex, endIndex + 10).replace(/\s/g, '').slice(0, -4);
-    flightNo = flightCode + flightNumber;
-    airlineCode = flightCode;
-
-    const isM1orM2 = firstTwoLetters === 'M1' || firstTwoLetters === 'M2';
-    const classCodes = ['F','C','J','Y','S','W','P','A','D','I','Z','O','E','B','H','K','L','M','N','Q','R','T','U','V','X'];
-
-    if (isM1orM2 && inputCode.length > match.index + fullMatch.length + 3) {
-        const afterMLE = inputCode.substring(match.index + fullMatch.length);
-        const parts = afterMLE.split(' ').filter(p => p.trim() !== '');
-        let seatString = '';
-        for (let part of parts) {
-            if (/^\d{3}[A-Z]\d{3}[A-Z]\d{4}$/.test(part)) {
-                seatString = part;
-                break;
-            }
-        }
-        if (!seatString) {
-            for (let part of parts) {
-                if (part.length >= 13 && /[A-Z]/.test(part) && /\d/.test(part)) {
-                    seatString = part;
-                    break;
-                }
-            }
-        }
-        if (seatString) {
-            seatNo = seatString.substring(5, seatString.length - 4);
-            const potentialClass = seatString.charAt(3);
-            if (classCodes.includes(potentialClass)) {
-                classCode = potentialClass;
-            }
-        }
-    } else {
-        for (const phrase of phrases) {
-            const clean = phrase.replace(/\s/g, '');
-            for (const cls of classCodes) {
-                if (clean === cls || (clean.endsWith(cls) && clean.length <= 3)) {
-                    classCode = cls;
-                    break;
-                }
-            }
-            if (classCode !== 'Y') break;
-        }
-    }
-
-    const pax = calculatePax(seatNo, passengerName);
-    fqtvValue = extractFQTV(inputCode, flightNo, isM1orM2);
-
-    const etktMatch = inputCode.match(/ETKT[:\s]*(\d{13,14})/i);
-    if (etktMatch) serialNo = etktMatch[1];
-    if (!serialNo) {
-        const tktMatch = inputCode.match(/TKT[:\s]*(\d{13,14})/i);
-        if (tktMatch) serialNo = tktMatch[1];
-    }
-    if (!serialNo) {
-        const ticketMatch = inputCode.match(/\b(\d{13,14})\b/);
-        if (ticketMatch) serialNo = ticketMatch[1];
-    }
-    if (!serialNo) {
-        const airlineTicketMatch = inputCode.match(/[A-Z]{2,3}(\d{10,13})/);
-        if (airlineTicketMatch) serialNo = airlineTicketMatch[0];
-    }
-
-    return {
-        success: true,
-        pnr: PNR,
-        passengerName: passengerName || '',
-        flightNo: flightNo || '',
-        classCode: classCode || 'Y',
-        seatNo: seatNo || '',
-        airlineCode: airlineCode || '',
-        fqtvValue: fqtvValue || '',
-        serialNo: serialNo || '',
-        pax: pax,
-        rawCode: inputCodeValue
-    };
-}
-
-// ============================================================
-// DUPLICATE CHECK (Basic)
-// ============================================================
-function isDuplicateEntry(flightNo, passengerName, seatNo, excludeId, entriesList) {
-    const today = getTodayDate();
-    const normalizedFlight = (flightNo || '').toUpperCase().trim();
-    const normalizedName = (passengerName || '').toUpperCase().trim();
-    const normalizedSeat = (seatNo || '').toUpperCase().trim();
-    return entriesList.some(entry => {
-        if (excludeId !== null && entry.id === excludeId) return false;
-        const entryDate = entry.timestamp ? entry.timestamp.split('T')[0] : today;
-        return (entry.flightNo || '').toUpperCase().trim() === normalizedFlight &&
-            (entry.passengerName || '').toUpperCase().trim() === normalizedName &&
-            (entry.seatNo || '').toUpperCase().trim() === normalizedSeat &&
-            entryDate === today;
-    });
-}
-
-// ============================================================
-// DATA PERSISTENCE
-// ============================================================
-function saveToLocalStorage() {
-    const data = { manifest: manifestEntries, processing: processingEntries, failed: failedEntries, nextId: nextId };
-    localStorage.setItem('passengerManifest_v2', JSON.stringify(data));
-}
-
-function loadFromLocalStorage() {
-    const saved = localStorage.getItem('passengerManifest_v2');
-    if (saved) {
-        try {
-            const parsed = JSON.parse(saved);
-            manifestEntries = parsed.manifest || [];
-            processingEntries = parsed.processing || [];
-            failedEntries = parsed.failed || [];
-            nextId = parsed.nextId || 1;
-        } catch (e) {
-            manifestEntries = [];
-            processingEntries = [];
-            failedEntries = [];
-        }
-    } else {
-        manifestEntries = [];
-        processingEntries = [];
-        failedEntries = [];
-    }
-    manifestEntries = manifestEntries.filter(e => e !== null);
-    processingEntries = processingEntries.filter(e => e !== null);
-    failedEntries = failedEntries.filter(e => e !== null);
-}
-
-function clearLocalStorage() {
-    localStorage.removeItem('passengerManifest_v2');
-    manifestEntries = [];
-    processingEntries = [];
-    failedEntries = [];
-    nextId = 1;
-}
-
-// ===== REALTIME DB =====
-async function initRTDB() {
-    if (!window.rtdb) return false;
-    try {
-        rtdbRef = window.rtdb.ref('passengerManifest_v2');
-        return true;
-    } catch (e) { return false; }
-}
-
-async function saveToFirebaseRTDB() {
-    if (!rtdbRef) await initRTDB();
-    if (!rtdbRef) return false;
-    try {
-        await rtdbRef.set({
-            manifest: manifestEntries,
-            processing: processingEntries,
-            failed: failedEntries,
-            nextId: nextId,
-            updatedAt: firebase.database.ServerValue.TIMESTAMP
-        });
-        return true;
-    } catch (e) { return false; }
-}
-
-async function loadFromFirebaseRTDB() {
-    if (!rtdbRef) await initRTDB();
-    if (!rtdbRef) return;
-    try {
-        const snapshot = await rtdbRef.once('value');
-        const data = snapshot.val();
-        if (data) {
-            manifestEntries = data.manifest || [];
-            processingEntries = data.processing || [];
-            failedEntries = data.failed || [];
-            nextId = data.nextId || 1;
-        } else {
-            manifestEntries = [];
-            processingEntries = [];
-            failedEntries = [];
-        }
-        manifestEntries = manifestEntries.filter(e => e !== null);
-        processingEntries = processingEntries.filter(e => e !== null);
-        failedEntries = failedEntries.filter(e => e !== null);
-    } catch (e) {
-        manifestEntries = [];
-        processingEntries = [];
-        failedEntries = [];
-    }
-}
-
-function listenToFirebaseChanges() {
-    if (!window.rtdb) return;
-    window.rtdb.ref('passengerManifest_v2').on('value', (snapshot) => {
-        if (currentMode === 'multiple') {
-            const data = snapshot.val();
-            if (data) {
-                manifestEntries = data.manifest || [];
-                processingEntries = data.processing || [];
-                failedEntries = data.failed || [];
-                nextId = data.nextId || 1;
-                updateTabCounts();
-                if (currentTab === 'manifest') renderManifestTable();
-                else if (currentTab === 'processing') renderProcessingTable();
-                else if (currentTab === 'failed') renderFailedList();
-            }
-        }
-    });
-}
-
-async function saveData() {
-    if (currentMode === 'local') {
-        saveToLocalStorage();
-        return true;
-    } else {
-        return await saveToFirebaseRTDB();
-    }
-}
-
-// ============================================================
-// GUEST MODE
-// ============================================================
-function showGuestModeBanner() {
-    document.getElementById('guestModeBanner').classList.add('visible');
-}
-
-function hideGuestModeBanner() {
-    document.getElementById('guestModeBanner').classList.remove('visible');
-}
-
-function closeGuestMode() {
-    isGuestModeActive = false;
-    pendingGuestParentId = null;
-    hideGuestModeBanner();
-    showStatus('👋 Guest mode closed.', 'info');
-    setTimeout(() => {
-        showStatus('', '');
-        focusToCodeInput(true);
-    }, 2000);
-}
-
-function canAddGuest(entry) {
-    const hasFqtv = entry.fqtvValue && String(entry.fqtvValue).trim() !== '' && !String(entry.fqtvValue).startsWith('👥');
-    const isFirstClassEK = (entry.classCode === 'F' || entry.classCode === 'F ') && entry.airlineCode === 'EK';
-    return hasFqtv || isFirstClassEK;
-}
-
-function addGuestForParent(parentId) {
-    const parentEntry = manifestEntries.find(e => e.id == parentId);
-    if (!parentEntry) return;
-    if (!canAddGuest(parentEntry)) {
-        showStatus(`❌ Cannot add guest: ${parentEntry.passengerName} requires FQTV or First Class EK`, 'error');
-        setTimeout(() => {
-            showStatus('', '');
-            focusToCodeInput(true);
-        }, 3000);
-        return;
-    }
-    pendingGuestParentId = parentEntry.id;
-    isGuestModeActive = true;
-    showGuestModeBanner();
-    showStatus(`👥 Guest mode ACTIVE for ${parentEntry.passengerName}`, 'warning');
-    document.getElementById('codeInput').focus();
-    document.getElementById('codeInput').value = '';
-    focusToCodeInput(true);
-}
-
-// ============================================================
-// CORE OPERATIONS
-// ============================================================
-// ===== OPTIMISTIC EXTRACT & ADD (INSTANT MANIFEST) =====
-async function extractAndAdd() {
-    if (!isShiftActive()) {
-        showStatus('❌ No active shift.', 'error');
-        focusToCodeInput(true);
-        return false;
-    }
-
-    const rawCode = document.getElementById('codeInput').value;
-    if (!rawCode.trim()) {
-        focusToCodeInput(true);
-        return false;
-    }
-
-    const result = runOriginalParsing(rawCode);
-    if (!result.success) {
-        showStatus(`❌ ${result.error}`, 'error');
-        document.getElementById('codeInput').value = '';
-        focusToCodeInput(true);
-        return false;
-    }
-
-    // ===== OPTIMISTIC UI: ADD IMMEDIATELY =====
-    let finalFqtv = result.fqtvValue || '';
-    let isGuest = false;
-    if (isGuestModeActive && pendingGuestParentId) {
-        isGuest = true;
-        const parent = manifestEntries.find(e => e.id === pendingGuestParentId);
-        finalFqtv = `👥 Guest of ${parent ? parent.seatNo || 'Unknown' : 'Unknown'}`;
-    }
-
-    const newEntry = {
-        id: nextId++,
-        pnr: result.pnr || '',
-        passengerName: result.passengerName || '',
-        flightNo: result.flightNo || '',
-        classCode: result.classCode || 'Y',
-        seatNo: result.seatNo || '',
-        airlineCode: result.airlineCode || '',
-        fqtvValue: finalFqtv,
-        guestOf: isGuest ? pendingGuestParentId : null,
-        pax: result.pax || 1,
-        serialNo: result.serialNo || '',
-        rawCode: rawCode,
-        timestamp: new Date().toISOString(),
-        scannedBy: getUserSession()?.username || 'Unknown',
-        _validating: true   // mark as being validated
-    };
-
-    manifestEntries.unshift(newEntry);
-    document.getElementById('codeInput').value = '';
-    renderManifestTable();
-    updateTabCounts();
-    switchTab('manifest');
-
-    // ===== BACKGROUND VALIDATION (no UI blocking) =====
-    setTimeout(async () => {
-        try {
-            // 1. Check flight status
-            const flightStatus = await checkFlightStatus(result.flightNo);
-            if (flightStatus.isClosed) {
-                // Move to failed
-                const idx = manifestEntries.findIndex(e => e.id === newEntry.id);
-                if (idx !== -1) {
-                    const removed = manifestEntries.splice(idx, 1)[0];
-                    failedEntries.push({
-                        ...removed,
-                        errorMessage: `Flight ${result.flightNo} is CLOSED`,
-                        failedAt: new Date().toISOString()
-                    });
-                }
-                await saveData();
-                renderManifestTable();
-                renderFailedList();
-                updateTabCounts();
-                showStatus(`❌ Flight ${result.flightNo} is CLOSED – moved to Failed`, 'error');
-                return;
-            }
-
-            // 2. Check duplicate seat (remote only – local already checked)
-            const duplicateCheck = await checkDuplicateSeat(result.flightNo, result.seatNo, newEntry.id);
-            if (duplicateCheck.duplicate) {
-                const idx = manifestEntries.findIndex(e => e.id === newEntry.id);
-                if (idx !== -1) {
-                    const removed = manifestEntries.splice(idx, 1)[0];
-                    failedEntries.push({
-                        ...removed,
-                        errorMessage: `SEAT ${result.seatNo} on ${result.flightNo} (${getTodayDate()}) is OCCUPIED by ${duplicateCheck.entry?.passengerName || 'Unknown'}`,
-                        failedAt: new Date().toISOString()
-                    });
-                }
-                await saveData();
-                renderManifestTable();
-                renderFailedList();
-                updateTabCounts();
-                showStatus(`❌ Seat occupied – moved to Failed`, 'error');
-                return;
-            }
-
-            // 3. Exact duplicate (local)
-            if (isDuplicateEntry(result.flightNo, result.passengerName, result.seatNo, newEntry.id, manifestEntries)) {
-                const idx = manifestEntries.findIndex(e => e.id === newEntry.id);
-                if (idx !== -1) {
-                    const removed = manifestEntries.splice(idx, 1)[0];
-                    failedEntries.push({
-                        ...removed,
-                        errorMessage: `Duplicate entry for ${result.passengerName}`,
-                        failedAt: new Date().toISOString()
-                    });
-                }
-                await saveData();
-                renderManifestTable();
-                renderFailedList();
-                updateTabCounts();
-                showStatus(`❌ Duplicate entry – moved to Failed`, 'error');
-                return;
-            }
-
-            // ✅ All checks passed – remove validation flag and save
-            const entryInManifest = manifestEntries.find(e => e.id === newEntry.id);
-            if (entryInManifest) {
-                delete entryInManifest._validating;
-                await saveData();
-                renderManifestTable();
-                showStatus(`✅ ${result.passengerName} added successfully (validated)`, 'success');
-            }
-
-        } catch (err) {
-            console.error('Background validation error:', err);
-            const idx = manifestEntries.findIndex(e => e.id === newEntry.id);
-            if (idx !== -1) {
-                const removed = manifestEntries.splice(idx, 1)[0];
-                failedEntries.push({
-                    ...removed,
-                    errorMessage: `Validation error: ${err.message || 'Unknown'}`,
-                    failedAt: new Date().toISOString()
-                });
-                await saveData();
-                renderManifestTable();
-                renderFailedList();
-                updateTabCounts();
-                showStatus(`❌ Validation error – moved to Failed`, 'error');
-            }
-        }
-    }, 0);
-
-    // Immediately show success (optimistic)
-    if (isGuest && pendingGuestParentId) {
-        const parent = manifestEntries.find(e => e.id === pendingGuestParentId);
-        showStatus(`👥 Guest added for ${parent ? parent.passengerName : 'Unknown'} – validating...`, 'success');
-        pendingGuestParentId = null;
-        isGuestModeActive = false;
-        hideGuestModeBanner();
-    } else {
-        showStatus(`✅ ${result.passengerName} added – validating in background...`, 'success');
-    }
-
-    setTimeout(() => {
-        showStatus('', '');
-        focusToCodeInput(true);
-    }, 3000);
-
-    focusToCodeInput(true);
-    return true;
-}
-
-// ============================================================
-// RENDER MANIFEST WITH DUPLICATE BADGE & VALIDATING INDICATOR
-// ============================================================
-function renderManifestTable() {
-    const tbody = document.getElementById('manifestBody');
-    if (!tbody) return;
-    
-    if (!manifestEntries.length) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="10">— no entries — paste a boarding pass code —</td></tr>';
-        return;
-    }
-    
-    // Build a map of flight+seat+date combinations to check for duplicates
-    const seatMap = new Map();
-    const today = getTodayDate();
-    
-    // First pass: count occurrences of each flight+seat combination for today
-    for (const entry of manifestEntries) {
-        const entryDate = entry.timestamp ? entry.timestamp.split('T')[0] : today;
-        if (entryDate === today) {
-            const key = `${entry.flightNo}_${entry.seatNo}`;
-            seatMap.set(key, (seatMap.get(key) || 0) + 1);
-        }
-    }
-    
-    let html = '';
-    for (const entry of manifestEntries) {
-        const entryDate = entry.timestamp ? entry.timestamp.split('T')[0] : today;
-        const key = `${entry.flightNo}_${entry.seatNo}`;
-        const count = seatMap.get(key) || 0;
-        const isDuplicate = count > 1 && entryDate === today;
-        
-        const canGuest = canAddGuest(entry);
-        const airlineDisplay = getAirlineDisplay(entry.airlineCode);
-        const fqtvDisplay = entry.fqtvValue || '—';
-        const serialDisplay = entry.serialNo || '—';
-        const isSpecial = ['BA', 'EK', 'QR', 'SQ'].includes(entry.airlineCode);
-        const badgeColor = entry.airlineCode === 'BA' ? '#c9a352' :
-            entry.airlineCode === 'EK' ? '#1a5c9e' :
-            entry.airlineCode === 'QR' ? '#8a1538' :
-            entry.airlineCode === 'SQ' ? '#0066b3' : '';
-        
-        // Show validating badge if _validating flag is true
-        const validatingBadge = entry._validating ? 
-            `<span class="validating-badge" style="background:#ffa500;color:white;padding:1px 8px;border-radius:30px;font-size:9px;font-weight:700;margin-left:6px;">⏳ validating...</span>` : '';
-        
-        html += `
-            <tr data-id="${entry.id}" ${isSpecial ? `style="border-left:3px solid ${badgeColor};"` : ''}>
-                <td style="text-align:center;">
-                    <button class="guest-add-btn" id="guest-btn-${entry.id}" ${!canGuest ? 'disabled' : ''} title="Add guest for this passenger">+</button>
-                </td>
-                <td class="editable-cell" id="name-${entry.id}" contenteditable="true" tabindex="0" style="cursor:text;min-width:150px;padding:4px 8px;border-radius:4px;transition:background 0.2s;user-select:text;" data-field="passengerName" data-id="${entry.id}">
-                    ${escapeHtml(entry.passengerName)}
-                    ${isSpecial ? `<span class="airline-badge" style="background:${badgeColor};margin-left:6px;">${entry.airlineCode}</span>` : ''}
-                    ${isDuplicate ? `<span class="duplicate-badge" style="background:#ff4444;color:white;padding:1px 8px;border-radius:30px;font-size:9px;font-weight:700;margin-left:6px;">⚠️ DUPLICATE</span>` : ''}
-                    ${validatingBadge}
-                </td>
-                <td class="editable-cell" id="flight-${entry.id}" contenteditable="true" tabindex="0" style="cursor:text;padding:4px 8px;border-radius:4px;transition:background 0.2s;user-select:text;" data-field="flightNo" data-id="${entry.id}">${escapeHtml(entry.flightNo)}</td>
-                <td class="editable-cell" id="seat-${entry.id}" contenteditable="true" tabindex="0" style="cursor:text;padding:4px 8px;border-radius:4px;transition:background 0.2s;user-select:text;" data-field="seatNo" data-id="${entry.id}">
-                    ${escapeHtml(entry.seatNo)}
-                    ${isDuplicate ? `<span class="duplicate-badge" style="background:#ff4444;color:white;padding:1px 8px;border-radius:30px;font-size:9px;font-weight:700;margin-left:6px;">⚠️ DUPLICATE</span>` : ''}
-                </td>
-                <td><span class="pax-badge" id="pax-${entry.id}">${entry.pax}</span></td>
-                <td class="editable-cell" id="class-${entry.id}" contenteditable="true" tabindex="0" style="cursor:text;font-weight:700;color:#2d2412;padding:4px 8px;border-radius:4px;transition:background 0.2s;user-select:text;" data-field="classCode" data-id="${entry.id}">${escapeHtml(entry.classCode || 'Y')}</td>
-                <td class="editable-cell" id="serial-${entry.id}" contenteditable="true" tabindex="0" style="cursor:text;padding:4px 8px;border-radius:4px;transition:background 0.2s;user-select:text;" data-field="serialNo" data-id="${entry.id}">${escapeHtml(serialDisplay)}</td>
-                <td><span id="airline-${entry.id}">${airlineDisplay}</span></td>
-                <td class="editable-cell" id="fqtv-${entry.id}" contenteditable="true" tabindex="0" style="cursor:text;padding:4px 8px;border-radius:4px;transition:background 0.2s;user-select:text;" data-field="fqtvValue" data-id="${entry.id}">${escapeHtml(fqtvDisplay)}</td>
-                <td>
-                    <div class="action-cell">
-                        <button class="table-action-btn table-approve" id="approve-${entry.id}">✓ Approve</button>
-                        <button class="table-action-btn table-delete" id="delete-${entry.id}">🗑</button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }
-    tbody.innerHTML = html;
-    attachManifestEvents();
-}
-
-// ============================================================
-// APPROVE (WITH CHECKS)
-// ============================================================
-async function approveEntry(id) {
-    // Save any active inline edit immediately
-    if (activeEditableCell) {
-        const cell = activeEditableCell;
-        const field = cell.dataset.field;
-        const entryId = parseInt(cell.dataset.id);
-        const newVal = cell.innerText.trim();
-        await saveFieldLive(entryId, field, newVal);
-        activeEditableCell = null;
-        isEditingCell = false;
-    }
-
-    isProcessingAction = true;
-    try {
-        const entryIndex = manifestEntries.findIndex(e => e.id === id);
-        if (entryIndex === -1) {
-            isProcessingAction = false;
-            return;
-        }
-        const entry = manifestEntries[entryIndex];
-        
-        // ============================================================
-        // 🔴 CRITICAL: RE-CHECK BEFORE APPROVING
-        // ============================================================
-        
-        // 1. CHECK FLIGHT STATUS (again)
-        const flightStatus = await checkFlightStatus(entry.flightNo);
-        if (flightStatus.isClosed) {
-            // Move to failed with reason
-            manifestEntries.splice(entryIndex, 1);
-            const failedEntry = { 
-                ...entry, 
-                errorMessage: `Flight ${entry.flightNo} is CLOSED. Cannot approve.`, 
-                failedAt: new Date().toISOString() 
-            };
-            failedEntries.push(failedEntry);
-            await saveData();
-            renderManifestTable();
-            renderFailedList();
-            updateTabCounts();
-            showStatus(`❌ ${entry.passengerName}: Flight ${entry.flightNo} is CLOSED`, 'error');
-            isProcessingAction = false;
-            focusToCodeInput(true);
-            return;
-        }
-        
-        // 2. CHECK FOR DUPLICATE SEAT (again)
-        const duplicateCheck = await checkDuplicateSeat(entry.flightNo, entry.seatNo, entry.id);
-        if (duplicateCheck.duplicate) {
-            // Move to failed with reason
-            manifestEntries.splice(entryIndex, 1);
-            const existingPassenger = duplicateCheck.entry?.passengerName || 'Unknown';
-            const source = duplicateCheck.source || 'unknown';
-            const failedEntry = { 
-                ...entry, 
-                errorMessage: `SEAT ${entry.seatNo} on ${entry.flightNo} (${getTodayDate()}) is OCCUPIED by ${existingPassenger}. Found in: ${source}`, 
-                failedAt: new Date().toISOString() 
-            };
-            failedEntries.push(failedEntry);
-            await saveData();
-            renderManifestTable();
-            renderFailedList();
-            updateTabCounts();
-            showStatus(`❌ ${entry.passengerName}: Seat ${entry.seatNo} is OCCUPIED by ${existingPassenger}`, 'error');
-            isProcessingAction = false;
-            focusToCodeInput(true);
-            return;
-        }
-        
-        // 3. CHECK EXACT DUPLICATE (again)
-        if (isDuplicateEntry(entry.flightNo, entry.passengerName, entry.seatNo, entry.id, manifestEntries)) {
-            manifestEntries.splice(entryIndex, 1);
-            const failedEntry = { 
-                ...entry, 
-                errorMessage: `Duplicate entry exists for ${entry.passengerName} on ${getTodayDate()}`, 
-                failedAt: new Date().toISOString() 
-            };
-            failedEntries.push(failedEntry);
-            await saveData();
-            renderManifestTable();
-            renderFailedList();
-            updateTabCounts();
-            showStatus(`❌ Duplicate entry exists for ${entry.passengerName}`, 'error');
-            isProcessingAction = false;
-            focusToCodeInput(true);
-            return;
-        }
-        
-        // ============================================================
-        // ✅ ALL CHECKS PASSED - PROCEED WITH APPROVAL
-        // ============================================================
-        
-        // Remove from manifest
-        manifestEntries.splice(entryIndex, 1);
-        
-        const db = getFirestoreForFlight(entry.flightNo);
-        if (!db) {
-            const failedEntry = { 
-                ...entry, 
-                errorMessage: `No database configured for airline: ${entry.airlineCode}`, 
-                failedAt: new Date().toISOString() 
-            };
-            failedEntries.push(failedEntry);
-            await saveData();
-            renderManifestTable();
-            renderFailedList();
-            updateTabCounts();
-            showStatus(`❌ ${entry.passengerName}: Database not available`, 'error');
-            isProcessingAction = false;
-            focusToCodeInput(true);
-            return;
-        }
-        
-        const processingEntry = { 
-            ...entry, 
-            processingStatus: 'saving', 
-            saveAttempts: 0
-        };
-        processingEntries.push(processingEntry);
-        await saveData();
-        renderManifestTable();
-        renderProcessingTable();
-        updateTabCounts();
-        
-        // Save to Firestore
-        await saveToFirestore(processingEntry.id);
-        
-        focusToCodeInput(true);
-    } finally {
-        isProcessingAction = false;
-    }
-}
-
-// ----- BATCH APPROVE (WITH CHECKS) -----
-async function approveMultipleEntries(ids) {
-    if (!ids || ids.length === 0) return;
-    
-    if (activeEditableCell) {
-        const cell = activeEditableCell;
-        const field = cell.dataset.field;
-        const entryId = parseInt(cell.dataset.id);
-        const newVal = cell.innerText.trim();
-        await saveFieldLive(entryId, field, newVal);
-        activeEditableCell = null;
-        isEditingCell = false;
-    }
-    
-    isProcessingAction = true;
-    try {
-        const entriesToProcess = [];
-        const entriesToFail = [];
-        const validationErrors = [];
-        
-        // Process all entries - validate and remove from manifest
-        for (const id of ids) {
-            const entryIndex = manifestEntries.findIndex(e => e.id === id);
-            if (entryIndex === -1) continue;
-            
-            const entry = manifestEntries[entryIndex];
-            
-            // 1. Check flight status
-            const flightStatus = await checkFlightStatus(entry.flightNo);
-            if (flightStatus.isClosed) {
-                manifestEntries.splice(entryIndex, 1);
-                const failedEntry = { 
-                    ...entry, 
-                    errorMessage: `Flight ${entry.flightNo} is CLOSED. Cannot approve.`, 
-                    failedAt: new Date().toISOString() 
-                };
-                failedEntries.push(failedEntry);
-                validationErrors.push(`${entry.passengerName}: Flight ${entry.flightNo} is CLOSED`);
-                continue;
-            }
-            
-            // 2. Check duplicate seat
-            const duplicateCheck = await checkDuplicateSeat(entry.flightNo, entry.seatNo, entry.id);
-            if (duplicateCheck.duplicate) {
-                manifestEntries.splice(entryIndex, 1);
-                const existingPassenger = duplicateCheck.entry?.passengerName || 'Unknown';
-                const source = duplicateCheck.source || 'unknown';
-                const failedEntry = { 
-                    ...entry, 
-                    errorMessage: `SEAT ${entry.seatNo} on ${entry.flightNo} (${getTodayDate()}) is OCCUPIED by ${existingPassenger}. Found in: ${source}`, 
-                    failedAt: new Date().toISOString() 
-                };
-                failedEntries.push(failedEntry);
-                validationErrors.push(`${entry.passengerName}: Seat ${entry.seatNo} is OCCUPIED by ${existingPassenger}`);
-                continue;
-            }
-            
-            // 3. Check exact duplicate
-            if (isDuplicateEntry(entry.flightNo, entry.passengerName, entry.seatNo, entry.id, manifestEntries)) {
-                manifestEntries.splice(entryIndex, 1);
-                const failedEntry = { 
-                    ...entry, 
-                    errorMessage: `Duplicate entry exists for ${entry.passengerName} on ${getTodayDate()}`, 
-                    failedAt: new Date().toISOString() 
-                };
-                failedEntries.push(failedEntry);
-                validationErrors.push(`Duplicate entry exists for ${entry.passengerName}`);
-                continue;
-            }
-            
-            // 4. Check database availability
-            const db = getFirestoreForFlight(entry.flightNo);
-            if (!db) {
-                manifestEntries.splice(entryIndex, 1);
-                const failedEntry = { 
-                    ...entry, 
-                    errorMessage: `No database configured for airline: ${entry.airlineCode}`, 
-                    failedAt: new Date().toISOString() 
-                };
-                failedEntries.push(failedEntry);
-                validationErrors.push(`${entry.passengerName}: No database configured`);
-                continue;
-            }
-            
-            // ✅ All checks passed - remove from manifest and add to processing
-            manifestEntries.splice(entryIndex, 1);
-            entriesToProcess.push(entry);
-        }
-        
-        // Show validation errors if any
-        if (validationErrors.length > 0) {
-            showStatus(`⚠️ ${validationErrors.length} entries failed validation: ${validationErrors.join('; ')}`, 'warning');
-        }
-        
-        // ONE RTDB WRITE for all valid entries
-        if (entriesToProcess.length > 0) {
-            for (const entry of entriesToProcess) {
-                processingEntries.push({ 
-                    ...entry, 
-                    processingStatus: 'saving', 
-                    saveAttempts: 0
-                });
-            }
-            
-            await saveData();
-            renderManifestTable();
-            renderProcessingTable();
-            updateTabCounts();
-            
-            // N FIRESTORE WRITES (one per passenger)
-            for (const entry of entriesToProcess) {
-                await saveToFirestore(entry.id);
-            }
-        }
-        
-        if (entriesToFail.length > 0 || validationErrors.length > 0) {
-            await saveData();
-            renderFailedList();
-            renderManifestTable();
-            updateTabCounts();
-        }
-        
-        if (entriesToProcess.length > 0) {
-            showStatus(`✅ ${entriesToProcess.length} passengers approved successfully!`, 'success');
-        }
-        
-        focusToCodeInput(true);
-    } finally {
-        isProcessingAction = false;
-    }
-}
-
-// ----- SAVE TO FIRESTORE -----
-async function saveToFirestore(processingId) {
-    const entryIndex = processingEntries.findIndex(e => e.id === processingId);
-    if (entryIndex === -1) return false;
-    
-    const entry = processingEntries[entryIndex];
-    const db = getFirestoreForFlight(entry.flightNo);
-    
-    if (!db) {
-        processingEntries.splice(entryIndex, 1);
-        const failedEntry = { 
-            ...entry, 
-            errorMessage: `Database not available for airline: ${entry.airlineCode}`, 
-            failedAt: new Date().toISOString() 
-        };
-        failedEntries.push(failedEntry);
-        await saveData();
-        renderProcessingTable();
-        renderFailedList();
-        updateTabCounts();
-        return false;
-    }
-    
-    entry.saveAttempts = (entry.saveAttempts || 0) + 1;
-    renderProcessingTable();
-    
-    try {
-        const user = getUserSession();
-        const now = new Date();
-        const shiftDate = currentShiftData.date || now.toISOString().split('T')[0];
-        const shiftName = currentShiftData.shift || 'UNKNOWN';
-        
-        const passengerData = {
-            airline: getAirlineDisplay(entry.airlineCode),
-            class: entry.classCode || '',
-            date: shiftDate,
-            enteredAt: now.toISOString(),
-            enteredBy: user?.name || user?.username || 'Unknown',
-            enteredByRCNo: user?.rcno || 'N/A',
-            enteredByUsername: user?.username || 'Unknown',
-            entryTime: getCurrentEntryTime(),
-            flightNo: entry.flightNo || '',
-            hiddenCode: entry.rawCode || '',
-            isGuest: entry.guestOf !== null && entry.guestOf !== undefined,
-            mainPassengerId: entry.guestOf || null,
-            mainPassengerName: null,
-            mainPassengerSeat: null,
-            pName: entry.passengerName || '',
-            pax: String(entry.pax || 1),
-            remarks: '',
-            seatNo: entry.seatNo || '',
-            serialNo: entry.serialNo || '',
-            shift: shiftName === 'MORNING' ? 'MORNING' : (shiftName === 'EVENING' ? 'EVENING' : 'UNKNOWN'),
-            shiftDate: shiftDate,
-            FQTV: entry.fqtvValue || '',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        
-        const docRef = await db.collection('KoveliPass').add(passengerData);
-        console.log(`✅ ${entry.airlineCode} passenger saved to Firestore: ${docRef.id}`);
-        
-        processingEntries.splice(entryIndex, 1);
-        await saveData();
-        
-        renderProcessingTable();
-        updateTabCounts();
-        showStatus(`✅ ${entry.passengerName} saved to Firestore successfully!`, 'success');
-        
-        if (processingEntries.length > 0) {
-            setTimeout(async () => {
-                const nextEntry = processingEntries[0];
-                if (nextEntry) {
-                    await saveToFirestore(nextEntry.id);
-                }
-            }, 500);
-        }
-        
-        return true;
-        
-    } catch (error) {
-        const errorMessage = error.message || 'Unknown error';
-        console.error("Firestore save error:", error);
-        
-        processingEntries.splice(entryIndex, 1);
-        const failedEntry = { 
-            ...entry, 
-            errorMessage: `Firestore save failed: ${errorMessage}`, 
-            failedAt: new Date().toISOString() 
-        };
-        failedEntries.push(failedEntry);
-        await saveData();
-        
-        renderProcessingTable();
-        renderFailedList();
-        updateTabCounts();
-        showStatus(`❌ Failed to save ${entry.passengerName} to Firestore: ${errorMessage}`, 'error');
-        return false;
-    }
-}
-
-// ----- RETRY FAILED -----
-async function retryFailedEntry(id) {
-    const entryIndex = failedEntries.findIndex(e => e.id === id);
-    if (entryIndex === -1) return;
-    
-    const entry = failedEntries[entryIndex];
-    failedEntries.splice(entryIndex, 1);
-    
-    const processingEntry = { 
-        ...entry, 
-        processingStatus: 'saving', 
-        saveAttempts: (entry.saveAttempts || 0) + 1 
-    };
-    processingEntries.push(processingEntry);
-    await saveData();
-    
-    renderFailedList();
-    renderProcessingTable();
-    updateTabCounts();
-    switchTab('processing');
-    
-    await saveToFirestore(processingEntry.id);
-}
-
-// ----- DELETE FUNCTIONS -----
-async function deleteManifestEntry(id) {
-    if (confirm('Delete this entry from manifest?')) {
-        manifestEntries = manifestEntries.filter(e => e.id !== id);
-        await saveData();
-        renderManifestTable();
-        updateTabCounts();
-        focusToCodeInput(true);
-    }
-}
-
-async function deleteProcessingEntry(id) {
-    if (confirm('Cancel saving this entry?')) {
-        processingEntries = processingEntries.filter(e => e.id !== id);
-        await saveData();
-        renderProcessingTable();
-        updateTabCounts();
-        focusToCodeInput(true);
-    }
-}
-
-async function deleteFailedEntry(id) {
-    if (confirm('Delete this failed entry?')) {
-        failedEntries = failedEntries.filter(e => e.id !== id);
-        await saveData();
-        renderFailedList();
-        updateTabCounts();
-        focusToCodeInput(true);
-    }
-}
-
-async function clearAllManifest() {
-    if (manifestEntries.length > 0 && confirm('Clear ALL entries from manifest?')) {
-        manifestEntries = [];
-        await saveData();
-        renderManifestTable();
-        updateTabCounts();
-        focusToCodeInput(true);
-    }
-}
-
-async function clearAllProcessing() {
-    if (processingEntries.length > 0 && confirm('Clear ALL processing entries?')) {
-        processingEntries = [];
-        await saveData();
-        renderProcessingTable();
-        updateTabCounts();
-        focusToCodeInput(true);
-    }
-}
-
-async function clearAllFailed() {
-    if (failedEntries.length > 0 && confirm('Clear ALL failed entries?')) {
-        failedEntries = [];
-        await saveData();
-        renderFailedList();
-        updateTabCounts();
-        focusToCodeInput(true);
-    }
-}
-
-// ============================================================
-// LIVE FIELD EDIT
-// ============================================================
-async function saveFieldLive(id, field, value) {
-    const entryIndex = manifestEntries.findIndex(e => e.id === id);
-    if (entryIndex === -1) return;
-    const entry = manifestEntries[entryIndex];
-    const oldValue = entry[field];
-    
-    if (field === 'seatNo' || field === 'flightNo') {
-        const flightNo = field === 'flightNo' ? value : entry.flightNo;
-        const seatNo = field === 'seatNo' ? value : entry.seatNo;
-        
-        const localDuplicate = manifestEntries.some(e => {
-            if (e.id === id) return false;
-            const eDate = e.timestamp ? e.timestamp.split('T')[0] : getTodayDate();
-            return (e.flightNo || '').toUpperCase().trim() === (flightNo || '').toUpperCase().trim() &&
-                   (e.seatNo || '').toUpperCase().trim() === (seatNo || '').toUpperCase().trim() &&
-                   eDate === getTodayDate();
-        });
-        
-        if (localDuplicate) {
-            showStatus(`❌ Seat ${seatNo} on flight ${flightNo} (${getTodayDate()}) is already occupied!`, 'error');
-            setTimeout(() => {
-                showStatus('', '');
-            }, 3000);
-            renderManifestTable();
-            return;
-        }
-    }
-    
-    entry[field] = value;
-    if (field === 'seatNo') {
-        entry.pax = calculatePax(value, entry.passengerName);
-        const paxSpan = document.getElementById(`pax-${id}`);
-        if (paxSpan) paxSpan.innerText = entry.pax;
-    }
-    if (field === 'flightNo') {
-        const newAirlineCode = getAirlineFromFlight(value);
-        entry.airlineCode = newAirlineCode;
-        const airlineSpan = document.getElementById(`airline-${id}`);
-        if (airlineSpan) airlineSpan.innerText = getAirlineDisplay(newAirlineCode);
-    }
-    
-    if (isDuplicateEntry(entry.flightNo, entry.passengerName, entry.seatNo, id, manifestEntries)) {
-        entry[field] = oldValue;
-        if (field === 'seatNo') entry.pax = calculatePax(oldValue, entry.passengerName);
-        if (field === 'flightNo') entry.airlineCode = getAirlineFromFlight(oldValue);
-        showStatus('❌ Duplicate entry exists!', 'error');
-        setTimeout(() => {
-            showStatus('', '');
-        }, 2000);
-        renderManifestTable();
-        return;
-    }
-    await saveData();
-    renderManifestTable();
-    updateTabCounts();
-    showStatus(`✅ ${field} updated`, 'success');
-    setTimeout(() => {
-        showStatus('', '');
-    }, 1500);
-}
-
-// ============================================================
-// PROCESSING TABLE RENDER
-// ============================================================
-function renderProcessingTable() {
-    const tbody = document.getElementById('processingBody');
-    if (!tbody) return;
-    if (!processingEntries.length) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="9">— no items processing —</td></tr>';
-        return;
-    }
-    let html = '';
-    for (const entry of processingEntries) {
-        const airlineDisplay = getAirlineDisplay(entry.airlineCode);
-        const fqtvDisplay = entry.fqtvValue || '—';
-        const serialDisplay = entry.serialNo || '—';
-        html += `
-            <tr style="background:#fcf8ef;">
-                <td>${escapeHtml(entry.passengerName)} <span style="font-size:0.6rem;color:#c9a352;">⏳ Saving...</span></td>
-                <td>${escapeHtml(entry.flightNo)}</td>
-                <td>${escapeHtml(entry.seatNo)}</td>
-                <td><span class="pax-badge">${entry.pax}</span></td>
-                <td>${escapeHtml(entry.classCode || 'Y')}</td>
-                <td>${escapeHtml(serialDisplay)}</td>
-                <td>${airlineDisplay}</td>
-                <td>${escapeHtml(fqtvDisplay)}</td>
-                <td>
-                    <div class="action-cell">
-                        <button class="table-action-btn table-delete" id="delete-proc-${entry.id}">🗑 Cancel</button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }
-    tbody.innerHTML = html;
-    for (const entry of processingEntries) {
-        const delBtn = document.getElementById(`delete-proc-${entry.id}`);
-        if (delBtn) delBtn.addEventListener('click', () => deleteProcessingEntry(entry.id));
-    }
-}
-
-// ============================================================
-// FAILED LIST RENDER
-// ============================================================
-function renderFailedList() {
-    const container = document.getElementById('failedList');
-    if (!container) return;
-    if (!failedEntries.length) {
-        container.innerHTML = '<div class="empty-list-message">✅ No failed entries. All saves successful!</div>';
-        return;
-    }
-    let html = '';
-    for (const entry of failedEntries) {
-        const airlineDisplay = getAirlineDisplay(entry.airlineCode);
-        const fqtvDisplay = entry.fqtvValue || '—';
-        const serialDisplay = entry.serialNo || '—';
-        html += `
-            <div class="passenger-item">
-                <div class="passenger-header">
-                    <div class="passenger-name">✈️ ${escapeHtml(entry.passengerName || 'UNKNOWN')}<span class="failed-badge">❌ Failed</span></div>
-                    <div class="action-buttons">
-                        <button class="retry-btn" data-id="${entry.id}">🔄 Retry Save</button>
-                        <button class="delete-btn" data-id="${entry.id}">🗑️ Delete</button>
-                    </div>
-                </div>
-                <div class="passenger-details-grid">
-                    <div class="detail-row"><span class="detail-label">Flight:</span><span class="detail-value">${escapeHtml(entry.flightNo || '—')}</span></div>
-                    <div class="detail-row"><span class="detail-label">Seat:</span><span class="detail-value">${escapeHtml(entry.seatNo || '—')}</span></div>
-                    <div class="detail-row"><span class="detail-label">Airline:</span><span class="detail-value">${airlineDisplay}</span></div>
-                    <div class="detail-row"><span class="detail-label">Class:</span><span class="detail-value">${escapeHtml(entry.classCode || 'Y')}</span></div>
-                    <div class="detail-row"><span class="detail-label">Serial No:</span><span class="detail-value">${escapeHtml(serialDisplay)}</span></div>
-                    <div class="detail-row"><span class="detail-label">Target DB:</span><span class="detail-value">${escapeHtml(getFirestoreNameForFlight(entry.flightNo))}</span></div>
-                </div>
-                <div class="error-detail">❌ <strong>Error:</strong> ${escapeHtml(entry.errorMessage || 'Unknown error')}<br><small>Failed at: ${new Date(entry.failedAt).toLocaleTimeString()}</small></div>
-            </div>
-        `;
-    }
-    container.innerHTML = html;
-    for (const entry of failedEntries) {
-        const retryBtn = document.querySelector(`#failedList .retry-btn[data-id="${entry.id}"]`);
-        if (retryBtn) retryBtn.addEventListener('click', () => retryFailedEntry(entry.id));
-        const deleteBtn = document.querySelector(`#failedList .delete-btn[data-id="${entry.id}"]`);
-        if (deleteBtn) deleteBtn.addEventListener('click', () => deleteFailedEntry(entry.id));
-    }
-}
-
-// ============================================================
-// TAB COUNTS & MODE UI
-// ============================================================
-function updateTabCounts() {
-    const mc = document.getElementById('manifestCount');
-    if (mc) mc.textContent = manifestEntries.length;
-    const pc = document.getElementById('processingCount');
-    if (pc) pc.textContent = processingEntries.length;
-    const fc = document.getElementById('failedCount');
-    if (fc) fc.textContent = failedEntries.length;
-}
-
-function updateModeUI() {
-    const modeBadge = document.getElementById('modeBadge');
-    if (modeBadge) {
-        if (currentMode === 'local') {
-            modeBadge.textContent = 'LOCAL MODE';
-            modeBadge.className = 'mode-badge local';
-        } else {
-            modeBadge.textContent = 'ONLINE MODE';
-            modeBadge.className = 'mode-badge online';
-        }
-    }
-    updateTabCounts();
-    renderManifestTable();
-    renderProcessingTable();
-    renderFailedList();
-}
-
-// ============================================================
-// TAB SWITCHING
-// ============================================================
-function switchTab(tabId) {
-    currentTab = tabId;
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabId);
-    });
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.toggle('active', content.id === `tab-${tabId}`);
-    });
-    if (tabId === 'manifest') renderManifestTable();
-    else if (tabId === 'processing') renderProcessingTable();
-    else if (tabId === 'failed') renderFailedList();
-    
-    if (!isEditingManifestField()) {
-        setTimeout(() => focusToCodeInput(true), 150);
-    }
-}
-
-// ============================================================
-// TOAST / STATUS
-// ============================================================
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast-notification ${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3500);
-}
-
-function showSavingStatus(message, type = 'loading') {
-    const statusDiv = document.getElementById('savingStatus');
-    if (!statusDiv) return;
-    const textSpan = document.getElementById('savingStatusText');
-    statusDiv.className = `saving-status ${type} show`;
-    if (textSpan) textSpan.textContent = message;
-    if (type !== 'loading') {
-        setTimeout(() => statusDiv.classList.remove('show'), 3000);
-    }
-}
-
-// ============================================================
-// USER & SHIFT
-// ============================================================
-function loadUserData() {
-    const user = getUserSession();
-    if (user) {
-        currentUser = {
-            name: user.name || user.username || 'OPERATOR',
-            username: user.username || 'operator',
-            rcno: user.rcno || 'N/A',
-            level: user.level || user.right || 'OPERATOR'
-        };
-        const nameDisplay = document.getElementById('userNameDisplay');
-        if (nameDisplay) nameDisplay.innerText = currentUser.name;
-        const rcnoDisplay = document.getElementById('userRcnoDisplay');
-        if (rcnoDisplay) rcnoDisplay.innerText = currentUser.rcno;
-        const levelDisplay = document.getElementById('userLevelDisplay');
-        if (levelDisplay) levelDisplay.innerText = currentUser.level;
-    }
-}
-
-async function fetchShiftData() {
-    try {
-        if (typeof passengerDb !== 'undefined' && passengerDb) {
-            const doc = await passengerDb.collection('shifts').doc('currentshift').get();
-            if (doc.exists) {
-                const data = doc.data();
-                currentShiftData.date = data.date || '';
-                if (data.morning === 'open') currentShiftData.shift = 'MORNING';
-                else if (data.evening === 'open') currentShiftData.shift = 'EVENING';
-                else currentShiftData.shift = 'NO SHIFT';
-                localStorage.setItem('currentShiftData', JSON.stringify(currentShiftData));
-            }
-        }
-    } catch (e) {
-        const saved = localStorage.getItem('currentShiftData');
-        if (saved) {
-            try { currentShiftData = JSON.parse(saved); } catch (e) {}
-        }
-    }
-    const dateEl = document.getElementById('currentDate');
-    if (dateEl) dateEl.innerText = currentShiftData.date || '—';
-    const shiftEl = document.getElementById('currentShift');
-    if (shiftEl) shiftEl.innerText = currentShiftData.shift || '—';
-}
-
-function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('isLoggedIn');
-        localStorage.removeItem('username');
-        localStorage.removeItem('level');
-        localStorage.removeItem('right');
-        localStorage.removeItem('rcno');
-        localStorage.removeItem('name');
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('loggedInUser');
-        window.location.href = 'login.html';
-    }
-}
-
-// ============================================================
-// MANUAL ENTRY
-// ============================================================
-async function addManualEntry() {
-    if (!isShiftActive()) {
-        showStatus('❌ No active shift.', 'error');
-        focusToCodeInput(true);
-        return;
-    }
-    
-    const timestamp = Date.now().toString().slice(-4);
-    const demoEntry = {
-        id: nextId++,
-        pnr: 'MAN' + timestamp,
-        passengerName: `Manual ${timestamp}`,
-        flightNo: 'EK123',
-        classCode: 'Y',
-        seatNo: '12A',
-        airlineCode: 'EK',
-        fqtvValue: '',
-        guestOf: null,
-        pax: 1,
-        serialNo: '',
-        timestamp: new Date().toISOString(),
-        scannedBy: getUserSession()?.username || 'Unknown',
-        rawCode: ''
-    };
-    
-    // Check before adding
-    const flightStatus = await checkFlightStatus(demoEntry.flightNo);
-    if (flightStatus.isClosed) {
-        showStatus(`❌ Flight ${demoEntry.flightNo} is CLOSED. Cannot add passengers.`, 'error');
-        focusToCodeInput(true);
-        return;
-    }
-    
-    const duplicateCheck = await checkDuplicateSeat(demoEntry.flightNo, demoEntry.seatNo);
-    if (duplicateCheck.duplicate) {
-        const existingPassenger = duplicateCheck.entry?.passengerName || 'Unknown';
-        showStatus(`❌ SEAT ${demoEntry.seatNo} on ${demoEntry.flightNo} (${getTodayDate()}) is OCCUPIED by ${existingPassenger}.`, 'error');
-        focusToCodeInput(true);
-        return;
-    }
-    
-    if (isDuplicateEntry(demoEntry.flightNo, demoEntry.passengerName, demoEntry.seatNo, null, manifestEntries)) {
-        showStatus('❌ Duplicate entry.', 'error');
-        focusToCodeInput(true);
-        return;
-    }
-    
-    manifestEntries.unshift(demoEntry);
-    await saveData();
-    renderManifestTable();
-    updateTabCounts();
-    switchTab('manifest');
-    showStatus('✏️ Manual entry created. Click fields to edit.', 'success');
-    setTimeout(() => {
-        showStatus('', '');
-        focusToCodeInput(true);
-    }, 2000);
-    focusToCodeInput(true);
-}
-
-// ============================================================
-// CHAT ALERT SYSTEM
-// ============================================================
-function getChatUser() {
-    try {
-        const loggedIn = localStorage.getItem('loggedInUser');
-        if (loggedIn) {
-            const parsed = JSON.parse(loggedIn);
-            if (parsed.username || parsed.name) {
-                return {
-                    username: parsed.username || parsed.name || 'Guest',
-                    name: parsed.name || parsed.username || 'Guest',
-                    rcno: parsed.rcno || 'N/A',
-                    id: parsed.username || parsed.rcno || 'guest_' + Date.now()
-                };
-            }
-        }
-        const username = localStorage.getItem('username') || localStorage.getItem('userName') || 'Guest';
-        const rcno = localStorage.getItem('rcno') || 'N/A';
-        return {
-            username: username,
-            name: localStorage.getItem('name') || username,
-            rcno: rcno,
-            id: username + '_' + rcno
-        };
-    } catch (e) {
-        return { username: 'Guest', name: 'Guest', rcno: 'N/A', id: 'guest_' + Date.now() };
-    }
-}
-
-function initChatAlerts() {
-    if (!window.rtdb) {
-        console.warn('RTDB not available for chat alerts');
-        setTimeout(initChatAlerts, 1000);
-        return;
-    }
-
-    const user = getChatUser();
-    const currentUserId = user.id || user.username || 'guest';
-
-    if (!document.getElementById('chatToastContainer')) {
-        const container = document.createElement('div');
-        container.id = 'chatToastContainer';
-        container.style.cssText = `
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            z-index: 99999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-width: 380px;
-            width: 100%;
-            pointer-events: none;
-        `;
-        document.body.appendChild(container);
-        chatAlertContainer = container;
-    } else {
-        chatAlertContainer = document.getElementById('chatToastContainer');
-    }
-
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-    }
-
-    if (chatAlertListener) {
-        window.rtdb.ref('chatMessages').off('child_added', chatAlertListener);
-    }
-
-    chatAlertListener = window.rtdb.ref('chatMessages').on('child_added', (snapshot) => {
-        const msg = snapshot.val();
-        if (!msg || !msg.text) return;
-        if (msg.senderId === currentUserId) return;
-        const messageId = snapshot.key;
-        if (notifiedMessages.has(messageId)) return;
-        const readBy = msg.readBy || {};
-        if (readBy[currentUserId]) return;
-        notifiedMessages.add(messageId);
-        showChatAlert(msg.sender, msg.text, msg.senderId);
-        unreadChatCount++;
-        updateChatBadge();
-        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-            try {
-                new Notification('💬 New message from ' + msg.sender, {
-                    body: msg.text.length > 60 ? msg.text.substring(0, 60) + '...' : msg.text,
-                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23dcb96a"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>',
-                    tag: messageId,
-                    requireInteraction: true
-                });
-            } catch (e) {}
-        }
-    });
-
-    console.log('✅ Chat alerts initialized');
-}
-
-function showChatAlert(sender, text, senderId) {
-    if (!chatAlertContainer) return;
-
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-        background: linear-gradient(135deg, #2d2412, #4a3822);
-        color: #f7eaca;
-        padding: 12px 16px;
-        border-radius: 12px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.25);
-        border-left: 4px solid #dcb96a;
-        cursor: pointer;
-        animation: slideInToast 0.3s ease;
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        max-width: 380px;
-        backdrop-filter: blur(8px);
-        pointer-events: auto;
-    `;
-    toast.innerHTML = `
-        <div style="font-size:20px; flex-shrink:0; margin-top:2px;">💬</div>
-        <div style="flex:1; min-width:0;">
-            <div style="font-weight:700; font-size:13px; color:#dcb96a;">${escapeHtml(sender)}</div>
-            <div style="font-size:14px; opacity:0.9; word-wrap:break-word; overflow:hidden; text-overflow:ellipsis; max-height:50px;">
-                ${escapeHtml(text.length > 60 ? text.substring(0,60)+'...' : text)}
-            </div>
-        </div>
-        <button onclick="this.parentElement.remove(); event.stopPropagation();" 
-                style="background:none; border:none; color:rgba(255,255,255,0.4); cursor:pointer; font-size:18px; padding:0 4px; flex-shrink:0;">
-            &times;
+// ================== TASKS TAB ==================
+function renderTasksTab() {
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
+      <div class="category-tabs">
+        <button class="category-tab ${currentCategory === 'main' ? 'active' : ''}" data-cat="main">
+          Main Tasks <span class="badge">${MAIN_DAILY_TASKS.length}</span>
         </button>
+        <button class="category-tab ${currentCategory === 'fb' ? 'active' : ''}" data-cat="fb">
+          Food & Beverage <span class="badge">${FB_DAILY_TASKS.length}</span>
+        </button>
+      </div>
+      <div style="display:flex; gap:0.5rem; align-items:center;">
+        <span style="font-size:0.85rem; color:rgba(0,0,0,0.6);">📅 ${selectedDate} · 🕒 ${selectedShift}</span>
+        <button class="btn-load" id="refreshTasksBtn">🔄 Refresh</button>
+        <button class="btn-print" id="printChecklistBtn">🖨️ Print Checklist</button>
+      </div>
+    </div>
+    <div id="taskListContainer">
+      ${currentUser ? '<div class="loading-state"><div class="spinner-small"></div>Loading tasks…</div>' :
+                     '<div class="empty-state">Please sign in to view tasks.</div>'}
+    </div>
+  `;
+}
+
+async function loadTasks() {
+  const container = document.getElementById('taskListContainer');
+  if (!container) return;
+  if (!currentUser) {
+    container.innerHTML = `<div class="empty-state">Please sign in first.</div>`;
+    return;
+  }
+  
+  // Use the current shift settings
+  selectedDate = currentShiftSettings.date || selectedDate;
+  selectedShift = currentShiftSettings.shift || selectedShift;
+  
+  try {
+    const docRef = db.collection('checklists').doc(`shift_${selectedDate}`);
+    const docSnap = await docRef.get();
+    let savedData = {};
+    if (docSnap.exists) savedData = docSnap.data();
+    const categoryTasks = getTasksByCategory(currentCategory);
+    const mergedTasks = categoryTasks.map(task => {
+      const saved = savedData[task.id];
+      return saved ? { ...task, ...saved } : { ...task };
+    });
+    renderTasks(mergedTasks, savedData, docRef);
+  } catch (err) {
+    console.error('Error loading tasks:', err);
+    container.innerHTML = `<div class="empty-state">⚠️ Failed to load tasks: ${err.message}</div>`;
+  }
+}
+
+function renderTasks(tasks, savedData, docRef) {
+  const container = document.getElementById('taskListContainer');
+  if (!container) return;
+  if (!tasks.length) {
+    container.innerHTML = `<div class="empty-state">No tasks in this category.</div>`;
+    return;
+  }
+  let html = '<div class="task-list">';
+  tasks.forEach(task => {
+    const isCompleted = task.type === 'complete' ? task.completedBy !== null : (task.signoffs && task.signoffs.length > 0);
+    const completedClass = isCompleted ? 'completed' : '';
+    const statusIcon = isCompleted ? '✓' : '○';
+    let actionsHtml = '';
+    if (task.type === 'complete') {
+      if (task.completedBy) {
+        actionsHtml += `<button class="btn-reset" data-id="${task.id}" data-action="reset">↺ Reset</button>`;
+      } else {
+        actionsHtml += `<button class="btn-complete" data-id="${task.id}" data-action="complete">✔ Complete</button>`;
+      }
+    } else if (task.type === 'signoff') {
+      const signed = task.signoffs && task.signoffs.includes(currentUser.displayName);
+      if (signed) {
+        actionsHtml += `<button class="btn-done" disabled>✅ Signed</button>`;
+      } else {
+        actionsHtml += `<button class="btn-signoff" data-id="${task.id}" data-action="signoff">✍ Sign Off</button>`;
+      }
+    }
+    let signoffsHtml = '';
+    if (task.type === 'signoff' && task.signoffs && task.signoffs.length) {
+      signoffsHtml = `<div class="task-signoffs">`;
+      task.signoffs.forEach(name => {
+        const isYou = name === currentUser.displayName;
+        signoffsHtml += `
+          <span class="signoff-badge ${isYou ? 'you' : ''}">
+            ${name}
+            <button class="remove-signoff" data-id="${task.id}" data-name="${name}" title="Remove signoff">×</button>
+          </span>
+        `;
+      });
+      signoffsHtml += `</div>`;
+    }
+    let metaHtml = '';
+    if (task.type === 'complete' && task.completedAt) {
+      metaHtml = `<div class="task-meta">Completed by ${task.completedBy} at ${task.completedAt}</div>`;
+    }
+    html += `
+      <div class="task-card ${completedClass}" data-id="${task.id}">
+        <div class="task-status-icon">${statusIcon}</div>
+        <div class="task-info">
+          <div class="task-text">${task.task} <span class="task-type">${task.type}</span></div>
+          ${signoffsHtml}
+          ${metaHtml}
+        </div>
+        <div class="task-actions">${actionsHtml}</div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+
+  container.querySelectorAll('[data-action="complete"], [data-action="reset"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      if (action === 'complete') handleComplete(id, docRef);
+      else if (action === 'reset') handleReset(id, docRef);
+    });
+  });
+  container.querySelectorAll('[data-action="signoff"]').forEach(btn => {
+    btn.addEventListener('click', () => handleSignoff(btn.dataset.id, docRef));
+  });
+  container.querySelectorAll('.remove-signoff').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleRemoveSignoff(btn.dataset.id, btn.dataset.name, docRef);
+    });
+  });
+  document.querySelectorAll('.category-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentCategory = btn.dataset.cat;
+      render();
+      loadTasks();
+    });
+  });
+  
+  // Add refresh tasks button event
+  const refreshBtn = document.getElementById('refreshTasksBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadTasks);
+  }
+}
+
+async function handleComplete(taskId, docRef) {
+  const task = getTasksByCategory(currentCategory).find(t => t.id === taskId);
+  if (!task) return;
+  const updateData = { [taskId]: { ...task, completedBy: currentUser.displayName, completedAt: new Date().toLocaleString() } };
+  try {
+    await docRef.set(updateData, { merge: true });
+    showNotification(`✅ Task completed by ${currentUser.displayName}`);
+    loadTasks();
+  } catch (err) { showNotification('Error saving: ' + err.message, 'error'); }
+}
+
+async function handleReset(taskId, docRef) {
+  const task = getTasksByCategory(currentCategory).find(t => t.id === taskId);
+  if (!task) return;
+  if (!confirm(`Reset task "${task.task}"?`)) return;
+  const updateData = { [taskId]: { ...task, completedBy: null, completedAt: null } };
+  try {
+    await docRef.set(updateData, { merge: true });
+    showNotification(`↺ Task reset by supervisor`);
+    loadTasks();
+  } catch (err) { showNotification('Error resetting: ' + err.message, 'error'); }
+}
+
+async function handleSignoff(taskId, docRef) {
+  const task = getTasksByCategory(currentCategory).find(t => t.id === taskId);
+  if (!task) return;
+  const docSnap = await docRef.get();
+  let saved = {};
+  if (docSnap.exists) saved = docSnap.data();
+  const currentSignoffs = saved[taskId]?.signoffs || [];
+  if (currentSignoffs.includes(currentUser.displayName)) {
+    showNotification('You already signed off on this.', 'error');
+    return;
+  }
+  const newSignoffs = [...currentSignoffs, currentUser.displayName];
+  const updateData = { [taskId]: { ...task, signoffs: newSignoffs } };
+  try {
+    await docRef.set(updateData, { merge: true });
+    showNotification(`✍ ${currentUser.displayName} signed off`);
+    loadTasks();
+  } catch (err) { showNotification('Error saving: ' + err.message, 'error'); }
+}
+
+async function handleRemoveSignoff(taskId, staffName, docRef) {
+  if (!confirm(`Remove signoff for "${staffName}"?`)) return;
+  const task = getTasksByCategory(currentCategory).find(t => t.id === taskId);
+  if (!task) return;
+  const docSnap = await docRef.get();
+  let saved = {};
+  if (docSnap.exists) saved = docSnap.data();
+  const currentSignoffs = saved[taskId]?.signoffs || [];
+  const newSignoffs = currentSignoffs.filter(name => name !== staffName);
+  const updateData = { [taskId]: { ...task, signoffs: newSignoffs } };
+  try {
+    await docRef.set(updateData, { merge: true });
+    showNotification(`🗑️ Removed signoff for ${staffName}`);
+    loadTasks();
+  } catch (err) { showNotification('Error removing signoff: ' + err.message, 'error'); }
+}
+
+// ================== PRINT CHECKLIST REPORT (simplified) ==================
+async function printChecklistReport() {
+  if (!currentUser) {
+    showNotification('Please sign in first.', 'error');
+    return;
+  }
+
+  try {
+    // Use the current shift settings
+    const printDate = currentShiftSettings.date || selectedDate;
+
+    const docRef = db.collection('checklists').doc(`shift_${printDate}`);
+    const docSnap = await docRef.get();
+    const savedData = docSnap.exists ? docSnap.data() : {};
+
+    const allTasks = [...MAIN_DAILY_TASKS, ...FB_DAILY_TASKS];
+    const mergedTasks = allTasks.map(task => {
+      const saved = savedData[task.id];
+      return saved ? { ...task, ...saved } : { ...task };
+    });
+
+    mergedTasks.sort((a, b) => {
+      const aDone = a.type === 'complete' ? a.completedBy !== null : (a.signoffs && a.signoffs.length > 0);
+      const bDone = b.type === 'complete' ? b.completedBy !== null : (b.signoffs && b.signoffs.length > 0);
+      return aDone - bDone;
+    });
+
+    const rows = mergedTasks.map(task => {
+      const isDone = task.type === 'complete' ? task.completedBy !== null : (task.signoffs && task.signoffs.length > 0);
+      let details = '';
+      if (isDone) {
+        if (task.type === 'complete' && task.completedBy) {
+          details = `Completed by ${task.completedBy}`;
+        } else if (task.type === 'signoff' && task.signoffs && task.signoffs.length) {
+          details = `Signed by: ${task.signoffs.join(', ')}`;
+        } else {
+          details = 'Done';
+        }
+      } else {
+        details = 'Pending';
+      }
+      return `
+        <tr>
+          <td>${task.task}</td>
+          <td>${details}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Daily Checklist Report - ${printDate}</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; padding: 0.5in; }
+          h1 { font-size: 1.8rem; margin-bottom: 0.2rem; }
+          .sub { color: #555; margin-bottom: 1.5rem; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; vertical-align: top; }
+          th { background: #f0f0f0; font-weight: 600; }
+          .status-done { color: #16a34a; }
+          .status-pending { color: #dc2626; }
+          @media print { body { padding: 0.3in; } }
+        </style>
+      </head>
+      <body>
+        <h1>📋 Daily Checklist Report</h1>
+        <div class="sub">Date: ${printDate} · Shift: ${selectedShift}</div>
+        <table>
+          <thead>
+            <tr><th>Task</th><th>Details</th></tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+        <p style="margin-top:1.5rem;font-size:0.85rem;color:#888;">
+          Printed on ${new Date().toLocaleString()}
+        </p>
+      </body>
+      </html>
     `;
 
-    toast.addEventListener('click', function(e) {
-        if (e.target.tagName === 'BUTTON') return;
-        this.remove();
-        openChatPage();
-        markAllChatMessagesAsRead();
-        unreadChatCount = 0;
-        updateChatBadge();
-    });
+    const win = window.open('', '_blank');
+    if (!win) {
+      showNotification('Please allow pop-ups for this site.', 'error');
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
 
-    chatAlertContainer.appendChild(toast);
-
-    setTimeout(() => {
-        if (toast.parentNode) toast.remove();
-    }, 6000);
+  } catch (err) {
+    console.error('Error printing checklist:', err);
+    showNotification('Failed to print checklist.', 'error');
+  }
 }
 
-function markAllChatMessagesAsRead() {
-    if (!window.rtdb) return;
-    const user = getChatUser();
-    const currentUserId = user.id || user.username || 'guest';
+// ================== ALLOCATION TAB ==================
+function renderAllocationTab() {
+  if (isFetchingUsers) {
+    return `<div class="loading-state"><div class="spinner-small"></div>Loading staff list…</div>`;
+  }
+  if (userFetchError) {
+    return `
+      <div class="empty-state" style="color:#dc2626; padding: 2rem;">
+        <p style="font-size:1.1rem; margin-bottom:0.5rem;">⚠️ Unable to load staff data</p>
+        <p style="font-size:0.85rem; color:rgba(0,0,0,0.4); margin-bottom:1rem;">
+          ${userFetchError.message || 'Network error. Please check your connection.'}
+          <br><small>Try disabling QUIC in chrome://flags/#enable-quic</small>
+        </p>
+        <button class="btn-load" id="retryFetchUsersBtn">🔄 Retry</button>
+      </div>
+    `;
+  }
+  if (!users.length) {
+    return `<div class="empty-state">No users found. Please ensure Firestore has user data.</div>`;
+  }
+  if (isLoadingAllocation) {
+    return `<div class="loading-state"><div class="spinner-small"></div>Loading allocation data…</div>`;
+  }
+
+  const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+  const periods = getPeriodsForShift(selectedShift);
+  
+  // Get duty data for the current shift
+  const currentDuty = dutyData[selectedShift] || {};
+  const onDutyCount = Object.values(currentDuty).filter(v => v === true).length;
+
+  // Get area data for the current shift
+  const currentAreas = areaData[selectedShift] || {};
+  
+  // Show all areas
+  const areaRows = AREAS;
+
+  return `
+    <div class="allocation-date-section">
+      <div class="date-shift-display">
+        <span class="label">📅 Date: <strong>${selectedDate}</strong></span>
+        <span class="label">🕒 Shift: <strong>${selectedShift}</strong></span>
+        <button class="btn-load" id="refreshAllocationBtn" style="margin-left:1rem;">🔄 Refresh</button>
+        <button class="btn-load" id="syncShiftBtn" style="background:#34d399;color:#fff;margin-left:0.5rem;">📌 Sync with Shift</button>
+      </div>
+      <div class="shift-indicators">
+        <span class="shift-badge ${selectedShift === 'Morning' ? 'morning' : 'evening'}">
+          ${selectedShift === 'Morning' ? '🌅' : '🌙'} ${selectedShift}
+        </span>
+        <button class="btn-print" id="printAllocationBtn">🖨️ Print (2 copies)</button>
+      </div>
+    </div>
+
+    <div class="allocation-section">
+      <div class="section-header">
+        <h3>👥 Staff on Duty (${selectedShift})</h3>
+        <span class="duty-count">${onDutyCount} / ${staffUsers.length} on duty</span>
+        <button class="save-btn" id="saveDutyBtn" ${!hasUnsavedDuty ? 'disabled' : ''}>💾 Save Duty</button>
+      </div>
+      <div class="allocation-grid" id="dutyGrid">
+        ${staffUsers.map(u => {
+          const isOnDuty = currentDuty[u.displayName] || false;
+          return `
+            <div class="allocation-card ${isOnDuty ? 'on-duty' : ''}" data-name="${u.displayName}" role="button" tabindex="0" aria-pressed="${isOnDuty}">
+              <span class="avatar">${getAvatar(u.displayName)}</span>
+              <span class="name">${u.displayName}</span>
+              <span class="role-badge">${u.role || 'staff'}</span>
+              <span class="status ${isOnDuty ? 'on-duty' : 'off-duty'}">
+                ${isOnDuty ? '✓' : '○'}
+              </span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="allocation-section">
+      <div class="section-header">
+        <h3>🗺️ Area Assignment (Floor & Pantry can share)</h3>
+        <button class="save-btn" id="saveAreasBtn" ${!hasUnsavedAreas ? 'disabled' : ''}>💾 Save Areas</button>
+      </div>
+      <div class="area-matrix-wrapper">
+        <table class="area-matrix">
+          <thead><tr><th>Area</th>${periods.map(p => `<th>${p}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${areaRows.map(area => {
+              const isShared = SHARED_AREAS.includes(area);
+              return `
+                <tr>
+                  <td class="area-label">${area} ${isShared ? '<span style="font-size:0.6rem;color:#6b7280;">(shared)</span>' : ''}</td>
+                  ${periods.map(period => {
+                    const assigned = currentAreas[period]?.[area] || [];
+                    // Get available staff for this area
+                    const availableStaff = getAvailableStaffForArea(selectedShift, period, area, assigned);
+                    return `
+                      <td>
+                        <select multiple class="area-select" data-area="${area}" data-period="${period}" size="${Math.min(availableStaff.length + 1, 4)}">
+                          ${availableStaff.map(u => `<option value="${u.displayName}" ${assigned.includes(u.displayName) ? 'selected' : ''}>${u.displayName}</option>`).join('')}
+                        </select>
+                        <div class="area-assigned-tags">
+                          ${assigned.map(name => `
+                            <span class="staff-tag">
+                              👤 ${name}
+                              <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
+                            </span>
+                          `).join('')}
+                        </div>
+                        ${!isShared && availableStaff.length === 0 && assigned.length === 0 ? '<div style="font-size:0.7rem;color:#999;margin-top:0.25rem;">No available staff</div>' : ''}
+                      </td>
+                    `;
+                  }).join('')}
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ================== ALLOCATION LOGIC ==================
+async function loadAllocationData() {
+  if (!currentUser) { showNotification('Please sign in first.', 'error'); return; }
+  if (isLoadingAllocation) return;
+  isLoadingAllocation = true;
+
+  if (!users.length && !isFetchingUsers) {
+    await fetchUsers();
+    if (userFetchError) {
+      isLoadingAllocation = false;
+      updateTabContent();
+      return;
+    }
+  }
+
+  // Use the current shift settings
+  selectedDate = currentShiftSettings.date || selectedDate;
+  selectedShift = currentShiftSettings.shift || selectedShift;
+
+  try {
+    // Load allocation data for the specific date
+    const docRef = db.collection('allocations').doc(selectedDate);
+    const docSnap = await docRef.get();
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      // Initialize dutyData and areaData with all shifts
+      dutyData = {};
+      areaData = {};
+      
+      SHIFTS.forEach(shift => {
+        // Get duty data for this shift
+        dutyData[shift] = data.duty?.[shift] || {};
+        
+        // Get area data for this shift
+        areaData[shift] = data.areas?.[shift] || {};
+        
+        // Ensure all staff are initialized for duty
+        const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+        staffUsers.forEach(u => {
+          if (dutyData[shift][u.displayName] === undefined) {
+            dutyData[shift][u.displayName] = false;
+          }
+        });
+        
+        // Ensure area data structure is complete
+        const periods = getPeriodsForShift(shift);
+        periods.forEach(period => {
+          if (!areaData[shift][period]) {
+            areaData[shift][period] = {};
+          }
+          AREAS.forEach(area => {
+            if (!areaData[shift][period][area]) {
+              areaData[shift][period][area] = [];
+            }
+          });
+        });
+      });
+    } else {
+      // Initialize empty data for all shifts
+      dutyData = {};
+      areaData = {};
+      
+      SHIFTS.forEach(shift => {
+        dutyData[shift] = {};
+        areaData[shift] = {};
+        
+        const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+        staffUsers.forEach(u => {
+          dutyData[shift][u.displayName] = false;
+        });
+        
+        const periods = getPeriodsForShift(shift);
+        periods.forEach(period => {
+          areaData[shift][period] = {};
+          AREAS.forEach(area => {
+            areaData[shift][period][area] = [];
+          });
+        });
+      });
+    }
+    hasUnsavedDuty = false;
+    hasUnsavedAreas = false;
+  } catch (err) {
+    console.error('Error loading allocation:', err);
+    showNotification('Failed to load allocation data.', 'error');
+  } finally {
+    isLoadingAllocation = false;
+    updateTabContent();
+  }
+}
+
+function toggleDuty(name) {
+  if (!dutyData[selectedShift]) dutyData[selectedShift] = {};
+  dutyData[selectedShift][name] = !dutyData[selectedShift][name];
+  hasUnsavedDuty = true;
+
+  const card = document.querySelector(`.allocation-card[data-name="${name}"]`);
+  if (card) {
+    const isOnDuty = dutyData[selectedShift][name];
+    card.classList.toggle('on-duty', isOnDuty);
+    card.setAttribute('aria-pressed', isOnDuty);
+    const statusSpan = card.querySelector('.status');
+    if (statusSpan) {
+      statusSpan.className = `status ${isOnDuty ? 'on-duty' : 'off-duty'}`;
+      statusSpan.innerHTML = isOnDuty ? '✓' : '○';
+    }
+  }
+
+  const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+  const onDutyCount = Object.values(dutyData[selectedShift] || {}).filter(v => v === true).length;
+  const countSpan = document.querySelector('.duty-count');
+  if (countSpan) countSpan.textContent = `${onDutyCount} / ${staffUsers.length} on duty`;
+
+  const saveBtn = document.getElementById('saveDutyBtn');
+  if (saveBtn) saveBtn.disabled = false;
+  updateAreaSelects();
+}
+
+function updateAreaSelects() {
+  const selects = document.querySelectorAll('.area-select');
+  const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+  selects.forEach(select => {
+    const shift = selectedShift;
+    const period = select.dataset.period;
+    const area = select.dataset.area;
+    const assigned = areaData[shift]?.[period]?.[area] || [];
     
-    window.rtdb.ref('chatMessages').once('value', (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-        
-        const updates = {};
-        for (const [key, msg] of Object.entries(data)) {
-            if (msg.senderId === currentUserId) continue;
-            const readBy = msg.readBy || {};
-            if (!readBy[currentUserId]) {
-                readBy[currentUserId] = true;
-                updates[key] = { readBy: readBy };
-            }
-        }
-        
-        if (Object.keys(updates).length > 0) {
-            for (const [key, update] of Object.entries(updates)) {
-                window.rtdb.ref('chatMessages').child(key).update(update);
-            }
-            console.log(`✅ Marked ${Object.keys(updates).length} messages as read`);
-        }
+    // Get available staff for this area
+    const isShared = SHARED_AREAS.includes(area);
+    const onDutyStaff = staffUsers.filter(u => (dutyData[shift]?.[u.displayName] || false) === true);
+    
+    let availableStaff = [];
+    if (isShared) {
+      // For shared areas, show all on-duty staff
+      availableStaff = onDutyStaff;
+    } else {
+      // For non-shared areas, exclude staff already assigned to other non-shared areas
+      const nonSharedAreas = AREAS.filter(a => !SHARED_AREAS.includes(a) && a !== area);
+      const staffAssignedToOtherAreas = new Set();
+      
+      nonSharedAreas.forEach(otherArea => {
+        const otherAssigned = areaData[shift]?.[period]?.[otherArea] || [];
+        otherAssigned.forEach(name => staffAssignedToOtherAreas.add(name));
+      });
+      
+      const assignedSet = new Set(assigned);
+      availableStaff = onDutyStaff.filter(u => {
+        if (assignedSet.has(u.displayName)) return true;
+        return !staffAssignedToOtherAreas.has(u.displayName);
+      });
+    }
+    
+    select.innerHTML = '';
+    availableStaff.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.displayName;
+      opt.textContent = u.displayName;
+      if (assigned.includes(u.displayName)) opt.selected = true;
+      select.appendChild(opt);
     });
+    
+    const container = select.parentElement;
+    let tagsDiv = container.querySelector('.area-assigned-tags');
+    if (!tagsDiv) {
+      tagsDiv = document.createElement('div');
+      tagsDiv.className = 'area-assigned-tags';
+      container.appendChild(tagsDiv);
+    }
+    tagsDiv.innerHTML = assigned.map(name => `
+      <span class="staff-tag">
+        👤 ${name}
+        <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
+      </span>
+    `).join('');
+  });
 }
 
-function updateChatBadge() {
-    const btn = document.getElementById('openMessageBtn');
-    if (!btn) return;
-    let badge = btn.querySelector('.chat-unread-badge');
-    if (unreadChatCount > 0) {
-        if (!badge) {
-            badge = document.createElement('div');
-            badge.className = 'chat-unread-badge';
-            badge.style.cssText = `
-                position: absolute;
-                top: -5px;
-                right: -5px;
-                background: #ff4444;
-                color: white;
-                border-radius: 50%;
-                width: 20px;
-                height: 20px;
-                font-size: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: 700;
+function onAreaChange(select, area, period) {
+  const selectedOptions = Array.from(select.selectedOptions);
+  let names = selectedOptions.map(opt => opt.value);
+
+  const isShared = SHARED_AREAS.includes(area);
+  if (!isShared) {
+    const shift = selectedShift;
+    const otherAreas = AREAS.filter(a => a !== area && !SHARED_AREAS.includes(a));
+    let conflict = false;
+    for (const otherArea of otherAreas) {
+      const otherAssigned = areaData[shift]?.[period]?.[otherArea] || [];
+      for (const name of names) {
+        if (otherAssigned.includes(name)) {
+          conflict = true;
+          showNotification(`❌ ${name} is already assigned to "${otherArea}" in this period.`, 'error');
+          const option = Array.from(select.options).find(opt => opt.value === name);
+          if (option) option.selected = false;
+          const idx = names.indexOf(name);
+          if (idx > -1) names.splice(idx, 1);
+        }
+      }
+    }
+    if (conflict) {
+      updateAreaSelects();
+      return;
+    }
+  }
+
+  if (!areaData[selectedShift]) areaData[selectedShift] = {};
+  if (!areaData[selectedShift][period]) areaData[selectedShift][period] = {};
+  areaData[selectedShift][period][area] = names;
+  hasUnsavedAreas = true;
+  document.getElementById('saveAreasBtn').disabled = false;
+
+  const container = select.parentElement;
+  let tagsDiv = container.querySelector('.area-assigned-tags');
+  if (!tagsDiv) {
+    tagsDiv = document.createElement('div');
+    tagsDiv.className = 'area-assigned-tags';
+    container.appendChild(tagsDiv);
+  }
+  tagsDiv.innerHTML = names.map(name => `
+    <span class="staff-tag">
+      👤 ${name}
+      <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
+    </span>
+  `).join('');
+  
+  // Update all area selects to reflect the new assignments
+  updateAreaSelects();
+}
+
+function handleRemoveStaffClick(e) {
+  const target = e.target.closest('.remove-staff');
+  if (!target) return;
+
+  const area = target.dataset.area;
+  const period = target.dataset.period;
+  const name = target.dataset.name;
+  const shift = selectedShift;
+
+  if (areaData[shift]?.[period]?.[area]) {
+    areaData[shift][period][area] = areaData[shift][period][area].filter(n => n !== name);
+  }
+
+  if (areaData[shift]?.[period]?.[area] && areaData[shift][period][area].length === 0) {
+    delete areaData[shift][period][area];
+    if (Object.keys(areaData[shift][period]).length === 0) {
+      delete areaData[shift][period];
+    }
+    if (Object.keys(areaData[shift]).length === 0) {
+      delete areaData[shift];
+    }
+  }
+
+  hasUnsavedAreas = true;
+  const saveBtn = document.getElementById('saveAreasBtn');
+  if (saveBtn) {
+    saveBtn.disabled = false;
+  }
+
+  showNotification(`🗑️ Removed ${name} from ${area} (${period})`, 'info');
+  updateAreaSelects();
+}
+
+// ================== SAVE FUNCTIONS ==================
+async function saveDuty() {
+  if (!currentUser) return;
+  try {
+    const docRef = db.collection('allocations').doc(selectedDate);
+    
+    // Get existing data to preserve other shifts
+    const docSnap = await docRef.get();
+    let existingData = {};
+    if (docSnap.exists) {
+      existingData = docSnap.data();
+    }
+    
+    // Update only the current shift's duty data
+    const updateData = {
+      duty: {
+        ...existingData.duty,
+        [selectedShift]: dutyData[selectedShift] || {}
+      },
+      updatedDutyBy: currentUser.displayName,
+      updatedDutyAt: new Date().toISOString()
+    };
+    
+    await docRef.set(updateData, { merge: true });
+    hasUnsavedDuty = false;
+    document.getElementById('saveDutyBtn').disabled = true;
+    showNotification('✅ Duty status saved!', 'success');
+  } catch (err) {
+    console.error('Error saving duty:', err);
+    showNotification('Failed to save duty: ' + err.message, 'error');
+  }
+}
+
+async function saveAreas() {
+  if (!currentUser) return;
+
+  // Clean up empty entries for the current shift only
+  const currentShift = selectedShift;
+  if (areaData[currentShift]) {
+    const periods = getPeriodsForShift(currentShift);
+    periods.forEach(period => {
+      if (areaData[currentShift][period]) {
+        AREAS.forEach(area => {
+          if (!areaData[currentShift][period][area] || areaData[currentShift][period][area].length === 0) {
+            delete areaData[currentShift][period][area];
+          }
+        });
+        if (Object.keys(areaData[currentShift][period]).length === 0) {
+          delete areaData[currentShift][period];
+        }
+      }
+    });
+    if (Object.keys(areaData[currentShift]).length === 0) {
+      delete areaData[currentShift];
+    }
+  }
+
+  const docRef = db.collection('allocations').doc(selectedDate);
+  
+  // Get existing data to preserve other shifts
+  const docSnap = await docRef.get();
+  let existingData = {};
+  if (docSnap.exists) {
+    existingData = docSnap.data();
+  }
+  
+  // Update only the current shift's area data
+  const updateData = {
+    areas: {
+      ...existingData.areas,
+      [selectedShift]: areaData[selectedShift] || {}
+    },
+    updatedAreasBy: currentUser.displayName,
+    updatedAreasAt: new Date().toISOString()
+  };
+
+  try {
+    await docRef.set(updateData, { merge: true });
+    
+    hasUnsavedAreas = false;
+    const saveBtn = document.getElementById('saveAreasBtn');
+    if (saveBtn) saveBtn.disabled = true;
+    
+    showNotification('✅ Area assignments saved!', 'success');
+  } catch (err) {
+    console.error('Error saving areas:', err);
+    showNotification('Failed to save areas: ' + err.message, 'error');
+  }
+}
+
+function printAllocation() {
+  const periods = getPeriodsForShift(selectedShift);
+  const currentAreas = areaData[selectedShift] || {};
+  
+  const tableHtml = (copyNum) => `
+    <div class="copy-container">
+      <h3>${copyNum === 1 ? 'Copy 1' : 'Copy 2'}</h3>
+      <table>
+        <thead><tr><th>Area</th>${periods.map(p => `<th>${p}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${AREAS.map(area => {
+            const isShared = SHARED_AREAS.includes(area);
+            return `
+              <tr>
+                <td class="area-label">${area} ${isShared ? '(shared)' : ''}</td>
+                ${periods.map(period => {
+                  const assigned = currentAreas[period]?.[area] || [];
+                  return `<td>${assigned.map(name => `<span class="staff-tag">${name}</span>`).join('') || '—'}</td>`;
+                }).join('')}
+              </tr>
             `;
-            btn.style.position = 'relative';
-            btn.appendChild(badge);
-        }
-        badge.textContent = unreadChatCount > 9 ? '9+' : unreadChatCount;
-        badge.style.display = 'flex';
+          }).join('')}
+        </tbody>
+      </table>
+      <div class="footer">Date: ${selectedDate} · Shift: ${selectedShift}</div>
+    </div>
+  `;
+
+  const fullHtml = `
+    <!DOCTYPE html>
+    <html><head><title>Staff Allocation - ${selectedDate} ${selectedShift}</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 0.5in; }
+      .page { display: flex; flex-wrap: wrap; gap: 1in; }
+      .copy-container { flex: 1; min-width: 300px; }
+      table { border-collapse: collapse; width: 100%; margin-bottom: 0.5rem; }
+      th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: top; font-size: 11px; }
+      th { background: #f5f5f5; }
+      .area-label { font-weight: bold; background: #fafafa; }
+      .staff-tag { display: inline-block; background: #e8f0fe; padding: 0 6px; border-radius: 10px; margin: 1px; font-size: 10px; }
+      .footer { font-size: 10px; color: #555; text-align: center; margin-top: 4px; }
+      h3 { margin: 0 0 4px 0; font-size: 13px; color: #333; }
+      @media print { body { padding: 0.3in; } .page { gap: 0.5in; } }
+    </style>
+    </head><body>
+    <h2 style="text-align:center; margin-bottom:0.2in;">Staff Allocation – ${selectedDate} ${selectedShift}</h2>
+    <div class="page">
+      ${tableHtml(1)}
+      ${tableHtml(2)}
+    </div>
+    </body></html>
+  `;
+
+  const win = window.open('', '_blank');
+  win.document.write(fullHtml);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+// ================== LEAVE TAB ==================
+function renderLeaveTab() {
+  if (isFetchingUsers) {
+    return `<div class="loading-state"><div class="spinner-small"></div>Loading staff list…</div>`;
+  }
+  if (userFetchError) {
+    return `
+      <div class="empty-state" style="color:#dc2626; padding: 2rem;">
+        <p>⚠️ Unable to load staff data</p>
+        <button class="btn-load" id="retryFetchUsersBtn">🔄 Retry</button>
+      </div>
+    `;
+  }
+  if (!users.length) {
+    return `<div class="empty-state">No users found.</div>`;
+  }
+  if (isLoadingLeaves) {
+    return `<div class="loading-state"><div class="spinner-small"></div>Loading leave data…</div>`;
+  }
+
+  const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+  const leaveTypeOptions = LEAVE_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+  const staffDutyOptions = STAFF_DUTY.map(d => `<option value="${d}">${d}</option>`).join('');
+  
+  // Get reasons from the imported REASON_OPTIONS
+  const initialReasons = REASON_OPTIONS['FRL'] || [];
+  const reasonOptionsHtml = initialReasons.map(r => `<option value="${r}">${r}</option>`).join('');
+
+  let entriesHtml = '';
+  if (leaveEntries.length === 0) {
+    entriesHtml = `<div class="empty-state">No leave entries for selected date.</div>`;
+  } else {
+    entriesHtml = `
+      <table class="leave-table">
+        <thead><tr><th>Staff</th><th>Staff Duty</th><th>Type</th><th>Reason</th><th>Reported At</th><th>Action</th></tr></thead>
+        <tbody>
+          ${leaveEntries.map((entry, idx) => `
+            <tr>
+              <td>${entry.displayName}</td>
+              <td><span class="staff-duty-badge">${entry.staffDuty || '—'}</span></td>
+              <td><span class="leave-type-badge ${entry.type.toLowerCase()}">${entry.type}</span></td>
+              <td>${entry.reason || '—'}</td>
+              <td>${entry.reportedAt || '—'}</td>
+              <td><button class="btn-remove-leave" data-idx="${idx}">🗑️</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  return `
+    <div class="leave-date-section">
+      <label>📅 Date <input type="date" id="leaveDate" value="${selectedDate}" /></label>
+      <button class="btn-load" id="loadLeaveBtn">📂 Load</button>
+      <button class="btn-print" id="printLeaveBtn">🖨️ Print Leave Report</button>
+    </div>
+    <div class="allocation-section">
+      <div class="section-header">
+        <h3>📝 Add Leave Entry</h3>
+        <button class="save-btn" id="saveLeaveBtn">💾 Save Leave</button>
+      </div>
+      <div class="leave-form">
+        <div class="form-group">
+          <label>Staff</label>
+          <select id="leaveStaffSelect">
+            <option value="">— Select —</option>
+            ${staffUsers.map(u => `<option value="${u.email}">${u.displayName}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Staff Duty</label>
+          <select id="staffDutySelect">
+            <option value="">— Select —</option>
+            ${staffDutyOptions}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Leave Type</label>
+          <select id="leaveTypeSelect">${leaveTypeOptions}</select>
+        </div>
+        <div class="form-group" id="leaveReasonGroup">
+          <label>Reason</label>
+          <select id="leaveReasonSelect">${reasonOptionsHtml}</select>
+        </div>
+        <div class="form-group">
+          <label>Reported Time</label>
+          <input type="time" id="leaveTimeInput" value="${new Date().toTimeString().slice(0,5)}" />
+        </div>
+      </div>
+    </div>
+    <div class="allocation-section">
+      <div class="section-header">
+        <h3>📋 Leave Entries for ${selectedDate}</h3>
+      </div>
+      ${entriesHtml}
+    </div>
+  `;
+}
+
+async function loadLeaveData() {
+  if (!currentUser) { showNotification('Please sign in first.', 'error'); return; }
+  if (isLoadingLeaves) return;
+  isLoadingLeaves = true;
+
+  if (!users.length && !isFetchingUsers) {
+    await fetchUsers();
+    if (userFetchError) {
+      isLoadingLeaves = false;
+      updateTabContent();
+      return;
+    }
+  }
+
+  const dateInput = document.getElementById('leaveDate');
+  if (dateInput) {
+    selectedDate = dateInput.value;
+  }
+
+  try {
+    const docRef = db.collection('leaves').doc(selectedDate);
+    const docSnap = await docRef.get();
+    if (docSnap.exists) {
+      leaveEntries = docSnap.data().entries || [];
     } else {
-        if (badge) badge.style.display = 'none';
+      leaveEntries = [];
     }
+    showNotification(`📋 Loaded ${leaveEntries.length} leave entries for ${selectedDate}`, 'info');
+  } catch (err) {
+    console.error('Error loading leaves:', err);
+    showNotification('Failed to load leave data.', 'error');
+  } finally {
+    isLoadingLeaves = false;
+    updateTabContent();
+  }
 }
 
-function openChatPage() {
-    const chatWindow = window.open(
-        'chat.html',
-        'ChatWindow',
-        'width=420,height=600,left=' + (window.screen.width - 440) + ',top=60,resizable=yes,scrollbars=no'
-    );
-    if (chatWindow) {
-        chatWindow.focus();
-        setTimeout(() => {
-            markAllChatMessagesAsRead();
-            unreadChatCount = 0;
-            updateChatBadge();
-        }, 500);
+async function addLeaveEntry() {
+  const staffSelect = document.getElementById('leaveStaffSelect');
+  const staffDutySelect = document.getElementById('staffDutySelect');
+  const typeSelect = document.getElementById('leaveTypeSelect');
+  const reasonSelect = document.getElementById('leaveReasonSelect');
+  const timeInput = document.getElementById('leaveTimeInput');
+
+  const staffEmail = staffSelect.value;
+  if (!staffEmail) { showNotification('Please select a staff member.', 'error'); return; }
+  
+  const staffDuty = staffDutySelect.value;
+  if (!staffDuty) { showNotification('Please select staff duty.', 'error'); return; }
+  
+  const type = typeSelect.value;
+  const reason = type === 'Absent' ? '' : reasonSelect.value;
+  const reportedAt = timeInput.value;
+
+  if ((type === 'FRL' || type === 'SL') && !reason) {
+    showNotification('Please select a reason for ' + type + '.', 'error');
+    return;
+  }
+
+  const staff = users.find(u => u.email === staffEmail);
+  if (!staff) { showNotification('Staff not found.', 'error'); return; }
+
+  const entry = {
+    staffEmail,
+    displayName: staff.displayName,
+    staffDuty: staffDuty,
+    type,
+    reason: reason || '',
+    reportedAt,
+    timestamp: new Date().toISOString()
+  };
+
+  leaveEntries.push(entry);
+  try {
+    const docRef = db.collection('leaves').doc(selectedDate);
+    await docRef.set({ entries: leaveEntries }, { merge: true });
+    showNotification(`✅ Leave added for ${staff.displayName} (${type})`, 'success');
+    loadLeaveData();
+  } catch (err) {
+    console.error('Error saving leave:', err);
+    showNotification('Failed to save leave.', 'error');
+    leaveEntries.pop();
+  }
+}
+
+async function removeLeaveEntry(idx) {
+  if (!confirm(`Remove leave entry for ${leaveEntries[idx].displayName}?`)) return;
+  leaveEntries.splice(idx, 1);
+  try {
+    const docRef = db.collection('leaves').doc(selectedDate);
+    await docRef.set({ entries: leaveEntries }, { merge: true });
+    showNotification('🗑️ Leave entry removed.', 'success');
+    loadLeaveData();
+  } catch (err) {
+    console.error('Error removing leave:', err);
+    showNotification('Failed to remove leave.', 'error');
+    loadLeaveData();
+  }
+}
+
+function printLeaveReport() {
+  if (leaveEntries.length === 0) {
+    showNotification('No leave entries to print.', 'error');
+    return;
+  }
+  const rows = leaveEntries.map(e => `
+    <tr>
+      <td>${e.displayName}</td>
+      <td>${e.staffDuty || '—'}</td>
+      <td>${e.type}</td>
+      <td>${e.reason || '—'}</td>
+      <td>${e.reportedAt || '—'}</td>
+    </tr>
+  `).join('');
+  
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Leave Report - ${selectedDate}</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 0.5in; }
+      h1 { font-size: 18px; margin-bottom: 4px; }
+      .sub { color: #555; margin-bottom: 0.3in; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #aaa; padding: 6px 8px; text-align: left; }
+      th { background: #f0f0f0; }
+      .frl { background: #fef3c7; }
+      .sl { background: #dbeafe; }
+      .absent { background: #fee2e2; }
+      .staff-duty-badge { 
+        display: inline-block; 
+        padding: 0 8px; 
+        border-radius: 12px; 
+        font-size: 0.7rem; 
+        font-weight: 500;
+        background: #e5e7eb;
+        color: #374151;
+      }
+    </style>
+    </head><body>
+    <h1>📋 Leave Report</h1>
+    <div class="sub">Date: ${selectedDate}</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Staff</th>
+          <th>Staff Duty</th>
+          <th>Type</th>
+          <th>Reason</th>
+          <th>Reported At</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="margin-top:1rem;font-size:0.85rem;color:#888;">
+      Printed on ${new Date().toLocaleString()}
+    </p>
+    </body></html>
+  `;
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+// ================== BREAK REQUESTS TAB ==================
+function renderBreakTab() {
+  if (!currentUser) return '<div class="empty-state">Please sign in.</div>';
+  if (isFetchingUsers) {
+    return `<div class="loading-state"><div class="spinner-small"></div>Loading…</div>`;
+  }
+  if (!users.length) {
+    return `<div class="empty-state">No staff found.</div>`;
+  }
+
+  // Filter break requests by the current date and shift
+  const filteredRequests = breakRequests.filter(r => 
+    r.date === selectedDate && r.shift === selectedShift
+  );
+  
+  const pending = filteredRequests.filter(r => r.status === 'pending');
+  const others = filteredRequests.filter(r => r.status !== 'pending');
+
+  const renderTable = (requests, title) => {
+    if (requests.length === 0) return `<p class="empty-state">No ${title.toLowerCase()} for ${selectedDate} · ${selectedShift}.</p>`;
+    return `
+      <h4>${title}</h4>
+      <table class="break-requests-table">
+        <thead><tr><th>Staff</th><th>Break Slot</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          ${requests.map(r => `
+            <tr>
+              <td>${r.staffName}</td>
+              <td>${r.breakSlot || r.startTime || '—'}</td>
+              <td>${r.reason || '—'}</td>
+              <td><span class="break-status ${r.status}">${r.status}</span></td>
+              <td class="break-actions">
+                ${r.status === 'pending' ? `
+                  <button class="approve-btn" data-id="${r.id}">✅ Approve</button>
+                  <button class="reject-btn" data-id="${r.id}">❌ Reject</button>
+                ` : '<span style="color:#888;">No action</span>'}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  };
+
+  return `
+    <div class="allocation-section">
+      <div class="section-header">
+        <h3>☕ Break Requests</h3>
+        <div style="display:flex; gap:1rem; font-size:0.85rem; color:rgba(0,0,0,0.6);">
+          <span>📅 ${selectedDate}</span>
+          <span>🕒 ${selectedShift}</span>
+          <button class="btn-load" id="refreshBreakBtn">🔄 Refresh</button>
+        </div>
+      </div>
+      ${renderTable(pending, 'Pending')}
+      ${renderTable(others, 'Reviewed')}
+    </div>
+  `;
+}
+
+async function loadBreakRequests() {
+  if (!currentUser) return;
+  
+  // Use the current shift settings
+  selectedDate = currentShiftSettings.date || selectedDate;
+  selectedShift = currentShiftSettings.shift || selectedShift;
+  
+  try {
+    const snapshot = await db.collection('break_requests')
+      .where('date', '==', selectedDate)
+      .where('shift', '==', selectedShift)
+      .orderBy('requestedAt', 'desc')
+      .get();
+    breakRequests = [];
+    snapshot.forEach(doc => {
+      breakRequests.push({ id: doc.id, ...doc.data() });
+    });
+    if (currentTab === 'break') {
+      const container = document.getElementById('tabContent');
+      if (container) container.innerHTML = renderBreakTab();
+      attachBreakEvents();
+    }
+  } catch (err) {
+    console.error('Error loading break requests:', err);
+    showNotification('Failed to load break requests.', 'error');
+  }
+}
+
+async function handleBreakAction(requestId, action) {
+  try {
+    await db.collection('break_requests').doc(requestId).update({ status: action });
+    showNotification(`✅ Break request ${action}ed.`, 'success');
+    loadBreakRequests();
+  } catch (err) {
+    console.error('Error updating break request:', err);
+    showNotification('Failed to update break request.', 'error');
+  }
+}
+
+function attachBreakEvents() {
+  document.querySelectorAll('.approve-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleBreakAction(btn.dataset.id, 'approved'));
+  });
+  document.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', () => handleBreakAction(btn.dataset.id, 'rejected'));
+  });
+  
+  const refreshBtn = document.getElementById('refreshBreakBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadBreakRequests);
+  }
+}
+
+// ================== SET SHIFT TAB ==================
+function renderShiftTab() {
+  const currentDate = currentShiftSettings.date || selectedDate;
+  const currentShift = currentShiftSettings.shift || 'Morning';
+
+  return `
+    <div class="allocation-section">
+      <h3>📅 Set Current Shift</h3>
+      <p style="color: rgba(0,0,0,0.5); margin-bottom: 1rem;">
+        This determines the date and shift that will be used for tasks, allocation, and break requests.
+      </p>
+      <div class="shift-form">
+        <div class="form-group">
+          <label>📅 Date</label>
+          <input type="date" id="shiftDateInput" value="${currentDate}" />
+        </div>
+        <div class="form-group">
+          <label>🕒 Shift</label>
+          <select id="shiftSelectInput">
+            ${SHIFTS.map(s => `<option value="${s}" ${s === currentShift ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <button class="btn-primary" id="saveShiftBtn">💾 Save Shift</button>
+      </div>
+      <div style="margin-top: 1rem; font-size: 0.85rem; color: rgba(0,0,0,0.4);">
+        Current setting: <strong>${currentDate} · ${currentShift}</strong>
+      </div>
+    </div>
+  `;
+}
+
+async function loadShiftSettings() {
+  try {
+    const settingsRef = db.collection('settings').doc('currentShift');
+    const settingsSnap = await settingsRef.get();
+    if (settingsSnap.exists) {
+      currentShiftSettings = settingsSnap.data();
+      selectedDate = currentShiftSettings.date || selectedDate;
+      selectedShift = currentShiftSettings.shift || selectedShift;
     } else {
-        window.location.href = 'chat.html';
+      currentShiftSettings = { date: new Date().toISOString().slice(0,10), shift: 'Morning' };
     }
+    if (currentTab === 'shift') {
+      const container = document.getElementById('tabContent');
+      if (container) container.innerHTML = renderShiftTab();
+      attachShiftEvents();
+    }
+  } catch (err) {
+    console.error('Error loading shift settings:', err);
+    showNotification('Failed to load shift settings.', 'error');
+  }
 }
 
-// ============================================================
-// CACHE CLEANUP
-// ============================================================
-function cleanupCache() {
-    const now = Date.now();
+async function saveShiftSettings() {
+  const dateInput = document.getElementById('shiftDateInput');
+  const shiftSelect = document.getElementById('shiftSelectInput');
+  if (!dateInput || !shiftSelect) return;
+
+  const date = dateInput.value;
+  const shift = shiftSelect.value;
+
+  if (!date || !shift) {
+    showNotification('Please select both date and shift.', 'error');
+    return;
+  }
+
+  try {
+    await db.collection('settings').doc('currentShift').set({ date, shift });
+    currentShiftSettings = { date, shift };
+    selectedDate = date;
+    selectedShift = shift;
+    showNotification('✅ Shift settings saved!', 'success');
+    const container = document.getElementById('tabContent');
+    if (container) container.innerHTML = renderShiftTab();
+    attachShiftEvents();
     
-    for (const [key, value] of flightStatusCache.entries()) {
-        if (now - value.timestamp > FLIGHT_CACHE_DURATION) {
-            flightStatusCache.delete(key);
-        }
-    }
-    
-    for (const [key, value] of duplicateCache.entries()) {
-        if (now - value.timestamp > DUPLICATE_CACHE_DURATION) {
-            duplicateCache.delete(key);
-        }
-    }
+    // Reload all data with new settings
+    if (currentTab === 'tasks') loadTasks();
+    if (currentTab === 'allocation') loadAllocationData();
+    if (currentTab === 'break') loadBreakRequests();
+  } catch (err) {
+    console.error('Error saving shift settings:', err);
+    showNotification('Failed to save shift settings.', 'error');
+  }
 }
 
-setInterval(cleanupCache, 10000);
-
-// ============================================================
-// ATTACH MANIFEST EVENTS
-// ============================================================
-function attachManifestEvents() {
-    for (const entry of manifestEntries) {
-        const guestBtn = document.getElementById(`guest-btn-${entry.id}`);
-        if (guestBtn) {
-            guestBtn.removeEventListener('click', guestBtn._clickHandler);
-            guestBtn._clickHandler = (e) => {
-                e.stopPropagation();
-                addGuestForParent(entry.id);
-                setTimeout(() => focusToCodeInput(true), 100);
-            };
-            guestBtn.addEventListener('click', guestBtn._clickHandler);
-        }
-        
-        const approveBtn = document.getElementById(`approve-${entry.id}`);
-        if (approveBtn) {
-            approveBtn.removeEventListener('click', approveBtn._clickHandler);
-            approveBtn._clickHandler = async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                await approveEntry(entry.id);
-                setTimeout(() => focusToCodeInput(true), 100);
-            };
-            approveBtn.addEventListener('click', approveBtn._clickHandler);
-        }
-        
-        const deleteBtn = document.getElementById(`delete-${entry.id}`);
-        if (deleteBtn) {
-            deleteBtn.removeEventListener('click', deleteBtn._clickHandler);
-            deleteBtn._clickHandler = (e) => {
-                e.stopPropagation();
-                deleteManifestEntry(entry.id);
-                setTimeout(() => focusToCodeInput(true), 100);
-            };
-            deleteBtn.addEventListener('click', deleteBtn._clickHandler);
-        }
-        
-        setupEditableCell(entry, 'name');
-        setupEditableCell(entry, 'flight');
-        setupEditableCell(entry, 'seat');
-        setupEditableCell(entry, 'class');
-        setupEditableCell(entry, 'serial');
-        setupEditableCell(entry, 'fqtv');
-    }
+function attachShiftEvents() {
+  const saveBtn = document.getElementById('saveShiftBtn');
+  if (saveBtn) saveBtn.addEventListener('click', saveShiftSettings);
 }
 
-function setupEditableCell(entry, fieldType) {
-    const cell = document.getElementById(`${fieldType}-${entry.id}`);
-    if (!cell) return;
-    
-    const fieldMap = {
-        'name': 'passengerName',
-        'flight': 'flightNo',
-        'seat': 'seatNo',
-        'class': 'classCode',
-        'serial': 'serialNo',
-        'fqtv': 'fqtvValue'
-    };
-    
-    const fieldName = fieldMap[fieldType];
-    if (!fieldName) return;
-    
-    cell.removeEventListener('focus', cell._focusHandler);
-    cell.removeEventListener('blur', cell._blurHandler);
-    cell.removeEventListener('keydown', cell._keydownHandler);
-    
-    cell._focusHandler = () => {
-        isEditingCell = true;
-        activeEditableCell = cell;
-        cell.style.background = '#fff8e7';
-        setTimeout(() => {
-            const range = document.createRange();
-            range.selectNodeContents(cell);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-        }, 10);
-    };
-    
-    cell._blurHandler = debounce(async (e) => {
-        cell.style.background = 'transparent';
-        const newVal = e.target.innerText.trim();
-        const oldVal = entry[fieldName] || '';
-        if (newVal !== oldVal) {
-            await saveFieldLive(entry.id, fieldName, newVal);
-        }
-        activeEditableCell = null;
-        isEditingCell = false;
-    }, 300);
-    
-    cell._keydownHandler = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            e.target.blur();
-        }
-        if (e.key === 'Escape') {
-            e.target.blur();
-            focusToCodeInput(true);
-        }
-    };
-    
-    cell.addEventListener('focus', cell._focusHandler);
-    cell.addEventListener('blur', cell._blurHandler);
-    cell.addEventListener('keydown', cell._keydownHandler);
+// ================== UPDATE TAB CONTENT ==================
+function updateTabContent() {
+  const container = document.getElementById('tabContent');
+  if (!container) return;
+  if (currentTab === 'tasks') {
+    container.innerHTML = renderTasksTab();
+    if (currentUser) loadTasks();
+    attachPrintChecklistEvent();
+  } else if (currentTab === 'allocation') {
+    container.innerHTML = renderAllocationTab();
+    setTimeout(attachAllocationEvents, 50);
+  } else if (currentTab === 'leaves') {
+    container.innerHTML = renderLeaveTab();
+    setTimeout(attachLeaveEvents, 50);
+  } else if (currentTab === 'break') {
+    container.innerHTML = renderBreakTab();
+    setTimeout(attachBreakEvents, 50);
+  } else if (currentTab === 'shift') {
+    container.innerHTML = renderShiftTab();
+    setTimeout(attachShiftEvents, 50);
+  }
 }
 
-// ============================================================
-// INITIALIZATION
-// ============================================================
-async function init() {
-    const username = localStorage.getItem('username');
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const loggedInUser = localStorage.getItem('loggedInUser');
-    let isAuth = false;
-    if (username && isLoggedIn) isAuth = true;
-    else if (loggedInUser) {
-        try { const u = JSON.parse(loggedInUser); if (u && u.username) { isAuth = true; localStorage.setItem('isLoggedIn', 'true'); } } catch (e) {}
-    } else if (username) { isAuth = true; localStorage.setItem('isLoggedIn', 'true'); }
-    if (!isAuth) {
-        window.location.href = 'login.html';
+// ================== FETCH USERS ==================
+async function fetchUsers() {
+  if (isFetchingUsers) return;
+  isFetchingUsers = true;
+  userFetchError = null;
+  try {
+    const snapshot = await db.collection('users').get();
+    users = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      users.push({
+        email: doc.id,
+        displayName: data.displayName || data.username || doc.id,
+        lineCode: data.lineCode || '',
+        password: data.password || '',
+        role: data.role || 'staff'
+      });
+    });
+    users.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    console.log(`✅ Loaded ${users.length} users`);
+  } catch (err) {
+    console.error('Failed to fetch users:', err);
+    userFetchError = err;
+    showNotification('Failed to load users: ' + (err.message || 'network error'), 'error');
+  } finally {
+    isFetchingUsers = false;
+    updateTabContent();
+  }
+}
+
+// ================== EVENT ATTACHMENT ==================
+function attachAllocationEvents() {
+  document.querySelectorAll('.allocation-card').forEach(card => {
+    const name = card.dataset.name;
+    if (!name) return;
+    card.addEventListener('click', (e) => { e.preventDefault(); toggleDuty(name); });
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDuty(name); } });
+    card.addEventListener('touchstart', () => { card.style.transform = 'scale(0.95)'; }, { passive: true });
+    card.addEventListener('touchend', () => { card.style.transform = ''; }, { passive: true });
+  });
+
+  document.querySelectorAll('.area-select').forEach(select => {
+    const area = select.dataset.area;
+    const period = select.dataset.period;
+    select.addEventListener('change', () => onAreaChange(select, area, period));
+  });
+
+  const matrixWrapper = document.querySelector('.area-matrix-wrapper');
+  if (matrixWrapper) {
+    matrixWrapper.addEventListener('click', function(e) {
+      const target = e.target.closest('.remove-staff');
+      if (target) {
+        handleRemoveStaffClick(e);
+      }
+    });
+  }
+
+  const saveDutyBtn = document.getElementById('saveDutyBtn');
+  if (saveDutyBtn) saveDutyBtn.addEventListener('click', saveDuty);
+  const saveAreasBtn = document.getElementById('saveAreasBtn');
+  if (saveAreasBtn) saveAreasBtn.addEventListener('click', saveAreas);
+  
+  const refreshBtn = document.getElementById('refreshAllocationBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadAllocationData);
+  }
+  
+  const printBtn = document.getElementById('printAllocationBtn');
+  if (printBtn) printBtn.addEventListener('click', printAllocation);
+  const retryBtn = document.getElementById('retryFetchUsersBtn');
+  if (retryBtn) retryBtn.addEventListener('click', () => { fetchUsers().then(() => loadAllocationData()); });
+  
+  const syncBtn = document.getElementById('syncShiftBtn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', () => {
+      if (currentShiftSettings.date) {
+        selectedDate = currentShiftSettings.date;
+        selectedShift = currentShiftSettings.shift;
+        loadAllocationData();
+        showNotification(`📌 Synced to shift: ${currentShiftSettings.date} · ${currentShiftSettings.shift}`, 'success');
+      } else {
+        showNotification('No shift set. Please go to Set Shift tab first.', 'error');
+      }
+    });
+  }
+}
+
+function attachLeaveEvents() {
+  const loadBtn = document.getElementById('loadLeaveBtn');
+  if (loadBtn) {
+    loadBtn.addEventListener('click', () => {
+      const dateInput = document.getElementById('leaveDate');
+      if (dateInput) selectedDate = dateInput.value;
+      loadLeaveData();
+    });
+  }
+  const saveBtn = document.getElementById('saveLeaveBtn');
+  if (saveBtn) saveBtn.addEventListener('click', addLeaveEntry);
+
+  document.querySelectorAll('.btn-remove-leave').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      removeLeaveEntry(idx);
+    });
+  });
+
+  const printBtn = document.getElementById('printLeaveBtn');
+  if (printBtn) printBtn.addEventListener('click', printLeaveReport);
+
+  const typeSelect = document.getElementById('leaveTypeSelect');
+  const reasonSelect = document.getElementById('leaveReasonSelect');
+  const reasonGroup = document.getElementById('leaveReasonGroup');
+
+  if (typeSelect && reasonSelect && reasonGroup) {
+    function updateReasons() {
+      const type = typeSelect.value;
+      if (type === 'Absent') {
+        reasonGroup.style.display = 'none';
         return;
+      }
+      reasonGroup.style.display = 'block';
+      const reasons = REASON_OPTIONS[type] || [];
+      reasonSelect.innerHTML = reasons.map(r => `<option value="${r}">${r}</option>`).join('');
     }
-    loadUserData();
-    await fetchShiftData();
-    const savedMode = localStorage.getItem('operationMode');
-    currentMode = savedMode === 'multiple' ? 'multiple' : 'local';
-    const modeRadios = document.querySelectorAll('input[name="operationMode"]');
-    modeRadios.forEach(r => {
-        if (r.value === currentMode) r.checked = true;
-    });
-    await initRTDB();
-    listenToFirebaseChanges();
-    if (currentMode === 'local') loadFromLocalStorage();
-    else await loadFromFirebaseRTDB();
-    updateModeUI();
-    
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
-    
-    const clearAllBtn = document.getElementById('clearAllBtn');
-    if (clearAllBtn) clearAllBtn.addEventListener('click', clearAllManifest);
-    const clearProcessingBtn = document.getElementById('clearProcessingBtn');
-    if (clearProcessingBtn) clearProcessingBtn.addEventListener('click', clearAllProcessing);
-    const clearFailedBtn = document.getElementById('clearFailedBtn');
-    if (clearFailedBtn) clearFailedBtn.addEventListener('click', clearAllFailed);
-    
-    const codeInput = document.getElementById('codeInput');
-    if (codeInput) {
-        codeInput.addEventListener('change', extractAndAdd);
-        codeInput.addEventListener('blur', () => { 
-            if (codeInput.value.trim()) {
-                extractAndAdd();
-            }
-        });
-        codeInput.addEventListener('paste', () => {
-            setTimeout(async () => {
-                await extractAndAdd();
-                focusToCodeInput(true);
-            }, 50);
-        });
-        setTimeout(() => focusToCodeInput(true), 500);
-    }
-    
-    const manualBtn = document.getElementById('manualEntryBtn');
-    if (manualBtn) manualBtn.addEventListener('click', addManualEntry);
-    
-    const closeGuestBtn = document.getElementById('closeGuestModeBtn');
-    if (closeGuestBtn) closeGuestBtn.addEventListener('click', closeGuestMode);
-    
-    const refreshShiftBtn = document.getElementById('refreshShiftBtn');
-    if (refreshShiftBtn) refreshShiftBtn.addEventListener('click', fetchShiftData);
-    
-    modeRadios.forEach(radio => {
-        radio.addEventListener('change', async (e) => {
-            if (e.target.checked) {
-                const newMode = e.target.value;
-                if (newMode !== currentMode) {
-                    currentMode = newMode;
-                    localStorage.setItem('operationMode', currentMode);
-                    if (currentMode === 'local') loadFromLocalStorage();
-                    else await loadFromFirebaseRTDB();
-                    updateModeUI();
-                    showToast(`Switched to ${currentMode.toUpperCase()} mode`, 'info');
-                    focusToCodeInput(true);
-                }
-            }
-        });
-    });
-    
-    document.addEventListener('click', (e) => {
-        const targetEl = e.target.nodeType === Node.TEXT_NODE ? e.target.parentElement : e.target;
-        const isInsideManifestTab = targetEl.closest && targetEl.closest('#tab-manifest');
-        if (isInsideManifestTab) {
-            return;
-        }
-        const isInput = targetEl.id === 'codeInput';
-        const isButton = targetEl.closest ? targetEl.closest('button') : false;
-        const isTab = targetEl.closest ? targetEl.closest('.tab-btn') : false;
-        const isGuestBanner = targetEl.closest ? targetEl.closest('#guestModeBanner') : false;
-        const isStatus = targetEl.closest ? targetEl.closest('#extractStatus') : false;
-        
-        if (isButton || isTab) {
-            return;
-        }
-        
-        if (!isInput && !isGuestBanner && !isStatus) {
-            if (!isEditingManifestField() && !isProcessingAction) {
-                setTimeout(() => focusToCodeInput(false), 50);
-            }
-        }
-    }, true);
-    
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            if (activeEditableCell) {
-                activeEditableCell.blur();
-            }
-            focusToCodeInput(true);
-        }
-        if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-            e.preventDefault();
-            focusToCodeInput(true);
-        }
-    });
-    
-    initChatAlerts();
-    
-    const openMsgBtn = document.getElementById('openMessageBtn');
-    if (openMsgBtn) {
-        openMsgBtn.onclick = function(e) {
-            e.preventDefault();
-            openChatPage();
-        };
-    }
-    
-    renderManifestTable();
-    renderProcessingTable();
-    renderFailedList();
-    updateTabCounts();
-    setInterval(fetchShiftData, 30000);
-    console.log('✅ Passenger Manifest System initialized with optimistic UI and background validation');
+    typeSelect.addEventListener('change', updateReasons);
+    updateReasons();
+  }
+
+  const retryBtn = document.getElementById('retryFetchUsersBtn');
+  if (retryBtn) retryBtn.addEventListener('click', () => { fetchUsers().then(() => loadLeaveData()); });
 }
 
-// ============================================================
-// START
-// ============================================================
-document.addEventListener('DOMContentLoaded', init);
+// ================== AUTHENTICATION ==================
+function setupPatternLock(containerId, onComplete) {
+  const grid = document.getElementById(containerId);
+  if (!grid) return;
+  const svg = grid.parentElement.querySelector('.modal-pattern-svg');
+  const status = grid.parentElement.querySelector('.modal-pattern-status');
+  const clearBtn = grid.parentElement.querySelector('.modal-clear-pattern');
+  const DOT_COUNT = 9;
+  const dotPositions = [
+    { x: 0.1667, y: 0.1667 }, { x: 0.5, y: 0.1667 }, { x: 0.8333, y: 0.1667 },
+    { x: 0.1667, y: 0.5 }, { x: 0.5, y: 0.5 }, { x: 0.8333, y: 0.5 },
+    { x: 0.1667, y: 0.8333 }, { x: 0.5, y: 0.8333 }, { x: 0.8333, y: 0.8333 }
+  ];
+  let dots = [], selected = [], isDrawing = false;
+  function build() {
+    grid.innerHTML = ''; dots = [];
+    const container = grid.parentElement;
+    const size = container.offsetWidth || 220;
+    for (let i = 0; i < DOT_COUNT; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'modal-pattern-dot';
+      dot.dataset.index = i;
+      const pos = dotPositions[i];
+      dot.style.left = (pos.x * 100) + '%';
+      dot.style.top = (pos.y * 100) + '%';
+      dot.style.width = Math.max(32, size * 0.18) + 'px';
+      dot.style.height = Math.max(32, size * 0.18) + 'px';
+      dot.innerHTML = `<span class="dot-number">${i+1}</span>`;
+      grid.appendChild(dot); dots.push(dot);
+      dot.addEventListener('mousedown', (e) => onDown(e, i));
+      dot.addEventListener('mouseenter', (e) => onEnter(e, i));
+      dot.addEventListener('touchstart', (e) => { e.preventDefault(); onDown(e, i); }, { passive: false });
+      dot.addEventListener('touchmove', (e) => { e.preventDefault(); onMove(e, i); }, { passive: false });
+      dot.addEventListener('touchend', (e) => { e.preventDefault(); onUp(e, i); }, { passive: false });
+    }
+    document.addEventListener('mouseup', onGlobalUp);
+    document.addEventListener('mousemove', onGlobalMove);
+    document.addEventListener('touchend', onGlobalUp);
+    document.addEventListener('touchmove', onGlobalMove, { passive: false });
+    updateSvg();
+  }
+  function onDown(e, idx) { if (selected.includes(idx)) return; isDrawing = true; select(idx); updateStatus('active', 'Drawing…'); }
+  function onEnter(e, idx) { if (!isDrawing || selected.includes(idx)) return; select(idx); }
+  function onUp(e, idx) {}
+  function onMove(e, idx) {}
+  function onGlobalUp() {
+    if (isDrawing) {
+      isDrawing = false;
+      if (selected.length >= 4) {
+        updateStatus('success', `✓ Pattern: ${selected.map(i=>i+1).join(' → ')}`);
+        if (onComplete) onComplete(selected.map(i=>i+1).join(''));
+      } else {
+        updateStatus('error', '❌ Need at least 4 dots');
+        setTimeout(() => { if (!isDrawing) reset(false); }, 500);
+      }
+      updateSvg();
+    }
+  }
+  function onGlobalMove(e) {
+    if (!isDrawing) return;
+    let cx, cy;
+    if (e.touches) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+    else { cx = e.clientX; cy = e.clientY; }
+    const rect = grid.parentElement.getBoundingClientRect();
+    const x = (cx - rect.left) / rect.width;
+    const y = (cy - rect.top) / rect.height;
+    let nearest = -1, minDist = 0.12;
+    for (let i = 0; i < DOT_COUNT; i++) {
+      if (selected.includes(i)) continue;
+      const pos = dotPositions[i];
+      const dx = x - pos.x, dy = y - pos.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < minDist) { minDist = dist; nearest = i; }
+    }
+    if (nearest >= 0) select(nearest);
+  }
+  function select(idx) {
+    if (selected.includes(idx)) return;
+    selected.push(idx);
+    const dot = dots[idx];
+    dot.classList.add('selected');
+    dot.style.transform = 'translate(-50%,-50%) scale(1.2)';
+    setTimeout(() => dot.style.transform = 'translate(-50%,-50%) scale(1.08)', 100);
+    updateSvg();
+    updateStatus('active', `Pattern: ${selected.map(i=>i+1).join(' → ')}`);
+  }
+  function reset(keepStatus = false) {
+    selected.forEach(i => { const dot = dots[i]; if (dot) { dot.classList.remove('selected', 'error'); dot.style.transform = ''; } });
+    selected = [];
+    if (!keepStatus) updateStatus('idle', 'Connect at least 4 dots');
+    updateSvg();
+  }
+  function updateStatus(type, msg) {
+    if (!status) return;
+    status.textContent = msg;
+    status.className = 'modal-pattern-status';
+    if (type === 'active') status.classList.add('active-status');
+    else if (type === 'error') status.classList.add('error-status');
+    else if (type === 'success') status.classList.add('success-status');
+  }
+  function updateSvg() {
+    if (!svg) return;
+    const size = grid.parentElement.offsetWidth || 220;
+    let content = '';
+    for (let i = 0; i < selected.length - 1; i++) {
+      const from = dotPositions[selected[i]];
+      const to = dotPositions[selected[i+1]];
+      content += `<line x1="${from.x*size}" y1="${from.y*size}" x2="${to.x*size}" y2="${to.y*size}" />`;
+    }
+    svg.innerHTML = content;
+  }
+  if (clearBtn) clearBtn.addEventListener('click', () => reset(false));
+  build();
+  return { reset, getPattern: () => selected.map(i=>i+1).join('') };
+}
 
-// ============================================================
-// EXPOSE FUNCTIONS TO GLOBAL SCOPE
-// ============================================================
-window.approveEntry = approveEntry;
-window.approveMultipleEntries = approveMultipleEntries;
-window.retryFailedEntry = retryFailedEntry;
-window.deleteManifestEntry = deleteManifestEntry;
-window.deleteProcessingEntry = deleteProcessingEntry;
-window.deleteFailedEntry = deleteFailedEntry;
-window.addGuestForParent = addGuestForParent;
-window.closeGuestMode = closeGuestMode;
-window.logout = logout;
-window.switchTab = switchTab;
-window.extractAndAdd = extractAndAdd;
-window.addManualEntry = addManualEntry;
-window.focusToCodeInput = focusToCodeInput;
-window.showToast = showToast;
-window.openChatPage = openChatPage;
-window.initChatAlerts = initChatAlerts;
-window.markAllChatMessagesAsRead = markAllChatMessagesAsRead;
+function showAuthModal() {
+  if (!users.length) {
+    fetchUsers().then(() => { if (currentTab === 'allocation') updateTabContent(); showAuthModal(); });
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'userModal';
+  const supervisorUsers = users.filter(u => u.role === 'supervisor' || u.role === 'admin' || u.role === 'manager');
+  if (!supervisorUsers.length) {
+    alert('No supervisor accounts found. Please use the checklist page.');
+    window.location.href = 'checklist.html';
+    return;
+  }
+  const options = supervisorUsers.map(u => `<option value="${u.email}">${u.displayName || u.email}</option>`).join('');
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h2>🔐 Supervisor Sign In</h2>
+      <p>Select your account and draw your pattern.</p>
+      <div class="form-group"><label for="userSelect">User</label><select id="userSelect"><option value="">— Choose —</option>${options}</select></div>
+      <div class="modal-pattern-wrapper">
+        <div class="modal-pattern-container">
+          <div class="modal-pattern-grid" id="modalPatternGrid"></div>
+          <svg class="modal-pattern-svg" id="modalPatternSvg"></svg>
+        </div>
+        <div class="modal-pattern-status" id="modalPatternStatus">Connect at least 4 dots</div>
+        <button type="button" class="modal-clear-pattern" id="modalClearPattern">✕ clear</button>
+      </div>
+      <div id="authError" class="error-msg" style="display:none;">Incorrect pattern. Please try again.</div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="modalCancel">Cancel</button>
+        <button class="btn-primary" id="modalSignin">Sign In</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const userSelect = document.getElementById('userSelect');
+  const errorMsg = document.getElementById('authError');
+  const signinBtn = document.getElementById('modalSignin');
+  const cancelBtn = document.getElementById('modalCancel');
+  let patternLock = null;
+  setTimeout(() => {
+    patternLock = setupPatternLock('modalPatternGrid', (pattern) => { attemptSignin(pattern); });
+  }, 50);
+  async function attemptSignin(drawnPattern) {
+    const email = userSelect.value;
+    if (!email) { errorMsg.style.display = 'block'; errorMsg.textContent = 'Please select a user.'; return; }
+    if (!drawnPattern || drawnPattern.length < 4) { errorMsg.style.display = 'block'; errorMsg.textContent = 'Please draw a pattern with at least 4 dots.'; return; }
+    const user = users.find(u => u.email === email);
+    if (!user) { errorMsg.style.display = 'block'; errorMsg.textContent = 'User not found.'; return; }
+    const storedCode = user.lineCode || user.password || '';
+    if (drawnPattern === storedCode) {
+      currentUser = user;
+      localStorage.setItem('checklist_user', JSON.stringify({ email: user.email }));
+      errorMsg.style.display = 'none';
+      overlay.remove();
+      render();
+      showNotification(`Welcome, Supervisor ${user.displayName || user.email}!`);
+      if (currentTab === 'allocation') loadAllocationData();
+    } else {
+      errorMsg.style.display = 'block';
+      errorMsg.textContent = '❌ Incorrect pattern. Please try again.';
+      if (patternLock) patternLock.reset(false);
+    }
+  }
+  signinBtn.addEventListener('click', () => {
+    const pattern = patternLock ? patternLock.getPattern() : '';
+    attemptSignin(pattern);
+  });
+  cancelBtn.addEventListener('click', () => {
+    overlay.remove();
+    if (!currentUser) {
+      const container = document.getElementById('tabContent');
+      if (container) container.innerHTML = `<div class="empty-state">Please sign in to start.</div>`;
+    }
+  });
+  if (currentUser) userSelect.value = currentUser.email;
+}
+
+// ================== INIT ==================
+async function init() {
+  try {
+    const settingsRef = db.collection('settings').doc('currentShift');
+    const settingsSnap = await settingsRef.get();
+    if (settingsSnap.exists) {
+      currentShiftSettings = settingsSnap.data();
+      selectedDate = currentShiftSettings.date || selectedDate;
+      selectedShift = currentShiftSettings.shift || selectedShift;
+    } else {
+      currentShiftSettings = { date: new Date().toISOString().slice(0,10), shift: 'Morning' };
+    }
+    console.log('📅 [Supervisor] Shift settings loaded:', currentShiftSettings);
+  } catch (err) {
+    console.error('Error loading shift settings:', err);
+  }
+
+  await fetchUsers();
+
+  const stored = localStorage.getItem('checklist_user');
+  if (stored) {
+    try {
+      const { email } = JSON.parse(stored);
+      const user = users.find(u => u.email === email);
+      if (user && (user.role === 'supervisor' || user.role === 'admin' || user.role === 'manager')) {
+        currentUser = user;
+        render();
+        return;
+      }
+    } catch (e) {}
+  }
+  render();
+}
+
+init();
