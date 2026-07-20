@@ -79,6 +79,9 @@ function render() {
         <span class="user-badge">👤 <strong>${userDisplay}</strong></span>
         ${!isLoggedOut && currentUser ? `<button class="back-btn" id="logoutBtn">🚪 Logout</button>` : ''}
         <button class="back-btn" id="switchUserBtn">⟳ Switch User</button>
+        <a href="supervisor.html" class="back-btn" style="background: #8b5cf6; color: white; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; display: inline-block; margin-left: 0.5rem;">
+          👑 Supervisor
+        </a>
       </div>
     </div>
     <div class="staff-tabs">
