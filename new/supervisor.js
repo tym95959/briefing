@@ -546,6 +546,7 @@ async function printChecklistReport() {
 }
 
 // ================== ALLOCATION TAB ==================
+// ================== ALLOCATION TAB ==================
 function renderAllocationTab() {
   if (isFetchingUsers) {
     return `<div class="loading-state"><div class="spinner-small"></div>Loading staff list…</div>`;
@@ -578,13 +579,9 @@ function renderAllocationTab() {
 
   // Get area data for the current shift
   const currentAreas = areaData[selectedShift] || {};
-  const areaRows = AREAS.filter(area => {
-    for (const period of periods) {
-      const assigned = currentAreas[period]?.[area] || [];
-      if (assigned.length > 0) return true;
-    }
-    return false;
-  });
+  
+  // Show all areas, not just those with assignments
+  const areaRows = AREAS;
 
   return `
     <div class="allocation-date-section">
@@ -630,45 +627,77 @@ function renderAllocationTab() {
         <h3>🗺️ Area Assignment (Floor & Pantry can share)</h3>
         <button class="save-btn" id="saveAreasBtn" ${!hasUnsavedAreas ? 'disabled' : ''}>💾 Save Areas</button>
       </div>
-      ${areaRows.length === 0 ? 
-        `<div class="empty-state" style="padding:1rem;">No staff assigned to any area yet.</div>` :
-        `<div class="area-matrix-wrapper">
-          <table class="area-matrix">
-            <thead><tr><th>Area</th>${periods.map(p => `<th>${p}</th>`).join('')}</tr></thead>
-            <tbody>
-              ${areaRows.map(area => {
-                const isShared = SHARED_AREAS.includes(area);
-                return `
-                  <tr>
-                    <td class="area-label">${area} ${isShared ? '<span style="font-size:0.6rem;color:#6b7280;">(shared)</span>' : ''}</td>
-                    ${periods.map(period => {
-                      const assigned = currentAreas[period]?.[area] || [];
-                      const onDutyStaff = staffUsers.filter(u => (dutyData[selectedShift]?.[u.displayName] || false) === true);
-                      return `
-                        <td>
-                          <select multiple class="area-select" data-area="${area}" data-period="${period}" size="${Math.min(onDutyStaff.length + 1, 4)}">
-                            ${onDutyStaff.map(u => `<option value="${u.displayName}" ${assigned.includes(u.displayName) ? 'selected' : ''}>${u.displayName}</option>`).join('')}
-                          </select>
-                          <div class="area-assigned-tags">
-                            ${assigned.map(name => `
-                              <span class="staff-tag">
-                                👤 ${name}
-                                <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
-                              </span>
-                            `).join('')}
-                          </div>
-                        </td>
-                      `;
-                    }).join('')}
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>`
-      }
+      <div class="area-matrix-wrapper">
+        <table class="area-matrix">
+          <thead><tr><th>Area</th>${periods.map(p => `<th>${p}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${areaRows.map(area => {
+              const isShared = SHARED_AREAS.includes(area);
+              return `
+                <tr>
+                  <td class="area-label">${area} ${isShared ? '<span style="font-size:0.6rem;color:#6b7280;">(shared)</span>' : ''}</td>
+                  ${periods.map(period => {
+                    const assigned = currentAreas[period]?.[area] || [];
+                    // Show ALL staff in dropdown, not just on-duty staff
+                    return `
+                      <td>
+                        <select multiple class="area-select" data-area="${area}" data-period="${period}" size="${Math.min(staffUsers.length + 1, 4)}">
+                          ${staffUsers.map(u => `<option value="${u.displayName}" ${assigned.includes(u.displayName) ? 'selected' : ''}>${u.displayName}</option>`).join('')}
+                        </select>
+                        <div class="area-assigned-tags">
+                          ${assigned.map(name => `
+                            <span class="staff-tag">
+                              👤 ${name}
+                              <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
+                            </span>
+                          `).join('')}
+                        </div>
+                      </td>
+                    `;
+                  }).join('')}
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
+}
+
+// ================== ALLOCATION LOGIC ==================
+
+function updateAreaSelects() {
+  const selects = document.querySelectorAll('.area-select');
+  const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+  selects.forEach(select => {
+    const shift = selectedShift;
+    const period = select.dataset.period;
+    const area = select.dataset.area;
+    const assigned = areaData[shift]?.[period]?.[area] || [];
+    select.innerHTML = '';
+    // Show ALL staff in dropdown, not just on-duty staff
+    staffUsers.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.displayName;
+      opt.textContent = u.displayName;
+      if (assigned.includes(u.displayName)) opt.selected = true;
+      select.appendChild(opt);
+    });
+    const container = select.parentElement;
+    let tagsDiv = container.querySelector('.area-assigned-tags');
+    if (!tagsDiv) {
+      tagsDiv = document.createElement('div');
+      tagsDiv.className = 'area-assigned-tags';
+      container.appendChild(tagsDiv);
+    }
+    tagsDiv.innerHTML = assigned.map(name => `
+      <span class="staff-tag">
+        👤 ${name}
+        <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
+      </span>
+    `).join('');
+  });
 }
 
 // ================== ALLOCATION LOGIC ==================
