@@ -159,6 +159,39 @@ function getPeriodsForShift(shift) {
   return PERIODS[shift] || [];
 }
 
+function getAvailableStaffForArea(shift, period, area, assignedStaff) {
+  const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
+  const isShared = SHARED_AREAS.includes(area);
+  
+  // Get all staff that are on duty
+  const onDutyStaff = staffUsers.filter(u => (dutyData[shift]?.[u.displayName] || false) === true);
+  
+  if (isShared) {
+    // For shared areas, show all on-duty staff
+    return onDutyStaff;
+  }
+  
+  // For non-shared areas, exclude staff already assigned to other non-shared areas
+  const nonSharedAreas = AREAS.filter(a => !SHARED_AREAS.includes(a) && a !== area);
+  const staffAssignedToOtherAreas = new Set();
+  
+  nonSharedAreas.forEach(otherArea => {
+    const otherAssigned = areaData[shift]?.[period]?.[otherArea] || [];
+    otherAssigned.forEach(name => staffAssignedToOtherAreas.add(name));
+  });
+  
+  // Also exclude staff already assigned to this area (they're already in the dropdown)
+  // But we want to show them as selected, not remove them
+  const assignedSet = new Set(assignedStaff);
+  
+  return onDutyStaff.filter(u => {
+    // If staff is already assigned to this area, keep them (they'll show as selected)
+    if (assignedSet.has(u.displayName)) return true;
+    // If staff is assigned to another non-shared area, remove them
+    return !staffAssignedToOtherAreas.has(u.displayName);
+  });
+}
+
 // ================== RENDER ==================
 function render() {
   const userDisplay = currentUser ? currentUser.displayName : 'Not signed in';
@@ -637,11 +670,12 @@ function renderAllocationTab() {
                   <td class="area-label">${area} ${isShared ? '<span style="font-size:0.6rem;color:#6b7280;">(shared)</span>' : ''}</td>
                   ${periods.map(period => {
                     const assigned = currentAreas[period]?.[area] || [];
-                    // Show ALL staff in dropdown
+                    // Get available staff for this area
+                    const availableStaff = getAvailableStaffForArea(selectedShift, period, area, assigned);
                     return `
                       <td>
-                        <select multiple class="area-select" data-area="${area}" data-period="${period}" size="${Math.min(staffUsers.length + 1, 4)}">
-                          ${staffUsers.map(u => `<option value="${u.displayName}" ${assigned.includes(u.displayName) ? 'selected' : ''}>${u.displayName}</option>`).join('')}
+                        <select multiple class="area-select" data-area="${area}" data-period="${period}" size="${Math.min(availableStaff.length + 1, 4)}">
+                          ${availableStaff.map(u => `<option value="${u.displayName}" ${assigned.includes(u.displayName) ? 'selected' : ''}>${u.displayName}</option>`).join('')}
                         </select>
                         <div class="area-assigned-tags">
                           ${assigned.map(name => `
@@ -651,6 +685,7 @@ function renderAllocationTab() {
                             </span>
                           `).join('')}
                         </div>
+                        ${!isShared && availableStaff.length === 0 && assigned.length === 0 ? '<div style="font-size:0.7rem;color:#999;margin-top:0.25rem;">No available staff</div>' : ''}
                       </td>
                     `;
                   }).join('')}
@@ -790,15 +825,41 @@ function updateAreaSelects() {
     const period = select.dataset.period;
     const area = select.dataset.area;
     const assigned = areaData[shift]?.[period]?.[area] || [];
+    
+    // Get available staff for this area
+    const isShared = SHARED_AREAS.includes(area);
+    const onDutyStaff = staffUsers.filter(u => (dutyData[shift]?.[u.displayName] || false) === true);
+    
+    let availableStaff = [];
+    if (isShared) {
+      // For shared areas, show all on-duty staff
+      availableStaff = onDutyStaff;
+    } else {
+      // For non-shared areas, exclude staff already assigned to other non-shared areas
+      const nonSharedAreas = AREAS.filter(a => !SHARED_AREAS.includes(a) && a !== area);
+      const staffAssignedToOtherAreas = new Set();
+      
+      nonSharedAreas.forEach(otherArea => {
+        const otherAssigned = areaData[shift]?.[period]?.[otherArea] || [];
+        otherAssigned.forEach(name => staffAssignedToOtherAreas.add(name));
+      });
+      
+      const assignedSet = new Set(assigned);
+      availableStaff = onDutyStaff.filter(u => {
+        if (assignedSet.has(u.displayName)) return true;
+        return !staffAssignedToOtherAreas.has(u.displayName);
+      });
+    }
+    
     select.innerHTML = '';
-    // Show ALL staff in dropdown
-    staffUsers.forEach(u => {
+    availableStaff.forEach(u => {
       const opt = document.createElement('option');
       opt.value = u.displayName;
       opt.textContent = u.displayName;
       if (assigned.includes(u.displayName)) opt.selected = true;
       select.appendChild(opt);
     });
+    
     const container = select.parentElement;
     let tagsDiv = container.querySelector('.area-assigned-tags');
     if (!tagsDiv) {
@@ -862,6 +923,9 @@ function onAreaChange(select, area, period) {
       <span class="remove-staff" data-area="${area}" data-period="${period}" data-name="${name}">×</span>
     </span>
   `).join('');
+  
+  // Update all area selects to reflect the new assignments
+  updateAreaSelects();
 }
 
 function handleRemoveStaffClick(e) {
@@ -887,8 +951,6 @@ function handleRemoveStaffClick(e) {
     }
   }
 
-  updateTabContent();
-
   hasUnsavedAreas = true;
   const saveBtn = document.getElementById('saveAreasBtn');
   if (saveBtn) {
@@ -896,6 +958,7 @@ function handleRemoveStaffClick(e) {
   }
 
   showNotification(`🗑️ Removed ${name} from ${area} (${period})`, 'info');
+  updateAreaSelects();
 }
 
 // ================== SAVE FUNCTIONS ==================
