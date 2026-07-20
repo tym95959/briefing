@@ -490,12 +490,10 @@ function renderAllocationTab() {
 
   return `
     <div class="allocation-date-section">
-      <div class="date-shift-selector">
-        <label>📅 Date <input type="date" id="allocationDate" value="${selectedDate}" /></label>
-        <label>🕒 Shift <select id="shiftSelect">
-          ${SHIFTS.map(s => `<option value="${s}" ${s === selectedShift ? 'selected' : ''}>${s}</option>`).join('')}
-        </select></label>
-        <button class="btn-load" id="loadAllocationBtn">📂 Load</button>
+      <div class="date-shift-display">
+        <span class="label">📅 Date: <strong>${selectedDate}</strong></span>
+        <span class="label">🕒 Shift: <strong>${selectedShift}</strong></span>
+        <button class="btn-load" id="refreshAllocationBtn" style="margin-left:1rem;">🔄 Refresh</button>
         <button class="btn-load" id="syncShiftBtn" style="background:#34d399;color:#fff;margin-left:0.5rem;">📌 Sync with Shift</button>
       </div>
       <div class="shift-indicators">
@@ -590,16 +588,9 @@ async function loadAllocationData() {
     }
   }
 
-  const dateInput = document.getElementById('allocationDate');
-  const shiftSelect = document.getElementById('shiftSelect');
-  
-  if (dateInput) {
-    selectedDate = dateInput.value;
-  }
-  
-  if (shiftSelect) {
-    selectedShift = shiftSelect.value;
-  }
+  // Use the current shift settings
+  selectedDate = currentShiftSettings.date || selectedDate;
+  selectedShift = currentShiftSettings.shift || selectedShift;
 
   try {
     // Load allocation data for the specific date
@@ -1200,21 +1191,24 @@ function renderBreakTab() {
     return `<div class="empty-state">No staff found.</div>`;
   }
 
-  const pending = breakRequests.filter(r => r.status === 'pending');
-  const others = breakRequests.filter(r => r.status !== 'pending');
+  // Filter break requests by the current date and shift
+  const filteredRequests = breakRequests.filter(r => 
+    r.date === selectedDate && r.shift === selectedShift
+  );
+  
+  const pending = filteredRequests.filter(r => r.status === 'pending');
+  const others = filteredRequests.filter(r => r.status !== 'pending');
 
   const renderTable = (requests, title) => {
-    if (requests.length === 0) return `<p class="empty-state">No ${title.toLowerCase()}.</p>`;
+    if (requests.length === 0) return `<p class="empty-state">No ${title.toLowerCase()} for ${selectedDate} · ${selectedShift}.</p>`;
     return `
       <h4>${title}</h4>
       <table class="break-requests-table">
-        <thead><tr><th>Staff</th><th>Date</th><th>Shift</th><th>Break Slot</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+        <thead><tr><th>Staff</th><th>Break Slot</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>
           ${requests.map(r => `
             <tr>
               <td>${r.staffName}</td>
-              <td>${r.date}</td>
-              <td>${r.shift}</td>
               <td>${r.breakSlot || r.startTime || '—'}</td>
               <td>${r.reason || '—'}</td>
               <td><span class="break-status ${r.status}">${r.status}</span></td>
@@ -1233,7 +1227,14 @@ function renderBreakTab() {
 
   return `
     <div class="allocation-section">
-      <h3>☕ Break Requests</h3>
+      <div class="section-header">
+        <h3>☕ Break Requests</h3>
+        <div style="display:flex; gap:1rem; font-size:0.85rem; color:rgba(0,0,0,0.6);">
+          <span>📅 ${selectedDate}</span>
+          <span>🕒 ${selectedShift}</span>
+          <button class="btn-load" id="refreshBreakBtn">🔄 Refresh</button>
+        </div>
+      </div>
       ${renderTable(pending, 'Pending')}
       ${renderTable(others, 'Reviewed')}
     </div>
@@ -1279,6 +1280,11 @@ function attachBreakEvents() {
   document.querySelectorAll('.reject-btn').forEach(btn => {
     btn.addEventListener('click', () => handleBreakAction(btn.dataset.id, 'rejected'));
   });
+  
+  const refreshBtn = document.getElementById('refreshBreakBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadBreakRequests);
+  }
 }
 
 // ================== SET SHIFT TAB ==================
@@ -1290,7 +1296,7 @@ function renderShiftTab() {
     <div class="allocation-section">
       <h3>📅 Set Current Shift</h3>
       <p style="color: rgba(0,0,0,0.5); margin-bottom: 1rem;">
-        This determines the date and shift that staff will see for break requests.
+        This determines the date and shift that will be used for allocation and break requests.
       </p>
       <div class="shift-form">
         <div class="form-group">
@@ -1356,6 +1362,10 @@ async function saveShiftSettings() {
     const container = document.getElementById('tabContent');
     if (container) container.innerHTML = renderShiftTab();
     attachShiftEvents();
+    
+    // Reload allocation and break data with new settings
+    if (currentTab === 'allocation') loadAllocationData();
+    if (currentTab === 'break') loadBreakRequests();
   } catch (err) {
     console.error('Error saving shift settings:', err);
     showNotification('Failed to save shift settings.', 'error');
@@ -1451,16 +1461,12 @@ function attachAllocationEvents() {
   if (saveDutyBtn) saveDutyBtn.addEventListener('click', saveDuty);
   const saveAreasBtn = document.getElementById('saveAreasBtn');
   if (saveAreasBtn) saveAreasBtn.addEventListener('click', saveAreas);
-  const loadBtn = document.getElementById('loadAllocationBtn');
-  if (loadBtn) {
-    loadBtn.addEventListener('click', () => {
-      const dateInput = document.getElementById('allocationDate');
-      const shiftSelect = document.getElementById('shiftSelect');
-      if (dateInput) selectedDate = dateInput.value;
-      if (shiftSelect) selectedShift = shiftSelect.value;
-      loadAllocationData();
-    });
+  
+  const refreshBtn = document.getElementById('refreshAllocationBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadAllocationData);
   }
+  
   const printBtn = document.getElementById('printAllocationBtn');
   if (printBtn) printBtn.addEventListener('click', printAllocation);
   const retryBtn = document.getElementById('retryFetchUsersBtn');
@@ -1470,18 +1476,10 @@ function attachAllocationEvents() {
   if (syncBtn) {
     syncBtn.addEventListener('click', () => {
       if (currentShiftSettings.date) {
-        const dateInput = document.getElementById('allocationDate');
-        if (dateInput) {
-          dateInput.value = currentShiftSettings.date;
-          selectedDate = currentShiftSettings.date;
-          const shiftSelect = document.getElementById('shiftSelect');
-          if (shiftSelect) {
-            shiftSelect.value = currentShiftSettings.shift;
-            selectedShift = currentShiftSettings.shift;
-          }
-          loadAllocationData();
-          showNotification(`📌 Synced to shift: ${currentShiftSettings.date} · ${currentShiftSettings.shift}`, 'success');
-        }
+        selectedDate = currentShiftSettings.date;
+        selectedShift = currentShiftSettings.shift;
+        loadAllocationData();
+        showNotification(`📌 Synced to shift: ${currentShiftSettings.date} · ${currentShiftSettings.shift}`, 'success');
       } else {
         showNotification('No shift set. Please go to Set Shift tab first.', 'error');
       }
