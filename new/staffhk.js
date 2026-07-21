@@ -7,7 +7,7 @@ import {
   MONTHLY_ONCE_TASKS,   // assume exported from task.js
   MONTHLY_TWICE_TASKS,  // assume exported from task.js
   DAILY_TASKS           // assume exported from task.js
-} from './task.js';
+} from './taskhk.js';
 
 const AREAS = ['Welcome', 'Reception', 'Buffet', 'Floor', 'Pantry'];
 const SHIFTS = ['Morning', 'Evening'];
