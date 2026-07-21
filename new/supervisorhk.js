@@ -1,5 +1,5 @@
 // supervisor.js – Full Supervisor Dashboard with simplified Print Checklist
-// Updated: allow staff to be allocated to multiple areas; new area definitions with descriptions.
+// Updated: area definitions shown as legend above allocation; area matrix shows only letter codes.
 
 import { MAIN_DAILY_TASKS, FB_DAILY_TASKS, getTasksByCategory } from './task.js';
 import { REASON_OPTIONS, getReasonsForType } from './leaveReasons.js';
@@ -499,8 +499,10 @@ function renderAllocationTab() {
   // Get area data for the current shift
   const currentAreas = areaData[selectedShift] || {};
   
-  // Show all areas with labels
-  const areaRows = AREAS;
+  // Area legend (all areas with descriptions) – displayed above allocation
+  const legendHtml = AREA_DEFS.map(def => 
+    `<span class="area-legend-item"><strong>${def.id}</strong> – ${def.label}</span>`
+  ).join(' <span style="color:#ccc;">|</span> ');
 
   return `
     <div class="allocation-date-section">
@@ -516,6 +518,11 @@ function renderAllocationTab() {
         </span>
         <button class="btn-print" id="printAllocationBtn">🖨️ Print (2 copies)</button>
       </div>
+    </div>
+
+    <!-- Area Legend (above allocation) -->
+    <div class="area-legend" style="background:#f8fafc; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1rem; border:1px solid #e2e8f0; font-size:0.85rem; display:flex; flex-wrap:wrap; gap:0.5rem 1rem;">
+      ${legendHtml}
     </div>
 
     <div class="allocation-section">
@@ -548,17 +555,14 @@ function renderAllocationTab() {
       </div>
       <div class="area-matrix-wrapper">
         <table class="area-matrix">
-          <thead><tr><th>Area</th><th>Description</th>${periods.map(p => `<th>${p}</th>`).join('')}</tr></thead>
+          <thead><tr><th>Area</th>${periods.map(p => `<th>${p}</th>`).join('')}</tr></thead>
           <tbody>
-            ${areaRows.map(area => {
-              const label = AREA_LABELS[area] || area;
+            ${AREAS.map(area => {
               return `
                 <tr>
                   <td class="area-label"><strong>${area}</strong></td>
-                  <td class="area-desc" style="font-size:0.8rem; color:#555;">${label}</td>
                   ${periods.map(period => {
                     const assigned = currentAreas[period]?.[area] || [];
-                    // Get available staff for this area (now all on-duty staff)
                     const availableStaff = getAvailableStaffForArea(selectedShift, period, area, assigned);
                     return `
                       <td>
