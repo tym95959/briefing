@@ -1,10 +1,11 @@
-// supervisor.js – Full Supervisor Dashboard with simplified Print Checklist
-// Updated: area definitions shown as legend above allocation; area matrix shows only letter codes.
+// supervisor.js – Full Supervisor Dashboard
+// Features: Task code & description in box, area legend above allocation,
+// multiple area assignments, print checklist, leave/break management.
 
 import { MAIN_DAILY_TASKS, FB_DAILY_TASKS, getTasksByCategory } from './task.js';
 import { REASON_OPTIONS, getReasonsForType } from './leaveReasons.js';
 
-// ---- Updated area definitions with descriptions ----
+// ---- Area definitions (A–G) with descriptions ----
 const AREA_DEFS = [
   { id: 'A', label: 'Entrance & Reception, Drinks Chiller - inside, buffet, floor and racks' },
   { id: 'B', label: 'L1 & L2 Floor / walls/frames' },
@@ -14,11 +15,9 @@ const AREA_DEFS = [
   { id: 'F', label: 'Store Cleaning & Arrangements, Back Office Cleaning' },
   { id: 'G', label: 'Pantry Floor Drain' }
 ];
-const AREAS = AREA_DEFS.map(a => a.id);      // ['A','B','C','D','E','F','G']
+const AREAS = AREA_DEFS.map(a => a.id);
 const AREA_LABELS = Object.fromEntries(AREA_DEFS.map(a => [a.id, a.label]));
-
-// No shared areas – all areas can accept any staff, multiple assignments allowed
-const SHARED_AREAS = [];
+const SHARED_AREAS = []; // no shared restrictions – all can be multi-assigned
 
 const SHIFTS = ['Morning', 'Evening'];
 const PERIODS = {
@@ -71,10 +70,9 @@ function getPeriodsForShift(shift) {
   return PERIODS[shift] || [];
 }
 
-// ---- Updated: no staff conflict restrictions ----
+// ---- All on‑duty staff are available; no exclusivity ----
 function getAvailableStaffForArea(shift, period, area, assignedStaff) {
   const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
-  // All on-duty staff are available (no exclusion logic)
   const onDutyStaff = staffUsers.filter(u => (dutyData[shift]?.[u.displayName] || false) === true);
   return onDutyStaff;
 }
@@ -191,7 +189,6 @@ async function loadTasks() {
     return;
   }
   
-  // Use the current shift settings
   selectedDate = currentShiftSettings.date || selectedDate;
   selectedShift = currentShiftSettings.shift || selectedShift;
   
@@ -257,11 +254,17 @@ function renderTasks(tasks, savedData, docRef) {
     if (task.type === 'complete' && task.completedAt) {
       metaHtml = `<div class="task-meta">Completed by ${task.completedBy} at ${task.completedAt}</div>`;
     }
+
+    // --- Task card with code and description in a box ---
     html += `
       <div class="task-card ${completedClass}" data-id="${task.id}">
         <div class="task-status-icon">${statusIcon}</div>
         <div class="task-info">
-          <div class="task-text">${task.task} <span class="task-type">${task.type}</span></div>
+          <div class="task-text">
+            <span class="task-code" style="font-weight:600; color:#4f46e5; background:#eef2ff; padding:0.1rem 0.5rem; border-radius:4px; font-size:0.7rem; margin-right:0.5rem;">#${task.id}</span>
+            <span class="task-description">${task.task}</span>
+            <span class="task-type">${task.type}</span>
+          </div>
           ${signoffsHtml}
           ${metaHtml}
         </div>
@@ -297,13 +300,13 @@ function renderTasks(tasks, savedData, docRef) {
     });
   });
   
-  // Add refresh tasks button event
   const refreshBtn = document.getElementById('refreshTasksBtn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', loadTasks);
   }
 }
 
+// ================== TASK ACTION HANDLERS ==================
 async function handleComplete(taskId, docRef) {
   const task = getTasksByCategory(currentCategory).find(t => t.id === taskId);
   if (!task) return;
@@ -364,7 +367,7 @@ async function handleRemoveSignoff(taskId, staffName, docRef) {
   } catch (err) { showNotification('Error removing signoff: ' + err.message, 'error'); }
 }
 
-// ================== PRINT CHECKLIST REPORT (simplified) ==================
+// ================== PRINT CHECKLIST REPORT ==================
 async function printChecklistReport() {
   if (!currentUser) {
     showNotification('Please sign in first.', 'error');
@@ -372,7 +375,6 @@ async function printChecklistReport() {
   }
 
   try {
-    // Use the current shift settings
     const printDate = currentShiftSettings.date || selectedDate;
 
     const docRef = db.collection('checklists').doc(`shift_${printDate}`);
@@ -491,15 +493,11 @@ function renderAllocationTab() {
 
   const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
   const periods = getPeriodsForShift(selectedShift);
-  
-  // Get duty data for the current shift
   const currentDuty = dutyData[selectedShift] || {};
   const onDutyCount = Object.values(currentDuty).filter(v => v === true).length;
-
-  // Get area data for the current shift
   const currentAreas = areaData[selectedShift] || {};
-  
-  // Area legend (all areas with descriptions) – displayed above allocation
+
+  // Area legend (descriptions)
   const legendHtml = AREA_DEFS.map(def => 
     `<span class="area-legend-item"><strong>${def.id}</strong> – ${def.label}</span>`
   ).join(' <span style="color:#ccc;">|</span> ');
@@ -606,28 +604,21 @@ async function loadAllocationData() {
     }
   }
 
-  // Use the current shift settings
   selectedDate = currentShiftSettings.date || selectedDate;
   selectedShift = currentShiftSettings.shift || selectedShift;
 
   try {
-    // Load allocation data for the specific date
     const docRef = db.collection('allocations').doc(selectedDate);
     const docSnap = await docRef.get();
     if (docSnap.exists) {
       const data = docSnap.data();
-      // Initialize dutyData and areaData with all shifts
       dutyData = {};
       areaData = {};
       
       SHIFTS.forEach(shift => {
-        // Get duty data for this shift
         dutyData[shift] = data.duty?.[shift] || {};
-        
-        // Get area data for this shift
         areaData[shift] = data.areas?.[shift] || {};
         
-        // Ensure all staff are initialized for duty
         const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
         staffUsers.forEach(u => {
           if (dutyData[shift][u.displayName] === undefined) {
@@ -635,39 +626,26 @@ async function loadAllocationData() {
           }
         });
         
-        // Ensure area data structure is complete
         const periods = getPeriodsForShift(shift);
         periods.forEach(period => {
-          if (!areaData[shift][period]) {
-            areaData[shift][period] = {};
-          }
+          if (!areaData[shift][period]) areaData[shift][period] = {};
           AREAS.forEach(area => {
-            if (!areaData[shift][period][area]) {
-              areaData[shift][period][area] = [];
-            }
+            if (!areaData[shift][period][area]) areaData[shift][period][area] = [];
           });
         });
       });
     } else {
-      // Initialize empty data for all shifts
       dutyData = {};
       areaData = {};
-      
       SHIFTS.forEach(shift => {
         dutyData[shift] = {};
         areaData[shift] = {};
-        
         const staffUsers = users.filter(u => u.role !== 'supervisor' && u.role !== 'admin' && u.role !== 'manager');
-        staffUsers.forEach(u => {
-          dutyData[shift][u.displayName] = false;
-        });
-        
+        staffUsers.forEach(u => { dutyData[shift][u.displayName] = false; });
         const periods = getPeriodsForShift(shift);
         periods.forEach(period => {
           areaData[shift][period] = {};
-          AREAS.forEach(area => {
-            areaData[shift][period][area] = [];
-          });
+          AREAS.forEach(area => { areaData[shift][period][area] = []; });
         });
       });
     }
@@ -718,11 +696,9 @@ function updateAreaSelects() {
     const area = select.dataset.area;
     const assigned = areaData[shift]?.[period]?.[area] || [];
     
-    // Get available staff (all on-duty staff, no restrictions)
     const onDutyStaff = staffUsers.filter(u => (dutyData[shift]?.[u.displayName] || false) === true);
-    const availableStaff = onDutyStaff;  // No filtering by other areas
+    const availableStaff = onDutyStaff; // no exclusivity
     
-    // Rebuild select options
     select.innerHTML = '';
     availableStaff.forEach(u => {
       const opt = document.createElement('option');
@@ -732,7 +708,6 @@ function updateAreaSelects() {
       select.appendChild(opt);
     });
     
-    // Update tags
     const container = select.parentElement;
     let tagsDiv = container.querySelector('.area-assigned-tags');
     if (!tagsDiv) {
@@ -753,7 +728,6 @@ function onAreaChange(select, area, period) {
   const selectedOptions = Array.from(select.selectedOptions);
   let names = selectedOptions.map(opt => opt.value);
 
-  // No conflict checking – allow any staff to be assigned to any number of areas
   if (!areaData[selectedShift]) areaData[selectedShift] = {};
   if (!areaData[selectedShift][period]) areaData[selectedShift][period] = {};
   areaData[selectedShift][period][area] = names;
@@ -774,7 +748,6 @@ function onAreaChange(select, area, period) {
     </span>
   `).join('');
   
-  // Update all area selects to reflect the new assignments
   updateAreaSelects();
 }
 
@@ -803,9 +776,7 @@ function handleRemoveStaffClick(e) {
 
   hasUnsavedAreas = true;
   const saveBtn = document.getElementById('saveAreasBtn');
-  if (saveBtn) {
-    saveBtn.disabled = false;
-  }
+  if (saveBtn) saveBtn.disabled = false;
 
   showNotification(`🗑️ Removed ${name} from ${area} (${period})`, 'info');
   updateAreaSelects();
@@ -816,15 +787,10 @@ async function saveDuty() {
   if (!currentUser) return;
   try {
     const docRef = db.collection('allocations').doc(selectedDate);
-    
-    // Get existing data to preserve other shifts
     const docSnap = await docRef.get();
     let existingData = {};
-    if (docSnap.exists) {
-      existingData = docSnap.data();
-    }
+    if (docSnap.exists) existingData = docSnap.data();
     
-    // Update only the current shift's duty data
     const updateData = {
       duty: {
         ...existingData.duty,
@@ -847,7 +813,6 @@ async function saveDuty() {
 async function saveAreas() {
   if (!currentUser) return;
 
-  // Clean up empty entries for the current shift only
   const currentShift = selectedShift;
   if (areaData[currentShift]) {
     const periods = getPeriodsForShift(currentShift);
@@ -869,15 +834,10 @@ async function saveAreas() {
   }
 
   const docRef = db.collection('allocations').doc(selectedDate);
-  
-  // Get existing data to preserve other shifts
   const docSnap = await docRef.get();
   let existingData = {};
-  if (docSnap.exists) {
-    existingData = docSnap.data();
-  }
+  if (docSnap.exists) existingData = docSnap.data();
   
-  // Update only the current shift's area data
   const updateData = {
     areas: {
       ...existingData.areas,
@@ -889,11 +849,9 @@ async function saveAreas() {
 
   try {
     await docRef.set(updateData, { merge: true });
-    
     hasUnsavedAreas = false;
     const saveBtn = document.getElementById('saveAreasBtn');
     if (saveBtn) saveBtn.disabled = true;
-    
     showNotification('✅ Area assignments saved!', 'success');
   } catch (err) {
     console.error('Error saving areas:', err);
@@ -986,7 +944,6 @@ function renderLeaveTab() {
   const leaveTypeOptions = LEAVE_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
   const staffDutyOptions = STAFF_DUTY.map(d => `<option value="${d}">${d}</option>`).join('');
   
-  // Get reasons from the imported REASON_OPTIONS
   const initialReasons = REASON_OPTIONS['FRL'] || [];
   const reasonOptionsHtml = initialReasons.map(r => `<option value="${r}">${r}</option>`).join('');
 
@@ -1237,7 +1194,6 @@ function renderBreakTab() {
     return `<div class="empty-state">No staff found.</div>`;
   }
 
-  // Filter break requests by the current date and shift
   const filteredRequests = breakRequests.filter(r => 
     r.date === selectedDate && r.shift === selectedShift
   );
@@ -1290,7 +1246,6 @@ function renderBreakTab() {
 async function loadBreakRequests() {
   if (!currentUser) return;
   
-  // Use the current shift settings
   selectedDate = currentShiftSettings.date || selectedDate;
   selectedShift = currentShiftSettings.shift || selectedShift;
   
@@ -1416,7 +1371,6 @@ async function saveShiftSettings() {
     if (container) container.innerHTML = renderShiftTab();
     attachShiftEvents();
     
-    // Reload all data with new settings
     if (currentTab === 'tasks') loadTasks();
     if (currentTab === 'allocation') loadAllocationData();
     if (currentTab === 'break') loadBreakRequests();
@@ -1586,7 +1540,7 @@ function attachLeaveEvents() {
   if (retryBtn) retryBtn.addEventListener('click', () => { fetchUsers().then(() => loadLeaveData()); });
 }
 
-// ================== AUTHENTICATION ==================
+// ================== AUTHENTICATION (Pattern Lock) ==================
 function setupPatternLock(containerId, onComplete) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
