@@ -1,5 +1,5 @@
 // supervisor.js – Full Supervisor Dashboard
-// Features: Task code & description in box, area legend above allocation,
+// Features: Task code & description in box, area definitions as separate boxes,
 // multiple area assignments, print checklist, leave/break management.
 
 import { MAIN_DAILY_TASKS, FB_DAILY_TASKS, getTasksByCategory } from './task.js';
@@ -497,10 +497,22 @@ function renderAllocationTab() {
   const onDutyCount = Object.values(currentDuty).filter(v => v === true).length;
   const currentAreas = areaData[selectedShift] || {};
 
-  // Area legend (descriptions)
-  const legendHtml = AREA_DEFS.map(def => 
-    `<span class="area-legend-item"><strong>${def.id}</strong> – ${def.label}</span>`
-  ).join(' <span style="color:#ccc;">|</span> ');
+  // --- Area definitions as separate boxes ---
+  const areaBoxesHtml = AREA_DEFS.map(def => `
+    <div style="
+      border:1px solid #d1d5db;
+      border-radius:8px;
+      padding:0.5rem 0.75rem;
+      background:#f8fafc;
+      min-width:200px;
+      flex:1 0 auto;
+      max-width:300px;
+      box-shadow:0 1px 2px rgba(0,0,0,0.05);
+    ">
+      <strong style="color:#1e293b; font-size:1rem;">${def.id}</strong>
+      <span style="color:#475569; font-size:0.85rem; display:block; margin-top:0.1rem;">${def.label}</span>
+    </div>
+  `).join('');
 
   return `
     <div class="allocation-date-section">
@@ -518,9 +530,9 @@ function renderAllocationTab() {
       </div>
     </div>
 
-    <!-- Area Legend (above allocation) -->
-    <div class="area-legend" style="background:#f8fafc; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1rem; border:1px solid #e2e8f0; font-size:0.85rem; display:flex; flex-wrap:wrap; gap:0.5rem 1rem;">
-      ${legendHtml}
+    <!-- Area boxes (each area in its own box) -->
+    <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem; justify-content:center;">
+      ${areaBoxesHtml}
     </div>
 
     <div class="allocation-section">
