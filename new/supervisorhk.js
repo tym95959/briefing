@@ -7,13 +7,13 @@ import { REASON_OPTIONS, getReasonsForType } from './leaveReasons.js';
 
 // ---- Area definitions (A–G) with descriptions ----
 const AREA_DEFS = [
-  { id: 'A', label: 'Entrance & Reception, Drinks Chiller - inside, buffet, floor and racks' },
-  { id: 'B', label: 'L1 & L2 Floor / walls/frames' },
-  { id: 'C', label: 'R1 & R2 Floor, Walls, Frames' },
-  { id: 'D', label: 'Gents Toilet, Gents Shower' },
-  { id: 'E', label: 'Ladies Toilet, Ladies Shower' },
-  { id: 'F', label: 'Store Cleaning & Arrangements, Back Office Cleaning' },
-  { id: 'G', label: 'Pantry Floor Drain' }
+  { id: 'A', label: 'ENTRANCE & RECEPTION, DRINKS CHILLER - INSIDE, BUFFET FLOOR AND RACKS, PANTRY BINS  & FLOOR BINS, MOTHER'S ROOM, ACCESSIBLE TOILET, RE-STOCK BUFFET TISSUE' },
+  { id: 'B', label: 'L1 & L2 FLOOR / WALLS / FRAMES, L1 & L2 SEATS / GLASS / RACKS, KIDS ROOM & OUTSIDE, QUITE ROOM' },
+  { id: 'C', label: 'R1 & R2 FLOOR / WALLS / FRAMES, R1 & R2 SEATS / GLASS / RACKS, BUSINESS ROOM, DRINKS CHILLER - OUTSIDE' },
+  { id: 'D', label: 'GENTS TOILETS , GENTS SHOWER ' },
+  { id: 'E', label: 'LADIES TOILETS , LADIES SHOWER' },
+  { id: 'F', label: 'STORE CLEANING & ARRANGING, MACHINERY AND EQUIPMENT CLEANING, TOWELS DELIVERY / COLLECTION, WATER FEATURE CLEANING, BACK OFFICE CLEANING' },
+  { id: 'G', label: 'DEEP-CLEANING ( EVERY OTHER NIGHT ), PANTRY FOOR DRAIN ' }
 ];
 const AREAS = AREA_DEFS.map(a => a.id);
 const AREA_LABELS = Object.fromEntries(AREA_DEFS.map(a => [a.id, a.label]));
