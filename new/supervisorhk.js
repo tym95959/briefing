@@ -1,5 +1,5 @@
 // supervisor.js – Full Supervisor Dashboard
-// Features: Task code & description in box, area definitions as separate boxes,
+// Features: Task code & description in box, area legend with separate boxes,
 // multiple area assignments, print checklist, leave/break management.
 
 import { MAIN_DAILY_TASKS, FB_DAILY_TASKS, getTasksByCategory } from './task.js';
@@ -497,20 +497,11 @@ function renderAllocationTab() {
   const onDutyCount = Object.values(currentDuty).filter(v => v === true).length;
   const currentAreas = areaData[selectedShift] || {};
 
-  // --- Area definitions as separate boxes ---
+  // --- Area definitions as separate boxes (using CSS classes) ---
   const areaBoxesHtml = AREA_DEFS.map(def => `
-    <div style="
-      border:1px solid #d1d5db;
-      border-radius:8px;
-      padding:0.5rem 0.75rem;
-      background:#f8fafc;
-      min-width:200px;
-      flex:1 0 auto;
-      max-width:300px;
-      box-shadow:0 1px 2px rgba(0,0,0,0.05);
-    ">
-      <strong style="color:#1e293b; font-size:1rem;">${def.id}</strong>
-      <span style="color:#475569; font-size:0.85rem; display:block; margin-top:0.1rem;">${def.label}</span>
+    <div class="area-box">
+      <strong>${def.id}</strong>
+      <span class="area-desc">${def.label}</span>
     </div>
   `).join('');
 
@@ -531,7 +522,7 @@ function renderAllocationTab() {
     </div>
 
     <!-- Area boxes (each area in its own box) -->
-    <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem; justify-content:center;">
+    <div class="area-boxes-container">
       ${areaBoxesHtml}
     </div>
 
