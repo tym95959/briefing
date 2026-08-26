@@ -1,1336 +1,3186 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#10263d">
-<title>Daily Briefing Log</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <title>Daily Briefing Log</title>
 
-<!-- Keep your existing Firebase/config files -->
-<script src="fire.js"></script>
-<script src="config.js"></script>
+    <!-- Firebase Compat Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- Your Firebase Configuration -->
+    <script src="fire.js"></script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-<style>
-:root{
-    --ink:#13283d;
-    --ink-2:#38516a;
-    --muted:#76899b;
-    --paper:#ffffff;
-    --canvas:#f3f6f9;
-    --line:#dde6ee;
-    --navy:#10263d;
-    --navy-2:#173a58;
-    --accent:#2b7fff;
-    --accent-soft:#eaf3ff;
-    --green:#168568;
-    --green-soft:#e8f7f2;
-    --orange:#b96c16;
-    --orange-soft:#fff3e6;
-    --red:#c84a4a;
-    --red-soft:#ffeded;
-    --shadow:0 18px 45px rgba(21,43,66,.08);
-    --radius:22px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{
-    font-family:'Inter',sans-serif;
-    background:
-        radial-gradient(circle at 95% 0%, rgba(43,127,255,.08), transparent 28rem),
-        var(--canvas);
-    color:var(--ink);
-    min-height:100vh;
-}
-button,input,select,textarea{font:inherit}
-button{cursor:pointer}
-.hidden{display:none!important}
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #dbeafe;
+            --secondary: #7c3aed;
+            --success: #16a34a;
+            --warning: #f59e0b;
+            --danger: #dc2626;
 
-/* ---------- TOP BAR ---------- */
-.topbar{
-    position:sticky;
-    top:0;
-    z-index:50;
-    height:70px;
-    background:rgba(16,38,61,.97);
-    backdrop-filter:blur(12px);
-    border-bottom:1px solid rgba(255,255,255,.08);
-    color:#fff;
-}
-.topbar-inner{
-    width:min(1440px,calc(100% - 32px));
-    height:100%;
-    margin:auto;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:16px;
-}
-.brand{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    min-width:0;
-}
-.brand-mark{
-    width:42px;height:42px;
-    border-radius:13px;
-    display:grid;place-items:center;
-    background:linear-gradient(135deg,#2b7fff,#32b4dd);
-    box-shadow:0 10px 24px rgba(43,127,255,.25);
-    flex:0 0 auto;
-}
-.brand-copy{min-width:0}
-.brand-title{
-    font-weight:800;
-    letter-spacing:-.03em;
-    font-size:1rem;
-}
-.brand-subtitle{
-    color:#a9bed0;
-    font-size:.72rem;
-    margin-top:2px;
-}
-.top-actions{display:flex;align-items:center;gap:8px}
-.top-btn{
-    border:1px solid rgba(255,255,255,.14);
-    color:#e6f1f8;
-    background:rgba(255,255,255,.06);
-    min-height:38px;
-    padding:0 13px;
-    border-radius:11px;
-    font-weight:700;
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-}
-.top-btn:hover{background:rgba(255,255,255,.1)}
-.top-btn.supervisor-active{
-    background:#e7f7ef;
-    color:#116348;
-    border-color:#bfe7d8;
-}
+            --dark: #0f172a;
+            --text: #334155;
+            --muted: #64748b;
+            --border: #e2e8f0;
 
-/* ---------- PAGE ---------- */
-.page{
-    width:min(1440px,calc(100% - 32px));
-    margin:0 auto;
-    padding:28px 0 55px;
-}
-.hero{
-    display:grid;
-    grid-template-columns:1fr auto;
-    gap:24px;
-    align-items:end;
-    margin-bottom:24px;
-}
-.eyebrow{
-    color:var(--accent);
-    text-transform:uppercase;
-    letter-spacing:.11em;
-    font-size:.7rem;
-    font-weight:800;
-    margin-bottom:9px;
-}
-.hero h1{
-    font-size:clamp(1.8rem,4vw,3rem);
-    letter-spacing:-.055em;
-    line-height:1.05;
-    max-width:780px;
-}
-.hero p{
-    max-width:760px;
-    margin-top:12px;
-    color:var(--muted);
-    line-height:1.65;
-    font-size:.92rem;
-}
-.mode-pill{
-    border:1px solid #d9e5ee;
-    background:#fff;
-    border-radius:999px;
-    padding:9px 13px;
-    color:#5f7488;
-    font-size:.75rem;
-    font-weight:700;
-    box-shadow:0 6px 20px rgba(28,53,77,.05);
-}
-.mode-pill i{margin-right:6px;color:var(--green)}
+            --bg: #f1f5f9;
+            --card: #ffffff;
 
-/* ---------- SUMMARY ---------- */
-.summary-grid{
-    display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
-    gap:12px;
-    margin-bottom:18px;
-}
-.summary-card{
-    background:var(--paper);
-    border:1px solid var(--line);
-    border-radius:18px;
-    padding:16px;
-    box-shadow:0 8px 24px rgba(24,47,69,.045);
-    display:flex;
-    align-items:center;
-    gap:12px;
-}
-.summary-icon{
-    width:42px;height:42px;
-    border-radius:13px;
-    background:#eff5fb;
-    color:#3d6f96;
-    display:grid;place-items:center;
-    flex:0 0 auto;
-}
-.summary-value{font-size:1.3rem;font-weight:800;letter-spacing:-.03em}
-.summary-label{font-size:.7rem;color:var(--muted);margin-top:2px}
+            --morning: #f59e0b;
+            --morning-light: #fff7ed;
 
-/* ---------- TOOLBAR ---------- */
-.toolbar{
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:18px;
-    padding:12px;
-    box-shadow:0 10px 30px rgba(20,43,66,.05);
-    display:flex;
-    align-items:center;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-bottom:18px;
-}
-.control{
-    min-height:42px;
-    border:1px solid #dbe5ed;
-    background:#fbfdff;
-    color:var(--ink);
-    border-radius:11px;
-    padding:0 12px;
-    outline:none;
-}
-.control:focus{
-    border-color:#8db8ff;
-    box-shadow:0 0 0 4px rgba(43,127,255,.08);
-}
-.date-control{min-width:165px}
-.search-wrap{position:relative;flex:1;min-width:220px}
-.search-wrap i{
-    position:absolute;left:13px;top:50%;transform:translateY(-50%);
-    color:#91a2b2;font-size:.82rem;
-}
-.search-wrap input{width:100%;padding-left:36px}
-.btn{
-    min-height:42px;
-    border:0;
-    border-radius:11px;
-    padding:0 14px;
-    font-weight:750;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-}
-.btn-light{
-    background:#edf3f8;
-    color:#3a5870;
-    border:1px solid #dbe5ed;
-}
-.btn-primary{
-    background:linear-gradient(135deg,#2b7fff,#1f65cf);
-    color:#fff;
-    box-shadow:0 8px 18px rgba(43,127,255,.2);
-}
-.btn-danger{
-    background:var(--red-soft);
-    color:var(--red);
-    border:1px solid #ffd1d1;
-}
-.btn:hover{filter:brightness(.985);transform:translateY(-1px)}
+            --afternoon: #2563eb;
+            --afternoon-light: #eff6ff;
+        }
 
-/* ---------- MAIN CONTENT ---------- */
-.content-layout{
-    display:grid;
-    grid-template-columns:minmax(0,1fr);
-    gap:18px;
-}
-.content-layout.supervisor-open{
-    grid-template-columns:minmax(0,1fr) 430px;
-    align-items:start;
-}
-.feed-panel,.editor-panel{
-    background:#fff;
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    box-shadow:var(--shadow);
-}
-.panel-head{
-    padding:20px 22px;
-    border-bottom:1px solid #e8eef4;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:12px;
-}
-.panel-head h2{
-    font-size:1rem;
-    letter-spacing:-.02em;
-    display:flex;
-    align-items:center;
-    gap:9px;
-}
-.panel-head p{font-size:.73rem;color:var(--muted);margin-top:4px}
-.count-badge{
-    background:#f0f5f9;
-    color:#5f7487;
-    border:1px solid #e1e9ef;
-    padding:5px 9px;
-    border-radius:999px;
-    font-size:.7rem;
-    font-weight:750;
-}
-.feed{
-    padding:18px 22px 24px;
-    min-height:340px;
-}
-.day-heading{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    margin-bottom:16px;
-}
-.day-heading h3{font-size:.9rem}
-.day-heading span{font-size:.72rem;color:var(--muted)}
+        body {
+            font-family:
+                Inter,
+                "Segoe UI",
+                Arial,
+                sans-serif;
 
-/* ---------- BRIEFING ITEMS ---------- */
-.briefing-item{
-    position:relative;
-    display:grid;
-    grid-template-columns:46px minmax(0,1fr);
-    gap:14px;
-    padding:0 0 20px;
-}
-.briefing-item:last-child{padding-bottom:0}
-.timeline-col{
-    position:relative;
-    display:flex;
-    justify-content:center;
-}
-.timeline-col::after{
-    content:"";
-    position:absolute;
-    top:45px;bottom:-4px;
-    width:1px;background:#dbe5ed;
-}
-.briefing-item:last-child .timeline-col::after{display:none}
-.timeline-icon{
-    width:38px;height:38px;
-    border-radius:12px;
-    display:grid;place-items:center;
-    background:#edf5ff;color:#2b7fff;
-    border:1px solid #d8e8fb;
-}
-.briefing-card{
-    border:1px solid #e1e9ef;
-    border-radius:16px;
-    padding:16px 17px;
-    background:linear-gradient(180deg,#fff,#fbfdff);
-    transition:.18s ease;
-}
-.briefing-card:hover{
-    border-color:#c7d8e7;
-    box-shadow:0 10px 24px rgba(21,46,69,.055);
-}
-.item-head{
-    display:flex;
-    justify-content:space-between;
-    gap:12px;
-    align-items:flex-start;
-    margin-bottom:11px;
-}
-.item-meta{
-    display:flex;
-    gap:7px;
-    flex-wrap:wrap;
-    align-items:center;
-}
-.chip{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    min-height:27px;
-    padding:0 9px;
-    border-radius:999px;
-    background:#f0f5f9;
-    color:#4f6b82;
-    border:1px solid #e0e9f0;
-    font-size:.68rem;
-    font-weight:700;
-}
-.chip.shift-morning{background:#fff6e9;color:#95621c;border-color:#f6e4c4}
-.chip.shift-afternoon{background:#edf2ff;color:#5864a0;border-color:#dfe4fa}
-.chip.shift-night{background:#edf0f5;color:#4a5564;border-color:#dde2e9}
-.item-actions{display:flex;gap:5px}
-.icon-btn{
-    width:32px;height:32px;
-    border-radius:9px;
-    border:1px solid #dde6ed;
-    background:#fff;
-    color:#60768a;
-    display:grid;place-items:center;
-}
-.icon-btn:hover{background:#eff5fa;color:#294f6e}
-.icon-btn.delete:hover{background:var(--red-soft);color:var(--red);border-color:#ffd1d1}
-.briefing-text{
-    white-space:pre-wrap;
-    word-break:break-word;
-    line-height:1.72;
-    font-size:.9rem;
-    color:#2e465b;
-}
-.item-footer{
-    display:flex;
-    justify-content:space-between;
-    gap:10px;
-    align-items:center;
-    margin-top:13px;
-    padding-top:11px;
-    border-top:1px solid #edf2f6;
-    font-size:.66rem;
-    color:#90a0ae;
-}
+            background:
+                radial-gradient(
+                    circle at top left,
+                    rgba(37, 99, 235, 0.12),
+                    transparent 35%
+                ),
+                radial-gradient(
+                    circle at top right,
+                    rgba(124, 58, 237, 0.10),
+                    transparent 30%
+                ),
+                #f8fafc;
 
-/* ---------- EDITOR ---------- */
-.editor-panel{
-    position:sticky;
-    top:88px;
-    overflow:hidden;
-}
-.editor-banner{
-    background:linear-gradient(135deg,#10263d,#1c4f73);
-    color:#fff;
-    padding:20px;
-}
-.editor-banner .small{
-    font-size:.67rem;
-    color:#b9d3e4;
-    text-transform:uppercase;
-    letter-spacing:.09em;
-    font-weight:800;
-}
-.editor-banner h2{margin-top:6px;font-size:1.1rem}
-.editor-banner p{margin-top:7px;color:#c9dcea;font-size:.76rem;line-height:1.5}
-.editor-body{padding:20px}
-.form-group{margin-bottom:15px}
-.form-group label{
-    display:block;
-    margin-bottom:6px;
-    font-size:.68rem;
-    font-weight:800;
-    color:#577087;
-    text-transform:uppercase;
-    letter-spacing:.055em;
-}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.form-control{
-    width:100%;
-    min-height:43px;
-    border:1px solid #dbe5ed;
-    border-radius:11px;
-    padding:10px 12px;
-    color:var(--ink);
-    background:#fbfdff;
-    outline:none;
-}
-textarea.form-control{
-    min-height:250px;
-    resize:vertical;
-    line-height:1.65;
-}
-.form-control:focus{
-    background:#fff;
-    border-color:#8bb7ff;
-    box-shadow:0 0 0 4px rgba(43,127,255,.08);
-}
-.editor-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
-.editor-actions .btn-primary{flex:1}
-.editor-note{
-    margin-top:14px;
-    padding:11px 12px;
-    border-radius:11px;
-    background:#f4f8fb;
-    color:#718596;
-    font-size:.68rem;
-    line-height:1.5;
-}
-.edit-mode{
-    display:inline-flex;
-    margin-top:10px;
-    background:#e8f7f2;
-    color:#146d53;
-    border:1px solid #c9ebdf;
-    padding:5px 8px;
-    border-radius:999px;
-    font-size:.65rem;
-    font-weight:750;
-}
+            color: var(--text);
+            min-height: 100vh;
+        }
 
-/* ---------- EMPTY / STATUS ---------- */
-.empty{
-    min-height:280px;
-    display:grid;
-    place-items:center;
-    text-align:center;
-    color:#8293a3;
-    padding:30px;
-}
-.empty i{
-    display:block;
-    font-size:2rem;
-    color:#b5c3cf;
-    margin-bottom:12px;
-}
-.empty strong{display:block;color:#526a7f;margin-bottom:5px}
-.loading{
-    padding:40px;text-align:center;color:#708599;
-}
-.status-toast{
-    position:fixed;
-    right:20px;
-    bottom:20px;
-    z-index:1000;
-    max-width:min(390px,calc(100% - 40px));
-    background:#17324b;
-    color:#fff;
-    padding:12px 15px;
-    border-radius:12px;
-    box-shadow:0 15px 40px rgba(0,0,0,.18);
-    font-size:.78rem;
-    font-weight:650;
-}
-.status-toast.success{background:#116b50}
-.status-toast.error{background:#a63e3e}
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+        }
 
-/* ---------- MODAL ---------- */
-.modal{
-    position:fixed;
-    inset:0;
-    z-index:100;
-    background:rgba(9,24,38,.58);
-    backdrop-filter:blur(10px);
-    padding:20px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-}
-.modal-card{
-    width:min(420px,100%);
-    background:#fff;
-    border-radius:22px;
-    padding:26px;
-    box-shadow:0 30px 80px rgba(0,0,0,.25);
-}
-.modal-icon{
-    width:54px;height:54px;
-    display:grid;place-items:center;
-    border-radius:16px;
-    background:linear-gradient(135deg,#2b7fff,#32b4dd);
-    color:#fff;
-    margin-bottom:15px;
-}
-.modal-card h2{font-size:1.15rem}
-.modal-card p{margin:7px 0 18px;color:#778b9d;font-size:.78rem;line-height:1.55}
-.modal-actions{display:flex;gap:8px;margin-top:12px}
-.modal-actions .btn{flex:1}
-.modal-error{
-    margin-top:10px;
-    color:var(--red);
-    font-size:.72rem;
-    min-height:16px;
-}
+        button {
+            cursor: pointer;
+        }
 
-/* ---------- RESPONSIVE ---------- */
-@media(max-width:1100px){
-    .content-layout.supervisor-open{grid-template-columns:1fr}
-    .editor-panel{position:static;grid-row:1}
-}
-@media(max-width:850px){
-    .summary-grid{grid-template-columns:repeat(2,1fr)}
-    .hero{grid-template-columns:1fr}
-    .hero .mode-pill{width:max-content}
-}
-@media(max-width:620px){
-    .topbar{height:64px}
-    .topbar-inner,.page{width:calc(100% - 18px)}
-    .brand-subtitle{display:none}
-    .top-btn span{display:none}
-    .top-btn{width:40px;padding:0}
-    .page{padding-top:20px}
-    .hero{margin-bottom:18px}
-    .hero h1{font-size:2rem}
-    .summary-grid{grid-template-columns:1fr 1fr;gap:8px}
-    .summary-card{padding:12px}
-    .summary-icon{width:36px;height:36px}
-    .summary-value{font-size:1.05rem}
-    .toolbar{align-items:stretch}
-    .date-control,.search-wrap,.toolbar .btn{width:100%;min-width:0}
-    .panel-head{padding:16px}
-    .feed{padding:15px}
-    .briefing-item{grid-template-columns:34px 1fr;gap:9px}
-    .timeline-icon{width:30px;height:30px;border-radius:9px;font-size:.72rem}
-    .timeline-col::after{top:36px}
-    .briefing-card{padding:14px}
-    .item-head{display:block}
-    .item-actions{margin-top:10px}
-    .form-row{grid-template-columns:1fr}
-}
-</style>
+        /* ===============================
+           HEADER
+        =============================== */
+
+        .topbar {
+            background:
+                linear-gradient(
+                    120deg,
+                    #0f172a 0%,
+                    #1e3a8a 45%,
+                    #2563eb 100%
+                );
+
+            color: white;
+            padding: 22px 24px;
+            box-shadow: 0 8px 30px rgba(15, 23, 42, 0.15);
+        }
+
+        .topbar-inner {
+            width: min(1400px, 100%);
+            margin: auto;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+
+            display: grid;
+            place-items: center;
+
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+
+            font-size: 26px;
+        }
+
+        .brand h1 {
+            font-size: 23px;
+            line-height: 1.2;
+        }
+
+        .brand p {
+            margin-top: 4px;
+            color: #bfdbfe;
+            font-size: 13px;
+        }
+
+        .supervisor-button {
+            border: none;
+            border-radius: 12px;
+
+            padding: 12px 17px;
+
+            background: white;
+            color: #1e3a8a;
+
+            font-weight: 700;
+
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            transition: 0.2s;
+        }
+
+        .supervisor-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .supervisor-button.active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        /* ===============================
+           MAIN
+        =============================== */
+
+        .container {
+            width: min(1400px, calc(100% - 30px));
+            margin: 24px auto 50px;
+        }
+
+        /* DATE CONTROL */
+
+        .date-panel {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+
+            padding: 18px;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+
+            box-shadow: 0 5px 20px rgba(15, 23, 42, 0.05);
+        }
+
+        .date-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .date-label {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .date-input {
+            border: 1px solid var(--border);
+            background: #f8fafc;
+
+            padding: 11px 14px;
+
+            border-radius: 11px;
+            outline: none;
+
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .date-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .date-nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-button {
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--dark);
+
+            padding: 10px 14px;
+            border-radius: 10px;
+
+            font-weight: 700;
+        }
+
+        .nav-button:hover {
+            background: #f8fafc;
+        }
+
+        .today-button {
+            color: var(--primary);
+        }
+
+        /* CURRENT DATE LABEL */
+
+        .selected-date-title {
+            margin: 24px 2px 16px;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 15px;
+        }
+
+        .selected-date-title h2 {
+            color: var(--dark);
+            font-size: 24px;
+        }
+
+        .selected-date-title p {
+            color: var(--muted);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .mode-badge {
+            padding: 8px 12px;
+            border-radius: 999px;
+
+            background: #e2e8f0;
+            color: #475569;
+
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .mode-badge.supervisor {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        /* ===============================
+           SHIFT CARDS
+        =============================== */
+
+        .shift-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 20px;
+        }
+
+        .shift-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+
+            overflow: hidden;
+
+            box-shadow:
+                0 7px 25px rgba(15, 23, 42, 0.06);
+        }
+
+        .shift-header {
+            padding: 19px 20px;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .shift-header.morning {
+            background:
+                linear-gradient(
+                    135deg,
+                    #fff7ed,
+                    #fffbeb
+                );
+
+            border-bottom: 1px solid #fed7aa;
+        }
+
+        .shift-header.afternoon {
+            background:
+                linear-gradient(
+                    135deg,
+                    #eff6ff,
+                    #eef2ff
+                );
+
+            border-bottom: 1px solid #bfdbfe;
+        }
+
+        .shift-heading {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+        }
+
+        .shift-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+
+            display: grid;
+            place-items: center;
+
+            font-size: 23px;
+        }
+
+        .morning .shift-icon {
+            background: #ffedd5;
+        }
+
+        .afternoon .shift-icon {
+            background: #dbeafe;
+        }
+
+        .shift-heading h3 {
+            color: var(--dark);
+            font-size: 18px;
+        }
+
+        .shift-heading p {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .count-badge {
+            padding: 6px 10px;
+            border-radius: 999px;
+
+            font-weight: 800;
+            font-size: 11px;
+
+            background: white;
+            border: 1px solid var(--border);
+        }
+
+        /* BRIEFING ITEMS */
+
+        .shift-body {
+            padding: 18px;
+            min-height: 310px;
+        }
+
+        .briefing-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .briefing-item {
+            border: 1px solid var(--border);
+            border-radius: 13px;
+
+            padding: 13px 14px;
+
+            display: flex;
+            gap: 12px;
+
+            background: #fff;
+
+            transition: 0.15s;
+        }
+
+        .briefing-item:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+        }
+
+        .point-number {
+            min-width: 29px;
+            height: 29px;
+            border-radius: 9px;
+
+            display: grid;
+            place-items: center;
+
+            background: #f1f5f9;
+
+            color: #475569;
+
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .point-text {
+            flex: 1;
+
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+
+            color: #334155;
+            font-size: 14px;
+        }
+
+        .point-actions {
+            display: none;
+            gap: 5px;
+        }
+
+        .supervisor-mode .point-actions {
+            display: flex;
+        }
+
+        .icon-button {
+            border: none;
+            width: 31px;
+            height: 31px;
+
+            border-radius: 8px;
+
+            background: #f1f5f9;
+
+            display: grid;
+            place-items: center;
+        }
+
+        .icon-button:hover {
+            background: #e2e8f0;
+        }
+
+        .delete-button {
+            color: var(--danger);
+        }
+
+        /* EMPTY */
+
+        .empty-state {
+            padding: 50px 20px;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            text-align: center;
+
+            color: var(--muted);
+        }
+
+        .empty-icon {
+            font-size: 38px;
+            opacity: 0.6;
+            margin-bottom: 12px;
+        }
+
+        .empty-state strong {
+            color: #475569;
+            font-size: 14px;
+        }
+
+        .empty-state p {
+            margin-top: 5px;
+            font-size: 12px;
+        }
+
+        /* UPDATED */
+
+        .updated-info {
+            padding: 10px 18px 15px;
+
+            color: #94a3b8;
+            font-size: 10px;
+
+            border-top: 1px solid #f1f5f9;
+        }
+
+        /* ===============================
+           SUPERVISOR EDITOR
+        =============================== */
+
+        .editor-panel {
+            display: none;
+
+            margin-top: 22px;
+
+            background: white;
+            border: 1px solid #bfdbfe;
+            border-radius: 20px;
+
+            overflow: hidden;
+
+            box-shadow: 0 7px 25px rgba(37, 99, 235, 0.08);
+        }
+
+        .supervisor-mode .editor-panel {
+            display: block;
+        }
+
+        .editor-header {
+            padding: 18px 20px;
+
+            background:
+                linear-gradient(
+                    120deg,
+                    #eff6ff,
+                    #eef2ff
+                );
+
+            border-bottom: 1px solid #bfdbfe;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .editor-header h3 {
+            color: #1e3a8a;
+            font-size: 17px;
+        }
+
+        .editor-header p {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .lock-button {
+            border: none;
+            background: #fee2e2;
+            color: #991b1b;
+
+            padding: 9px 13px;
+            border-radius: 9px;
+
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .editor-body {
+            padding: 20px;
+        }
+
+        .editor-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .form-control {
+            width: 100%;
+
+            border: 1px solid var(--border);
+            background: #f8fafc;
+
+            padding: 11px 12px;
+            border-radius: 10px;
+
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.09);
+        }
+
+        textarea.form-control {
+            min-height: 115px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        .textarea-row {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .editor-actions {
+            margin-top: 12px;
+
+            display: flex;
+            gap: 9px;
+            flex-wrap: wrap;
+        }
+
+        .button {
+            border: none;
+            padding: 10px 15px;
+
+            border-radius: 10px;
+
+            font-weight: 800;
+            font-size: 13px;
+        }
+
+        .button-primary {
+            color: white;
+            background:
+                linear-gradient(
+                    135deg,
+                    #2563eb,
+                    #4f46e5
+                );
+        }
+
+        .button-primary:hover {
+            filter: brightness(0.96);
+        }
+
+        .button-secondary {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        /* COPY SECTION */
+
+        .copy-section {
+            margin-top: 22px;
+            padding-top: 20px;
+
+            border-top: 1px solid var(--border);
+        }
+
+        .copy-title {
+            margin-bottom: 12px;
+        }
+
+        .copy-title strong {
+            color: var(--dark);
+            font-size: 14px;
+        }
+
+        .copy-title p {
+            color: var(--muted);
+            margin-top: 3px;
+            font-size: 11px;
+        }
+
+        .quick-copy {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .copy-button {
+            border: 1px solid var(--border);
+
+            padding: 10px 13px;
+            border-radius: 10px;
+
+            background: white;
+            color: #334155;
+
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .copy-button:hover {
+            border-color: #93c5fd;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .custom-copy {
+            margin-top: 13px;
+
+            padding: 14px;
+
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        /* ===============================
+           MODAL
+        =============================== */
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+
+            display: none;
+            place-items: center;
+
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(4px);
+
+            z-index: 9999;
+
+            padding: 20px;
+        }
+
+        .modal-overlay.show {
+            display: grid;
+        }
+
+        .modal {
+            width: min(420px, 100%);
+
+            background: white;
+            border-radius: 20px;
+
+            padding: 25px;
+
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
+        }
+
+        .modal-icon {
+            width: 56px;
+            height: 56px;
+
+            display: grid;
+            place-items: center;
+
+            margin-bottom: 15px;
+
+            border-radius: 16px;
+
+            background: #dbeafe;
+
+            font-size: 25px;
+        }
+
+        .modal h3 {
+            color: var(--dark);
+            font-size: 20px;
+        }
+
+        .modal p {
+            margin: 6px 0 17px;
+
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: 13px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 13px 14px;
+
+            border-radius: 11px;
+            border: 1px solid var(--border);
+
+            outline: none;
+
+            font-size: 16px;
+        }
+
+        .password-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .modal-buttons {
+            margin-top: 16px;
+
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 9px;
+        }
+
+        .password-error {
+            color: var(--danger);
+            font-size: 12px;
+
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* ===============================
+           TOAST
+        =============================== */
+
+        .toast {
+            position: fixed;
+
+            bottom: 25px;
+            right: 25px;
+
+            min-width: 260px;
+            max-width: 400px;
+
+            padding: 13px 16px;
+
+            background: #0f172a;
+            color: white;
+
+            border-radius: 12px;
+
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+
+            transform: translateY(100px);
+            opacity: 0;
+
+            transition: 0.3s;
+
+            z-index: 10000;
+
+            font-size: 13px;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: #166534;
+        }
+
+        .toast.error {
+            background: #991b1b;
+        }
+
+        /* LOADER */
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+
+            color: var(--muted);
+        }
+
+        .spinner {
+            width: 28px;
+            height: 28px;
+
+            border: 3px solid #e2e8f0;
+            border-top-color: var(--primary);
+
+            border-radius: 50%;
+
+            margin: 0 auto 10px;
+
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ===============================
+           MOBILE
+        =============================== */
+
+        @media (max-width: 800px) {
+            .topbar {
+                padding: 17px 15px;
+            }
+
+            .brand-icon {
+                width: 44px;
+                height: 44px;
+            }
+
+            .brand h1 {
+                font-size: 18px;
+            }
+
+            .brand p {
+                display: none;
+            }
+
+            .supervisor-button span.button-text {
+                display: none;
+            }
+
+            .shift-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .selected-date-title {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .editor-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .custom-copy {
+                grid-template-columns: 1fr;
+            }
+
+            .date-panel {
+                align-items: stretch;
+            }
+
+            .date-left {
+                width: 100%;
+            }
+
+            .date-input {
+                flex: 1;
+            }
+
+            .date-nav {
+                width: 100%;
+            }
+
+            .nav-button {
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                width: min(100% - 20px, 1400px);
+                margin-top: 15px;
+            }
+
+            .shift-body {
+                padding: 12px;
+            }
+
+            .shift-header {
+                padding: 15px;
+            }
+
+            .briefing-item {
+                padding: 11px;
+            }
+
+            .point-actions {
+                flex-direction: column;
+            }
+
+            .editor-body {
+                padding: 15px;
+            }
+
+            .editor-header {
+                padding: 15px;
+            }
+
+            .toast {
+                left: 15px;
+                right: 15px;
+                bottom: 15px;
+                min-width: auto;
+            }
+        }
+    </style>
 </head>
+
 <body>
 
 <header class="topbar">
     <div class="topbar-inner">
+
         <div class="brand">
-            <div class="brand-mark"><i class="fa-solid fa-clipboard-check"></i></div>
-            <div class="brand-copy">
-                <div class="brand-title">Daily Briefing Log</div>
-                <div class="brand-subtitle">Operations briefing archive</div>
+
+            <div class="brand-icon">
+                📋
             </div>
+
+            <div>
+                <h1>Daily Briefing Log</h1>
+                <p>
+                    Daily operational briefing points
+                </p>
+            </div>
+
         </div>
 
-        <div class="top-actions">
-            <button id="supervisorAccessBtn" class="top-btn" title="Supervisor access">
-                <i class="fa-solid fa-lock"></i><span>Supervisor Access</span>
-            </button>
-            <button id="exitSupervisorBtn" class="top-btn hidden" title="Exit supervisor mode">
-                <i class="fa-solid fa-right-from-bracket"></i><span>Exit Supervisor</span>
-            </button>
-        </div>
+        <button
+            class="supervisor-button"
+            id="supervisorButton"
+            onclick="openSupervisorLogin()"
+        >
+            🔒
+            <span class="button-text">
+                Supervisor Mode
+            </span>
+        </button>
+
     </div>
 </header>
 
-<main class="page">
-    <section class="hero">
+
+<main class="container" id="mainContainer">
+
+    <!-- DATE SELECTOR -->
+
+    <section class="date-panel">
+
+        <div class="date-left">
+
+            <div>
+                <div class="date-label">
+                    Briefing Date
+                </div>
+
+                <input
+                    type="date"
+                    id="viewDate"
+                    class="date-input"
+                    onchange="dateChanged()"
+                >
+            </div>
+
+        </div>
+
+
+        <div class="date-nav">
+
+            <button
+                class="nav-button"
+                onclick="changeDate(-1)"
+            >
+                ← Previous
+            </button>
+
+            <button
+                class="nav-button today-button"
+                onclick="goToday()"
+            >
+                Today
+            </button>
+
+            <button
+                class="nav-button"
+                onclick="changeDate(1)"
+            >
+                Next →
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <div class="selected-date-title">
+
         <div>
-            <div class="eyebrow">Briefing Archive</div>
-            <h1>One place for every daily briefing point.</h1>
+            <h2 id="displayDate">
+                -
+            </h2>
+
             <p>
-                Staff can review previous and current briefing notes at any time.
-                Adding, changing or deleting records is available only after supervisor authentication.
+                Briefing information recorded for this date
             </p>
         </div>
-        <div id="modePill" class="mode-pill">
-            <i class="fa-solid fa-eye"></i> Staff view · Read only
-        </div>
-    </section>
 
-    <section class="summary-grid">
-        <div class="summary-card">
-            <div class="summary-icon"><i class="fa-regular fa-calendar"></i></div>
-            <div>
-                <div id="summaryDate" class="summary-value">—</div>
-                <div class="summary-label">Selected date</div>
-            </div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-icon"><i class="fa-solid fa-list-check"></i></div>
-            <div>
-                <div id="summaryCount" class="summary-value">0</div>
-                <div class="summary-label">Briefing entries</div>
-            </div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-icon"><i class="fa-solid fa-user-tie"></i></div>
-            <div>
-                <div id="summarySupervisors" class="summary-value">0</div>
-                <div class="summary-label">Supervisors</div>
-            </div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-icon"><i class="fa-solid fa-clock"></i></div>
-            <div>
-                <div id="summaryShifts" class="summary-value">0</div>
-                <div class="summary-label">Shifts represented</div>
-            </div>
-        </div>
-    </section>
-
-    <section class="toolbar">
-        <input type="date" id="viewDate" class="control date-control">
-        <button id="todayBtn" class="btn btn-light"><i class="fa-regular fa-calendar-check"></i> Today</button>
-
-        <div class="search-wrap">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input id="searchInput" class="control" type="search" placeholder="Search briefing points, supervisor or shift...">
+        <div
+            class="mode-badge"
+            id="modeBadge"
+        >
+            👁 View Only
         </div>
 
-        <button id="refreshBtn" class="btn btn-light" title="Refresh">
-            <i class="fa-solid fa-rotate"></i> Refresh
-        </button>
-        <button id="pdfBtn" class="btn btn-light">
-            <i class="fa-regular fa-file-pdf"></i> PDF
-        </button>
-        <button id="newBriefingBtn" class="btn btn-primary hidden">
-            <i class="fa-solid fa-plus"></i> New Briefing
-        </button>
-    </section>
+    </div>
 
-    <section id="contentLayout" class="content-layout">
-        <div class="feed-panel">
-            <div class="panel-head">
-                <div>
-                    <h2><i class="fa-solid fa-lines-leaning"></i> Briefing points</h2>
-                    <p id="selectedDateLabel">Loading selected date…</p>
-                </div>
-                <span id="feedCountBadge" class="count-badge">0 entries</span>
-            </div>
-            <div id="briefingFeed" class="feed">
-                <div class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Connecting to briefing archive…</div>
-            </div>
-        </div>
 
-        <aside id="editorPanel" class="editor-panel hidden">
-            <div class="editor-banner">
-                <div class="small">Supervisor workspace</div>
-                <h2 id="editorTitle">New briefing</h2>
-                <p>Save official briefing points to the shared daily archive.</p>
-                <div id="editModeBadge" class="edit-mode hidden"><i class="fa-solid fa-pen"></i>&nbsp; Editing saved entry</div>
-            </div>
+    <!-- SHIFT CARDS -->
 
-            <div class="editor-body">
-                <div class="form-group">
-                    <label for="editDate">Briefing date</label>
-                    <input id="editDate" class="form-control" type="date">
-                </div>
+    <section class="shift-grid">
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="supervisorSelect">Supervisor</label>
-                        <select id="supervisorSelect" class="form-control">
-                            <option value="">Select</option>
-                            <option value="Sobah">Sobah</option>
-                            <option value="Shiara">Shiara</option>
-                            <option value="Musrifa">Musrifa</option>
-                            <option value="Hussain">Hussain</option>
-                            <option value="Inaz">Inaz</option>
-                            <option value="Hamdulla">Hamdulla</option>
-                        </select>
+        <!-- MORNING -->
+
+        <article class="shift-card">
+
+            <div class="shift-header morning">
+
+                <div class="shift-heading">
+
+                    <div class="shift-icon">
+                        ☀️
                     </div>
-                    <div class="form-group">
-                        <label for="shiftSelect">Shift</label>
-                        <select id="shiftSelect" class="form-control">
-                            <option value="">Select</option>
-                            <option value="Morning">Morning</option>
-                            <option value="Afternoon">Afternoon</option>
-                            <option value="Night">Night</option>
-                        </select>
+
+                    <div>
+                        <h3>Morning Shift</h3>
+                        <p>Shift 1 briefing</p>
                     </div>
+
                 </div>
 
+                <div
+                    class="count-badge"
+                    id="morningCount"
+                >
+                    0 Points
+                </div>
+
+            </div>
+
+
+            <div
+                class="shift-body"
+                id="morningBody"
+            >
+            </div>
+
+
+            <div
+                class="updated-info"
+                id="morningUpdated"
+            >
+                No briefing recorded
+            </div>
+
+        </article>
+
+
+        <!-- AFTERNOON -->
+
+        <article class="shift-card">
+
+            <div class="shift-header afternoon">
+
+                <div class="shift-heading">
+
+                    <div class="shift-icon">
+                        🌤️
+                    </div>
+
+                    <div>
+                        <h3>Afternoon Shift</h3>
+                        <p>Shift 2 briefing</p>
+                    </div>
+
+                </div>
+
+                <div
+                    class="count-badge"
+                    id="afternoonCount"
+                >
+                    0 Points
+                </div>
+
+            </div>
+
+
+            <div
+                class="shift-body"
+                id="afternoonBody"
+            >
+            </div>
+
+
+            <div
+                class="updated-info"
+                id="afternoonUpdated"
+            >
+                No briefing recorded
+            </div>
+
+        </article>
+
+    </section>
+
+
+    <!-- SUPERVISOR EDITOR -->
+
+    <section class="editor-panel">
+
+        <div class="editor-header">
+
+            <div>
+                <h3>
+                    ✏️ Supervisor Briefing Editor
+                </h3>
+
+                <p>
+                    Add, edit or copy briefing points.
+                </p>
+            </div>
+
+            <button
+                class="lock-button"
+                onclick="lockSupervisorMode()"
+            >
+                🔒 Lock
+            </button>
+
+        </div>
+
+
+        <div class="editor-body">
+
+            <div class="editor-controls">
+
                 <div class="form-group">
-                    <label for="pointsText">Briefing points</label>
-                    <textarea id="pointsText" class="form-control" placeholder="Enter today's briefing points here...
+
+                    <label>
+                        Date
+                    </label>
+
+                    <input
+                        type="date"
+                        id="editDate"
+                        class="form-control"
+                        onchange="editorDateChanged()"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Shift
+                    </label>
+
+                    <select
+                        id="editShift"
+                        class="form-control"
+                    >
+                        <option value="morning">
+                            ☀️ Morning Shift
+                        </option>
+
+                        <option value="afternoon">
+                            🌤️ Afternoon Shift
+                        </option>
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="textarea-row">
+
+                <div class="form-group">
+
+                    <label>
+                        New Briefing Point
+                    </label>
+
+                    <textarea
+                        id="newPoint"
+                        class="form-control"
+                        placeholder="Type the briefing point here...
 
 Example:
-• Passenger handling update
-• Duty allocation
-• Service reminder
-• Operational issue / follow-up"></textarea>
+Ensure all departure flights are monitored and boarding announcements are made on time."
+                    ></textarea>
+
                 </div>
 
-                <div class="editor-actions">
-                    <button id="saveBtn" class="btn btn-primary">
-                        <i class="fa-solid fa-floppy-disk"></i> Save briefing
-                    </button>
-                    <button id="cancelEditBtn" class="btn btn-light">
-                        <i class="fa-solid fa-xmark"></i> Clear
-                    </button>
-                    <button id="deleteBtn" class="btn btn-danger hidden">
-                        <i class="fa-regular fa-trash-can"></i>
-                    </button>
-                </div>
-
-                <div class="editor-note">
-                    <i class="fa-solid fa-shield-halved"></i>
-                    Supervisor mode remains active only for this browser tab. Close the tab or use Exit Supervisor to return to read-only mode.
-                </div>
             </div>
-        </aside>
+
+
+            <div class="editor-actions">
+
+                <button
+                    class="button button-primary"
+                    onclick="addBriefingPoint()"
+                >
+                    ＋ Add Briefing Point
+                </button>
+
+                <button
+                    class="button button-secondary"
+                    onclick="clearPointInput()"
+                >
+                    Clear
+                </button>
+
+            </div>
+
+
+            <!-- COPY -->
+
+            <div class="copy-section">
+
+                <div class="copy-title">
+
+                    <strong>
+                        📑 Copy Existing Briefing
+                    </strong>
+
+                    <p>
+                        Copy briefing points into the selected date and shift.
+                    </p>
+
+                </div>
+
+
+                <div class="quick-copy">
+
+                    <button
+                        class="copy-button"
+                        onclick="copyPreviousDay()"
+                    >
+                        📅 Copy Previous Day
+                    </button>
+
+                    <button
+                        class="copy-button"
+                        onclick="copyPreviousShift()"
+                    >
+                        🔄 Copy Previous Shift
+                    </button>
+
+                </div>
+
+
+                <div class="custom-copy">
+
+                    <div class="form-group">
+
+                        <label>
+                            Copy From Date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="copyDate"
+                            class="form-control"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Copy From Shift
+                        </label>
+
+                        <select
+                            id="copyShift"
+                            class="form-control"
+                        >
+
+                            <option value="morning">
+                                Morning Shift
+                            </option>
+
+                            <option value="afternoon">
+                                Afternoon Shift
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <button
+                        class="button button-primary"
+                        onclick="copyCustomShift()"
+                    >
+                        Copy Points
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </section>
+
 </main>
 
-<!-- Supervisor Password -->
-<div id="passwordModal" class="modal hidden">
-    <div class="modal-card">
-        <div class="modal-icon"><i class="fa-solid fa-shield-halved"></i></div>
-        <h2>Supervisor access</h2>
-        <p>Enter the supervisor password to add, edit or delete daily briefing points.</p>
-        <input id="passwordInput" class="form-control" type="password" placeholder="Supervisor password" autocomplete="current-password">
-        <div id="passwordError" class="modal-error"></div>
-        <div class="modal-actions">
-            <button id="modalCancelBtn" class="btn btn-light">Cancel</button>
-            <button id="modalUnlockBtn" class="btn btn-primary"><i class="fa-solid fa-unlock"></i> Unlock</button>
+
+<!-- SUPERVISOR LOGIN MODAL -->
+
+<div
+    class="modal-overlay"
+    id="passwordModal"
+>
+
+    <div class="modal">
+
+        <div class="modal-icon">
+            🔐
         </div>
+
+        <h3>
+            Supervisor Access
+        </h3>
+
+        <p>
+            Enter the supervisor password to add or modify
+            briefing points.
+        </p>
+
+        <input
+            type="password"
+            id="supervisorPassword"
+            class="password-input"
+            placeholder="Supervisor password"
+            autocomplete="off"
+            onkeydown="passwordKeyDown(event)"
+        >
+
+        <div
+            class="password-error"
+            id="passwordError"
+        >
+            Incorrect supervisor password.
+        </div>
+
+        <div class="modal-buttons">
+
+            <button
+                class="button button-secondary"
+                onclick="closeSupervisorLogin()"
+            >
+                Cancel
+            </button>
+
+            <button
+                class="button button-primary"
+                onclick="verifySupervisorPassword()"
+            >
+                Unlock
+            </button>
+
+        </div>
+
     </div>
+
 </div>
 
-<div id="toast" class="status-toast hidden"></div>
+
+<!-- TOAST -->
+
+<div
+    class="toast"
+    id="toast"
+></div>
+
 
 <script>
-(() => {
-    "use strict";
 
-    const COLLECTION = "briefingMinutes";
-    const FALLBACK_SUPERVISOR_PASSWORD = "Admin123";
+/* ============================================================
+   SETTINGS
+============================================================ */
 
-    let db = null;
-    let isSupervisor = sessionStorage.getItem("briefing_supervisor_mode") === "true";
-    let currentEntries = [];
-    let currentEditId = null;
+/*
+IMPORTANT:
 
-    const $ = (id) => document.getElementById(id);
+For now this password is stored in the webpage JavaScript.
 
-    const els = {
-        supervisorAccessBtn: $("supervisorAccessBtn"),
-        exitSupervisorBtn: $("exitSupervisorBtn"),
-        modePill: $("modePill"),
-        summaryDate: $("summaryDate"),
-        summaryCount: $("summaryCount"),
-        summarySupervisors: $("summarySupervisors"),
-        summaryShifts: $("summaryShifts"),
-        viewDate: $("viewDate"),
-        todayBtn: $("todayBtn"),
-        searchInput: $("searchInput"),
-        refreshBtn: $("refreshBtn"),
-        pdfBtn: $("pdfBtn"),
-        newBriefingBtn: $("newBriefingBtn"),
-        contentLayout: $("contentLayout"),
-        selectedDateLabel: $("selectedDateLabel"),
-        feedCountBadge: $("feedCountBadge"),
-        briefingFeed: $("briefingFeed"),
-        editorPanel: $("editorPanel"),
-        editorTitle: $("editorTitle"),
-        editModeBadge: $("editModeBadge"),
-        editDate: $("editDate"),
-        supervisorSelect: $("supervisorSelect"),
-        shiftSelect: $("shiftSelect"),
-        pointsText: $("pointsText"),
-        saveBtn: $("saveBtn"),
-        cancelEditBtn: $("cancelEditBtn"),
-        deleteBtn: $("deleteBtn"),
-        passwordModal: $("passwordModal"),
-        passwordInput: $("passwordInput"),
-        passwordError: $("passwordError"),
-        modalCancelBtn: $("modalCancelBtn"),
-        modalUnlockBtn: $("modalUnlockBtn"),
-        toast: $("toast")
-    };
+Change it below.
 
-    function todayISO() {
-        const now = new Date();
-        const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-        return local.toISOString().slice(0, 10);
-    }
+For better security later, we can move the password verification
+to Firebase or your existing Staff Portal supervisor accounts.
+*/
 
-    function safeText(value = "") {
-        return String(value)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
+const SUPERVISOR_PASSWORD = "1234";
 
-    function formatDateLong(dateValue) {
-        if (!dateValue) return "—";
-        const d = new Date(dateValue + "T00:00:00");
-        return d.toLocaleDateString(undefined, {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric"
-        });
-    }
 
-    function formatDateShort(dateValue) {
-        if (!dateValue) return "—";
-        const d = new Date(dateValue + "T00:00:00");
-        return d.toLocaleDateString(undefined, { day:"2-digit", month:"short" });
-    }
+/* ============================================================
+   FIREBASE
+============================================================ */
 
-    function getPassword() {
-        if (typeof SUPERVISOR_PASSWORD !== "undefined" && SUPERVISOR_PASSWORD) {
-            return SUPERVISOR_PASSWORD;
-        }
-        if (typeof MASTER_PASSWORD_GLOBAL !== "undefined" && MASTER_PASSWORD_GLOBAL) {
-            return MASTER_PASSWORD_GLOBAL;
-        }
-        return FALLBACK_SUPERVISOR_PASSWORD;
-    }
+let db;
 
-    function showToast(message, type = "") {
-        els.toast.textContent = message;
-        els.toast.className = "status-toast" + (type ? " " + type : "");
-        clearTimeout(showToast.timer);
-        showToast.timer = setTimeout(() => els.toast.classList.add("hidden"), 2800);
-    }
+try {
 
-    function setSupervisorUI(enabled) {
-        isSupervisor = enabled;
-        if (enabled) {
-            sessionStorage.setItem("briefing_supervisor_mode", "true");
-            els.supervisorAccessBtn.classList.add("hidden");
-            els.exitSupervisorBtn.classList.remove("hidden");
-            els.newBriefingBtn.classList.remove("hidden");
-            els.modePill.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Supervisor mode · Editing enabled';
-            els.modePill.style.color = "#146d53";
-            els.editorPanel.classList.remove("hidden");
-            els.contentLayout.classList.add("supervisor-open");
-            resetEditor();
+    /*
+    fire.js can either:
+
+    1. Already initialize Firebase
+
+    OR
+
+    2. Only contain:
+       const firebaseConfig = {...}
+
+    This handles both situations.
+    */
+
+    if (!firebase.apps.length) {
+
+        if (typeof firebaseConfig !== "undefined") {
+
+            firebase.initializeApp(firebaseConfig);
+
         } else {
-            sessionStorage.removeItem("briefing_supervisor_mode");
-            els.supervisorAccessBtn.classList.remove("hidden");
-            els.exitSupervisorBtn.classList.add("hidden");
-            els.newBriefingBtn.classList.add("hidden");
-            els.modePill.innerHTML = '<i class="fa-solid fa-eye"></i> Staff view · Read only';
-            els.modePill.style.color = "";
-            els.editorPanel.classList.add("hidden");
-            els.contentLayout.classList.remove("supervisor-open");
-            resetEditor();
+
+            throw new Error(
+                "firebaseConfig was not found in fire.js"
+            );
         }
-        renderEntries();
     }
 
-    function initFirebase() {
-        try {
-            if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length) {
-                db = firebase.firestore();
-                return true;
+    db = firebase.firestore();
+
+    console.log(
+        "Briefing Log: Firebase connected"
+    );
+
+} catch (error) {
+
+    console.error(
+        "Firebase initialization error:",
+        error
+    );
+
+}
+
+
+/* ============================================================
+   VARIABLES
+============================================================ */
+
+let supervisorMode = false;
+
+let currentData = {
+    morning: {
+        points: [],
+        updatedAt: null,
+        updatedBy: null
+    },
+
+    afternoon: {
+        points: [],
+        updatedAt: null,
+        updatedBy: null
+    }
+};
+
+
+/* ============================================================
+   INITIALIZE
+============================================================ */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    async function () {
+
+        const today = getLocalDateString();
+
+        document.getElementById(
+            "viewDate"
+        ).value = today;
+
+        document.getElementById(
+            "editDate"
+        ).value = today;
+
+        document.getElementById(
+            "copyDate"
+        ).value = previousDate(today);
+
+        updateDateHeading();
+
+        await loadBriefing(today);
+
+    }
+);
+
+
+/* ============================================================
+   LOCAL DATE
+============================================================ */
+
+function getLocalDateString() {
+
+    const now = new Date();
+
+    const year = now.getFullYear();
+
+    const month = String(
+        now.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+        now.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+
+/* ============================================================
+   DATE FUNCTIONS
+============================================================ */
+
+function parseLocalDate(dateString) {
+
+    const parts = dateString.split("-");
+
+    return new Date(
+        Number(parts[0]),
+        Number(parts[1]) - 1,
+        Number(parts[2])
+    );
+}
+
+
+function formatDateToInput(date) {
+
+    const year = date.getFullYear();
+
+    const month = String(
+        date.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+        date.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+
+function previousDate(dateString) {
+
+    const date = parseLocalDate(dateString);
+
+    date.setDate(
+        date.getDate() - 1
+    );
+
+    return formatDateToInput(date);
+}
+
+
+function changeDate(amount) {
+
+    const input =
+        document.getElementById("viewDate");
+
+    const date =
+        parseLocalDate(input.value);
+
+    date.setDate(
+        date.getDate() + amount
+    );
+
+    input.value =
+        formatDateToInput(date);
+
+    dateChanged();
+}
+
+
+function goToday() {
+
+    const today =
+        getLocalDateString();
+
+    document.getElementById(
+        "viewDate"
+    ).value = today;
+
+    dateChanged();
+}
+
+
+async function dateChanged() {
+
+    const date =
+        document.getElementById(
+            "viewDate"
+        ).value;
+
+    if (!date) return;
+
+    document.getElementById(
+        "editDate"
+    ).value = date;
+
+    document.getElementById(
+        "copyDate"
+    ).value = previousDate(date);
+
+    updateDateHeading();
+
+    await loadBriefing(date);
+}
+
+
+function editorDateChanged() {
+
+    const date =
+        document.getElementById(
+            "editDate"
+        ).value;
+
+    if (!date) return;
+
+    document.getElementById(
+        "viewDate"
+    ).value = date;
+
+    document.getElementById(
+        "copyDate"
+    ).value = previousDate(date);
+
+    dateChanged();
+}
+
+
+function updateDateHeading() {
+
+    const dateString =
+        document.getElementById(
+            "viewDate"
+        ).value;
+
+    if (!dateString) return;
+
+    const date =
+        parseLocalDate(dateString);
+
+    const formatted =
+        date.toLocaleDateString(
+            "en-GB",
+            {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric"
             }
-        } catch (error) {
-            console.error("Firebase initialization error:", error);
+        );
+
+    document.getElementById(
+        "displayDate"
+    ).textContent = formatted;
+}
+
+
+/* ============================================================
+   FIRESTORE READ
+============================================================ */
+
+async function loadBriefing(date) {
+
+    showLoading();
+
+    try {
+
+        const documentRef =
+            db.collection(
+                "briefingLogs"
+            ).doc(date);
+
+        const snapshot =
+            await documentRef.get();
+
+
+        if (snapshot.exists) {
+
+            const data =
+                snapshot.data();
+
+            currentData = {
+
+                morning: {
+                    points:
+                        data.morning?.points || [],
+
+                    updatedAt:
+                        data.morning?.updatedAt || null,
+
+                    updatedBy:
+                        data.morning?.updatedBy || null
+                },
+
+                afternoon: {
+                    points:
+                        data.afternoon?.points || [],
+
+                    updatedAt:
+                        data.afternoon?.updatedAt || null,
+
+                    updatedBy:
+                        data.afternoon?.updatedBy || null
+                }
+
+            };
+
+        } else {
+
+            currentData = {
+
+                morning: {
+                    points: [],
+                    updatedAt: null,
+                    updatedBy: null
+                },
+
+                afternoon: {
+                    points: [],
+                    updatedAt: null,
+                    updatedBy: null
+                }
+
+            };
+
         }
-        return false;
+
+        renderBriefing();
+
+    } catch (error) {
+
+        console.error(
+            "Error loading briefing:",
+            error
+        );
+
+        showToast(
+            "Unable to load briefing data.",
+            "error"
+        );
+
+        renderBriefing();
     }
+}
 
-    async function waitForFirebase() {
-        if (initFirebase()) return true;
 
-        for (let i = 0; i < 8; i++) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            if (initFirebase()) return true;
-        }
+/* ============================================================
+   RENDER
+============================================================ */
 
-        els.briefingFeed.innerHTML = `
-            <div class="empty">
-                <div>
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <strong>Database connection unavailable</strong>
-                    Check that fire.js/config.js initializes Firebase correctly.
+function renderBriefing() {
+
+    renderShift(
+        "morning",
+        currentData.morning
+    );
+
+    renderShift(
+        "afternoon",
+        currentData.afternoon
+    );
+}
+
+
+function renderShift(
+    shift,
+    shiftData
+) {
+
+    const body =
+        document.getElementById(
+            shift + "Body"
+        );
+
+    const count =
+        document.getElementById(
+            shift + "Count"
+        );
+
+    const updated =
+        document.getElementById(
+            shift + "Updated"
+        );
+
+    const points =
+        shiftData.points || [];
+
+
+    count.textContent =
+        points.length +
+        (
+            points.length === 1
+                ? " Point"
+                : " Points"
+        );
+
+
+    if (!points.length) {
+
+        body.innerHTML = `
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    📝
                 </div>
-            </div>`;
-        return false;
-    }
 
-    async function loadEntries() {
-        if (!db) return;
-        const dateValue = els.viewDate.value;
-        if (!dateValue) return;
+                <strong>
+                    No briefing points recorded
+                </strong>
 
-        els.briefingFeed.innerHTML = '<div class="loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading briefing points…</div>';
-        els.selectedDateLabel.textContent = formatDateLong(dateValue);
-        els.summaryDate.textContent = formatDateShort(dateValue);
+                <p>
+                    There are no briefing points
+                    for this shift.
+                </p>
 
-        try {
-            const snap = await db.collection(COLLECTION)
-                .where("date", "==", dateValue)
-                .get();
-
-            currentEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            currentEntries.sort((a, b) => {
-                const shiftRank = { Morning:1, Afternoon:2, Night:3 };
-                const s = (shiftRank[a.shift] || 9) - (shiftRank[b.shift] || 9);
-                if (s !== 0) return s;
-                return String(a.createdAt || a.updatedAt || "").localeCompare(String(b.createdAt || b.updatedAt || ""));
-            });
-
-            updateSummary();
-            renderEntries();
-        } catch (error) {
-            console.error(error);
-            els.briefingFeed.innerHTML = `
-                <div class="empty">
-                    <div>
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        <strong>Unable to load briefing points</strong>
-                        ${safeText(error.message)}
-                    </div>
-                </div>`;
-            showToast("Could not load briefing data.", "error");
-        }
-    }
-
-    function updateSummary() {
-        const supervisors = new Set(currentEntries.map(e => e.supervisor).filter(Boolean));
-        const shifts = new Set(currentEntries.map(e => e.shift).filter(Boolean));
-
-        els.summaryCount.textContent = currentEntries.length;
-        els.summarySupervisors.textContent = supervisors.size;
-        els.summaryShifts.textContent = shifts.size;
-    }
-
-    function renderEntries() {
-        const query = els.searchInput.value.trim().toLowerCase();
-
-        const filtered = currentEntries.filter(entry => {
-            if (!query) return true;
-            const haystack = [
-                entry.supervisor,
-                entry.shift,
-                entry.pointsText
-            ].join(" ").toLowerCase();
-            return haystack.includes(query);
-        });
-
-        els.feedCountBadge.textContent = `${filtered.length} ${filtered.length === 1 ? "entry" : "entries"}`;
-
-        if (!filtered.length) {
-            const hasDateEntries = currentEntries.length > 0;
-            els.briefingFeed.innerHTML = `
-                <div class="empty">
-                    <div>
-                        <i class="fa-regular ${hasDateEntries ? "fa-face-meh" : "fa-calendar-xmark"}"></i>
-                        <strong>${hasDateEntries ? "No matching briefing points" : "No briefing recorded"}</strong>
-                        ${hasDateEntries ? "Try a different search." : "There are no briefing points saved for this date."}
-                    </div>
-                </div>`;
-            return;
-        }
-
-        els.briefingFeed.innerHTML = `
-            <div class="day-heading">
-                <h3>${safeText(formatDateLong(els.viewDate.value))}</h3>
-                <span>${filtered.length} recorded ${filtered.length === 1 ? "entry" : "entries"}</span>
             </div>
-            ${filtered.map(entry => entryHTML(entry)).join("")}
         `;
 
-        if (isSupervisor) {
-            els.briefingFeed.querySelectorAll("[data-edit-id]").forEach(btn => {
-                btn.addEventListener("click", () => editEntry(btn.dataset.editId));
-            });
-            els.briefingFeed.querySelectorAll("[data-delete-id]").forEach(btn => {
-                btn.addEventListener("click", () => deleteEntry(btn.dataset.deleteId));
-            });
-        }
-    }
+    } else {
 
-    function entryHTML(entry) {
-        const shiftClass = entry.shift === "Morning" ? "shift-morning"
-                         : entry.shift === "Afternoon" ? "shift-afternoon"
-                         : entry.shift === "Night" ? "shift-night" : "";
+        const list =
+            document.createElement(
+                "div"
+            );
 
-        const timestamp = entry.updatedAt || entry.createdAt || "";
-        let timeLabel = "";
-        if (timestamp) {
-            const d = new Date(timestamp);
-            if (!isNaN(d)) {
-                timeLabel = d.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+        list.className =
+            "briefing-list";
+
+
+        points.forEach(
+            (
+                point,
+                index
+            ) => {
+
+                const item =
+                    document.createElement(
+                        "div"
+                    );
+
+                item.className =
+                    "briefing-item";
+
+
+                const number =
+                    document.createElement(
+                        "div"
+                    );
+
+                number.className =
+                    "point-number";
+
+                number.textContent =
+                    index + 1;
+
+
+                const text =
+                    document.createElement(
+                        "div"
+                    );
+
+                text.className =
+                    "point-text";
+
+                text.textContent =
+                    point.text || point;
+
+
+                const actions =
+                    document.createElement(
+                        "div"
+                    );
+
+                actions.className =
+                    "point-actions";
+
+
+                const editButton =
+                    document.createElement(
+                        "button"
+                    );
+
+                editButton.className =
+                    "icon-button";
+
+                editButton.title =
+                    "Edit";
+
+                editButton.textContent =
+                    "✏️";
+
+                editButton.onclick =
+                    function () {
+
+                        editBriefingPoint(
+                            shift,
+                            index
+                        );
+
+                    };
+
+
+                const deleteButton =
+                    document.createElement(
+                        "button"
+                    );
+
+                deleteButton.className =
+                    "icon-button delete-button";
+
+                deleteButton.title =
+                    "Delete";
+
+                deleteButton.textContent =
+                    "🗑️";
+
+                deleteButton.onclick =
+                    function () {
+
+                        deleteBriefingPoint(
+                            shift,
+                            index
+                        );
+
+                    };
+
+
+                actions.appendChild(
+                    editButton
+                );
+
+                actions.appendChild(
+                    deleteButton
+                );
+
+
+                item.appendChild(
+                    number
+                );
+
+                item.appendChild(
+                    text
+                );
+
+                item.appendChild(
+                    actions
+                );
+
+
+                list.appendChild(
+                    item
+                );
+
             }
-        }
+        );
 
-        return `
-            <article class="briefing-item">
-                <div class="timeline-col">
-                    <div class="timeline-icon"><i class="fa-solid fa-clipboard"></i></div>
-                </div>
-                <div class="briefing-card">
-                    <div class="item-head">
-                        <div class="item-meta">
-                            <span class="chip"><i class="fa-solid fa-user-tie"></i>${safeText(entry.supervisor || "Supervisor")}</span>
-                            <span class="chip ${shiftClass}"><i class="fa-regular fa-clock"></i>${safeText(entry.shift || "Shift")}</span>
-                        </div>
-                        ${isSupervisor ? `
-                            <div class="item-actions">
-                                <button class="icon-btn" data-edit-id="${entry.id}" title="Edit">
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                                <button class="icon-btn delete" data-delete-id="${entry.id}" title="Delete">
-                                    <i class="fa-regular fa-trash-can"></i>
-                                </button>
-                            </div>` : ""}
-                    </div>
+        body.innerHTML = "";
 
-                    <div class="briefing-text">${safeText(entry.pointsText || "").replace(/\n/g, "<br>")}</div>
+        body.appendChild(
+            list
+        );
 
-                    <div class="item-footer">
-                        <span>Official briefing record</span>
-                        <span>${timeLabel ? "Updated " + safeText(timeLabel) : ""}</span>
-                    </div>
-                </div>
-            </article>`;
     }
 
-    function resetEditor() {
-        currentEditId = null;
-        els.editorTitle.textContent = "New briefing";
-        els.editModeBadge.classList.add("hidden");
-        els.deleteBtn.classList.add("hidden");
-        els.editDate.value = els.viewDate.value || todayISO();
-        els.supervisorSelect.value = "";
-        els.shiftSelect.value = "";
-        els.pointsText.value = "";
-        els.saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save briefing';
+
+    updated.textContent =
+        buildUpdatedText(
+            shiftData
+        );
+}
+
+
+function buildUpdatedText(data) {
+
+    if (!data.updatedAt) {
+
+        return "No briefing recorded";
     }
 
-    function editEntry(id) {
-        if (!isSupervisor) return;
-        const entry = currentEntries.find(item => item.id === id);
-        if (!entry) return;
+    try {
 
-        currentEditId = id;
-        els.editorTitle.textContent = "Edit briefing";
-        els.editModeBadge.classList.remove("hidden");
-        els.deleteBtn.classList.remove("hidden");
-        els.editDate.value = entry.date || els.viewDate.value;
-        els.supervisorSelect.value = entry.supervisor || "";
-        els.shiftSelect.value = entry.shift || "";
-        els.pointsText.value = entry.pointsText || "";
-        els.saveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Update briefing';
+        let date;
 
-        if (window.innerWidth < 1100) {
-            els.editorPanel.scrollIntoView({ behavior:"smooth", block:"start" });
+
+        if (
+            typeof data.updatedAt.toDate
+            === "function"
+        ) {
+
+            date =
+                data.updatedAt.toDate();
+
+        } else {
+
+            date =
+                new Date(
+                    data.updatedAt
+                );
+
         }
-        els.pointsText.focus();
+
+
+        const time =
+            date.toLocaleString(
+                "en-GB",
+                {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                }
+            );
+
+
+        return (
+            "Last updated: " +
+            time +
+            (
+                data.updatedBy
+                    ? " • " +
+                      data.updatedBy
+                    : ""
+            )
+        );
+
+    } catch {
+
+        return "Briefing recorded";
+    }
+}
+
+
+function showLoading() {
+
+    const loading = `
+        <div class="loading">
+
+            <div class="spinner"></div>
+
+            Loading briefing...
+
+        </div>
+    `;
+
+    document.getElementById(
+        "morningBody"
+    ).innerHTML = loading;
+
+    document.getElementById(
+        "afternoonBody"
+    ).innerHTML = loading;
+}
+
+
+/* ============================================================
+   SUPERVISOR LOGIN
+============================================================ */
+
+function openSupervisorLogin() {
+
+    if (supervisorMode) {
+
+        lockSupervisorMode();
+        return;
     }
 
-    async function saveEntry() {
-        if (!isSupervisor || !db) return;
+    document.getElementById(
+        "passwordModal"
+    ).classList.add("show");
 
-        const date = els.editDate.value;
-        const supervisor = els.supervisorSelect.value.trim();
-        const shift = els.shiftSelect.value.trim();
-        const pointsText = els.pointsText.value.trim();
+    document.getElementById(
+        "supervisorPassword"
+    ).value = "";
 
-        if (!date || !supervisor || !shift || !pointsText) {
-            showToast("Please complete date, supervisor, shift and briefing points.", "error");
-            return;
-        }
+    document.getElementById(
+        "passwordError"
+    ).style.display = "none";
 
-        els.saveBtn.disabled = true;
-        const original = els.saveBtn.innerHTML;
-        els.saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving';
+    setTimeout(
+        function () {
 
-        const payload = {
-            date,
-            supervisor,
-            shift,
-            pointsText,
-            updatedAt: new Date().toISOString()
+            document.getElementById(
+                "supervisorPassword"
+            ).focus();
+
+        },
+        100
+    );
+}
+
+
+function closeSupervisorLogin() {
+
+    document.getElementById(
+        "passwordModal"
+    ).classList.remove("show");
+}
+
+
+function passwordKeyDown(event) {
+
+    if (
+        event.key === "Enter"
+    ) {
+
+        verifySupervisorPassword();
+
+    }
+}
+
+
+function verifySupervisorPassword() {
+
+    const entered =
+        document.getElementById(
+            "supervisorPassword"
+        ).value;
+
+
+    if (
+        entered ===
+        SUPERVISOR_PASSWORD
+    ) {
+
+        supervisorMode = true;
+
+        document.getElementById(
+            "mainContainer"
+        ).classList.add(
+            "supervisor-mode"
+        );
+
+
+        const button =
+            document.getElementById(
+                "supervisorButton"
+            );
+
+        button.classList.add(
+            "active"
+        );
+
+        button.innerHTML =
+            `
+                🔓
+                <span class="button-text">
+                    Supervisor Active
+                </span>
+            `;
+
+
+        const badge =
+            document.getElementById(
+                "modeBadge"
+            );
+
+        badge.classList.add(
+            "supervisor"
+        );
+
+        badge.textContent =
+            "✏️ Supervisor Edit Mode";
+
+
+        closeSupervisorLogin();
+
+        renderBriefing();
+
+
+        showToast(
+            "Supervisor mode unlocked.",
+            "success"
+        );
+
+    } else {
+
+        document.getElementById(
+            "passwordError"
+        ).style.display = "block";
+
+    }
+}
+
+
+function lockSupervisorMode() {
+
+    supervisorMode = false;
+
+    document.getElementById(
+        "mainContainer"
+    ).classList.remove(
+        "supervisor-mode"
+    );
+
+
+    const button =
+        document.getElementById(
+            "supervisorButton"
+        );
+
+    button.classList.remove(
+        "active"
+    );
+
+    button.innerHTML =
+        `
+            🔒
+            <span class="button-text">
+                Supervisor Mode
+            </span>
+        `;
+
+
+    const badge =
+        document.getElementById(
+            "modeBadge"
+        );
+
+    badge.classList.remove(
+        "supervisor"
+    );
+
+    badge.textContent =
+        "👁 View Only";
+
+
+    renderBriefing();
+
+
+    showToast(
+        "Supervisor mode locked."
+    );
+}
+
+
+/* ============================================================
+   ADD POINT
+============================================================ */
+
+async function addBriefingPoint() {
+
+    if (!supervisorMode) {
+
+        showToast(
+            "Supervisor access required.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const date =
+        document.getElementById(
+            "editDate"
+        ).value;
+
+    const shift =
+        document.getElementById(
+            "editShift"
+        ).value;
+
+    const textarea =
+        document.getElementById(
+            "newPoint"
+        );
+
+    const text =
+        textarea.value.trim();
+
+
+    if (!date) {
+
+        showToast(
+            "Please select a date.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    if (!text) {
+
+        showToast(
+            "Please enter a briefing point.",
+            "error"
+        );
+
+        textarea.focus();
+
+        return;
+    }
+
+
+    try {
+
+        const docRef =
+            db.collection(
+                "briefingLogs"
+            ).doc(date);
+
+
+        const snapshot =
+            await docRef.get();
+
+
+        let data =
+            snapshot.exists
+                ? snapshot.data()
+                : {};
+
+
+        let shiftData =
+            data[shift] || {
+                points: []
+            };
+
+
+        let points =
+            Array.isArray(
+                shiftData.points
+            )
+                ? [...shiftData.points]
+                : [];
+
+
+        points.push({
+            text: text,
+            createdAt:
+                new Date().toISOString()
+        });
+
+
+        await docRef.set(
+            {
+                [shift]: {
+                    points: points,
+                    updatedAt:
+                        firebase.firestore
+                            .FieldValue
+                            .serverTimestamp(),
+
+                    updatedBy:
+                        "Supervisor"
+                }
+            },
+            {
+                merge: true
+            }
+        );
+
+
+        textarea.value = "";
+
+
+        document.getElementById(
+            "viewDate"
+        ).value = date;
+
+
+        await loadBriefing(
+            date
+        );
+
+
+        updateDateHeading();
+
+
+        showToast(
+            "Briefing point added.",
+            "success"
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Add briefing error:",
+            error
+        );
+
+        showToast(
+            "Unable to save briefing point.",
+            "error"
+        );
+    }
+}
+
+
+function clearPointInput() {
+
+    document.getElementById(
+        "newPoint"
+    ).value = "";
+
+    document.getElementById(
+        "newPoint"
+    ).focus();
+}
+
+
+/* ============================================================
+   EDIT POINT
+============================================================ */
+
+async function editBriefingPoint(
+    shift,
+    index
+) {
+
+    if (!supervisorMode) return;
+
+
+    const point =
+        currentData[shift]
+            .points[index];
+
+
+    const oldText =
+        point.text || point;
+
+
+    const newText =
+        prompt(
+            "Edit briefing point:",
+            oldText
+        );
+
+
+    if (
+        newText === null
+    ) {
+
+        return;
+    }
+
+
+    const cleanText =
+        newText.trim();
+
+
+    if (!cleanText) {
+
+        showToast(
+            "Briefing point cannot be empty.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const date =
+        document.getElementById(
+            "viewDate"
+        ).value;
+
+
+    const points = [
+        ...currentData[shift]
+            .points
+    ];
+
+
+    if (
+        typeof points[index]
+        === "object"
+    ) {
+
+        points[index] = {
+            ...points[index],
+            text: cleanText,
+            editedAt:
+                new Date().toISOString()
         };
 
-        try {
-            if (currentEditId) {
-                await db.collection(COLLECTION).doc(currentEditId).update(payload);
-                showToast("Briefing updated.", "success");
-            } else {
-                await db.collection(COLLECTION).add({
-                    ...payload,
-                    createdAt: new Date().toISOString()
-                });
-                showToast("Briefing saved.", "success");
-            }
+    } else {
 
-            els.viewDate.value = date;
-            resetEditor();
-            await loadEntries();
-        } catch (error) {
-            console.error(error);
-            showToast("Save failed: " + error.message, "error");
-        } finally {
-            els.saveBtn.disabled = false;
-            if (currentEditId) els.saveBtn.innerHTML = original;
-        }
+        points[index] = {
+            text: cleanText,
+            editedAt:
+                new Date().toISOString()
+        };
+
     }
 
-    async function deleteEntry(id = currentEditId) {
-        if (!isSupervisor || !db || !id) return;
-        const entry = currentEntries.find(item => item.id === id);
-        const label = entry ? `${entry.supervisor || "this supervisor"} - ${entry.shift || "shift"}` : "this briefing";
 
-        if (!confirm(`Delete ${label} briefing permanently?`)) return;
+    await saveShiftPoints(
+        date,
+        shift,
+        points
+    );
 
-        try {
-            await db.collection(COLLECTION).doc(id).delete();
-            if (id === currentEditId) resetEditor();
-            showToast("Briefing deleted.", "success");
-            await loadEntries();
-        } catch (error) {
-            console.error(error);
-            showToast("Delete failed: " + error.message, "error");
-        }
+
+    showToast(
+        "Briefing point updated.",
+        "success"
+    );
+}
+
+
+/* ============================================================
+   DELETE
+============================================================ */
+
+async function deleteBriefingPoint(
+    shift,
+    index
+) {
+
+    if (!supervisorMode) return;
+
+
+    const point =
+        currentData[shift]
+            .points[index];
+
+
+    const text =
+        point.text || point;
+
+
+    const confirmed =
+        confirm(
+            "Delete this briefing point?\n\n" +
+            text
+        );
+
+
+    if (!confirmed) return;
+
+
+    const date =
+        document.getElementById(
+            "viewDate"
+        ).value;
+
+
+    const points = [
+        ...currentData[shift]
+            .points
+    ];
+
+
+    points.splice(
+        index,
+        1
+    );
+
+
+    await saveShiftPoints(
+        date,
+        shift,
+        points
+    );
+
+
+    showToast(
+        "Briefing point deleted.",
+        "success"
+    );
+}
+
+
+/* ============================================================
+   SAVE SHIFT
+============================================================ */
+
+async function saveShiftPoints(
+    date,
+    shift,
+    points
+) {
+
+    try {
+
+        await db
+            .collection(
+                "briefingLogs"
+            )
+            .doc(date)
+            .set(
+                {
+                    [shift]: {
+
+                        points: points,
+
+                        updatedAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp(),
+
+                        updatedBy:
+                            "Supervisor"
+
+                    }
+                },
+                {
+                    merge: true
+                }
+            );
+
+
+        await loadBriefing(
+            date
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Save shift error:",
+            error
+        );
+
+
+        showToast(
+            "Unable to save changes.",
+            "error"
+        );
+
+        throw error;
+    }
+}
+
+
+/* ============================================================
+   COPY PREVIOUS DAY
+============================================================ */
+
+async function copyPreviousDay() {
+
+    const targetDate =
+        document.getElementById(
+            "editDate"
+        ).value;
+
+    const targetShift =
+        document.getElementById(
+            "editShift"
+        ).value;
+
+
+    const sourceDate =
+        previousDate(
+            targetDate
+        );
+
+
+    await copyShiftPoints(
+        sourceDate,
+        targetShift,
+        targetDate,
+        targetShift
+    );
+}
+
+
+/* ============================================================
+   COPY PREVIOUS SHIFT
+============================================================ */
+
+async function copyPreviousShift() {
+
+    const targetDate =
+        document.getElementById(
+            "editDate"
+        ).value;
+
+    const targetShift =
+        document.getElementById(
+            "editShift"
+        ).value;
+
+
+    let sourceDate;
+    let sourceShift;
+
+
+    /*
+        Morning:
+        previous shift =
+        yesterday afternoon
+
+        Afternoon:
+        previous shift =
+        today's morning
+    */
+
+    if (
+        targetShift ===
+        "morning"
+    ) {
+
+        sourceDate =
+            previousDate(
+                targetDate
+            );
+
+        sourceShift =
+            "afternoon";
+
+    } else {
+
+        sourceDate =
+            targetDate;
+
+        sourceShift =
+            "morning";
+
     }
 
-    function openPasswordModal() {
-        els.passwordInput.value = "";
-        els.passwordError.textContent = "";
-        els.passwordModal.classList.remove("hidden");
-        setTimeout(() => els.passwordInput.focus(), 80);
+
+    await copyShiftPoints(
+        sourceDate,
+        sourceShift,
+        targetDate,
+        targetShift
+    );
+}
+
+
+/* ============================================================
+   CUSTOM COPY
+============================================================ */
+
+async function copyCustomShift() {
+
+    const sourceDate =
+        document.getElementById(
+            "copyDate"
+        ).value;
+
+    const sourceShift =
+        document.getElementById(
+            "copyShift"
+        ).value;
+
+    const targetDate =
+        document.getElementById(
+            "editDate"
+        ).value;
+
+    const targetShift =
+        document.getElementById(
+            "editShift"
+        ).value;
+
+
+    if (
+        !sourceDate ||
+        !targetDate
+    ) {
+
+        showToast(
+            "Please select both dates.",
+            "error"
+        );
+
+        return;
     }
 
-    function closePasswordModal() {
-        els.passwordModal.classList.add("hidden");
-        els.passwordInput.value = "";
-        els.passwordError.textContent = "";
+
+    await copyShiftPoints(
+        sourceDate,
+        sourceShift,
+        targetDate,
+        targetShift
+    );
+}
+
+
+/* ============================================================
+   COPY LOGIC
+============================================================ */
+
+async function copyShiftPoints(
+    sourceDate,
+    sourceShift,
+    targetDate,
+    targetShift
+) {
+
+    if (!supervisorMode) {
+
+        showToast(
+            "Supervisor access required.",
+            "error"
+        );
+
+        return;
     }
 
-    function unlockSupervisor() {
-        if (els.passwordInput.value === getPassword()) {
-            closePasswordModal();
-            setSupervisorUI(true);
-            showToast("Supervisor mode unlocked.", "success");
-        } else {
-            els.passwordError.textContent = "Incorrect supervisor password.";
-            els.passwordInput.select();
-        }
-    }
 
-    async function exportPDF() {
-        if (!currentEntries.length) {
-            showToast("No briefing entries to export.", "error");
+    try {
+
+        const sourceSnapshot =
+            await db
+                .collection(
+                    "briefingLogs"
+                )
+                .doc(sourceDate)
+                .get();
+
+
+        if (
+            !sourceSnapshot.exists
+        ) {
+
+            showToast(
+                "No briefing found on " +
+                sourceDate +
+                ".",
+                "error"
+            );
+
             return;
         }
 
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ unit:"mm", format:"a4" });
-            const margin = 18;
-            const pageWidth = 210;
-            const contentWidth = pageWidth - margin * 2;
-            let y = 20;
 
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(18);
-            doc.text("Daily Briefing Log", margin, y);
-            y += 8;
+        const sourceData =
+            sourceSnapshot.data();
 
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(10);
-            doc.setTextColor(100);
-            doc.text(formatDateLong(els.viewDate.value), margin, y);
-            y += 10;
 
-            doc.setDrawColor(220);
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 8;
+        const sourcePoints =
+            sourceData[sourceShift]
+                ?.points || [];
 
-            currentEntries.forEach((entry, index) => {
-                const title = `${entry.supervisor || "Supervisor"}  |  ${entry.shift || "Shift"}`;
-                const lines = doc.splitTextToSize(entry.pointsText || "", contentWidth);
 
-                const blockHeight = 10 + (lines.length * 5.2) + 8;
-                if (y + blockHeight > 282) {
-                    doc.addPage();
-                    y = 20;
-                }
+        if (
+            !sourcePoints.length
+        ) {
 
-                doc.setTextColor(24, 55, 80);
-                doc.setFont("helvetica", "bold");
-                doc.setFontSize(10.5);
-                doc.text(title, margin, y);
-                y += 6;
+            showToast(
+                "The selected source shift has no briefing points.",
+                "error"
+            );
 
-                doc.setTextColor(55);
-                doc.setFont("helvetica", "normal");
-                doc.setFontSize(9.5);
-                doc.text(lines, margin, y);
-                y += lines.length * 5.2 + 5;
-
-                if (index < currentEntries.length - 1) {
-                    doc.setDrawColor(232);
-                    doc.line(margin, y, pageWidth - margin, y);
-                    y += 6;
-                }
-            });
-
-            const totalPages = doc.getNumberOfPages();
-            for (let i = 1; i <= totalPages; i++) {
-                doc.setPage(i);
-                doc.setFontSize(8);
-                doc.setTextColor(145);
-                doc.text(`Daily Briefing Log · Page ${i} of ${totalPages}`, margin, 290);
-            }
-
-            doc.save(`Daily_Briefing_${els.viewDate.value}.pdf`);
-        } catch (error) {
-            console.error(error);
-            showToast("PDF export failed.", "error");
+            return;
         }
-    }
 
-    /* ---------- EVENTS ---------- */
-    els.viewDate.addEventListener("change", () => {
-        resetEditor();
-        loadEntries();
-    });
-    els.todayBtn.addEventListener("click", () => {
-        els.viewDate.value = todayISO();
-        resetEditor();
-        loadEntries();
-    });
-    els.searchInput.addEventListener("input", renderEntries);
-    els.refreshBtn.addEventListener("click", loadEntries);
-    els.pdfBtn.addEventListener("click", exportPDF);
-    els.supervisorAccessBtn.addEventListener("click", openPasswordModal);
-    els.exitSupervisorBtn.addEventListener("click", () => {
-        setSupervisorUI(false);
-        showToast("Returned to staff read-only view.");
-    });
-    els.newBriefingBtn.addEventListener("click", () => {
-        resetEditor();
-        els.pointsText.focus();
-        if (window.innerWidth < 1100) {
-            els.editorPanel.scrollIntoView({ behavior:"smooth", block:"start" });
+
+        const targetSnapshot =
+            await db
+                .collection(
+                    "briefingLogs"
+                )
+                .doc(targetDate)
+                .get();
+
+
+        let existingPoints = [];
+
+
+        if (
+            targetSnapshot.exists
+        ) {
+
+            existingPoints =
+                targetSnapshot
+                    .data()
+                    [targetShift]
+                    ?.points || [];
+
         }
-    });
 
-    els.modalCancelBtn.addEventListener("click", closePasswordModal);
-    els.modalUnlockBtn.addEventListener("click", unlockSupervisor);
-    els.passwordInput.addEventListener("keydown", e => {
-        if (e.key === "Enter") unlockSupervisor();
-    });
-    els.passwordModal.addEventListener("click", e => {
-        if (e.target === els.passwordModal) closePasswordModal();
-    });
 
-    els.saveBtn.addEventListener("click", saveEntry);
-    els.cancelEditBtn.addEventListener("click", resetEditor);
-    els.deleteBtn.addEventListener("click", () => deleteEntry());
+        let copyMode =
+            "replace";
 
-    /* ---------- START ---------- */
-    async function start() {
-        els.viewDate.value = todayISO();
-        els.editDate.value = todayISO();
-        els.selectedDateLabel.textContent = formatDateLong(todayISO());
-        els.summaryDate.textContent = formatDateShort(todayISO());
 
-        setSupervisorUI(isSupervisor);
+        if (
+            existingPoints.length
+        ) {
 
-        const ready = await waitForFirebase();
-        if (ready) await loadEntries();
+            const append =
+                confirm(
+                    "The destination shift already has " +
+                    existingPoints.length +
+                    " briefing point(s).\n\n" +
+                    "Press OK to ADD the copied points.\n\n" +
+                    "Press Cancel to replace the existing points."
+                );
+
+
+            copyMode =
+                append
+                    ? "append"
+                    : "replace";
+
+        }
+
+
+        let copiedPoints =
+            sourcePoints.map(
+                function (point) {
+
+                    return {
+                        text:
+                            point.text ||
+                            point,
+
+                        copiedFrom:
+                            sourceDate +
+                            "/" +
+                            sourceShift,
+
+                        copiedAt:
+                            new Date()
+                                .toISOString()
+                    };
+
+                }
+            );
+
+
+        let finalPoints;
+
+
+        if (
+            copyMode ===
+            "append"
+        ) {
+
+            finalPoints = [
+                ...existingPoints,
+                ...copiedPoints
+            ];
+
+        } else {
+
+            finalPoints =
+                copiedPoints;
+
+        }
+
+
+        await db
+            .collection(
+                "briefingLogs"
+            )
+            .doc(targetDate)
+            .set(
+                {
+                    [targetShift]: {
+
+                        points:
+                            finalPoints,
+
+                        updatedAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp(),
+
+                        updatedBy:
+                            "Supervisor"
+
+                    }
+                },
+                {
+                    merge: true
+                }
+            );
+
+
+        document.getElementById(
+            "viewDate"
+        ).value =
+            targetDate;
+
+
+        updateDateHeading();
+
+        await loadBriefing(
+            targetDate
+        );
+
+
+        showToast(
+            sourcePoints.length +
+            " briefing point(s) copied successfully.",
+            "success"
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Copy briefing error:",
+            error
+        );
+
+
+        showToast(
+            "Unable to copy briefing points.",
+            "error"
+        );
     }
+}
 
-    start();
-})();
+
+/* ============================================================
+   TOAST
+============================================================ */
+
+let toastTimer;
+
+
+function showToast(
+    message,
+    type = ""
+) {
+
+    const toast =
+        document.getElementById(
+            "toast"
+        );
+
+
+    clearTimeout(
+        toastTimer
+    );
+
+
+    toast.className =
+        "toast " +
+        type;
+
+
+    toast.textContent =
+        message;
+
+
+    requestAnimationFrame(
+        function () {
+
+            toast.classList.add(
+                "show"
+            );
+
+        }
+    );
+
+
+    toastTimer =
+        setTimeout(
+            function () {
+
+                toast.classList.remove(
+                    "show"
+                );
+
+            },
+            3000
+        );
+}
+
 </script>
+
 </body>
 </html>
