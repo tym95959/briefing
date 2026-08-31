@@ -2,421 +2,2501 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
 <title>Survey Results</title>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--blue:#0284c7;--teal:#0d9488;--text:#0f172a;--muted:#64748b;--border:#dbe7ef}
-body{font-family:Inter,"Segoe UI",Arial,sans-serif;background:#f4f9fc;color:var(--text)}
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+}
+
+:root{
+    --primary:#075985;
+    --primary2:#0284c7;
+    --secondary:#0d9488;
+    --text:#0f172a;
+    --muted:#64748b;
+    --border:#dbe7ef;
+    --bg:#eef8fc;
+    --success:#16a34a;
+    --danger:#dc2626;
+    --warning:#d97706;
+}
+
+body{
+    font-family:Inter,"Segoe UI",Arial,sans-serif;
+    color:var(--text);
+    background:
+        radial-gradient(
+            circle at top left,
+            rgba(14,165,233,.12),
+            transparent 32%
+        ),
+        linear-gradient(
+            180deg,
+            #edf8fd,
+            #f8fbfd
+        );
+    min-height:100vh;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
 .topbar{
-    background:linear-gradient(135deg,#075985,#0f766e);color:white;padding:18px 24px;
-    display:flex;justify-content:space-between;align-items:center;gap:14px
+    background:
+        linear-gradient(
+            135deg,
+            #075985,
+            #0f766e
+        );
+
+    color:#fff;
+
+    padding:17px 24px;
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    gap:18px;
+
+    box-shadow:
+        0 7px 24px
+        rgba(15,23,42,.15);
 }
-.topbar h1{font-size:22px}.topbar a{color:white;text-decoration:none;padding:9px 12px;border:1px solid rgba(255,255,255,.35);border-radius:10px}
-.wrap{width:min(1250px,calc(100% - 24px));margin:22px auto 50px}
-.card{background:white;border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:18px;box-shadow:0 10px 30px rgba(15,23,42,.05)}
-.login{max-width:470px;margin:70px auto}
-input{
-    border:1px solid var(--border);border-radius:10px;padding:10px 12px;font:inherit;outline:none
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:13px;
 }
-button{border:0;border-radius:10px;padding:10px 14px;font-weight:750;cursor:pointer}
-.primary{background:linear-gradient(135deg,var(--blue),var(--teal));color:white}
-.secondary{background:#e0f2fe;color:#075985}
-.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
-.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:12px;color:#64748b;font-weight:700}
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
-.stat{background:white;border:1px solid var(--border);border-radius:16px;padding:18px}
-.stat .label{color:#64748b;font-size:12px}.stat .value{font-size:28px;font-weight:850;margin-top:5px;color:#075985}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.table-wrap{overflow:auto}
-table{width:100%;border-collapse:collapse;min-width:900px}
-th,td{padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:12px;vertical-align:top}
-th{background:#f8fafc;color:#475569;position:sticky;top:0}
-.rating{font-weight:850;color:#075985}.comment{max-width:250px;white-space:normal}
-.message{display:none;padding:12px;border-radius:10px;margin-top:12px}
-.message.show{display:block}.error{background:#fef2f2;color:#b91c1c}.muted{color:#64748b;font-size:13px}
-@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
-@media(max-width:550px){.stats{grid-template-columns:1fr}.topbar{flex-direction:column;align-items:flex-start}}
+
+.logo{
+    width:48px;
+    height:48px;
+
+    border-radius:14px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    background:
+        rgba(255,255,255,.16);
+
+    border:
+        1px solid
+        rgba(255,255,255,.25);
+
+    font-size:23px;
+}
+
+.brand h1{
+    font-size:21px;
+}
+
+.brand p{
+    margin-top:3px;
+    font-size:11px;
+    opacity:.82;
+}
+
+.nav{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+.nav a,
+.nav button{
+    text-decoration:none;
+
+    border:
+        1px solid
+        rgba(255,255,255,.28);
+
+    color:#fff;
+
+    background:
+        rgba(255,255,255,.10);
+
+    border-radius:10px;
+
+    padding:9px 12px;
+
+    font:inherit;
+    font-size:12px;
+    font-weight:750;
+
+    cursor:pointer;
+}
+
+.nav a:hover,
+.nav button:hover{
+    background:
+        rgba(255,255,255,.18);
+}
+
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+.container{
+    width:
+        min(
+            1280px,
+            calc(100% - 26px)
+        );
+
+    margin:24px auto 50px;
+}
+
+.card{
+    background:#fff;
+
+    border:
+        1px solid
+        var(--border);
+
+    border-radius:20px;
+
+    padding:22px;
+
+    margin-bottom:18px;
+
+    box-shadow:
+        0 12px 34px
+        rgba(15,23,42,.06);
+}
+
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+.login-card{
+    max-width:480px;
+    margin:70px auto;
+}
+
+.login-icon{
+    width:68px;
+    height:68px;
+
+    margin:0 auto 17px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    border-radius:21px;
+
+    color:#fff;
+
+    font-size:30px;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--primary2),
+            var(--secondary)
+        );
+}
+
+.login-card h2{
+    text-align:center;
+}
+
+.login-card p{
+    text-align:center;
+    color:var(--muted);
+    margin:7px 0 20px;
+    font-size:12px;
+}
+
+.login-row{
+    display:flex;
+    gap:8px;
+}
+
+
+/* =========================================================
+   INPUTS / BUTTONS
+========================================================= */
+
+input,
+select{
+    width:100%;
+
+    border:
+        1px solid
+        var(--border);
+
+    border-radius:10px;
+
+    padding:10px 11px;
+
+    background:#f8fafc;
+
+    font:inherit;
+    outline:none;
+}
+
+input:focus,
+select:focus{
+    border-color:#38bdf8;
+
+    background:#fff;
+
+    box-shadow:
+        0 0 0 4px
+        rgba(56,189,248,.10);
+}
+
+button{
+    border:none;
+
+    border-radius:10px;
+
+    padding:10px 13px;
+
+    cursor:pointer;
+
+    font:inherit;
+
+    font-size:12px;
+    font-weight:800;
+}
+
+.primary-btn{
+    color:#fff;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--primary2),
+            var(--secondary)
+        );
+}
+
+.secondary-btn{
+    color:#075985;
+    background:#e0f2fe;
+}
+
+.neutral-btn{
+    color:#334155;
+    background:#f1f5f9;
+}
+
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
+.toolbar{
+    display:flex;
+
+    align-items:flex-end;
+    justify-content:space-between;
+
+    gap:12px;
+
+    flex-wrap:wrap;
+}
+
+.toolbar-title h2{
+    font-size:21px;
+}
+
+.toolbar-title p{
+    margin-top:4px;
+    color:var(--muted);
+    font-size:12px;
+}
+
+.filters{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:flex-end;
+}
+
+.filter{
+    min-width:145px;
+}
+
+.filter label{
+    display:block;
+    margin-bottom:5px;
+    color:#475569;
+    font-size:10px;
+    font-weight:800;
+}
+
+.button-group{
+    display:flex;
+    gap:6px;
+}
+
+
+/* =========================================================
+   SUMMARY
+========================================================= */
+
+.summary-grid{
+    display:grid;
+
+    grid-template-columns:
+        repeat(5,1fr);
+
+    gap:11px;
+
+    margin-bottom:18px;
+}
+
+.summary-card{
+    padding:17px;
+
+    background:#fff;
+
+    border:
+        1px solid
+        var(--border);
+
+    border-radius:16px;
+
+    box-shadow:
+        0 8px 22px
+        rgba(15,23,42,.04);
+}
+
+.summary-icon{
+    font-size:19px;
+    margin-bottom:8px;
+}
+
+.summary-label{
+    color:var(--muted);
+    font-size:10px;
+    font-weight:700;
+}
+
+.summary-value{
+    margin-top:3px;
+
+    font-size:24px;
+    font-weight:900;
+
+    color:var(--primary);
+}
+
+
+/* =========================================================
+   GRID
+========================================================= */
+
+.content-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.table-wrap{
+    width:100%;
+    overflow:auto;
+
+    border:
+        1px solid
+        #e2e8f0;
+
+    border-radius:13px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:850px;
+}
+
+th,
+td{
+    padding:10px 11px;
+
+    border-bottom:
+        1px solid
+        #e2e8f0;
+
+    text-align:left;
+
+    font-size:11px;
+
+    vertical-align:top;
+}
+
+th{
+    background:#f8fafc;
+
+    color:#475569;
+
+    font-weight:850;
+
+    position:sticky;
+    top:0;
+    z-index:1;
+}
+
+tbody tr:hover{
+    background:#f8fbfd;
+}
+
+.score{
+    display:inline-flex;
+
+    min-width:31px;
+
+    align-items:center;
+    justify-content:center;
+
+    padding:5px 8px;
+
+    border-radius:999px;
+
+    font-weight:850;
+
+    background:#e0f2fe;
+
+    color:#075985;
+}
+
+
+/* =========================================================
+   QUESTION RESULTS
+========================================================= */
+
+.question-result{
+    display:grid;
+
+    grid-template-columns:
+        minmax(180px,1fr)
+        70px
+        70px
+        repeat(5,48px);
+
+    gap:8px;
+
+    align-items:center;
+
+    padding:10px 4px;
+
+    border-bottom:
+        1px solid #eef2f7;
+
+    font-size:11px;
+}
+
+.question-result.header{
+    color:#64748b;
+    font-size:9px;
+    font-weight:850;
+    text-transform:uppercase;
+}
+
+.question-name{
+    font-weight:750;
+}
+
+.question-average{
+    font-weight:900;
+    color:#075985;
+}
+
+
+/* =========================================================
+   CHART
+========================================================= */
+
+.chart-box{
+    position:relative;
+    min-height:360px;
+}
+
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+.message{
+    display:none;
+
+    margin-top:12px;
+
+    padding:11px 13px;
+
+    border-radius:10px;
+
+    font-size:12px;
+}
+
+.message.show{
+    display:block;
+}
+
+.message.error{
+    background:#fef2f2;
+    border:1px solid #fecaca;
+    color:#b91c1c;
+}
+
+.message.success{
+    background:#f0fdf4;
+    border:1px solid #bbf7d0;
+    color:#15803d;
+}
+
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.empty{
+    padding:35px 20px;
+    text-align:center;
+    color:#64748b;
+}
+
+
+/* =========================================================
+   PRINT
+========================================================= */
+
 @media print{
-    .topbar,.login,.filters button{display:none!important}
-    body{background:white}.wrap{width:100%;margin:0}.card,.stat{box-shadow:none}
+
+    body{
+        background:#fff;
+    }
+
+    .topbar{
+        background:#fff !important;
+        color:#000 !important;
+        box-shadow:none;
+        border-bottom:1px solid #ccc;
+    }
+
+    .nav,
+    .filters,
+    .no-print{
+        display:none !important;
+    }
+
+    .container{
+        width:100%;
+        margin:10px 0;
+    }
+
+    .card,
+    .summary-card{
+        box-shadow:none;
+        break-inside:avoid;
+    }
+
+    .table-wrap{
+        overflow:visible;
+    }
+
+    table{
+        min-width:0;
+    }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media(max-width:1050px){
+
+    .summary-grid{
+        grid-template-columns:
+            repeat(3,1fr);
+    }
+
+    .content-grid{
+        grid-template-columns:1fr;
+    }
+
+}
+
+@media(max-width:700px){
+
+    .topbar{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+
+    .nav{
+        width:100%;
+    }
+
+    .nav a,
+    .nav button{
+        flex:1;
+        text-align:center;
+    }
+
+    .container{
+        width:
+            calc(100% - 16px);
+    }
+
+    .summary-grid{
+        grid-template-columns:
+            repeat(2,1fr);
+    }
+
+    .card{
+        padding:16px;
+    }
+
+    .toolbar{
+        align-items:stretch;
+        flex-direction:column;
+    }
+
+    .filters{
+        width:100%;
+    }
+
+    .filter{
+        flex:1;
+    }
+
+}
+
+@media(max-width:470px){
+
+    .summary-grid{
+        grid-template-columns:1fr 1fr;
+    }
+
+    .login-row{
+        flex-direction:column;
+    }
+
 }
 </style>
 </head>
+
 <body>
 
+
 <header class="topbar">
-    <div>
-        <h1>Passenger Survey Results</h1>
-        <div style="font-size:12px;opacity:.82;margin-top:3px">Airport lounge feedback dashboard</div>
+
+    <div class="brand">
+
+        <div class="logo">
+            📊
+        </div>
+
+        <div>
+
+            <h1>
+                Survey Results
+            </h1>
+
+            <p id="headerCompany">
+                Passenger Experience Survey
+            </p>
+
+        </div>
+
     </div>
 
-    <div style="display:flex;gap:8px">
-        <a href="survey-admin.html">Survey Admin</a>
-        <a href="survey.html">Open Survey</a>
+
+    <div
+        class="nav"
+        id="nav"
+        style="display:none;"
+    >
+
+        <a href="survey-admin.html">
+            Survey Admin
+        </a>
+
+        <a href="survey2.html">
+            Open Survey
+        </a>
+
+        <button onclick="logout()">
+            Logout
+        </button>
+
     </div>
+
 </header>
 
-<main class="wrap">
 
-<section class="card login" id="loginCard">
-    <h2>Admin Access</h2>
-    <p class="muted" style="margin-top:6px">Enter the survey admin password.</p>
 
-    <div style="display:flex;gap:8px;margin-top:18px">
-        <input type="password" id="passwordInput" placeholder="Admin password" style="flex:1">
-        <button class="primary" onclick="login()">Open Results</button>
+<main class="container">
+
+
+<!-- =====================================================
+     LOGIN
+====================================================== -->
+
+<section
+    class="card login-card"
+    id="loginCard"
+>
+
+    <div class="login-icon">
+        🔐
     </div>
 
-    <div id="loginMessage" class="message"></div>
+    <h2>
+        Results Access
+    </h2>
+
+    <p>
+        Enter the survey administrator password.
+    </p>
+
+    <div class="login-row">
+
+        <input
+            type="password"
+            id="passwordInput"
+            placeholder="Admin password"
+        >
+
+        <button
+            class="primary-btn"
+            id="loginButton"
+            onclick="login()"
+        >
+            Login
+        </button>
+
+    </div>
+
+    <div
+        class="message"
+        id="loginMessage"
+    ></div>
+
 </section>
 
-<div id="resultsArea" style="display:none">
+
+
+<!-- =====================================================
+     RESULTS AREA
+====================================================== -->
+
+<div
+    id="resultsArea"
+    style="display:none;"
+>
+
+
+<!-- =====================================================
+     FILTERS
+====================================================== -->
 
 <section class="card">
-    <div class="filters">
-        <div class="field">
-            <label>From</label>
-            <input type="date" id="fromDate">
+
+    <div class="toolbar">
+
+        <div class="toolbar-title">
+
+            <h2>
+                Passenger Feedback
+            </h2>
+
+            <p>
+                Review submitted lounge surveys
+            </p>
+
         </div>
 
-        <div class="field">
-            <label>To</label>
-            <input type="date" id="toDate">
+
+        <div class="filters">
+
+            <div class="filter">
+
+                <label>
+                    FROM
+                </label>
+
+                <input
+                    type="date"
+                    id="fromDate"
+                >
+
+            </div>
+
+
+            <div class="filter">
+
+                <label>
+                    TO
+                </label>
+
+                <input
+                    type="date"
+                    id="toDate"
+                >
+
+            </div>
+
+
+            <div class="button-group">
+
+                <button
+                    class="primary-btn"
+                    onclick="loadResults()"
+                >
+                    Apply
+                </button>
+
+                <button
+                    class="neutral-btn"
+                    onclick="clearFilters()"
+                >
+                    Clear
+                </button>
+
+                <button
+                    class="secondary-btn"
+                    onclick="exportCSV()"
+                >
+                    Export CSV
+                </button>
+
+                <button
+                    class="secondary-btn"
+                    onclick="window.print()"
+                >
+                    Print
+                </button>
+
+            </div>
+
         </div>
 
-        <button class="primary" onclick="loadResults()">Apply</button>
-        <button class="secondary" onclick="clearDates()">Clear</button>
-        <button class="secondary" onclick="exportCSV()">Export CSV</button>
-        <button class="secondary" onclick="window.print()">Print</button>
     </div>
 
-    <div id="resultMessage" class="message"></div>
+    <div
+        id="resultMessage"
+        class="message"
+    ></div>
+
 </section>
 
-<section class="stats">
-    <div class="stat"><div class="label">Responses</div><div class="value" id="totalResponses">0</div></div>
-    <div class="stat"><div class="label">Overall Rating</div><div class="value" id="overallAverage">0.00</div></div>
-    <div class="stat"><div class="label">Question Average</div><div class="value" id="questionAverage">0.00</div></div>
-    <div class="stat"><div class="label">NPS</div><div class="value" id="npsValue">0</div></div>
-    <div class="stat"><div class="label">Recommend Avg.</div><div class="value" id="npsAverage">0.00</div></div>
-</section>
 
-<section class="grid2" style="margin-top:18px">
-    <div class="card">
-        <h2>Average by Question</h2>
-        <p class="muted" style="margin-top:5px">Scale: 1 Very Poor to 5 Excellent</p>
-        <div style="height:380px;margin-top:15px">
-            <canvas id="questionChart"></canvas>
+
+<!-- =====================================================
+     SUMMARY
+====================================================== -->
+
+<section class="summary-grid">
+
+    <div class="summary-card">
+
+        <div class="summary-icon">
+            🧾
         </div>
+
+        <div class="summary-label">
+            RESPONSES
+        </div>
+
+        <div
+            class="summary-value"
+            id="responseCount"
+        >
+            0
+        </div>
+
     </div>
 
-    <div class="card">
-        <h2>Question Results</h2>
-        <div class="table-wrap" style="margin-top:12px;max-height:420px">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Question</th>
-                        <th>Avg</th>
-                        <th>Responses</th>
-                        <th>5</th>
-                        <th>4</th>
-                        <th>3</th>
-                        <th>2</th>
-                        <th>1</th>
-                    </tr>
-                </thead>
-                <tbody id="questionStatsRows"></tbody>
-            </table>
+
+    <div class="summary-card">
+
+        <div class="summary-icon">
+            ⭐
         </div>
+
+        <div class="summary-label">
+            OVERALL RATING
+        </div>
+
+        <div
+            class="summary-value"
+            id="overallAverage"
+        >
+            0.00
+        </div>
+
     </div>
+
+
+    <div class="summary-card">
+
+        <div class="summary-icon">
+            📋
+        </div>
+
+        <div class="summary-label">
+            QUESTION AVERAGE
+        </div>
+
+        <div
+            class="summary-value"
+            id="questionAverage"
+        >
+            0.00
+        </div>
+
+    </div>
+
+
+    <div class="summary-card">
+
+        <div class="summary-icon">
+            📈
+        </div>
+
+        <div class="summary-label">
+            NPS
+        </div>
+
+        <div
+            class="summary-value"
+            id="npsScore"
+        >
+            0
+        </div>
+
+    </div>
+
+
+    <div class="summary-card">
+
+        <div class="summary-icon">
+            👍
+        </div>
+
+        <div class="summary-label">
+            RECOMMEND AVG.
+        </div>
+
+        <div
+            class="summary-value"
+            id="recommendAverage"
+        >
+            0.00
+        </div>
+
+    </div>
+
 </section>
+
+
+
+<!-- =====================================================
+     CHART / QUESTION RESULTS
+====================================================== -->
+
+<div class="content-grid">
+
 
 <section class="card">
-    <h2>Survey Responses</h2>
-    <p class="muted" style="margin-top:5px">Latest 2,000 responses for the selected date range.</p>
 
-    <div class="table-wrap" style="margin-top:15px;max-height:650px">
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Flight</th>
-                    <th>Destination</th>
-                    <th>Airline</th>
-                    <th>Access</th>
-                    <th>Avg</th>
-                    <th>Overall</th>
-                    <th>Recommend</th>
-                    <th>Enjoyed Most</th>
-                    <th>Improve</th>
-                    <th>Comments</th>
-                </tr>
-            </thead>
-            <tbody id="surveyRows"></tbody>
-        </table>
+    <div class="toolbar-title">
+
+        <h2>
+            Rating by Question
+        </h2>
+
+        <p>
+            Average score from 1 to 5
+        </p>
+
     </div>
+
+    <div class="chart-box">
+
+        <canvas id="questionChart"></canvas>
+
+    </div>
+
 </section>
+
+
+
+<section class="card">
+
+    <div class="toolbar-title">
+
+        <h2>
+            Question Breakdown
+        </h2>
+
+        <p>
+            Rating distribution for every question
+        </p>
+
+    </div>
+
+    <div
+        id="questionBreakdown"
+        style="margin-top:15px;"
+    ></div>
+
+</section>
+
 
 </div>
+
+
+
+<!-- =====================================================
+     RESPONSES
+====================================================== -->
+
+<section class="card">
+
+    <div class="toolbar">
+
+        <div class="toolbar-title">
+
+            <h2>
+                Survey Responses
+            </h2>
+
+            <p>
+                Individual submitted surveys
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="table-wrap">
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>Date</th>
+
+                    <th>Flight</th>
+
+                    <th>Destination</th>
+
+                    <th>Airline</th>
+
+                    <th>Access</th>
+
+                    <th>Service Avg.</th>
+
+                    <th>Overall</th>
+
+                    <th>Recommend</th>
+
+                    <th>Enjoyed Most</th>
+
+                    <th>Improve</th>
+
+                    <th>Comments</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="responseRows">
+
+                <tr>
+
+                    <td colspan="11">
+
+                        <div class="empty">
+                            No data loaded.
+                        </div>
+
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+</div>
+
+
 </main>
 
+
 <script>
-let adminPassword = sessionStorage.getItem("surveyAdminPassword") || "";
-let currentData = { surveys: [], questionStats: [], summary: {} };
+
+/* =========================================================
+   STATE
+========================================================= */
+
+let adminPassword =
+    sessionStorage.getItem(
+        "surveyAdminPassword"
+    ) || "";
+
+let surveys = [];
+
+let questionStats = [];
+
 let questionChart = null;
 
-async function login() {
-    adminPassword = document.getElementById("passwordInput").value.trim();
 
-    if (!adminPassword) {
-        show("loginMessage", "Enter the admin password.");
+/* =========================================================
+   API
+========================================================= */
+
+async function apiRequest(
+    url,
+    options = {}
+){
+
+    const response =
+        await fetch(
+            url,
+            {
+                cache:"no-store",
+
+                ...options,
+
+                headers:{
+                    "Accept":
+                        "application/json",
+
+                    "x-admin-password":
+                        adminPassword,
+
+                    ...(options.headers || {})
+                }
+            }
+        );
+
+
+    const contentType =
+        response.headers.get(
+            "content-type"
+        ) || "";
+
+
+    if(
+        !contentType
+        .toLowerCase()
+        .includes(
+            "application/json"
+        )
+    ){
+
+        const text =
+            await response.text();
+
+
+        console.error(
+            "Results API returned non JSON:",
+            {
+                url,
+                status:
+                    response.status,
+                text
+            }
+        );
+
+
+        throw new Error(
+            response.status === 404
+
+            ?
+
+            `API not found: ${url}`
+
+            :
+
+            `Server returned invalid response (${response.status}).`
+        );
+
+    }
+
+
+    const result =
+        await response.json();
+
+
+    if(
+        !response.ok ||
+        result.success === false
+    ){
+
+        throw new Error(
+            result.message ||
+            `API request failed (${response.status}).`
+        );
+
+    }
+
+
+    return result;
+
+}
+
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+async function login(){
+
+    const input =
+        document.getElementById(
+            "passwordInput"
+        );
+
+    const button =
+        document.getElementById(
+            "loginButton"
+        );
+
+
+    const password =
+        input.value.trim();
+
+
+    if(
+        !password
+    ){
+
+        showMessage(
+            "loginMessage",
+            "Enter the admin password.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    adminPassword =
+        password;
+
+
+    try{
+
+        button.disabled =
+            true;
+
+        button.textContent =
+            "Loading...";
+
+
+        await loadResults();
+
+
+        sessionStorage.setItem(
+            "surveyAdminPassword",
+            adminPassword
+        );
+
+
+        showResultsArea();
+
+
+    }catch(error){
+
+        console.error(
+            "Results login failed:",
+            error
+        );
+
+
+        adminPassword =
+            "";
+
+
+        sessionStorage.removeItem(
+            "surveyAdminPassword"
+        );
+
+
+        showMessage(
+            "loginMessage",
+            error.message ||
+            "Unable to access results.",
+            "error"
+        );
+
+
+    }finally{
+
+        button.disabled =
+            false;
+
+        button.textContent =
+            "Login";
+
+    }
+
+}
+
+
+/* =========================================================
+   SHOW AREA
+========================================================= */
+
+function showResultsArea(){
+
+    document
+    .getElementById(
+        "loginCard"
+    )
+    .style.display =
+        "none";
+
+
+    document
+    .getElementById(
+        "resultsArea"
+    )
+    .style.display =
+        "block";
+
+
+    document
+    .getElementById(
+        "nav"
+    )
+    .style.display =
+        "flex";
+
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+function logout(){
+
+    sessionStorage.removeItem(
+        "surveyAdminPassword"
+    );
+
+
+    adminPassword =
+        "";
+
+
+    location.reload();
+
+}
+
+
+/* =========================================================
+   LOAD RESULTS
+========================================================= */
+
+async function loadResults(){
+
+    clearMessage(
+        "resultMessage"
+    );
+
+
+    let url =
+        "/api/results";
+
+
+    const params =
+        new URLSearchParams();
+
+
+    const from =
+        document
+        .getElementById(
+            "fromDate"
+        )
+        ?.value;
+
+
+    const to =
+        document
+        .getElementById(
+            "toDate"
+        )
+        ?.value;
+
+
+    if(
+        from
+    ){
+        params.set(
+            "from",
+            from
+        );
+    }
+
+
+    if(
+        to
+    ){
+        params.set(
+            "to",
+            to
+        );
+    }
+
+
+    if(
+        params.toString()
+    ){
+
+        url +=
+            "?" +
+            params.toString();
+
+    }
+
+
+    const result =
+        await apiRequest(
+            url
+        );
+
+
+    surveys =
+        Array.isArray(
+            result.surveys
+        )
+        ?
+        result.surveys
+        :
+        [];
+
+
+    questionStats =
+        Array.isArray(
+            result.questionStats
+        )
+        ?
+        result.questionStats
+        :
+        [];
+
+
+    updateSummary(
+        result.summary || {}
+    );
+
+
+    renderQuestionBreakdown();
+
+    renderChart();
+
+    renderResponses();
+
+
+    if(
+        result.settings
+    ){
+
+        document
+        .getElementById(
+            "headerCompany"
+        )
+        .textContent =
+            result.settings.company_name ||
+            "Passenger Experience Survey";
+
+    }
+
+}
+
+
+/* =========================================================
+   SUMMARY
+========================================================= */
+
+function updateSummary(
+    summary
+){
+
+    document
+    .getElementById(
+        "responseCount"
+    )
+    .textContent =
+        Number(
+            summary.responses ||
+            surveys.length ||
+            0
+        );
+
+
+    document
+    .getElementById(
+        "overallAverage"
+    )
+    .textContent =
+        formatNumber(
+            summary.overallAverage
+        );
+
+
+    document
+    .getElementById(
+        "questionAverage"
+    )
+    .textContent =
+        formatNumber(
+            summary.questionAverage
+        );
+
+
+    document
+    .getElementById(
+        "npsScore"
+    )
+    .textContent =
+        Number(
+            summary.nps ?? 0
+        )
+        .toFixed(0);
+
+
+    document
+    .getElementById(
+        "recommendAverage"
+    )
+    .textContent =
+        formatNumber(
+            summary.recommendationAverage
+        );
+
+}
+
+
+/* =========================================================
+   QUESTION BREAKDOWN
+========================================================= */
+
+function renderQuestionBreakdown(){
+
+    const container =
+        document.getElementById(
+            "questionBreakdown"
+        );
+
+
+    if(
+        !questionStats.length
+    ){
+
+        container.innerHTML = `
+
+            <div class="empty">
+                No question ratings found.
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    let html = `
+
+        <div class="question-result header">
+
+            <div>Question</div>
+
+            <div>Avg</div>
+
+            <div>Total</div>
+
+            <div>5</div>
+
+            <div>4</div>
+
+            <div>3</div>
+
+            <div>2</div>
+
+            <div>1</div>
+
+        </div>
+
+    `;
+
+
+    questionStats
+    .forEach(
+        q => {
+
+            html += `
+
+                <div class="question-result">
+
+                    <div class="question-name">
+
+                        ${escapeHtml(
+                            q.question_title ||
+                            q.title ||
+                            q.question_key ||
+                            ""
+                        )}
+
+                    </div>
+
+
+                    <div class="question-average">
+
+                        ${formatNumber(
+                            q.average_rating
+                        )}
+
+                    </div>
+
+
+                    <div>
+
+                        ${
+                            Number(
+                                q.response_count ||
+                                0
+                            )
+                        }
+
+                    </div>
+
+
+                    <div>
+                        ${
+                            Number(
+                                q.rating_5 ||
+                                0
+                            )
+                        }
+                    </div>
+
+                    <div>
+                        ${
+                            Number(
+                                q.rating_4 ||
+                                0
+                            )
+                        }
+                    </div>
+
+                    <div>
+                        ${
+                            Number(
+                                q.rating_3 ||
+                                0
+                            )
+                        }
+                    </div>
+
+                    <div>
+                        ${
+                            Number(
+                                q.rating_2 ||
+                                0
+                            )
+                        }
+                    </div>
+
+                    <div>
+                        ${
+                            Number(
+                                q.rating_1 ||
+                                0
+                            )
+                        }
+                    </div>
+
+                </div>
+
+            `;
+
+        }
+    );
+
+
+    container.innerHTML =
+        html;
+
+}
+
+
+/* =========================================================
+   CHART
+========================================================= */
+
+function renderChart(){
+
+    const canvas =
+        document.getElementById(
+            "questionChart"
+        );
+
+
+    if(
+        questionChart
+    ){
+
+        questionChart.destroy();
+
+    }
+
+
+    const labels =
+        questionStats.map(
+            q =>
+                q.question_title ||
+                q.title ||
+                q.question_key
+        );
+
+
+    const values =
+        questionStats.map(
+            q =>
+                Number(
+                    q.average_rating ||
+                    0
+                )
+        );
+
+
+    questionChart =
+        new Chart(
+            canvas,
+            {
+                type:"bar",
+
+                data:{
+                    labels,
+
+                    datasets:[
+                        {
+                            label:
+                                "Average Rating",
+
+                            data:
+                                values,
+
+                            backgroundColor:
+                                "rgba(2,132,199,.72)",
+
+                            borderColor:
+                                "#0284c7",
+
+                            borderWidth:1,
+
+                            borderRadius:6
+                        }
+                    ]
+                },
+
+                options:{
+                    indexAxis:"y",
+
+                    responsive:true,
+
+                    maintainAspectRatio:false,
+
+                    scales:{
+                        x:{
+                            beginAtZero:true,
+                            max:5,
+                            ticks:{
+                                stepSize:1
+                            }
+                        }
+                    },
+
+                    plugins:{
+                        legend:{
+                            display:false
+                        }
+                    }
+                }
+            }
+        );
+
+}
+
+
+/* =========================================================
+   RESPONSES
+========================================================= */
+
+function renderResponses(){
+
+    const tbody =
+        document.getElementById(
+            "responseRows"
+        );
+
+
+    if(
+        !surveys.length
+    ){
+
+        tbody.innerHTML = `
+
+            <tr>
+
+                <td colspan="11">
+
+                    <div class="empty">
+                        No survey submissions found.
+                    </div>
+
+                </td>
+
+            </tr>
+
+        `;
+
+        return;
+
+    }
+
+
+    tbody.innerHTML =
+        surveys
+        .map(
+            survey => `
+
+                <tr>
+
+                    <td>
+
+                        ${formatDate(
+                            survey.submitted_at
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        ${escapeHtml(
+                            survey.flight_number ||
+                            "-"
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        ${escapeHtml(
+                            survey.destination ||
+                            "-"
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        ${escapeHtml(
+                            survey.airline ||
+                            "-"
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        ${escapeHtml(
+                            survey.access_type ||
+                            "-"
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        <span class="score">
+
+                            ${formatNumber(
+                                survey.average_rating
+                            )}
+
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        <span class="score">
+
+                            ${
+                                survey.overall_rating ??
+                                "-"
+                            }
+
+                        </span>
+
+                    </td>
+
+
+                    <td>
+
+                        ${
+                            survey.recommendation_score ??
+                            "-"
+                        } / 10
+
+                    </td>
+
+
+                    <td>
+
+                        ${escapeHtml(
+                            survey.liked_most ||
+                            "-"
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        ${escapeHtml(
+                            survey.improvement ||
+                            "-"
+                        )}
+
+                    </td>
+
+
+                    <td>
+
+                        ${escapeHtml(
+                            survey.comments ||
+                            "-"
+                        )}
+
+                    </td>
+
+                </tr>
+
+            `
+        )
+        .join("");
+
+}
+
+
+/* =========================================================
+   CLEAR FILTER
+========================================================= */
+
+function clearFilters(){
+
+    document
+    .getElementById(
+        "fromDate"
+    )
+    .value =
+        "";
+
+
+    document
+    .getElementById(
+        "toDate"
+    )
+    .value =
+        "";
+
+
+    loadResults();
+
+}
+
+
+/* =========================================================
+   CSV
+========================================================= */
+
+function exportCSV(){
+
+    if(
+        !surveys.length
+    ){
+
+        alert(
+            "No survey results to export."
+        );
+
+        return;
+
+    }
+
+
+    const rows = [
+
+        [
+            "Date",
+            "Flight Number",
+            "Destination",
+            "Airline",
+            "Access Type",
+            "Service Average",
+            "Overall Rating",
+            "Recommendation Score",
+            "Enjoyed Most",
+            "Improvement",
+            "Comments"
+        ]
+
+    ];
+
+
+    surveys.forEach(
+        survey => {
+
+            rows.push([
+
+                formatDate(
+                    survey.submitted_at
+                ),
+
+                survey.flight_number ||
+                "",
+
+                survey.destination ||
+                "",
+
+                survey.airline ||
+                "",
+
+                survey.access_type ||
+                "",
+
+                Number(
+                    survey.average_rating ||
+                    0
+                )
+                .toFixed(2),
+
+                survey.overall_rating ??
+                "",
+
+                survey.recommendation_score ??
+                "",
+
+                survey.liked_most ||
+                "",
+
+                survey.improvement ||
+                "",
+
+                survey.comments ||
+                ""
+
+            ]);
+
+        }
+    );
+
+
+    const csv =
+        rows
+        .map(
+            row =>
+                row.map(
+                    csvCell
+                )
+                .join(",")
+        )
+        .join("\n");
+
+
+    const blob =
+        new Blob(
+            [
+                "\uFEFF" +
+                csv
+            ],
+            {
+                type:
+                    "text/csv;charset=utf-8;"
+            }
+        );
+
+
+    const url =
+        URL.createObjectURL(
+            blob
+        );
+
+
+    const link =
+        document.createElement(
+            "a"
+        );
+
+
+    link.href =
+        url;
+
+
+    link.download =
+        `survey-results-${
+            new Date()
+            .toISOString()
+            .slice(
+                0,
+                10
+            )
+        }.csv`;
+
+
+    document.body
+    .appendChild(
+        link
+    );
+
+
+    link.click();
+
+    link.remove();
+
+
+    URL.revokeObjectURL(
+        url
+    );
+
+}
+
+
+function csvCell(
+    value
+){
+
+    return `"${String(
+        value ?? ""
+    )
+    .replaceAll(
+        '"',
+        '""'
+    )}"`;
+
+}
+
+
+/* =========================================================
+   FORMATTING
+========================================================= */
+
+function formatNumber(
+    value
+){
+
+    const number =
+        Number(
+            value
+        );
+
+
+    if(
+        !Number.isFinite(
+            number
+        )
+    ){
+
+        return "0.00";
+
+    }
+
+
+    return number
+        .toFixed(
+            2
+        );
+
+}
+
+
+function formatDate(
+    value
+){
+
+    if(
+        !value
+    ){
+
+        return "-";
+
+    }
+
+
+    const date =
+        new Date(
+            value
+        );
+
+
+    if(
+        Number.isNaN(
+            date.getTime()
+        )
+    ){
+
+        return value;
+
+    }
+
+
+    return date.toLocaleString(
+        "en-GB",
+        {
+            timeZone:
+                "Indian/Maldives",
+
+            day:
+                "2-digit",
+
+            month:
+                "2-digit",
+
+            year:
+                "numeric",
+
+            hour:
+                "2-digit",
+
+            minute:
+                "2-digit"
+        }
+    );
+
+}
+
+
+/* =========================================================
+   MESSAGES
+========================================================= */
+
+function showMessage(
+    id,
+    text,
+    type
+){
+
+    const el =
+        document.getElementById(
+            id
+        );
+
+
+    if(
+        !el
+    ){
         return;
     }
 
-    try {
-        await loadResults();
 
-        sessionStorage.setItem("surveyAdminPassword", adminPassword);
-        document.getElementById("loginCard").style.display = "none";
-        document.getElementById("resultsArea").style.display = "block";
+    el.textContent =
+        text;
 
-    } catch (error) {
-        adminPassword = "";
-        show("loginMessage", error.message);
-    }
+
+    el.className =
+        `message show ${type}`;
+
 }
 
-async function loadResults() {
-    const from = document.getElementById("fromDate").value;
-    const to = document.getElementById("toDate").value;
 
-    const params = new URLSearchParams();
+function clearMessage(
+    id
+){
 
-    if (from) params.set("from", from);
-    if (to) params.set("to", to);
+    const el =
+        document.getElementById(
+            id
+        );
 
-    const response = await fetch(`/api/results?${params.toString()}`, {
-        headers: {
-            "x-admin-password": adminPassword
-        }
-    });
 
-    let result = {};
-
-    try {
-        result = await response.json();
-    } catch (_) {}
-
-    if (!response.ok || !result.success) {
-        throw new Error(result.message || "Unable to load results");
+    if(
+        !el
+    ){
+        return;
     }
 
-    currentData = result;
-    render();
 
-    return result;
+    el.textContent =
+        "";
+
+
+    el.className =
+        "message";
+
 }
 
-function render() {
-    const s = currentData.summary || {};
 
-    document.getElementById("totalResponses").textContent = s.total_responses ?? 0;
-    document.getElementById("overallAverage").textContent = number(s.overall_average);
-    document.getElementById("questionAverage").textContent = number(s.question_average);
-    document.getElementById("npsValue").textContent = s.nps ?? 0;
-    document.getElementById("npsAverage").textContent = number(s.nps_average);
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
 
-    const stats = currentData.questionStats || [];
+function escapeHtml(
+    value
+){
 
-    document.getElementById("questionStatsRows").innerHTML = stats.length
-        ? stats.map(q => `
-            <tr>
-                <td>${esc(q.title)}</td>
-                <td class="rating">${number(q.average_rating)}</td>
-                <td>${q.responses}</td>
-                <td>${q.excellent}</td>
-                <td>${q.good}</td>
-                <td>${q.average}</td>
-                <td>${q.poor}</td>
-                <td>${q.very_poor}</td>
-            </tr>
-        `).join("")
-        : `<tr><td colspan="8" style="text-align:center;color:#64748b;padding:25px">No rating data.</td></tr>`;
+    return String(
+        value ?? ""
+    )
 
-    const surveys = currentData.surveys || [];
+    .replaceAll(
+        "&",
+        "&amp;"
+    )
 
-    document.getElementById("surveyRows").innerHTML = surveys.length
-        ? surveys.map(r => `
-            <tr>
-                <td>${formatDate(r.submitted_at)}</td>
-                <td>${esc(r.flight_number || "")}</td>
-                <td>${esc(r.destination || "")}</td>
-                <td>${esc(r.airline || "")}</td>
-                <td>${esc(r.access_type || "")}</td>
-                <td class="rating">${number(r.average_rating)}</td>
-                <td class="rating">${r.overall_rating ?? ""}</td>
-                <td>${r.recommendation_score ?? ""}</td>
-                <td class="comment">${esc(r.liked_most || "")}</td>
-                <td class="comment">${esc(r.improvement || "")}</td>
-                <td class="comment">${esc(r.comments || "")}</td>
-            </tr>
-        `).join("")
-        : `<tr><td colspan="11" style="text-align:center;color:#64748b;padding:30px">No survey responses.</td></tr>`;
+    .replaceAll(
+        "<",
+        "&lt;"
+    )
 
-    renderChart(stats);
-}
+    .replaceAll(
+        ">",
+        "&gt;"
+    )
 
-function renderChart(stats) {
-    const canvas = document.getElementById("questionChart");
+    .replaceAll(
+        '"',
+        "&quot;"
+    )
 
-    if (questionChart) {
-        questionChart.destroy();
-    }
-
-    questionChart = new Chart(canvas, {
-        type: "bar",
-        data: {
-            labels: stats.map(x => x.title),
-            datasets: [{
-                label: "Average Rating",
-                data: stats.map(x => Number(x.average_rating || 0)),
-                borderWidth: 1
-            }]
-        },
-        options: {
-            indexAxis: "y",
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    max: 5,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
-            }
-        }
-    });
-}
-
-function clearDates() {
-    document.getElementById("fromDate").value = "";
-    document.getElementById("toDate").value = "";
-    loadResults().catch(error => show("resultMessage", error.message));
-}
-
-function exportCSV() {
-    const rows = currentData.surveys || [];
-
-    const headers = [
-        "Date",
-        "Flight",
-        "Destination",
-        "Airline",
-        "Access",
-        "Average Rating",
-        "Overall Rating",
-        "Recommendation",
-        "Enjoyed Most",
-        "Improvement",
-        "Comments"
-    ];
-
-    const lines = [headers.map(csv).join(",")];
-
-    rows.forEach(r => {
-        lines.push([
-            formatDate(r.submitted_at),
-            r.flight_number || "",
-            r.destination || "",
-            r.airline || "",
-            r.access_type || "",
-            r.average_rating || "",
-            r.overall_rating || "",
-            r.recommendation_score ?? "",
-            r.liked_most || "",
-            r.improvement || "",
-            r.comments || ""
-        ].map(csv).join(","));
-    });
-
-    const blob = new Blob(
-        ["\uFEFF" + lines.join("\n")],
-        { type: "text/csv;charset=utf-8" }
+    .replaceAll(
+        "'",
+        "&#039;"
     );
 
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-
-    a.href = url;
-    a.download = `lounge-survey-results-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-
-    URL.revokeObjectURL(url);
 }
 
-function csv(value) {
-    return `"${String(value ?? "").replaceAll('"', '""')}"`;
+
+/* =========================================================
+   ENTER LOGIN
+========================================================= */
+
+document
+.getElementById(
+    "passwordInput"
+)
+.addEventListener(
+    "keydown",
+    event => {
+
+        if(
+            event.key ===
+            "Enter"
+        ){
+
+            login();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   AUTO LOGIN
+========================================================= */
+
+async function initialize(){
+
+    if(
+        !adminPassword
+    ){
+
+        return;
+
+    }
+
+
+    try{
+
+        await loadResults();
+
+        showResultsArea();
+
+
+    }catch(error){
+
+        console.warn(
+            "Saved admin session failed:",
+            error
+        );
+
+
+        adminPassword =
+            "";
+
+
+        sessionStorage.removeItem(
+            "surveyAdminPassword"
+        );
+
+
+        showMessage(
+            "loginMessage",
+            error.message ||
+            "Please login again.",
+            "error"
+        );
+
+    }
+
 }
 
-function number(value) {
-    const n = Number(value);
-    return Number.isFinite(n) ? n.toFixed(2) : "0.00";
-}
 
-function formatDate(value) {
-    if (!value) return "";
+initialize();
 
-    const date = new Date(value);
-
-    return date.toLocaleString("en-GB", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit"
-    });
-}
-
-function show(id, text) {
-    const el = document.getElementById(id);
-    el.textContent = text;
-    el.className = "message show error";
-}
-
-function esc(value) {
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
-
-document.getElementById("passwordInput").addEventListener("keydown", e => {
-    if (e.key === "Enter") login();
-});
-
-if (adminPassword) {
-    loadResults()
-        .then(() => {
-            document.getElementById("loginCard").style.display = "none";
-            document.getElementById("resultsArea").style.display = "block";
-        })
-        .catch(() => {
-            sessionStorage.removeItem("surveyAdminPassword");
-            adminPassword = "";
-        });
-}
 </script>
+
 </body>
 </html>
