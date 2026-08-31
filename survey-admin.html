@@ -3,387 +3,2910 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Survey Admin</title>
+
+<title>Survey Administration</title>
+
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--blue:#0284c7;--teal:#0d9488;--text:#0f172a;--muted:#64748b;--border:#dbe7ef}
-body{font-family:Inter,"Segoe UI",Arial,sans-serif;background:#f4f9fc;color:var(--text);min-height:100vh}
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+}
+
+:root{
+    --primary:#075985;
+    --primary2:#0284c7;
+    --secondary:#0d9488;
+    --text:#0f172a;
+    --muted:#64748b;
+    --border:#dbe7ef;
+    --danger:#dc2626;
+    --success:#16a34a;
+}
+
+body{
+    font-family:Inter,"Segoe UI",Arial,sans-serif;
+    min-height:100vh;
+    color:var(--text);
+
+    background:
+        radial-gradient(
+            circle at top left,
+            rgba(14,165,233,.12),
+            transparent 35%
+        ),
+        linear-gradient(
+            145deg,
+            #eef9ff,
+            #f8fbfd
+        );
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
 .topbar{
-    background:linear-gradient(135deg,#075985,#0f766e);color:white;padding:18px 24px;
-    display:flex;align-items:center;justify-content:space-between;gap:15px
+    background:
+        linear-gradient(
+            135deg,
+            #075985,
+            #0f766e
+        );
+
+    color:#fff;
+
+    padding:18px 24px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    gap:18px;
+
+    box-shadow:
+        0 7px 22px
+        rgba(15,23,42,.15);
 }
-.topbar h1{font-size:22px}.topbar a{color:white;text-decoration:none;padding:9px 12px;border:1px solid rgba(255,255,255,.35);border-radius:10px}
-.wrap{width:min(1100px,calc(100% - 24px));margin:24px auto}
-.card{background:white;border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:18px;box-shadow:0 10px 30px rgba(15,23,42,.06)}
-.login{max-width:470px;margin:70px auto}
-h2{margin-bottom:6px}.muted{color:var(--muted);font-size:13px}
-.grid{display:grid;grid-template-columns:2fr .7fr .7fr .7fr;gap:12px;margin-top:18px}
-input,select{
-    width:100%;border:1px solid var(--border);border-radius:11px;padding:11px 12px;font:inherit;outline:none
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:13px;
 }
-input:focus,select:focus{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.12)}
-button{border:0;border-radius:10px;padding:11px 15px;font-weight:750;cursor:pointer}
-.primary{background:linear-gradient(135deg,var(--blue),var(--teal));color:white}
-.secondary{background:#e0f2fe;color:#075985}.danger{background:#fee2e2;color:#b91c1c}
-.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:15px}
-.table-wrap{overflow:auto}
-table{width:100%;border-collapse:collapse;min-width:800px}
-th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:13px}
-th{background:#f8fafc;color:#475569}
-.badge{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800}
-.on{background:#dcfce7;color:#166534}.off{background:#f1f5f9;color:#475569}.req{background:#fef3c7;color:#92400e}
-.actions{display:flex;gap:6px}
-.message{display:none;padding:12px;border-radius:10px;margin-top:12px}
-.message.show{display:block}.error{background:#fef2f2;color:#b91c1c}.success{background:#f0fdf4;color:#15803d}
+
+.logo{
+    width:48px;
+    height:48px;
+
+    border-radius:14px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    background:
+        rgba(255,255,255,.16);
+
+    border:
+        1px solid
+        rgba(255,255,255,.24);
+
+    font-size:24px;
+}
+
+.brand h1{
+    font-size:22px;
+}
+
+.brand p{
+    margin-top:3px;
+
+    font-size:12px;
+
+    opacity:.82;
+}
+
+.nav-actions{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+.nav-link,
+.logout-btn{
+    border:
+        1px solid
+        rgba(255,255,255,.30);
+
+    background:
+        rgba(255,255,255,.10);
+
+    color:#fff;
+
+    text-decoration:none;
+
+    padding:
+        9px 13px;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font:inherit;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    transition:.2s;
+}
+
+.nav-link:hover,
+.logout-btn:hover{
+    background:
+        rgba(255,255,255,.20);
+}
+
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+.container{
+    width:
+        min(
+            1180px,
+            calc(100% - 28px)
+        );
+
+    margin:
+        26px auto 50px;
+}
+
+.card{
+    background:#fff;
+
+    border:
+        1px solid
+        var(--border);
+
+    border-radius:20px;
+
+    padding:24px;
+
+    margin-bottom:20px;
+
+    box-shadow:
+        0 12px 35px
+        rgba(15,23,42,.06);
+}
+
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+.login-card{
+    max-width:480px;
+
+    margin:
+        70px auto;
+}
+
+.login-icon{
+    width:70px;
+    height:70px;
+
+    margin:
+        0 auto 18px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    border-radius:22px;
+
+    color:#fff;
+
+    font-size:31px;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--primary2),
+            var(--secondary)
+        );
+
+    box-shadow:
+        0 10px 25px
+        rgba(2,132,199,.22);
+}
+
+.login-card h2{
+    text-align:center;
+
+    font-size:25px;
+}
+
+.login-card .subtitle{
+    margin:
+        7px auto 22px;
+
+    text-align:center;
+
+    color:var(--muted);
+
+    font-size:13px;
+
+    line-height:1.5;
+}
+
+.login-row{
+    display:flex;
+    gap:9px;
+}
+
+.login-row input{
+    flex:1;
+}
+
+
+/* =========================================================
+   INPUTS / BUTTONS
+========================================================= */
+
+input,
+select{
+    width:100%;
+
+    border:
+        1px solid
+        var(--border);
+
+    border-radius:11px;
+
+    padding:
+        11px 12px;
+
+    font:inherit;
+
+    outline:none;
+
+    background:#f8fafc;
+
+    transition:.2s;
+}
+
+input:focus,
+select:focus{
+    border-color:#38bdf8;
+
+    background:#fff;
+
+    box-shadow:
+        0 0 0 4px
+        rgba(56,189,248,.12);
+}
+
+button{
+    border:none;
+
+    border-radius:10px;
+
+    padding:
+        10px 14px;
+
+    cursor:pointer;
+
+    font:inherit;
+
+    font-weight:750;
+
+    transition:.2s;
+}
+
+button:hover{
+    transform:
+        translateY(-1px);
+}
+
+button:disabled{
+    opacity:.55;
+
+    cursor:not-allowed;
+
+    transform:none;
+}
+
+.primary-btn{
+    color:#fff;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--primary2),
+            var(--secondary)
+        );
+}
+
+.secondary-btn{
+    color:#075985;
+
+    background:#e0f2fe;
+}
+
+.danger-btn{
+    color:#b91c1c;
+
+    background:#fee2e2;
+}
+
+.neutral-btn{
+    color:#334155;
+
+    background:#f1f5f9;
+}
+
+
+/* =========================================================
+   HEADER TOOLBAR
+========================================================= */
+
+.toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    gap:15px;
+
+    margin-bottom:18px;
+}
+
+.toolbar h2{
+    font-size:22px;
+}
+
+.toolbar p{
+    margin-top:4px;
+
+    color:var(--muted);
+
+    font-size:13px;
+}
+
+
+/* =========================================================
+   SUMMARY
+========================================================= */
+
+.summary-grid{
+    display:grid;
+
+    grid-template-columns:
+        repeat(
+            4,
+            1fr
+        );
+
+    gap:12px;
+
+    margin-bottom:20px;
+}
+
+.summary-card{
+    background:#fff;
+
+    border:
+        1px solid
+        var(--border);
+
+    border-radius:16px;
+
+    padding:17px;
+
+    box-shadow:
+        0 8px 25px
+        rgba(15,23,42,.04);
+}
+
+.summary-label{
+    color:var(--muted);
+
+    font-size:12px;
+}
+
+.summary-value{
+    margin-top:4px;
+
+    color:var(--primary);
+
+    font-size:27px;
+
+    font-weight:850;
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.table-wrap{
+    width:100%;
+
+    overflow:auto;
+
+    border:
+        1px solid
+        #e2e8f0;
+
+    border-radius:14px;
+}
+
+table{
+    width:100%;
+
+    min-width:880px;
+
+    border-collapse:collapse;
+}
+
+th,
+td{
+    padding:
+        12px 13px;
+
+    border-bottom:
+        1px solid
+        #e2e8f0;
+
+    text-align:left;
+
+    vertical-align:middle;
+
+    font-size:13px;
+}
+
+th{
+    color:#475569;
+
+    background:#f8fafc;
+
+    font-size:12px;
+
+    font-weight:800;
+}
+
+tbody tr:hover{
+    background:#f8fbfd;
+}
+
+tbody tr:last-child td{
+    border-bottom:none;
+}
+
+.icon-cell{
+    font-size:23px;
+}
+
+.question-title{
+    font-weight:750;
+}
+
+.question-key{
+    margin-top:3px;
+
+    color:#94a3b8;
+
+    font-size:10px;
+}
+
+
+/* =========================================================
+   BADGES
+========================================================= */
+
+.badge{
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:
+        5px 9px;
+
+    border-radius:999px;
+
+    font-size:10px;
+
+    font-weight:850;
+}
+
+.badge.active{
+    color:#166534;
+
+    background:#dcfce7;
+}
+
+.badge.inactive{
+    color:#475569;
+
+    background:#f1f5f9;
+}
+
+.badge.required{
+    color:#92400e;
+
+    background:#fef3c7;
+}
+
+.badge.optional{
+    color:#0369a1;
+
+    background:#e0f2fe;
+}
+
+
+/* =========================================================
+   ACTIONS
+========================================================= */
+
+.actions{
+    display:flex;
+
+    align-items:center;
+
+    gap:6px;
+}
+
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+.message{
+    display:none;
+
+    padding:
+        12px 14px;
+
+    margin:
+        12px 0;
+
+    border-radius:11px;
+
+    font-size:13px;
+
+    line-height:1.5;
+}
+
+.message.show{
+    display:block;
+}
+
+.message.error{
+    color:#b91c1c;
+
+    background:#fef2f2;
+
+    border:
+        1px solid
+        #fecaca;
+}
+
+.message.success{
+    color:#15803d;
+
+    background:#f0fdf4;
+
+    border:
+        1px solid
+        #bbf7d0;
+}
+
+.message.info{
+    color:#075985;
+
+    background:#f0f9ff;
+
+    border:
+        1px solid
+        #bae6fd;
+}
+
+
+/* =========================================================
+   EMPTY / LOADING
+========================================================= */
+
+.status-box{
+    padding:
+        35px 20px;
+
+    text-align:center;
+
+    color:var(--muted);
+}
+
+.spinner{
+    width:34px;
+    height:34px;
+
+    margin:
+        0 auto 13px;
+
+    border:
+        4px solid
+        #dbeafe;
+
+    border-top-color:
+        var(--primary2);
+
+    border-radius:50%;
+
+    animation:
+        spin .8s
+        linear infinite;
+}
+
+@keyframes spin{
+    to{
+        transform:
+            rotate(360deg);
+    }
+}
+
+
+/* =========================================================
+   MODAL
+========================================================= */
+
 .modal{
-    position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:16px
+    position:fixed;
+
+    inset:0;
+
+    z-index:999;
+
+    display:none;
+
+    align-items:center;
+    justify-content:center;
+
+    padding:18px;
+
+    background:
+        rgba(15,23,42,.58);
+
+    backdrop-filter:
+        blur(4px);
 }
-.modal.show{display:flex}.modal-card{width:min(520px,100%);background:white;border-radius:18px;padding:22px}
-.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
-.full{grid-column:1/-1}.check{display:flex;align-items:center;gap:8px}.check input{width:auto}
-.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-@media(max-width:700px){.grid{grid-template-columns:1fr 1fr}.topbar{align-items:flex-start;flex-direction:column}}
+
+.modal.show{
+    display:flex;
+}
+
+.modal-card{
+    width:
+        min(
+            540px,
+            100%
+        );
+
+    max-height:
+        calc(100vh - 36px);
+
+    overflow:auto;
+
+    background:#fff;
+
+    border-radius:20px;
+
+    padding:24px;
+
+    box-shadow:
+        0 25px 70px
+        rgba(15,23,42,.30);
+}
+
+.modal-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+
+    gap:15px;
+
+    margin-bottom:18px;
+}
+
+.modal-header h2{
+    font-size:22px;
+}
+
+.modal-header p{
+    margin-top:4px;
+
+    color:var(--muted);
+
+    font-size:12px;
+}
+
+.close-btn{
+    width:36px;
+    height:36px;
+
+    padding:0;
+
+    border-radius:10px;
+
+    background:#f1f5f9;
+
+    color:#475569;
+
+    font-size:20px;
+}
+
+.form-grid{
+    display:grid;
+
+    grid-template-columns:
+        repeat(
+            2,
+            1fr
+        );
+
+    gap:14px;
+}
+
+.form-group{
+    display:flex;
+
+    flex-direction:column;
+
+    gap:6px;
+}
+
+.form-group.full{
+    grid-column:
+        1 / -1;
+}
+
+.form-group label{
+    color:#334155;
+
+    font-size:12px;
+
+    font-weight:750;
+}
+
+.checkbox-row{
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+}
+
+.checkbox-row input{
+    width:auto;
+
+    transform:
+        scale(1.1);
+}
+
+.modal-actions{
+    display:flex;
+
+    justify-content:flex-end;
+
+    gap:8px;
+
+    margin-top:20px;
+}
+
+
+/* =========================================================
+   API ERROR
+========================================================= */
+
+.api-error-box{
+    padding:22px;
+
+    text-align:center;
+
+    border:
+        1px solid
+        #fecaca;
+
+    border-radius:14px;
+
+    background:#fef2f2;
+
+    color:#b91c1c;
+}
+
+.api-error-box strong{
+    display:block;
+
+    margin-bottom:6px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media(max-width:850px){
+
+    .summary-grid{
+        grid-template-columns:
+            repeat(
+                2,
+                1fr
+            );
+    }
+
+}
+
+@media(max-width:700px){
+
+    .topbar{
+        align-items:flex-start;
+
+        flex-direction:column;
+    }
+
+    .nav-actions{
+        width:100%;
+    }
+
+    .nav-link,
+    .logout-btn{
+        flex:1;
+
+        text-align:center;
+    }
+
+    .container{
+        width:
+            calc(
+                100% - 18px
+            );
+    }
+
+    .card{
+        padding:17px;
+    }
+
+    .toolbar{
+        align-items:flex-start;
+
+        flex-direction:column;
+    }
+
+    .toolbar .primary-btn{
+        width:100%;
+    }
+
+    .form-grid{
+        grid-template-columns:
+            1fr;
+    }
+
+    .form-group.full{
+        grid-column:auto;
+    }
+
+}
+
+@media(max-width:480px){
+
+    .summary-grid{
+        grid-template-columns:
+            1fr 1fr;
+    }
+
+    .login-row{
+        flex-direction:column;
+    }
+
+    .login-row button{
+        width:100%;
+    }
+
+}
+
 </style>
 </head>
+
 <body>
 
+
 <header class="topbar">
-    <div>
-        <h1>Survey Administration</h1>
-        <div style="font-size:12px;opacity:.82;margin-top:3px">Manage passenger survey questions</div>
+
+    <div class="brand">
+
+        <div class="logo">
+            ☑
+        </div>
+
+        <div>
+
+            <h1>
+                Survey Administration
+            </h1>
+
+            <p>
+                Manage Airport Lounge Passenger Survey
+            </p>
+
+        </div>
+
     </div>
-    <div style="display:flex;gap:8px">
-        <a href="survey-results.html">Results</a>
-        <a href="survey.html">Open Survey</a>
+
+
+    <div
+        class="nav-actions"
+        id="navActions"
+        style="display:none;">
+
+        <a
+            href="survey-results.html"
+            class="nav-link">
+
+            Results
+
+        </a>
+
+        <a
+            href="survey2.html"
+            class="nav-link">
+
+            Open Survey
+
+        </a>
+
+        <button
+            type="button"
+            class="logout-btn"
+            onclick="logoutAdmin()">
+
+            Logout
+
+        </button>
+
     </div>
+
 </header>
 
-<main class="wrap">
 
-<section class="card login" id="loginCard">
-    <h2>Admin Access</h2>
-    <p class="muted">Enter the survey admin password.</p>
 
-    <div style="display:flex;gap:8px;margin-top:18px">
-        <input type="password" id="passwordInput" placeholder="Admin password">
-        <button class="primary" onclick="login()">Open</button>
+<main class="container">
+
+
+<!-- =====================================================
+     LOGIN
+====================================================== -->
+
+<section
+    class="card login-card"
+    id="loginCard">
+
+    <div class="login-icon">
+        🔐
     </div>
 
-    <div id="loginMessage" class="message"></div>
+
+    <h2>
+        Admin Access
+    </h2>
+
+
+    <p class="subtitle">
+
+        Enter the survey administration password
+        to manage passenger survey questions.
+
+    </p>
+
+
+    <div class="login-row">
+
+        <input
+            type="password"
+            id="passwordInput"
+            placeholder="Admin password"
+            autocomplete="current-password"
+        >
+
+        <button
+            type="button"
+            class="primary-btn"
+            id="loginButton"
+            onclick="loginAdmin()">
+
+            Login
+
+        </button>
+
+    </div>
+
+
+    <div
+        id="loginMessage"
+        class="message">
+    </div>
+
 </section>
 
-<div id="adminArea" style="display:none">
 
-<section class="card">
-    <div class="toolbar">
-        <div>
-            <h2>Survey Questions</h2>
-            <p class="muted">Add, edit, deactivate or delete questions shown to passengers.</p>
+
+<!-- =====================================================
+     ADMIN AREA
+====================================================== -->
+
+<div
+    id="adminArea"
+    style="display:none;">
+
+
+    <section class="summary-grid">
+
+        <div class="summary-card">
+
+            <div class="summary-label">
+                Total Questions
+            </div>
+
+            <div
+                class="summary-value"
+                id="totalQuestions">
+
+                0
+
+            </div>
+
         </div>
 
-        <button class="primary" onclick="openAdd()">+ Add Question</button>
-    </div>
 
-    <div id="adminMessage" class="message"></div>
+        <div class="summary-card">
 
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Order</th>
-                    <th>Icon</th>
-                    <th>Question</th>
-                    <th>Required</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="questionRows"></tbody>
-        </table>
-    </div>
-</section>
+            <div class="summary-label">
+                Active
+            </div>
+
+            <div
+                class="summary-value"
+                id="activeQuestions">
+
+                0
+
+            </div>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <div class="summary-label">
+                Required
+            </div>
+
+            <div
+                class="summary-value"
+                id="requiredQuestions">
+
+                0
+
+            </div>
+
+        </div>
+
+
+        <div class="summary-card">
+
+            <div class="summary-label">
+                Inactive
+            </div>
+
+            <div
+                class="summary-value"
+                id="inactiveQuestions">
+
+                0
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <section class="card">
+
+        <div class="toolbar">
+
+            <div>
+
+                <h2>
+                    Survey Questions
+                </h2>
+
+                <p>
+
+                    Add, edit, reorder,
+                    activate or remove questions.
+
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="primary-btn"
+                onclick="openAddQuestion()">
+
+                + Add Question
+
+            </button>
+
+        </div>
+
+
+        <div
+            id="adminMessage"
+            class="message">
+        </div>
+
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Order
+                        </th>
+
+                        <th>
+                            Icon
+                        </th>
+
+                        <th>
+                            Question
+                        </th>
+
+                        <th>
+                            Required
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th>
+                            Actions
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="questionRows">
+
+                    <tr>
+
+                        <td colspan="6">
+
+                            <div class="status-box">
+
+                                <div class="spinner"></div>
+
+                                Loading questions...
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
 
 </div>
+
+
 </main>
 
-<div class="modal" id="questionModal">
+
+
+<!-- =====================================================
+     QUESTION MODAL
+====================================================== -->
+
+<div
+    class="modal"
+    id="questionModal">
+
     <div class="modal-card">
-        <h2 id="modalTitle">Add Question</h2>
-        <p class="muted">Changes appear on the passenger survey immediately.</p>
 
-        <div class="modal-grid">
-            <div class="full">
-                <label>Question</label>
-                <input type="text" id="qTitle" placeholder="Example: Quality of Service">
-            </div>
+
+        <div class="modal-header">
 
             <div>
-                <label>Icon</label>
-                <input type="text" id="qIcon" value="✨" maxlength="20">
+
+                <h2 id="modalTitle">
+                    Add Question
+                </h2>
+
+                <p>
+                    Changes are saved directly to Neon PostgreSQL.
+                </p>
+
             </div>
 
-            <div>
-                <label>Display Order</label>
-                <input type="number" id="qOrder" value="1" min="0">
-            </div>
 
-            <label class="check">
-                <input type="checkbox" id="qRequired">
-                Required
-            </label>
+            <button
+                type="button"
+                class="close-btn"
+                onclick="closeQuestionModal()">
 
-            <label class="check">
-                <input type="checkbox" id="qActive" checked>
-                Active
-            </label>
+                ×
+
+            </button>
+
         </div>
 
-        <div id="modalMessage" class="message"></div>
+
+
+        <div class="form-grid">
+
+
+            <div class="form-group full">
+
+                <label>
+                    Question Title
+                </label>
+
+                <input
+                    type="text"
+                    id="questionTitle"
+                    maxlength="250"
+                    placeholder="Example: Quality of Service"
+                >
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label>
+                    Icon
+                </label>
+
+                <input
+                    type="text"
+                    id="questionIcon"
+                    maxlength="20"
+                    value="✨"
+                    placeholder="✨"
+                >
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label>
+                    Display Order
+                </label>
+
+                <input
+                    type="number"
+                    id="questionOrder"
+                    min="0"
+                    step="1"
+                    value="1"
+                >
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label>
+                    Required
+                </label>
+
+                <div class="checkbox-row">
+
+                    <input
+                        type="checkbox"
+                        id="questionRequired"
+                    >
+
+                    <span>
+                        Passenger must answer
+                    </span>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label>
+                    Status
+                </label>
+
+                <div class="checkbox-row">
+
+                    <input
+                        type="checkbox"
+                        id="questionActive"
+                        checked
+                    >
+
+                    <span>
+                        Active
+                    </span>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+
+        <div
+            id="modalMessage"
+            class="message">
+        </div>
+
+
 
         <div class="modal-actions">
-            <button class="secondary" onclick="closeModal()">Cancel</button>
-            <button class="primary" onclick="saveQuestion()">Save</button>
+
+            <button
+                type="button"
+                class="neutral-btn"
+                onclick="closeQuestionModal()">
+
+                Cancel
+
+            </button>
+
+
+            <button
+                type="button"
+                class="primary-btn"
+                id="saveQuestionButton"
+                onclick="saveQuestion()">
+
+                Save Question
+
+            </button>
+
         </div>
+
+
     </div>
+
 </div>
 
+
+
 <script>
-let adminPassword = sessionStorage.getItem("surveyAdminPassword") || "";
+
+/* =========================================================
+   STATE
+========================================================= */
+
+let adminPassword =
+    sessionStorage.getItem(
+        "surveyAdminPassword"
+    ) || "";
+
+
 let questions = [];
-let editingId = null;
 
-async function login() {
-    adminPassword = document.getElementById("passwordInput").value.trim();
 
-    if (!adminPassword) {
-        show("loginMessage", "Enter the admin password.", "error");
-        return;
-    }
+let editingQuestionId =
+    null;
 
-    try {
-        await loadQuestions();
 
-        sessionStorage.setItem("surveyAdminPassword", adminPassword);
 
-        document.getElementById("loginCard").style.display = "none";
-        document.getElementById("adminArea").style.display = "block";
+/* =========================================================
+   SAFE JSON API REQUEST
+========================================================= */
 
-    } catch (error) {
-        adminPassword = "";
-        show("loginMessage", error.message, "error");
-    }
-}
+async function apiRequest(
+    url,
+    options = {}
+){
 
-async function api(url, options = {}) {
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            "Content-Type": "application/json",
-            "x-admin-password": adminPassword,
-            ...(options.headers || {})
-        }
-    });
+    const headers = {
 
-    let result = {};
+        "Accept":
+            "application/json",
 
-    try {
-        result = await response.json();
-    } catch (_) {}
+        "x-admin-password":
+            adminPassword,
 
-    if (!response.ok || !result.success) {
-        throw new Error(result.message || "Request failed");
-    }
+        ...(options.headers || {})
 
-    return result;
-}
-
-async function loadQuestions() {
-    const result = await api("/api/admin-question");
-    questions = result.questions || [];
-    render();
-}
-
-function render() {
-    const tbody = document.getElementById("questionRows");
-
-    if (!questions.length) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align:center;color:#64748b;padding:30px">
-                    No questions found.
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    tbody.innerHTML = questions.map(q => `
-        <tr>
-            <td>${q.display_order}</td>
-            <td style="font-size:22px">${esc(q.icon || "✨")}</td>
-            <td>
-                <strong>${esc(q.title)}</strong>
-                <div class="muted">${esc(q.question_key)}</div>
-            </td>
-            <td>
-                ${q.required
-                    ? '<span class="badge req">Required</span>'
-                    : '<span class="badge off">Optional</span>'}
-            </td>
-            <td>
-                ${q.active
-                    ? '<span class="badge on">Active</span>'
-                    : '<span class="badge off">Inactive</span>'}
-            </td>
-            <td>
-                <div class="actions">
-                    <button class="secondary" onclick="editQuestion(${q.id})">Edit</button>
-                    <button class="danger" onclick="deleteQuestion(${q.id})">Delete</button>
-                </div>
-            </td>
-        </tr>
-    `).join("");
-}
-
-function openAdd() {
-    editingId = null;
-
-    document.getElementById("modalTitle").textContent = "Add Question";
-    document.getElementById("qTitle").value = "";
-    document.getElementById("qIcon").value = "✨";
-    document.getElementById("qOrder").value = questions.length + 1;
-    document.getElementById("qRequired").checked = false;
-    document.getElementById("qActive").checked = true;
-
-    clearMessage("modalMessage");
-    document.getElementById("questionModal").classList.add("show");
-}
-
-function editQuestion(id) {
-    const q = questions.find(x => Number(x.id) === Number(id));
-    if (!q) return;
-
-    editingId = q.id;
-
-    document.getElementById("modalTitle").textContent = "Edit Question";
-    document.getElementById("qTitle").value = q.title || "";
-    document.getElementById("qIcon").value = q.icon || "✨";
-    document.getElementById("qOrder").value = q.display_order ?? 0;
-    document.getElementById("qRequired").checked = Boolean(q.required);
-    document.getElementById("qActive").checked = Boolean(q.active);
-
-    clearMessage("modalMessage");
-    document.getElementById("questionModal").classList.add("show");
-}
-
-function closeModal() {
-    document.getElementById("questionModal").classList.remove("show");
-}
-
-async function saveQuestion() {
-    const title = document.getElementById("qTitle").value.trim();
-
-    if (!title) {
-        show("modalMessage", "Question title is required.", "error");
-        return;
-    }
-
-    const payload = {
-        title,
-        icon: document.getElementById("qIcon").value.trim() || "✨",
-        displayOrder: Number(document.getElementById("qOrder").value || 0),
-        required: document.getElementById("qRequired").checked,
-        active: document.getElementById("qActive").checked
     };
 
-    try {
-        if (editingId) {
-            await api("/api/admin-question", {
-                method: "PUT",
-                body: JSON.stringify({
-                    id: editingId,
-                    ...payload
-                })
-            });
-        } else {
-            await api("/api/admin-question", {
-                method: "POST",
-                body: JSON.stringify(payload)
-            });
+
+    const response =
+        await fetch(
+            url,
+            {
+
+                cache:
+                    "no-store",
+
+                ...options,
+
+                headers
+
+            }
+        );
+
+
+    const contentType =
+        response.headers.get(
+            "content-type"
+        ) || "";
+
+
+    if(
+        !contentType
+        .toLowerCase()
+        .includes(
+            "application/json"
+        )
+    ){
+
+        const responseText =
+            await response.text();
+
+
+        console.error(
+            "API returned non-JSON:",
+            {
+                url,
+                method:
+                    options.method ||
+                    "GET",
+                status:
+                    response.status,
+                response:
+                    responseText
+            }
+        );
+
+
+        if(
+            response.status === 404
+        ){
+
+            throw new Error(
+                "Admin API was not found. Check that /api/admin-question.js is deployed in the Vercel project root."
+            );
+
         }
 
-        closeModal();
+
+        throw new Error(
+            `Server returned an invalid response (${response.status}).`
+        );
+
+    }
+
+
+    const result =
+        await response.json();
+
+
+    if(
+        !response.ok ||
+        result.success === false
+    ){
+
+        if(
+            response.status === 401
+        ){
+
+            throw new Error(
+                result.message ||
+                "Invalid admin password."
+            );
+
+        }
+
+
+        throw new Error(
+            result.message ||
+            `API request failed (${response.status}).`
+        );
+
+    }
+
+
+    return result;
+
+}
+
+
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+async function loginAdmin(){
+
+    const passwordInput =
+        document.getElementById(
+            "passwordInput"
+        );
+
+
+    const button =
+        document.getElementById(
+            "loginButton"
+        );
+
+
+    const password =
+        passwordInput.value.trim();
+
+
+    clearMessage(
+        "loginMessage"
+    );
+
+
+    if(
+        !password
+    ){
+
+        showMessage(
+            "loginMessage",
+            "Please enter the admin password.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    adminPassword =
+        password;
+
+
+    try{
+
+        button.disabled =
+            true;
+
+
+        button.textContent =
+            "Checking...";
+
+
         await loadQuestions();
 
-        show(
+
+        sessionStorage.setItem(
+            "surveyAdminPassword",
+            adminPassword
+        );
+
+
+        showAdminArea();
+
+
+    }catch(error){
+
+        console.error(
+            "Admin login failed:",
+            error
+        );
+
+
+        adminPassword =
+            "";
+
+
+        sessionStorage.removeItem(
+            "surveyAdminPassword"
+        );
+
+
+        showMessage(
+            "loginMessage",
+            error.message ||
+            "Unable to login.",
+            "error"
+        );
+
+
+    }finally{
+
+        button.disabled =
+            false;
+
+
+        button.textContent =
+            "Login";
+
+    }
+
+}
+
+
+
+/* =========================================================
+   SHOW ADMIN
+========================================================= */
+
+function showAdminArea(){
+
+    document
+    .getElementById(
+        "loginCard"
+    )
+    .style.display =
+        "none";
+
+
+    document
+    .getElementById(
+        "adminArea"
+    )
+    .style.display =
+        "block";
+
+
+    document
+    .getElementById(
+        "navActions"
+    )
+    .style.display =
+        "flex";
+
+}
+
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+function logoutAdmin(){
+
+    sessionStorage.removeItem(
+        "surveyAdminPassword"
+    );
+
+
+    adminPassword =
+        "";
+
+
+    questions =
+        [];
+
+
+    editingQuestionId =
+        null;
+
+
+    document
+    .getElementById(
+        "adminArea"
+    )
+    .style.display =
+        "none";
+
+
+    document
+    .getElementById(
+        "navActions"
+    )
+    .style.display =
+        "none";
+
+
+    document
+    .getElementById(
+        "loginCard"
+    )
+    .style.display =
+        "block";
+
+
+    document
+    .getElementById(
+        "passwordInput"
+    )
+    .value =
+        "";
+
+
+    clearMessage(
+        "loginMessage"
+    );
+
+}
+
+
+
+/* =========================================================
+   LOAD QUESTIONS
+========================================================= */
+
+async function loadQuestions(){
+
+    const tbody =
+        document.getElementById(
+            "questionRows"
+        );
+
+
+    tbody.innerHTML = `
+
+        <tr>
+
+            <td colspan="6">
+
+                <div class="status-box">
+
+                    <div class="spinner"></div>
+
+                    Loading questions...
+
+                </div>
+
+            </td>
+
+        </tr>
+
+    `;
+
+
+    const result =
+        await apiRequest(
+            "/api/admin-question"
+        );
+
+
+    questions =
+        Array.isArray(
+            result.questions
+        )
+            ? result.questions
+            : [];
+
+
+    renderQuestions();
+
+
+    updateSummary();
+
+}
+
+
+
+/* =========================================================
+   RENDER QUESTIONS
+========================================================= */
+
+function renderQuestions(){
+
+    const tbody =
+        document.getElementById(
+            "questionRows"
+        );
+
+
+    if(
+        !questions.length
+    ){
+
+        tbody.innerHTML = `
+
+            <tr>
+
+                <td colspan="6">
+
+                    <div class="status-box">
+
+                        No survey questions found.
+
+                    </div>
+
+                </td>
+
+            </tr>
+
+        `;
+
+        return;
+
+    }
+
+
+    tbody.innerHTML =
+        questions
+        .map(
+            question => {
+
+                return `
+
+                    <tr>
+
+                        <td>
+
+                            ${
+                                Number(
+                                    question.display_order
+                                ) || 0
+                            }
+
+                        </td>
+
+
+                        <td class="icon-cell">
+
+                            ${escapeHtml(
+                                question.icon ||
+                                "✨"
+                            )}
+
+                        </td>
+
+
+                        <td>
+
+                            <div class="question-title">
+
+                                ${escapeHtml(
+                                    question.title ||
+                                    ""
+                                )}
+
+                            </div>
+
+
+                            <div class="question-key">
+
+                                ${escapeHtml(
+                                    question.question_key ||
+                                    ""
+                                )}
+
+                            </div>
+
+                        </td>
+
+
+                        <td>
+
+                            ${
+                                question.required
+
+                                ?
+
+                                `
+                                <span class="badge required">
+                                    Required
+                                </span>
+                                `
+
+                                :
+
+                                `
+                                <span class="badge optional">
+                                    Optional
+                                </span>
+                                `
+                            }
+
+                        </td>
+
+
+                        <td>
+
+                            ${
+                                question.active
+
+                                ?
+
+                                `
+                                <span class="badge active">
+                                    Active
+                                </span>
+                                `
+
+                                :
+
+                                `
+                                <span class="badge inactive">
+                                    Inactive
+                                </span>
+                                `
+                            }
+
+                        </td>
+
+
+                        <td>
+
+                            <div class="actions">
+
+
+                                <button
+                                    type="button"
+                                    class="secondary-btn"
+                                    onclick="editQuestion(${Number(question.id)})">
+
+                                    Edit
+
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="danger-btn"
+                                    onclick="deleteQuestion(${Number(question.id)})">
+
+                                    Delete
+
+                                </button>
+
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                `;
+
+            }
+        )
+        .join("");
+
+}
+
+
+
+/* =========================================================
+   SUMMARY
+========================================================= */
+
+function updateSummary(){
+
+    const total =
+        questions.length;
+
+
+    const active =
+        questions.filter(
+            question =>
+                Boolean(
+                    question.active
+                )
+        ).length;
+
+
+    const required =
+        questions.filter(
+            question =>
+                Boolean(
+                    question.required
+                )
+        ).length;
+
+
+    const inactive =
+        total -
+        active;
+
+
+    document
+    .getElementById(
+        "totalQuestions"
+    )
+    .textContent =
+        total;
+
+
+    document
+    .getElementById(
+        "activeQuestions"
+    )
+    .textContent =
+        active;
+
+
+    document
+    .getElementById(
+        "requiredQuestions"
+    )
+    .textContent =
+        required;
+
+
+    document
+    .getElementById(
+        "inactiveQuestions"
+    )
+    .textContent =
+        inactive;
+
+}
+
+
+
+/* =========================================================
+   OPEN ADD
+========================================================= */
+
+function openAddQuestion(){
+
+    editingQuestionId =
+        null;
+
+
+    document
+    .getElementById(
+        "modalTitle"
+    )
+    .textContent =
+        "Add Question";
+
+
+    document
+    .getElementById(
+        "questionTitle"
+    )
+    .value =
+        "";
+
+
+    document
+    .getElementById(
+        "questionIcon"
+    )
+    .value =
+        "✨";
+
+
+    document
+    .getElementById(
+        "questionOrder"
+    )
+    .value =
+        getNextOrder();
+
+
+    document
+    .getElementById(
+        "questionRequired"
+    )
+    .checked =
+        false;
+
+
+    document
+    .getElementById(
+        "questionActive"
+    )
+    .checked =
+        true;
+
+
+    document
+    .getElementById(
+        "saveQuestionButton"
+    )
+    .textContent =
+        "Add Question";
+
+
+    clearMessage(
+        "modalMessage"
+    );
+
+
+    document
+    .getElementById(
+        "questionModal"
+    )
+    .classList
+    .add(
+        "show"
+    );
+
+
+    setTimeout(
+        () => {
+
+            document
+            .getElementById(
+                "questionTitle"
+            )
+            .focus();
+
+        },
+        100
+    );
+
+}
+
+
+
+/* =========================================================
+   NEXT ORDER
+========================================================= */
+
+function getNextOrder(){
+
+    if(
+        !questions.length
+    ){
+
+        return 1;
+
+    }
+
+
+    const highest =
+        Math.max(
+            ...questions.map(
+                question =>
+                    Number(
+                        question.display_order
+                    ) || 0
+            )
+        );
+
+
+    return highest + 1;
+
+}
+
+
+
+/* =========================================================
+   EDIT QUESTION
+========================================================= */
+
+function editQuestion(id){
+
+    const question =
+        questions.find(
+            item =>
+                Number(item.id) ===
+                Number(id)
+        );
+
+
+    if(
+        !question
+    ){
+
+        showMessage(
             "adminMessage",
-            editingId ? "Question updated." : "Question added.",
+            "Question could not be found.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    editingQuestionId =
+        Number(
+            question.id
+        );
+
+
+    document
+    .getElementById(
+        "modalTitle"
+    )
+    .textContent =
+        "Edit Question";
+
+
+    document
+    .getElementById(
+        "questionTitle"
+    )
+    .value =
+        question.title ||
+        "";
+
+
+    document
+    .getElementById(
+        "questionIcon"
+    )
+    .value =
+        question.icon ||
+        "✨";
+
+
+    document
+    .getElementById(
+        "questionOrder"
+    )
+    .value =
+        Number(
+            question.display_order
+        ) || 0;
+
+
+    document
+    .getElementById(
+        "questionRequired"
+    )
+    .checked =
+        Boolean(
+            question.required
+        );
+
+
+    document
+    .getElementById(
+        "questionActive"
+    )
+    .checked =
+        Boolean(
+            question.active
+        );
+
+
+    document
+    .getElementById(
+        "saveQuestionButton"
+    )
+    .textContent =
+        "Save Changes";
+
+
+    clearMessage(
+        "modalMessage"
+    );
+
+
+    document
+    .getElementById(
+        "questionModal"
+    )
+    .classList
+    .add(
+        "show"
+    );
+
+}
+
+
+
+/* =========================================================
+   CLOSE MODAL
+========================================================= */
+
+function closeQuestionModal(){
+
+    document
+    .getElementById(
+        "questionModal"
+    )
+    .classList
+    .remove(
+        "show"
+    );
+
+
+    editingQuestionId =
+        null;
+
+
+    clearMessage(
+        "modalMessage"
+    );
+
+}
+
+
+
+/* =========================================================
+   SAVE QUESTION
+========================================================= */
+
+async function saveQuestion(){
+
+    const button =
+        document.getElementById(
+            "saveQuestionButton"
+        );
+
+
+    const title =
+        document
+        .getElementById(
+            "questionTitle"
+        )
+        .value
+        .trim();
+
+
+    const icon =
+        document
+        .getElementById(
+            "questionIcon"
+        )
+        .value
+        .trim();
+
+
+    const displayOrder =
+        Number(
+            document
+            .getElementById(
+                "questionOrder"
+            )
+            .value
+        );
+
+
+    const required =
+        document
+        .getElementById(
+            "questionRequired"
+        )
+        .checked;
+
+
+    const active =
+        document
+        .getElementById(
+            "questionActive"
+        )
+        .checked;
+
+
+    clearMessage(
+        "modalMessage"
+    );
+
+
+    if(
+        !title
+    ){
+
+        showMessage(
+            "modalMessage",
+            "Please enter the question title.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    if(
+        !Number.isFinite(
+            displayOrder
+        ) ||
+        displayOrder < 0
+    ){
+
+        showMessage(
+            "modalMessage",
+            "Please enter a valid display order.",
+            "error"
+        );
+
+        return;
+
+    }
+
+
+    const payload = {
+
+        title,
+
+        icon:
+            icon ||
+            "✨",
+
+        displayOrder,
+
+        required,
+
+        active
+
+    };
+
+
+    try{
+
+        button.disabled =
+            true;
+
+
+        button.textContent =
+            editingQuestionId
+                ?
+                "Saving..."
+                :
+                "Adding...";
+
+
+        if(
+            editingQuestionId
+        ){
+
+            await apiRequest(
+                "/api/admin-question",
+                {
+
+                    method:
+                        "PUT",
+
+                    headers:{
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            id:
+                                editingQuestionId,
+                            ...payload
+                        })
+
+                }
+            );
+
+
+        }else{
+
+            await apiRequest(
+                "/api/admin-question",
+                {
+
+                    method:
+                        "POST",
+
+                    headers:{
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+
+                }
+            );
+
+        }
+
+
+        const wasEditing =
+            Boolean(
+                editingQuestionId
+            );
+
+
+        closeQuestionModal();
+
+
+        await loadQuestions();
+
+
+        showMessage(
+            "adminMessage",
+
+            wasEditing
+                ?
+                "Question updated successfully."
+                :
+                "Question added successfully.",
+
             "success"
         );
 
-    } catch (error) {
-        show("modalMessage", error.message, "error");
+
+    }catch(error){
+
+        console.error(
+            "Question save failed:",
+            error
+        );
+
+
+        showMessage(
+            "modalMessage",
+            error.message ||
+            "Unable to save question.",
+            "error"
+        );
+
+
+    }finally{
+
+        button.disabled =
+            false;
+
+
+        button.textContent =
+            editingQuestionId
+                ?
+                "Save Changes"
+                :
+                "Save Question";
+
     }
+
 }
 
-async function deleteQuestion(id) {
-    const q = questions.find(x => Number(x.id) === Number(id));
-    if (!q) return;
 
-    if (!confirm(`Delete "${q.title}"?\n\nHistorical survey answers will remain in reports.`)) {
+
+/* =========================================================
+   DELETE QUESTION
+========================================================= */
+
+async function deleteQuestion(id){
+
+    const question =
+        questions.find(
+            item =>
+                Number(item.id) ===
+                Number(id)
+        );
+
+
+    if(
+        !question
+    ){
+
         return;
+
     }
 
-    try {
-        await api(`/api/admin-question?id=${encodeURIComponent(id)}`, {
-            method: "DELETE"
-        });
+
+    const confirmed =
+        confirm(
+
+            `Delete this survey question?\n\n` +
+
+            `"${question.title}"\n\n` +
+
+            `Historical answers will remain available in the results.`
+
+        );
+
+
+    if(
+        !confirmed
+    ){
+
+        return;
+
+    }
+
+
+    try{
+
+        clearMessage(
+            "adminMessage"
+        );
+
+
+        await apiRequest(
+            `/api/admin-question?id=${encodeURIComponent(id)}`,
+            {
+                method:
+                    "DELETE"
+            }
+        );
+
 
         await loadQuestions();
 
-        show("adminMessage", "Question deleted.", "success");
 
-    } catch (error) {
-        show("adminMessage", error.message, "error");
+        showMessage(
+            "adminMessage",
+            "Question deleted successfully.",
+            "success"
+        );
+
+
+    }catch(error){
+
+        console.error(
+            "Question delete failed:",
+            error
+        );
+
+
+        showMessage(
+            "adminMessage",
+            error.message ||
+            "Unable to delete question.",
+            "error"
+        );
+
     }
+
 }
 
-function show(id, text, type) {
-    const el = document.getElementById(id);
-    el.textContent = text;
-    el.className = `message show ${type}`;
+
+
+/* =========================================================
+   MESSAGE
+========================================================= */
+
+function showMessage(
+    elementId,
+    text,
+    type
+){
+
+    const element =
+        document.getElementById(
+            elementId
+        );
+
+
+    element.textContent =
+        text;
+
+
+    element.className =
+        `message show ${type}`;
+
 }
 
-function clearMessage(id) {
-    const el = document.getElementById(id);
-    el.textContent = "";
-    el.className = "message";
+
+
+/* =========================================================
+   CLEAR MESSAGE
+========================================================= */
+
+function clearMessage(
+    elementId
+){
+
+    const element =
+        document.getElementById(
+            elementId
+        );
+
+
+    element.textContent =
+        "";
+
+
+    element.className =
+        "message";
+
 }
 
-function esc(value) {
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHtml(value){
+
+    return String(
+        value ?? ""
+    )
+
+    .replaceAll(
+        "&",
+        "&amp;"
+    )
+
+    .replaceAll(
+        "<",
+        "&lt;"
+    )
+
+    .replaceAll(
+        ">",
+        "&gt;"
+    )
+
+    .replaceAll(
+        '"',
+        "&quot;"
+    )
+
+    .replaceAll(
+        "'",
+        "&#039;"
+    );
+
 }
 
-document.getElementById("passwordInput").addEventListener("keydown", e => {
-    if (e.key === "Enter") login();
-});
 
-if (adminPassword) {
-    loadQuestions()
-        .then(() => {
-            document.getElementById("loginCard").style.display = "none";
-            document.getElementById("adminArea").style.display = "block";
-        })
-        .catch(() => {
-            sessionStorage.removeItem("surveyAdminPassword");
-            adminPassword = "";
-        });
+
+/* =========================================================
+   PASSWORD ENTER
+========================================================= */
+
+document
+.getElementById(
+    "passwordInput"
+)
+.addEventListener(
+    "keydown",
+    event => {
+
+        if(
+            event.key ===
+            "Enter"
+        ){
+
+            loginAdmin();
+
+        }
+
+    }
+);
+
+
+
+/* =========================================================
+   CLOSE MODAL OUTSIDE
+========================================================= */
+
+document
+.getElementById(
+    "questionModal"
+)
+.addEventListener(
+    "click",
+    event => {
+
+        if(
+            event.target.id ===
+            "questionModal"
+        ){
+
+            closeQuestionModal();
+
+        }
+
+    }
+);
+
+
+
+/* =========================================================
+   ESC KEY
+========================================================= */
+
+document
+.addEventListener(
+    "keydown",
+    event => {
+
+        if(
+            event.key ===
+            "Escape"
+        ){
+
+            closeQuestionModal();
+
+        }
+
+    }
+);
+
+
+
+/* =========================================================
+   AUTO LOGIN
+========================================================= */
+
+async function initializeAdmin(){
+
+    if(
+        !adminPassword
+    ){
+
+        return;
+
+    }
+
+
+    try{
+
+        await loadQuestions();
+
+
+        showAdminArea();
+
+
+    }catch(error){
+
+        console.warn(
+            "Saved admin session invalid:",
+            error
+        );
+
+
+        sessionStorage.removeItem(
+            "surveyAdminPassword"
+        );
+
+
+        adminPassword =
+            "";
+
+
+        document
+        .getElementById(
+            "passwordInput"
+        )
+        .value =
+            "";
+
+
+        showMessage(
+            "loginMessage",
+            error.message ||
+            "Please login again.",
+            "error"
+        );
+
+    }
+
 }
+
+
+
+initializeAdmin();
+
 </script>
+
 </body>
 </html>
