@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Survey Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--blue:#0284c7;--teal:#0d9488;--text:#0f172a;--muted:#64748b;--border:#dbe7ef}
+body{font-family:Inter,"Segoe UI",Arial,sans-serif;background:#f4f9fc;color:var(--text);min-height:100vh}
+.topbar{
+    background:linear-gradient(135deg,#075985,#0f766e);color:white;padding:18px 24px;
+    display:flex;align-items:center;justify-content:space-between;gap:15px
+}
+.topbar h1{font-size:22px}.topbar a{color:white;text-decoration:none;padding:9px 12px;border:1px solid rgba(255,255,255,.35);border-radius:10px}
+.wrap{width:min(1100px,calc(100% - 24px));margin:24px auto}
+.card{background:white;border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:18px;box-shadow:0 10px 30px rgba(15,23,42,.06)}
+.login{max-width:470px;margin:70px auto}
+h2{margin-bottom:6px}.muted{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:2fr .7fr .7fr .7fr;gap:12px;margin-top:18px}
+input,select{
+    width:100%;border:1px solid var(--border);border-radius:11px;padding:11px 12px;font:inherit;outline:none
+}
+input:focus,select:focus{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.12)}
+button{border:0;border-radius:10px;padding:11px 15px;font-weight:750;cursor:pointer}
+.primary{background:linear-gradient(135deg,var(--blue),var(--teal));color:white}
+.secondary{background:#e0f2fe;color:#075985}.danger{background:#fee2e2;color:#b91c1c}
+.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:15px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:800px}
+th,td{padding:12px;border-bottom:1px solid #e2e8f0;text-align:left;font-size:13px}
+th{background:#f8fafc;color:#475569}
+.badge{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800}
+.on{background:#dcfce7;color:#166534}.off{background:#f1f5f9;color:#475569}.req{background:#fef3c7;color:#92400e}
+.actions{display:flex;gap:6px}
+.message{display:none;padding:12px;border-radius:10px;margin-top:12px}
+.message.show{display:block}.error{background:#fef2f2;color:#b91c1c}.success{background:#f0fdf4;color:#15803d}
+.modal{
+    position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:16px
+}
+.modal.show{display:flex}.modal-card{width:min(520px,100%);background:white;border-radius:18px;padding:22px}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.full{grid-column:1/-1}.check{display:flex;align-items:center;gap:8px}.check input{width:auto}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+@media(max-width:700px){.grid{grid-template-columns:1fr 1fr}.topbar{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+    <div>
+        <h1>Survey Administration</h1>
+        <div style="font-size:12px;opacity:.82;margin-top:3px">Manage passenger survey questions</div>
+    </div>
+    <div style="display:flex;gap:8px">
+        <a href="survey-results.html">Results</a>
+        <a href="survey.html">Open Survey</a>
+    </div>
+</header>
+
+<main class="wrap">
+
+<section class="card login" id="loginCard">
+    <h2>Admin Access</h2>
+    <p class="muted">Enter the survey admin password.</p>
+
+    <div style="display:flex;gap:8px;margin-top:18px">
+        <input type="password" id="passwordInput" placeholder="Admin password">
+        <button class="primary" onclick="login()">Open</button>
+    </div>
+
+    <div id="loginMessage" class="message"></div>
+</section>
+
+<div id="adminArea" style="display:none">
+
+<section class="card">
+    <div class="toolbar">
+        <div>
+            <h2>Survey Questions</h2>
+            <p class="muted">Add, edit, deactivate or delete questions shown to passengers.</p>
+        </div>
+
+        <button class="primary" onclick="openAdd()">+ Add Question</button>
+    </div>
+
+    <div id="adminMessage" class="message"></div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Icon</th>
+                    <th>Question</th>
+                    <th>Required</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="questionRows"></tbody>
+        </table>
+    </div>
+</section>
+
+</div>
+</main>
+
+<div class="modal" id="questionModal">
+    <div class="modal-card">
+        <h2 id="modalTitle">Add Question</h2>
+        <p class="muted">Changes appear on the passenger survey immediately.</p>
+
+        <div class="modal-grid">
+            <div class="full">
+                <label>Question</label>
+                <input type="text" id="qTitle" placeholder="Example: Quality of Service">
+            </div>
+
+            <div>
+                <label>Icon</label>
+                <input type="text" id="qIcon" value="✨" maxlength="20">
+            </div>
+
+            <div>
+                <label>Display Order</label>
+                <input type="number" id="qOrder" value="1" min="0">
+            </div>
+
+            <label class="check">
+                <input type="checkbox" id="qRequired">
+                Required
+            </label>
+
+            <label class="check">
+                <input type="checkbox" id="qActive" checked>
+                Active
+            </label>
+        </div>
+
+        <div id="modalMessage" class="message"></div>
+
+        <div class="modal-actions">
+            <button class="secondary" onclick="closeModal()">Cancel</button>
+            <button class="primary" onclick="saveQuestion()">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let adminPassword = sessionStorage.getItem("surveyAdminPassword") || "";
+let questions = [];
+let editingId = null;
+
+async function login() {
+    adminPassword = document.getElementById("passwordInput").value.trim();
+
+    if (!adminPassword) {
+        show("loginMessage", "Enter the admin password.", "error");
+        return;
+    }
+
+    try {
+        await loadQuestions();
+
+        sessionStorage.setItem("surveyAdminPassword", adminPassword);
+
+        document.getElementById("loginCard").style.display = "none";
+        document.getElementById("adminArea").style.display = "block";
+
+    } catch (error) {
+        adminPassword = "";
+        show("loginMessage", error.message, "error");
+    }
+}
+
+async function api(url, options = {}) {
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            "x-admin-password": adminPassword,
+            ...(options.headers || {})
+        }
+    });
+
+    let result = {};
+
+    try {
+        result = await response.json();
+    } catch (_) {}
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Request failed");
+    }
+
+    return result;
+}
+
+async function loadQuestions() {
+    const result = await api("/api/admin-question");
+    questions = result.questions || [];
+    render();
+}
+
+function render() {
+    const tbody = document.getElementById("questionRows");
+
+    if (!questions.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align:center;color:#64748b;padding:30px">
+                    No questions found.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = questions.map(q => `
+        <tr>
+            <td>${q.display_order}</td>
+            <td style="font-size:22px">${esc(q.icon || "✨")}</td>
+            <td>
+                <strong>${esc(q.title)}</strong>
+                <div class="muted">${esc(q.question_key)}</div>
+            </td>
+            <td>
+                ${q.required
+                    ? '<span class="badge req">Required</span>'
+                    : '<span class="badge off">Optional</span>'}
+            </td>
+            <td>
+                ${q.active
+                    ? '<span class="badge on">Active</span>'
+                    : '<span class="badge off">Inactive</span>'}
+            </td>
+            <td>
+                <div class="actions">
+                    <button class="secondary" onclick="editQuestion(${q.id})">Edit</button>
+                    <button class="danger" onclick="deleteQuestion(${q.id})">Delete</button>
+                </div>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function openAdd() {
+    editingId = null;
+
+    document.getElementById("modalTitle").textContent = "Add Question";
+    document.getElementById("qTitle").value = "";
+    document.getElementById("qIcon").value = "✨";
+    document.getElementById("qOrder").value = questions.length + 1;
+    document.getElementById("qRequired").checked = false;
+    document.getElementById("qActive").checked = true;
+
+    clearMessage("modalMessage");
+    document.getElementById("questionModal").classList.add("show");
+}
+
+function editQuestion(id) {
+    const q = questions.find(x => Number(x.id) === Number(id));
+    if (!q) return;
+
+    editingId = q.id;
+
+    document.getElementById("modalTitle").textContent = "Edit Question";
+    document.getElementById("qTitle").value = q.title || "";
+    document.getElementById("qIcon").value = q.icon || "✨";
+    document.getElementById("qOrder").value = q.display_order ?? 0;
+    document.getElementById("qRequired").checked = Boolean(q.required);
+    document.getElementById("qActive").checked = Boolean(q.active);
+
+    clearMessage("modalMessage");
+    document.getElementById("questionModal").classList.add("show");
+}
+
+function closeModal() {
+    document.getElementById("questionModal").classList.remove("show");
+}
+
+async function saveQuestion() {
+    const title = document.getElementById("qTitle").value.trim();
+
+    if (!title) {
+        show("modalMessage", "Question title is required.", "error");
+        return;
+    }
+
+    const payload = {
+        title,
+        icon: document.getElementById("qIcon").value.trim() || "✨",
+        displayOrder: Number(document.getElementById("qOrder").value || 0),
+        required: document.getElementById("qRequired").checked,
+        active: document.getElementById("qActive").checked
+    };
+
+    try {
+        if (editingId) {
+            await api("/api/admin-question", {
+                method: "PUT",
+                body: JSON.stringify({
+                    id: editingId,
+                    ...payload
+                })
+            });
+        } else {
+            await api("/api/admin-question", {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+        }
+
+        closeModal();
+        await loadQuestions();
+
+        show(
+            "adminMessage",
+            editingId ? "Question updated." : "Question added.",
+            "success"
+        );
+
+    } catch (error) {
+        show("modalMessage", error.message, "error");
+    }
+}
+
+async function deleteQuestion(id) {
+    const q = questions.find(x => Number(x.id) === Number(id));
+    if (!q) return;
+
+    if (!confirm(`Delete "${q.title}"?\n\nHistorical survey answers will remain in reports.`)) {
+        return;
+    }
+
+    try {
+        await api(`/api/admin-question?id=${encodeURIComponent(id)}`, {
+            method: "DELETE"
+        });
+
+        await loadQuestions();
+
+        show("adminMessage", "Question deleted.", "success");
+
+    } catch (error) {
+        show("adminMessage", error.message, "error");
+    }
+}
+
+function show(id, text, type) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = `message show ${type}`;
+}
+
+function clearMessage(id) {
+    const el = document.getElementById(id);
+    el.textContent = "";
+    el.className = "message";
+}
+
+function esc(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+document.getElementById("passwordInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") login();
+});
+
+if (adminPassword) {
+    loadQuestions()
+        .then(() => {
+            document.getElementById("loginCard").style.display = "none";
+            document.getElementById("adminArea").style.display = "block";
+        })
+        .catch(() => {
+            sessionStorage.removeItem("surveyAdminPassword");
+            adminPassword = "";
+        });
+}
+</script>
+</body>
+</html>
