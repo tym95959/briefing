@@ -5,7 +5,7 @@ const {
 );
 
 
-function authorized(req) {
+function authorized(req){
 
     const supplied =
         String(
@@ -33,8 +33,8 @@ function authorized(req) {
 
 function clean(
     value,
-    max = 500
-) {
+    maxLength = 1000
+){
 
     return String(
         value ?? ""
@@ -42,7 +42,7 @@ function clean(
     .trim()
     .slice(
         0,
-        max
+        maxLength
     );
 
 }
@@ -52,7 +52,13 @@ module.exports =
 async function handler(
     req,
     res
-) {
+){
+
+    res.setHeader(
+        "Content-Type",
+        "application/json"
+    );
+
 
     res.setHeader(
         "Cache-Control",
@@ -60,82 +66,79 @@ async function handler(
     );
 
 
-    if (
-        !process.env.DATABASE_URL
-    ) {
-
-        return res
-            .status(500)
-            .json({
-
-                success: false,
-
-                message:
-                    "DATABASE_URL is not configured."
-
-            });
-
-    }
-
-
-    if (
+    if(
         !process.env
-            .SURVEY_ADMIN_PASSWORD
-    ) {
+        .DATABASE_URL
+    ){
 
         return res
-            .status(500)
-            .json({
+        .status(500)
+        .json({
 
-                success: false,
+            success:false,
 
-                message:
-                    "SURVEY_ADMIN_PASSWORD is not configured."
+            message:
+                "DATABASE_URL is not configured."
 
-            });
+        });
 
     }
 
 
-    if (
+    if(
+        !process.env
+        .SURVEY_ADMIN_PASSWORD
+    ){
+
+        return res
+        .status(500)
+        .json({
+
+            success:false,
+
+            message:
+                "SURVEY_ADMIN_PASSWORD is not configured."
+
+        });
+
+    }
+
+
+    if(
         !authorized(req)
-    ) {
+    ){
 
         return res
-            .status(401)
-            .json({
+        .status(401)
+        .json({
 
-                success: false,
+            success:false,
 
-                message:
-                    "Invalid admin password."
+            message:
+                "Invalid admin password."
 
-            });
+        });
 
     }
 
 
-    try {
+    try{
 
         const sql =
             neon(
-                process.env.DATABASE_URL
+                process.env
+                .DATABASE_URL
             );
 
 
-        /* ================================
-           GET SETTINGS
-        ================================= */
-
-        if (
+        if(
             req.method === "GET"
-        ) {
+        ){
 
             const rows =
                 await sql`
 
                     SELECT
-
                         company_name,
                         address_line1,
                         address_line2,
@@ -144,39 +147,71 @@ async function handler(
                         survey_heading,
                         survey_description,
                         optional_badge,
-                        hero_image
+                        hero_image,
+                        updated_at
 
-                    FROM survey_settings
+                    FROM
+                        survey_settings
 
-                    WHERE id = 1
+                    WHERE
+                        id = 1
+
+                    LIMIT 1
 
                 `;
 
 
             return res
-                .status(200)
-                .json({
+            .status(200)
+            .json({
 
-                    success: true,
+                success:true,
 
-                    settings:
-                        rows[0] || null
+                settings:
+                    rows[0] ||
+                    null
 
-                });
+            });
 
         }
 
 
-        /* ================================
-           SAVE SETTINGS
-        ================================= */
-
-        if (
+        if(
             req.method === "PUT"
-        ) {
+        ){
 
-            const body =
+            let body =
                 req.body || {};
+
+
+            if(
+                typeof body ===
+                "string"
+            ){
+
+                try{
+
+                    body =
+                        JSON.parse(
+                            body
+                        );
+
+                }catch(_){
+
+                    return res
+                    .status(400)
+                    .json({
+
+                        success:false,
+
+                        message:
+                            "Invalid settings data."
+
+                    });
+
+                }
+
+            }
 
 
             const companyName =
@@ -189,14 +224,14 @@ async function handler(
             const addressLine1 =
                 clean(
                     body.addressLine1,
-                    250
+                    300
                 );
 
 
             const addressLine2 =
                 clean(
                     body.addressLine2,
-                    250
+                    300
                 );
 
 
@@ -224,7 +259,7 @@ async function handler(
             const surveyDescription =
                 clean(
                     body.surveyDescription,
-                    1500
+                    2000
                 );
 
 
@@ -242,9 +277,9 @@ async function handler(
                 );
 
 
-            if (
+            if(
                 !heroImage
-            ) {
+            ){
 
                 heroImage =
                     "/KoveliLounge.jpg";
@@ -252,20 +287,20 @@ async function handler(
             }
 
 
-            if (
+            if(
                 !companyName
-            ) {
+            ){
 
                 return res
-                    .status(400)
-                    .json({
+                .status(400)
+                .json({
 
-                        success: false,
+                    success:false,
 
-                        message:
-                            "Company name is required."
+                    message:
+                        "Company name is required."
 
-                    });
+                });
 
             }
 
@@ -273,7 +308,8 @@ async function handler(
             const rows =
                 await sql`
 
-                    INSERT INTO survey_settings
+                    INSERT INTO
+                        survey_settings
                     (
                         id,
                         company_name,
@@ -337,38 +373,39 @@ async function handler(
                         updated_at =
                             NOW()
 
-                    RETURNING *
+                    RETURNING
+                        *
 
                 `;
 
 
             return res
-                .status(200)
-                .json({
+            .status(200)
+            .json({
 
-                    success: true,
+                success:true,
 
-                    settings:
-                        rows[0]
+                settings:
+                    rows[0]
 
-                });
+            });
 
         }
 
 
         return res
-            .status(405)
-            .json({
+        .status(405)
+        .json({
 
-                success: false,
+            success:false,
 
-                message:
-                    "Method not allowed."
+            message:
+                "Method not allowed."
 
-            });
+        });
 
 
-    } catch (error) {
+    }catch(error){
 
         console.error(
             "Admin settings error:",
@@ -377,16 +414,16 @@ async function handler(
 
 
         return res
-            .status(500)
-            .json({
+        .status(500)
+        .json({
 
-                success: false,
+            success:false,
 
-                message:
-                    error.message ||
-                    "Unable to save survey settings."
+            message:
+                error.message ||
+                "Unable to save survey settings."
 
-            });
+        });
 
     }
 
