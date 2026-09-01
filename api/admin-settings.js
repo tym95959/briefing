@@ -5,7 +5,7 @@ const {
 );
 
 
-function authorized(req){
+function authorized(req) {
 
     const supplied =
         String(
@@ -33,8 +33,8 @@ function authorized(req){
 
 function clean(
     value,
-    maxLength = 1000
-){
+    max = 500
+) {
 
     return String(
         value ?? ""
@@ -42,7 +42,7 @@ function clean(
     .trim()
     .slice(
         0,
-        maxLength
+        max
     );
 
 }
@@ -52,13 +52,7 @@ module.exports =
 async function handler(
     req,
     res
-){
-
-    res.setHeader(
-        "Content-Type",
-        "application/json"
-    );
-
+) {
 
     res.setHeader(
         "Cache-Control",
@@ -66,79 +60,82 @@ async function handler(
     );
 
 
-    if(
-        !process.env
-        .DATABASE_URL
-    ){
+    if (
+        !process.env.DATABASE_URL
+    ) {
 
         return res
-        .status(500)
-        .json({
+            .status(500)
+            .json({
 
-            success:false,
+                success: false,
 
-            message:
-                "DATABASE_URL is not configured."
+                message:
+                    "DATABASE_URL is not configured."
 
-        });
+            });
 
     }
 
 
-    if(
+    if (
         !process.env
-        .SURVEY_ADMIN_PASSWORD
-    ){
+            .SURVEY_ADMIN_PASSWORD
+    ) {
 
         return res
-        .status(500)
-        .json({
+            .status(500)
+            .json({
 
-            success:false,
+                success: false,
 
-            message:
-                "SURVEY_ADMIN_PASSWORD is not configured."
+                message:
+                    "SURVEY_ADMIN_PASSWORD is not configured."
 
-        });
+            });
 
     }
 
 
-    if(
+    if (
         !authorized(req)
-    ){
+    ) {
 
         return res
-        .status(401)
-        .json({
+            .status(401)
+            .json({
 
-            success:false,
+                success: false,
 
-            message:
-                "Invalid admin password."
+                message:
+                    "Invalid admin password."
 
-        });
+            });
 
     }
 
 
-    try{
+    try {
 
         const sql =
             neon(
-                process.env
-                .DATABASE_URL
+                process.env.DATABASE_URL
             );
 
 
-        if(
+        /* ================================
+           GET SETTINGS
+        ================================= */
+
+        if (
             req.method === "GET"
-        ){
+        ) {
 
             const rows =
                 await sql`
 
                     SELECT
+
                         company_name,
                         address_line1,
                         address_line2,
@@ -147,71 +144,39 @@ async function handler(
                         survey_heading,
                         survey_description,
                         optional_badge,
-                        hero_image,
-                        updated_at
+                        hero_image
 
-                    FROM
-                        survey_settings
+                    FROM survey_settings
 
-                    WHERE
-                        id = 1
-
-                    LIMIT 1
+                    WHERE id = 1
 
                 `;
 
 
             return res
-            .status(200)
-            .json({
+                .status(200)
+                .json({
 
-                success:true,
+                    success: true,
 
-                settings:
-                    rows[0] ||
-                    null
+                    settings:
+                        rows[0] || null
 
-            });
+                });
 
         }
 
 
-        if(
+        /* ================================
+           SAVE SETTINGS
+        ================================= */
+
+        if (
             req.method === "PUT"
-        ){
+        ) {
 
-            let body =
+            const body =
                 req.body || {};
-
-
-            if(
-                typeof body ===
-                "string"
-            ){
-
-                try{
-
-                    body =
-                        JSON.parse(
-                            body
-                        );
-
-                }catch(_){
-
-                    return res
-                    .status(400)
-                    .json({
-
-                        success:false,
-
-                        message:
-                            "Invalid settings data."
-
-                    });
-
-                }
-
-            }
 
 
             const companyName =
@@ -224,14 +189,14 @@ async function handler(
             const addressLine1 =
                 clean(
                     body.addressLine1,
-                    300
+                    250
                 );
 
 
             const addressLine2 =
                 clean(
                     body.addressLine2,
-                    300
+                    250
                 );
 
 
@@ -259,7 +224,7 @@ async function handler(
             const surveyDescription =
                 clean(
                     body.surveyDescription,
-                    2000
+                    1500
                 );
 
 
@@ -277,9 +242,9 @@ async function handler(
                 );
 
 
-            if(
+            if (
                 !heroImage
-            ){
+            ) {
 
                 heroImage =
                     "/KoveliLounge.jpg";
@@ -287,20 +252,20 @@ async function handler(
             }
 
 
-            if(
+            if (
                 !companyName
-            ){
+            ) {
 
                 return res
-                .status(400)
-                .json({
+                    .status(400)
+                    .json({
 
-                    success:false,
+                        success: false,
 
-                    message:
-                        "Company name is required."
+                        message:
+                            "Company name is required."
 
-                });
+                    });
 
             }
 
@@ -308,8 +273,7 @@ async function handler(
             const rows =
                 await sql`
 
-                    INSERT INTO
-                        survey_settings
+                    INSERT INTO survey_settings
                     (
                         id,
                         company_name,
@@ -373,39 +337,38 @@ async function handler(
                         updated_at =
                             NOW()
 
-                    RETURNING
-                        *
+                    RETURNING *
 
                 `;
 
 
             return res
-            .status(200)
-            .json({
+                .status(200)
+                .json({
 
-                success:true,
+                    success: true,
 
-                settings:
-                    rows[0]
+                    settings:
+                        rows[0]
 
-            });
+                });
 
         }
 
 
         return res
-        .status(405)
-        .json({
+            .status(405)
+            .json({
 
-            success:false,
+                success: false,
 
-            message:
-                "Method not allowed."
+                message:
+                    "Method not allowed."
 
-        });
+            });
 
 
-    }catch(error){
+    } catch (error) {
 
         console.error(
             "Admin settings error:",
@@ -414,16 +377,16 @@ async function handler(
 
 
         return res
-        .status(500)
-        .json({
+            .status(500)
+            .json({
 
-            success:false,
+                success: false,
 
-            message:
-                error.message ||
-                "Unable to save survey settings."
+                message:
+                    error.message ||
+                    "Unable to save survey settings."
 
-        });
+            });
 
     }
 
